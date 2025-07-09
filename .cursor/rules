@@ -1,0 +1,290 @@
+# Boombox 11.0 - Cursor AI Rules
+
+## Project Context
+This is a Next.js 15+ application using TypeScript, Tailwind CSS, Prisma ORM with PostgreSQL, and deployed on Vercel. We are refactoring from boombox-10.0 to create a clean, modern codebase structure.
+
+## Key Integrations (DO NOT CHANGE FUNCTIONALITY)
+- **Onfleet API v2.7**: Logistics and delivery management - preserve exact functionality
+- **Stripe Connect**: Payment processing - preserve exact functionality  
+- **Prisma**: Database ORM with PostgreSQL (Neon)
+- **NextAuth.js**: Authentication system
+- **Twilio**: SMS messaging
+- **SendGrid**: Email messaging
+
+## File Structure Rules
+
+### Component Organization (STRICT)
+- ALL React components must be in `src/components/` directory
+- NEVER put components in `src/app/components/`
+- Organize by category:
+  - `src/components/ui/` - Reusable design system components
+  - `src/components/layouts/` - Layout components
+  - `src/components/forms/` - Form components
+  - `src/components/features/` - Business domain components
+  - `src/components/icons/` - Icon components
+
+### App Directory Rules (STRICT)
+- `src/app/` should ONLY contain:
+  - Route pages (`page.tsx`)
+  - Route layouts (`layout.tsx`) 
+  - Loading states (`loading.tsx`)
+  - Error boundaries (`error.tsx`)
+  - API routes (`route.ts`)
+  - Route groups: `(auth)`, `(dashboard)`, `(public)`
+
+### Routing Rules (CRITICAL - Performance & UX)
+**NEVER use client-side redirects with router.replace() or router.push() for navigation logic**
+
+#### Prohibited Patterns (from boombox-10.0)
+```typescript
+// ❌ BAD: Loading component just to redirect
+export default function TaskPage() {
+  useEffect(() => {
+    if (taskId.startsWith('storage-')) {
+      router.replace(`/admin/tasks/${taskId}/assign-storage-unit`);
+    }
+    // ... more string parsing logic
+  }, []);
+  return null; // Component loads just to redirect!
+}
+```
+
+#### Required Patterns (Next.js Best Practices)
+```typescript
+// ✅ GOOD: Direct route structure
+/admin/tasks/
+├── page.tsx                      # Task list
+├── storage/[taskId]/page.tsx     # Direct route - no redirects
+├── feedback/[taskId]/page.tsx    # Direct route - no redirects
+├── cleaning/[taskId]/page.tsx    # Direct route - no redirects
+└── access/[taskId]/page.tsx      # Direct route - no redirects
+
+// ✅ GOOD: Direct URL generation
+const taskUrl = `/admin/tasks/${taskType}/${taskId}`;
+return <Link href={taskUrl}>View Task</Link>;
+```
+
+#### Route Group Organization
+- Use route groups for logical organization: `(dashboard)`, `(auth)`, `(public)`
+- Implement proper layout hierarchies with shared components
+- Add route-level authorization and role checking in layouts
+- Create breadcrumb navigation for deep hierarchies
+
+#### Navigation Patterns
+- **Links**: Use Next.js `<Link>` component for navigation
+- **Forms**: Use form actions and redirects in Server Actions
+- **Programmatic**: Only use `router.push()` for user-triggered actions (form submissions, button clicks)
+- **Never**: Load components just to parse URLs and redirect
+
+#### URL Structure Standards
+- Use descriptive, hierarchical URLs: `/admin/tasks/storage/storage-123`
+- Implement proper route parameters: `[taskId]`, `[category]`, `[slug]`
+- Support deep-linking to all application states
+- Maintain backward compatibility for bookmarked URLs
+
+#### Performance Requirements
+- Eliminate unnecessary component mounting/unmounting from redirects
+- Use proper Next.js static optimization where possible
+- Implement loading states at the route level (`loading.tsx`)
+- Add error boundaries at appropriate route levels (`error.tsx`)
+
+### Import Path Rules (STRICT)
+- ALWAYS use absolute imports with `@/` prefix
+- Examples:
+  - `import { Button } from '@/components/ui/Button'`
+  - `import { MessageService } from '@/lib/messaging/MessageService'`
+  - `import { ApiResponse } from '@/types/api'`
+- NEVER use relative imports like `../../../`
+
+## Naming Conventions (STRICT)
+
+### File Naming Standards
+- **Components**: PascalCase with domain prefix (`UserAuthForm.tsx`, `OnfleetTaskCard.tsx`)
+- **Pages**: Always `page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx` (Next.js standard)
+- **API Routes**: Always `route.ts` in kebab-case directories
+- **Services/Utils**: camelCase with domain (`onfleetApiClient.ts`, `stripePaymentService.ts`)
+- **Types**: Domain-based (`onfleet.types.ts`, `booking.types.ts`)
+
+### File Source Documentation (REQUIRED)
+Every refactored file must include source mapping:
+```typescript
+/**
+ * @fileoverview Component description
+ * @source boombox-10.0/path/to/original/file.tsx
+ * @source boombox-10.0/path/to/another/file.tsx (if consolidated)
+ * @refactor Reason for change/consolidation
+ */
+```
+
+### Functional Naming Principles
+1. **Descriptive over Generic**: `OnfleetTaskStatus` vs `TaskStatus`
+2. **Domain Prefix**: Include business domain (`StripePaymentForm`)
+3. **Action-Oriented**: `CreateBookingForm` vs `BookingForm`
+4. **Consistent Suffixes**: `Service`, `Utils`, `Types`, `Client`
+5. **No Abbreviations**: `customer` not `cust`, `appointment` not `appt`
+
+## Coding Standards
+
+### Component Patterns
+- Use function declarations: `export function ComponentName() {}`
+- Always type component props with interfaces
+- Include `className?: string` prop for Tailwind customization
+- Use consistent prop patterns with variants and sizes
+
+### SEO, Accessibility & Performance (CRITICAL)
+**All refactored code must be optimized for:**
+
+#### SEO Requirements
+- Include proper HTML semantics (`<main>`, `<nav>`, `<section>`, `<article>`)
+- Add descriptive page titles and meta descriptions
+- Use Next.js `Metadata` API for dynamic meta tags
+- Implement structured data (JSON-LD) where applicable
+- Ensure proper heading hierarchy (h1 → h2 → h3)
+- Add alt text to all images with meaningful descriptions
+- Use semantic HTML elements over generic divs
+
+#### Accessibility Requirements (WCAG 2.1 AA)
+- Include proper ARIA labels and roles
+- Ensure keyboard navigation works for all interactive elements
+- Maintain color contrast ratios ≥ 4.5:1 for text
+- Add focus indicators for keyboard users
+- Use proper form labels and error messages
+- Ensure screen reader compatibility
+- Test with browser accessibility tools
+
+#### Performance Optimization (Core Web Vitals)
+- Use Next.js `Image` component with proper sizing and lazy loading
+- Implement dynamic imports for heavy components: `const Heavy = dynamic(() => import('./Heavy'))`
+- Minimize bundle size with tree-shaking and code splitting
+- Use `loading="lazy"` for images below the fold
+- Optimize fonts with `next/font` for better CLS scores
+- Minimize layout shifts with proper size reservations
+- Target metrics: LCP < 2.5s, FID < 100ms, CLS < 0.1
+
+### API Route Patterns
+- Use Zod for input validation
+- Return consistent `ApiResponse<T>` format
+- Implement proper error handling with try/catch
+- Use appropriate HTTP status codes
+- Follow user rule: NO `prisma db push` - use `prisma migrate dev`
+- **Routing Structure**: Organize API routes by domain in clear directory hierarchies
+  ```
+  src/app/api/
+  ├── auth/login/route.ts                    # /api/auth/login
+  ├── payments/stripe-webhook/route.ts       # /api/payments/stripe-webhook
+  ├── orders/create-appointment/route.ts     # /api/orders/create-appointment
+  ├── onfleet/webhook/route.ts               # /api/onfleet/webhook
+  ├── drivers/availability/route.ts          # /api/drivers/availability
+  ├── moving-partners/assign/route.ts        # /api/moving-partners/assign
+  ├── customers/profile/route.ts             # /api/customers/profile
+  └── admin/dashboard-stats/route.ts         # /api/admin/dashboard-stats
+  ```
+- **Route Documentation**: Include comprehensive route documentation comments (see REFACTOR_PRD.md template)
+- **RESTful Patterns**: Use proper HTTP methods (GET, POST, PUT, DELETE) and status codes
+
+### Type Safety
+- All components must have proper TypeScript interfaces
+- Use domain-specific type files in `src/types/`
+- Create input/output type variants for database operations
+- Always export types and interfaces
+
+## Centralized Systems
+
+### Messaging System
+When working with Twilio/SendGrid messaging:
+- Use centralized MessageService from `@/lib/messaging/MessageService`
+- Store all message templates in `@/lib/messaging/templates/`
+- Organize templates by domain: auth, booking, logistics, payment, admin
+- Support multi-channel delivery (SMS + Email)
+- Use variable substitution with `{{variableName}}` syntax
+
+### Business Logic Preservation
+- Maintain 99.9% functional compatibility with boombox-10.0
+- Preserve ALL Onfleet integration logic exactly as-is
+- Preserve ALL Stripe payment logic exactly as-is
+- Only change code organization and structure, not business logic
+
+## External API Guidelines
+
+### Onfleet API Integration
+- Current version: v2.7
+- Base URL: `https://onfleet.com/api/v2/`
+- **Full API Context**: See `docs/external-api-docs/onfleet-api-context.md` for complete integration patterns
+- Key webhook events used:
+  - Task Started (0): Customer notifications
+  - Task ETA (1): 30-minute delivery notifications  
+  - Task Completed (3): Order fulfillment
+  - Task Failed (4): Exception handling
+  - Worker Duty (5): Driver availability
+  - Task Updated (7): Proof of delivery
+  - Batch Job Completed (19): Route optimization
+
+### Common Onfleet Patterns
+- Always provide coordinates when available for better geocoding
+- Use metadata for order tracking: `orderId`, `orderType`, `customerId`
+- Implement proper webhook signature validation
+- Use retry logic for failed API calls
+- Test with Onfleet test environment
+
+### Stripe Integration
+- Preserve exact payment processing logic
+- Maintain webhook endpoint functionality
+- Keep subscription and payout systems unchanged
+- Only update code organization, not payment flows
+
+## Development Workflow
+
+### Task Execution
+- Work in atomic 2-4 hour chunks following REFACTOR_PRD.md
+- **CRITICAL**: Mark completed tasks in REFACTOR_PRD.md using checkboxes `- [x]`
+- Add completion details with date, time taken, git commit, and notes
+- Update phase progress trackers with visual progress bars
+- Commit after each completed task
+- Test functionality after each change
+- Maintain git-based safety (no complex backup systems)
+
+### Testing Requirements
+- Run `pnpm run build` after changes
+- Run `pnpm run lint` for code standards
+- Test critical workflows manually
+- Preserve existing functionality during refactor
+
+### Error Prevention
+- Don't break existing import paths without updating references
+- Don't change component functionality during refactoring
+- Don't mix components in app directory
+- Always create index.ts files for clean imports
+
+## Performance & Bundle Size
+- Use Next.js Image component for all images
+- Implement dynamic imports for heavy components
+- Monitor bundle size during refactoring
+- Maintain or improve performance from boombox-10.0
+
+## Package Management
+- Use `pnpm` for package management
+- Upgrade to latest stable versions only if no functionality changes
+- Maintain exact versions for Onfleet, Stripe, and other critical integrations
+- Document any package changes in git commits
+
+### Package Optimization Rules
+- **Dependency Audit**: During SETUP_001, scan for unused dependencies using `depcheck` or manual analysis
+- **Removal Process**: NEVER remove packages without explicit human approval
+- **Protected Packages**: Always preserve Onfleet, Stripe, Prisma, NextAuth, Twilio, SendGrid packages
+- **Flag for Review**: Create list of potentially unused packages with usage analysis for human decision
+- **Documentation**: Document all package changes with rationale in git commits
+
+## Reference Documentation
+
+### API Integration Guides
+- **Onfleet API**: `docs/external-api-docs/onfleet-api-context.md` - Complete integration patterns and best practices
+- **REFACTOR_PRD.md**: Master plan with atomic tasks and dependencies
+- **Reference Files**: `../reference_files/` - Original documentation and context
+
+### Quick Commands
+- `pnpm run build` - Build check
+- `pnpm run lint` - Code standards check  
+- `pnpm run dev` - Development server
+- `prisma migrate dev` - Database migrations (NOT `prisma db push`)
+
+This rule set ensures consistency and prevents common issues during the boombox-11.0 refactoring project. 
