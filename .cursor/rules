@@ -232,6 +232,21 @@ When working with Twilio/SendGrid messaging:
 - Keep subscription and payout systems unchanged
 - Only update code organization, not payment flows
 
+## File Creation Safety Rules
+
+### CRITICAL: Always Stay Within boombox-11.0 Directory
+- **NEVER create files outside the boombox-11.0 directory**
+- **ALWAYS verify you're in `/Users/calvinhemington/Desktop/boombox-workspace/boombox-11.0`**
+- **ALL file paths must be relative to boombox-11.0 root**
+- **Before any file creation, confirm current working directory with `pwd`**
+- **If you accidentally create files outside boombox-11.0, immediately stop and fix**
+
+### File Path Validation
+- Use `src/components/` NOT `../src/components/` 
+- Use `src/lib/` NOT `../src/lib/`
+- All paths should start with `src/`, `docs/`, `tests/`, or `tools/`
+- NEVER use `../` when creating files in this project
+
 ## Development Workflow
 
 ### Task Execution
