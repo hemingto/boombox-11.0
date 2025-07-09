@@ -1,1 +1,1 @@
-// Components index
+// components exports
