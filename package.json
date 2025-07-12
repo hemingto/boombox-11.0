@@ -10,9 +10,11 @@
     "lint": "next lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "prepare": "husky",
     "postinstall": "prisma generate",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "prepare": "husky"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",
@@ -60,8 +62,10 @@
     "autoprefixer": "^10.4.21",
     "eslint": "^9",
     "eslint-config-next": "15.3.5",
+    "husky": "^9.1.7",
     "jest": "^30.0.4",
     "jest-environment-jsdom": "^30.0.4",
+    "lint-staged": "^16.1.2",
     "postcss": "^8",
     "prettier": "^3.6.2",
     "prisma": "^6.11.1",
@@ -71,5 +75,14 @@
   },
   "prisma": {
     "seed": "node --loader ts-node/esm prisma/seed.ts"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,css}": [
+      "prettier --write"
+    ]
   }
 }
