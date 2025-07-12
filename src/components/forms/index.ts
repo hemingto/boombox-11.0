@@ -8,4 +8,4 @@
 // Examples: LoginForm, BookingForm, PaymentForm, etc.
 // This is different from ui/forms which contains form UI building blocks
 
-export {}; // Temporary export to prevent empty module error 
+export {}; // Temporary export to prevent empty module error

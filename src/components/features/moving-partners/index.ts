@@ -7,4 +7,4 @@
 // Note: Moving partner feature components will be added here as they are migrated
 // Examples: MovingPartnerProfile, PartnerAssignment, ThirdPartyIntegration, etc.
 
-export {}; // Temporary export to prevent empty module error 
+export {}; // Temporary export to prevent empty module error

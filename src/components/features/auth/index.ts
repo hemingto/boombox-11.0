@@ -7,4 +7,4 @@
 // Note: Auth feature components will be added here as they are migrated
 // Examples: UserAuthForm, PasswordResetForm, AuthProvider, etc.
 
-export {}; // Temporary export to prevent empty module error 
+export {}; // Temporary export to prevent empty module error

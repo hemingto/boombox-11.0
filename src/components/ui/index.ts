@@ -7,11 +7,11 @@
 // Form UI Components
 export * from './forms';
 
-// Navigation UI Components  
+// Navigation UI Components
 export * from './navigation';
 
 // Feedback UI Components (alerts, modals, toasts)
 export * from './feedback';
 
 // Note: Individual UI components will be added here as they are created
-// Examples: Button, Input, Modal, etc. 
+// Examples: Button, Input, Modal, etc.

@@ -7,4 +7,4 @@
 // Note: Icon components will be added here as they are created
 // Examples: ChevronIcon, UserIcon, CalendarIcon, etc.
 
-export {}; // Temporary export to prevent empty module error 
+export {}; // Temporary export to prevent empty module error

@@ -1,10 +1,10 @@
-import type { Config } from "tailwindcss";
+import type { Config } from 'tailwindcss';
 
 const config: Config = {
   content: [
-    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
@@ -33,7 +33,8 @@ const config: Config = {
         shimmer: 'shimmer 3s infinite',
       },
       backgroundImage: {
-        shimmer: 'linear-gradient(90deg, #f8fafc 25%, #e2e8f0 50%, #f8fafc 75%)', // Tailwind slate-100, slate-200, slate-100
+        shimmer:
+          'linear-gradient(90deg, #f8fafc 25%, #e2e8f0 50%, #f8fafc 75%)', // Tailwind slate-100, slate-200, slate-100
       },
       backgroundSize: {
         shimmer: '200% 100%',
@@ -43,4 +44,4 @@ const config: Config = {
   plugins: [],
 };
 
-export default config; 
+export default config;

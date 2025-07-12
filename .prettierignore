@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+.next/
+
+# Build outputs
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Lock files
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Database
+prisma/migrations/
+
+# Generated files
+.env
+.env.*
+
+# Test files that shouldn't be formatted
+test-import.ts 

@@ -7,4 +7,4 @@
 // Note: Admin feature components will be added here as they are migrated
 // Examples: AdminDashboard, UserManagement, ReportsDisplay, etc.
 
-export {}; // Temporary export to prevent empty module error 
+export {}; // Temporary export to prevent empty module error

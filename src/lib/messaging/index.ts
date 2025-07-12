@@ -7,4 +7,4 @@
 // Note: Messaging system will be added here as it's developed
 // Examples: MessageService, template engine, multi-channel delivery, etc.
 
-export {}; // Temporary export to prevent empty module error 
+export {}; // Temporary export to prevent empty module error

@@ -7,4 +7,4 @@
 // Note: Layout components will be added here as they are created
 // Examples: PageLayout, DashboardLayout, AuthLayout, etc.
 
-export {}; // Temporary export to prevent empty module error 
+export {}; // Temporary export to prevent empty module error

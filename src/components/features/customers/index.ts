@@ -7,4 +7,4 @@
 // Note: Customer feature components will be added here as they are migrated
 // Examples: CustomerProfile, CustomerDashboard, CustomerSupport, etc.
 
-export {}; // Temporary export to prevent empty module error 
+export {}; // Temporary export to prevent empty module error

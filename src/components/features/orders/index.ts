@@ -7,4 +7,4 @@
 // Note: Order feature components will be added here as they are migrated
 // Examples: BookingForm, PackingSupplyOrder, StorageUnitCard, etc.
 
-export {}; // Temporary export to prevent empty module error 
+export {}; // Temporary export to prevent empty module error

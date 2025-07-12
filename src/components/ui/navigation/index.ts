@@ -7,4 +7,4 @@
 // Note: Navigation UI components will be added here as they are created
 // Examples: Navbar, Sidebar, Breadcrumb, etc.
 
-export {}; // Temporary export to prevent empty module error 
+export {}; // Temporary export to prevent empty module error

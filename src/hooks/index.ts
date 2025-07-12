@@ -7,4 +7,4 @@
 // Note: Custom hooks will be added here as they are created
 // Examples: useAuth, useBooking, useOnfleet, etc.
 
-export {}; // Temporary export to prevent empty module error 
+export {}; // Temporary export to prevent empty module error

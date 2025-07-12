@@ -7,4 +7,4 @@
 // Note: Validation schemas will be added here as they are created
 // Examples: userSchema, bookingSchema, paymentSchema, etc.
 
-export {}; // Temporary export to prevent empty module error 
+export {}; // Temporary export to prevent empty module error

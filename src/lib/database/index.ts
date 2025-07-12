@@ -7,4 +7,4 @@
 // Note: Database configuration will be added here as it's migrated
 // Examples: prisma client, database utilities, etc.
 
-export {}; // Temporary export to prevent empty module error 
+export {}; // Temporary export to prevent empty module error

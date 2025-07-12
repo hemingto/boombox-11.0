@@ -26,4 +26,4 @@ export * from './moving-partners';
 export * from './customers';
 
 // Admin Features
-export * from './admin'; 
+export * from './admin';

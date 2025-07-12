@@ -7,4 +7,4 @@
 // Note: Auth configuration will be added here as it's migrated
 // Examples: authOptions, getServerSession, etc.
 
-export {}; // Temporary export to prevent empty module error 
+export {}; // Temporary export to prevent empty module error

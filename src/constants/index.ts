@@ -7,4 +7,4 @@
 // Note: Constants will be added here as they are defined
 // Examples: API endpoints, default values, configuration constants, etc.
 
-export {}; // Temporary export to prevent empty module error 
+export {}; // Temporary export to prevent empty module error
