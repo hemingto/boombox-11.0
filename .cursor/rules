@@ -1,5 +1,11 @@
 # Boombox 11.0 - Cursor AI Rules
 
+## 🚨 QUICK REFERENCE: Always Work in boombox-11.0
+**BEFORE ANY FILE CREATION**: Run `pwd` → Should show `/Users/calvinhemington/Desktop/boombox-workspace/boombox-11.0`
+**IF NOT**: Run `cd /Users/calvinhemington/Desktop/boombox-workspace/boombox-11.0`
+**NEVER CREATE FILES IN**: `boombox-workspace/src/` (workspace level) ❌
+**ALWAYS CREATE FILES IN**: `boombox-11.0/src/` (project level) ✅
+
 ## Project Context
 This is a Next.js 15+ application using TypeScript, Tailwind CSS, Prisma ORM with PostgreSQL, and deployed on Vercel. We are refactoring from boombox-10.0 to create a clean, modern codebase structure.
 
@@ -10,6 +16,57 @@ This is a Next.js 15+ application using TypeScript, Tailwind CSS, Prisma ORM wit
 - **NextAuth.js**: Authentication system
 - **Twilio**: SMS messaging
 - **SendGrid**: Email messaging
+
+## CRITICAL: Workspace Directory Structure
+
+### 🚨 WORKSPACE LAYOUT OVERVIEW
+```
+/Users/calvinhemington/Desktop/boombox-workspace/
+├── boombox-10.0/                    # ❌ OLD VERSION - READ ONLY
+│   ├── src/                         # Source code to copy FROM
+│   ├── docs/                        # Reference documentation
+│   └── ...                          # Legacy files
+├── boombox-11.0/                    # ✅ NEW VERSION - ACTIVE PROJECT
+│   ├── src/                         # 🎯 TARGET: All new files go HERE
+│   │   ├── app/                     # Next.js App Router
+│   │   ├── components/              # React components
+│   │   ├── lib/                     # Utilities & services
+│   │   ├── types/                   # TypeScript definitions
+│   │   └── ...                      # Other source directories
+│   ├── docs/                        # New documentation
+│   ├── .cursor/                     # This rules file
+│   └── ...                          # Project configuration
+└── [OTHER DIRECTORIES]              # ❌ NEVER CREATE FILES HERE
+```
+
+### 🎯 CORRECT FILE CREATION LOCATIONS
+**ALWAYS CREATE FILES IN**: `/Users/calvinhemington/Desktop/boombox-workspace/boombox-11.0/`
+
+**EXAMPLES OF CORRECT PATHS**:
+- ✅ `boombox-11.0/src/types/api.types.ts`
+- ✅ `boombox-11.0/src/lib/validations/api.validations.ts`
+- ✅ `boombox-11.0/src/components/ui/Button.tsx`
+- ✅ `boombox-11.0/docs/api/endpoint-docs.md`
+
+**EXAMPLES OF WRONG PATHS** (NEVER CREATE):
+- ❌ `boombox-workspace/src/types/api.types.ts` (missing boombox-11.0)
+- ❌ `src/types/api.types.ts` (when pwd is boombox-workspace)
+- ❌ `../src/types/api.types.ts` (relative path confusion)
+- ❌ `boombox-10.0/src/anything.ts` (read-only directory)
+
+### 🔍 DIRECTORY IDENTIFICATION CHECKLIST
+**Before creating ANY file, verify**:
+1. Run `pwd` - should show `/Users/calvinhemington/Desktop/boombox-workspace/boombox-11.0`
+2. If not in boombox-11.0, navigate: `cd /Users/calvinhemington/Desktop/boombox-workspace/boombox-11.0`
+3. Confirm with `ls` - should see: `src/`, `docs/`, `.cursor/`, `package.json`, etc.
+4. ONLY THEN create files using relative paths like `src/types/filename.ts`
+
+### ⚠️ DANGER SIGNALS
+**STOP IMMEDIATELY if you see**:
+- Creating files in `boombox-workspace/src/` (workspace level)
+- Any path containing `../` during file creation
+- Working directory showing `boombox-workspace` instead of `boombox-11.0`
+- Files appearing outside the boombox-11.0 directory structure
 
 ## File Structure Rules
 
@@ -235,11 +292,13 @@ When working with Twilio/SendGrid messaging:
 ## File Creation Safety Rules
 
 ### CRITICAL: Always Stay Within boombox-11.0 Directory
+- **REFERENCE**: See "CRITICAL: Workspace Directory Structure" section above for visual layout
 - **NEVER create files outside the boombox-11.0 directory**
 - **ALWAYS verify you're in `/Users/calvinhemington/Desktop/boombox-workspace/boombox-11.0`**
 - **ALL file paths must be relative to boombox-11.0 root**
 - **Before ANY file creation, MANDATORY: run `pwd` to confirm location**
 - **If you accidentally create files outside boombox-11.0, immediately stop and fix**
+- **LESSON LEARNED**: Previous incident created files in `boombox-workspace/src/` instead of `boombox-11.0/src/`
 
 ### MANDATORY Pre-File-Creation Checklist
 **BEFORE creating ANY file, ALWAYS:**
