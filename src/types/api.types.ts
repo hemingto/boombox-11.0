@@ -4,8 +4,6 @@
  * @refactor Standardized API interfaces for consistency
  */
 
-import type { PaginatedResponse, ValidationError } from './common.types';
-
 // ===== STANDARD API RESPONSE TYPES =====
 
 export interface ApiSuccessResponse<T = unknown> {
@@ -30,12 +28,6 @@ export type StandardApiResponse<T = unknown> =
   | ApiErrorResponse;
 
 // ===== REQUEST VALIDATION TYPES =====
-
-export interface ValidatedRequest<T = unknown> {
-  data: T;
-  validationErrors?: ValidationError[];
-  warnings?: ValidationError[];
-}
 
 export interface RequestContext {
   userId?: number;
@@ -98,13 +90,6 @@ export interface SearchRequest {
     page: number;
     limit: number;
   };
-}
-
-export interface SearchResponse<T> extends PaginatedResponse<T> {
-  query?: string;
-  filters?: Record<string, unknown>;
-  totalResults: number;
-  searchTime: number; // milliseconds
 }
 
 // ===== BULK OPERATION API TYPES =====
