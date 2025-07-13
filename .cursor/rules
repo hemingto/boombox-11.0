@@ -238,14 +238,37 @@ When working with Twilio/SendGrid messaging:
 - **NEVER create files outside the boombox-11.0 directory**
 - **ALWAYS verify you're in `/Users/calvinhemington/Desktop/boombox-workspace/boombox-11.0`**
 - **ALL file paths must be relative to boombox-11.0 root**
-- **Before any file creation, confirm current working directory with `pwd`**
+- **Before ANY file creation, MANDATORY: run `pwd` to confirm location**
 - **If you accidentally create files outside boombox-11.0, immediately stop and fix**
 
+### MANDATORY Pre-File-Creation Checklist
+**BEFORE creating ANY file, ALWAYS:**
+1. **Run `pwd` command to verify current directory**
+2. **Confirm you're in `/Users/calvinhemington/Desktop/boombox-workspace/boombox-11.0`**
+3. **If not in boombox-11.0, navigate there with `cd /Users/calvinhemington/Desktop/boombox-workspace/boombox-11.0`**
+4. **ONLY THEN create files using relative paths**
+
 ### File Path Validation
-- Use `src/components/` NOT `../src/components/` 
-- Use `src/lib/` NOT `../src/lib/`
-- All paths should start with `src/`, `docs/`, `tests/`, or `tools/`
-- NEVER use `../` when creating files in this project
+- **CORRECT**: `src/components/` (relative to boombox-11.0 root)
+- **WRONG**: `../src/components/` (parent directory reference)
+- **CORRECT**: `src/lib/` (relative to boombox-11.0 root)  
+- **WRONG**: `../src/lib/` (parent directory reference)
+- All paths MUST start with `src/`, `docs/`, `tests/`, or `tools/`
+- **ABSOLUTELY NEVER** use `../` when creating files in this project
+- **DANGER ZONE**: If you see `boombox-workspace/src/` being created, STOP IMMEDIATELY
+
+### Directory Structure Validation
+**EXPECTED**: `/Users/calvinhemington/Desktop/boombox-workspace/boombox-11.0/src/`
+**WRONG**: `/Users/calvinhemington/Desktop/boombox-workspace/src/`
+**WRONG**: `/Users/calvinhemington/Desktop/src/`
+
+### Emergency Recovery Protocol
+If files are created in wrong location:
+1. **STOP all file creation immediately**
+2. **Identify all misplaced files**
+3. **Copy files to correct location in boombox-11.0**
+4. **Delete misplaced files**
+5. **Verify with `pwd` before continuing**
 
 ## Development Workflow
 

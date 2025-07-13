@@ -6,15 +6,15 @@
 
 // ===== GENERIC UTILITY TYPES =====
 
-export type ID = string | number;
+export type CommonID = string | number;
 
-export interface PaginationParams {
+export interface CommonPaginationParams {
   page: number;
   limit: number;
   offset?: number;
 }
 
-export interface PaginationResponse {
+export interface CommonPaginationResponse {
   page: number;
   limit: number;
   totalPages: number;
@@ -23,36 +23,36 @@ export interface PaginationResponse {
   hasPrevious: boolean;
 }
 
-export interface SortParams {
+export interface CommonSortParams {
   field: string;
   direction: 'asc' | 'desc';
 }
 
-export interface SearchParams extends PaginationParams {
+export interface CommonSearchParams extends CommonPaginationParams {
   query?: string;
-  sort?: SortParams;
+  sort?: CommonSortParams;
   filters?: Record<string, unknown>;
 }
 
 // ===== DATE & TIME TYPES =====
 
-export interface DateRange {
+export interface CommonDateRange {
   start: Date;
   end: Date;
 }
 
-export interface TimeRange {
+export interface CommonTimeRange {
   start: string; // HH:MM format
   end: string; // HH:MM format
 }
 
-export interface DateTimeRange {
+export interface CommonDateTimeRange {
   start: Date;
   end: Date;
 }
 
-export type TimeSlot = 'morning' | 'afternoon' | 'evening';
-export type DayOfWeek =
+export type CommonTimeSlot = 'morning' | 'afternoon' | 'evening';
+export type CommonDayOfWeek =
   | 'monday'
   | 'tuesday'
   | 'wednesday'
@@ -63,7 +63,7 @@ export type DayOfWeek =
 
 // ===== LOCATION & ADDRESS TYPES =====
 
-export interface Address {
+export interface CommonAddress {
   street: string;
   apartment?: string;
   city: string;
@@ -72,25 +72,25 @@ export interface Address {
   country: string;
 }
 
-export interface Coordinates {
+export interface CommonCoordinates {
   latitude: number;
   longitude: number;
 }
 
-export interface LocationWithCoordinates extends Address {
-  coordinates?: Coordinates;
+export interface CommonLocationWithCoordinates extends CommonAddress {
+  coordinates?: CommonCoordinates;
 }
 
 // ===== CONTACT INFORMATION TYPES =====
 
-export interface ContactInfo {
+export interface CommonContactInfo {
   firstName: string;
   lastName: string;
   email: string;
   phoneNumber: string;
 }
 
-export interface ExtendedContactInfo extends ContactInfo {
+export interface CommonExtendedContactInfo extends CommonContactInfo {
   company?: string;
   title?: string;
   alternatePhone?: string;
@@ -99,7 +99,7 @@ export interface ExtendedContactInfo extends ContactInfo {
 
 // ===== FILE & MEDIA TYPES =====
 
-export interface FileUpload {
+export interface CommonFileUpload {
   id: string;
   filename: string;
   originalName: string;
@@ -110,57 +110,57 @@ export interface FileUpload {
   uploadedBy?: number;
 }
 
-export interface ImageFile extends FileUpload {
+export interface CommonImageFile extends CommonFileUpload {
   width?: number;
   height?: number;
   thumbnailUrl?: string;
   altText?: string;
 }
 
-export interface DocumentFile extends FileUpload {
+export interface CommonDocumentFile extends CommonFileUpload {
   documentType: 'pdf' | 'doc' | 'docx' | 'txt' | 'other';
   pageCount?: number;
 }
 
 // ===== STATUS & STATE TYPES =====
 
-export type GenericStatus =
+export type CommonGenericStatus =
   | 'active'
   | 'inactive'
   | 'pending'
   | 'suspended'
   | 'archived';
 
-export type ProcessingStatus =
+export type CommonProcessingStatus =
   | 'pending'
   | 'processing'
   | 'completed'
   | 'failed'
   | 'cancelled';
 
-export type ApprovalStatus =
+export type CommonApprovalStatus =
   | 'pending'
   | 'approved'
   | 'rejected'
   | 'under_review';
 
-export type Priority = 'low' | 'medium' | 'high' | 'urgent';
+export type CommonPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 // ===== ERROR & VALIDATION TYPES =====
 
-export interface ValidationError {
+export interface CommonValidationError {
   field: string;
   message: string;
   code?: string;
 }
 
-export interface ValidationResult {
+export interface CommonValidationResult {
   isValid: boolean;
-  errors: ValidationError[];
-  warnings?: ValidationError[];
+  errors: CommonValidationError[];
+  warnings?: CommonValidationError[];
 }
 
-export interface ApiError {
+export interface CommonApiError {
   code: string;
   message: string;
   details?: Record<string, unknown>;
@@ -170,7 +170,7 @@ export interface ApiError {
 
 // ===== AUDIT & TRACKING TYPES =====
 
-export interface AuditTrail {
+export interface CommonAuditTrail {
   id: string;
   entityType: string;
   entityId: string;
@@ -183,39 +183,39 @@ export interface AuditTrail {
   metadata?: Record<string, unknown>;
 }
 
-export interface Timestamped {
+export interface CommonTimestamped {
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface SoftDeletable {
+export interface CommonSoftDeletable {
   deletedAt?: Date | null;
   isDeleted: boolean;
 }
 
-export interface Trackable extends Timestamped {
+export interface CommonTrackable extends CommonTimestamped {
   createdBy?: number;
   updatedBy?: number;
 }
 
 // ===== NOTIFICATION TYPES =====
 
-export type NotificationChannel = 'email' | 'sms' | 'push' | 'in_app';
+export type CommonNotificationChannel = 'email' | 'sms' | 'push' | 'in_app';
 
-export interface NotificationPreferences {
+export interface CommonNotificationPreferences {
   email: boolean;
   sms: boolean;
   push: boolean;
   inApp: boolean;
 }
 
-export interface BaseNotification {
+export interface CommonBaseNotification {
   id: string;
   title: string;
   message: string;
   type: string;
-  priority: Priority;
-  channels: NotificationChannel[];
+  priority: CommonPriority;
+  channels: CommonNotificationChannel[];
   scheduledFor?: Date;
   sentAt?: Date;
   readAt?: Date;
@@ -223,7 +223,7 @@ export interface BaseNotification {
 
 // ===== RATING & FEEDBACK TYPES =====
 
-export interface Rating {
+export interface CommonRating {
   value: number; // 1-5
   maxValue: number;
   comment?: string;
@@ -231,7 +231,7 @@ export interface Rating {
   ratedAt: Date;
 }
 
-export interface AggregateRating {
+export interface CommonAggregateRating {
   averageRating: number;
   totalRatings: number;
   ratingDistribution: {
@@ -245,26 +245,26 @@ export interface AggregateRating {
 
 // ===== FINANCIAL TYPES =====
 
-export interface Money {
+export interface CommonMoney {
   amount: number;
   currency: string; // ISO 4217 currency code
 }
 
-export interface PriceRange {
-  min: Money;
-  max: Money;
+export interface CommonPriceRange {
+  min: CommonMoney;
+  max: CommonMoney;
 }
 
-export interface TaxInfo {
+export interface CommonTaxInfo {
   rate: number; // percentage
-  amount: Money;
+  amount: CommonMoney;
   type: 'sales' | 'vat' | 'service' | 'other';
   description?: string;
 }
 
 // ===== CONFIGURATION TYPES =====
 
-export interface AppConfig {
+export interface CommonAppConfig {
   environment: 'development' | 'staging' | 'production';
   version: string;
   features: Record<string, boolean>;
@@ -272,7 +272,7 @@ export interface AppConfig {
   urls: Record<string, string>;
 }
 
-export interface FeatureFlag {
+export interface CommonFeatureFlag {
   name: string;
   enabled: boolean;
   description?: string;
@@ -282,26 +282,26 @@ export interface FeatureFlag {
 
 // ===== GENERIC CRUD TYPES =====
 
-export interface CreateRequest<T> {
+export interface CommonCreateRequest<T> {
   data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>;
 }
 
-export interface UpdateRequest<T> {
-  id: ID;
+export interface CommonUpdateRequest<T> {
+  id: CommonID;
   data: Partial<Omit<T, 'id' | 'createdAt' | 'updatedAt'>>;
 }
 
-export interface DeleteRequest {
-  id: ID;
+export interface CommonDeleteRequest {
+  id: CommonID;
   soft?: boolean;
 }
 
-export interface BulkOperation<T> {
+export interface CommonBulkOperation<T> {
   operation: 'create' | 'update' | 'delete';
   items: T[];
 }
 
-export interface BulkOperationResult<T> {
+export interface CommonBulkOperationResult<T> {
   successful: T[];
   failed: Array<{
     item: T;
@@ -316,65 +316,70 @@ export interface BulkOperationResult<T> {
 
 // ===== TYPE UTILITIES =====
 
-export type Optional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
-export type RequiredFields<T, K extends keyof T> = T & Required<Pick<T, K>>;
-export type Nullable<T> = T | null;
-export type DeepPartial<T> = {
-  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+export type CommonOptional<T, K extends keyof T> = Omit<T, K> &
+  Partial<Pick<T, K>>;
+export type CommonRequiredFields<T, K extends keyof T> = T &
+  Required<Pick<T, K>>;
+export type CommonNullable<T> = T | null;
+export type CommonDeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? CommonDeepPartial<T[P]> : T[P];
 };
 
 // ===== RESPONSE WRAPPER TYPES =====
 
-export interface SuccessResponse<T = unknown> {
+export interface CommonSuccessResponse<T = unknown> {
   success: true;
   data: T;
   message?: string;
   metadata?: Record<string, unknown>;
 }
 
-export interface ErrorResponse {
+export interface CommonErrorResponse {
   success: false;
-  error: ApiError;
+  error: CommonApiError;
   message: string;
 }
 
-export type ApiResponse<T = unknown> = SuccessResponse<T> | ErrorResponse;
+export type CommonApiResponse<T = unknown> =
+  | CommonSuccessResponse<T>
+  | CommonErrorResponse;
 
-export interface PaginatedResponse<T = unknown> extends SuccessResponse<T[]> {
-  pagination: PaginationResponse;
+export interface CommonPaginatedResponse<T = unknown>
+  extends CommonSuccessResponse<T[]> {
+  pagination: CommonPaginationResponse;
 }
 
 // ===== TYPE GUARDS =====
 
-export function isSuccessResponse<T>(
-  response: ApiResponse<T>
-): response is SuccessResponse<T> {
+export function CommonIsSuccessResponse<T>(
+  response: CommonApiResponse<T>
+): response is CommonSuccessResponse<T> {
   return response.success === true;
 }
 
-export function isErrorResponse(
-  response: ApiResponse
-): response is ErrorResponse {
+export function CommonIsErrorResponse(
+  response: CommonApiResponse
+): response is CommonErrorResponse {
   return response.success === false;
 }
 
-export function isPaginatedResponse<T>(
-  response: ApiResponse<T[] | T>
-): response is PaginatedResponse<T> {
-  return isSuccessResponse(response) && 'pagination' in response;
+export function CommonIsPaginatedResponse<T>(
+  response: CommonApiResponse<T[] | T>
+): response is CommonPaginatedResponse<T> {
+  return CommonIsSuccessResponse(response) && 'pagination' in response;
 }
 
-export function isValidEmail(email: string): boolean {
+export function CommonIsValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 }
 
-export function isValidPhoneNumber(phone: string): boolean {
+export function CommonIsValidPhoneNumber(phone: string): boolean {
   const phoneRegex = /^\+?1?[2-9]\d{2}[2-9]\d{2}\d{4}$/;
   return phoneRegex.test(phone.replace(/\D/g, ''));
 }
 
-export function isValidZipCode(zipCode: string): boolean {
+export function CommonIsValidZipCode(zipCode: string): boolean {
   const zipRegex = /^\d{5}(-\d{4})?$/;
   return zipRegex.test(zipCode);
 }

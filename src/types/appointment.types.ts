@@ -41,7 +41,7 @@ export interface Appointment {
   gotHoldOfMovingPartner?: boolean | null;
   hasAdditionalInfo: boolean;
   thirdPartyTitle?: string | null;
-  requestedStorageUnits: RequestedStorageUnit[];
+  requestedStorageUnits: AppointmentRequestedStorageUnit[];
 }
 
 export type AppointmentType =
@@ -72,14 +72,15 @@ export interface AdditionalAppointmentInfo {
   conditionsDescription?: string | null;
 }
 
-export interface RequestedStorageUnit {
+// Rename the interface:
+export interface AppointmentRequestedStorageUnit {
   id: number;
   storageUnitNumber: string;
 }
 
 // ===== APPOINTMENT SCHEDULING TYPES =====
 
-export interface TimeSlot {
+export interface AppointmentTimeSlot {
   id: string;
   date: string;
   startTime: string;
@@ -91,7 +92,7 @@ export interface TimeSlot {
   driverId?: number;
 }
 
-export interface AvailabilityRequest {
+export interface AppointmentAvailabilityRequest {
   planType: string;
   year: number;
   month: number;
@@ -101,32 +102,32 @@ export interface AvailabilityRequest {
   zipcode?: string;
 }
 
-export interface AvailabilityResponse {
-  availableSlots: TimeSlot[];
+export interface AppointmentAvailabilityResponse {
+  availableSlots: AppointmentTimeSlot[];
   unavailableDates: string[];
-  partnerAvailability: PartnerAvailability[];
-  driverAvailability: DriverAvailability[];
+  partnerAvailability: AppointmentPartnerAvailability[];
+  driverAvailability: AppointmentDriverAvailability[];
 }
 
-export interface PartnerAvailability {
+export interface AppointmentPartnerAvailability {
   partnerId: number;
   partnerName: string;
-  availableSlots: TimeSlot[];
+  availableSlots: AppointmentTimeSlot[];
   hourlyRate?: number;
   rating?: number;
 }
 
-export interface DriverAvailability {
+export interface AppointmentDriverAvailability {
   driverId: number;
   driverName: string;
-  availableSlots: TimeSlot[];
+  availableSlots: AppointmentTimeSlot[];
   vehicleType?: string;
   rating?: number;
 }
 
 // ===== APPOINTMENT BOOKING TYPES =====
 
-export interface CreateAppointmentRequest {
+export interface AppointmentCreateRequest {
   userId: number;
   appointmentType: AppointmentType;
   address: string;
@@ -154,7 +155,7 @@ export interface CreateAppointmentRequest {
   requestedStorageUnits?: number[];
 }
 
-export interface UpdateAppointmentRequest {
+export interface AppointmentUpdateRequest {
   appointmentType?: AppointmentType;
   address?: string;
   zipcode?: string;

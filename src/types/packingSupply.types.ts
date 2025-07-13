@@ -6,7 +6,7 @@
 
 // ===== CORE PACKING SUPPLY TYPES =====
 
-export interface CartItem {
+export interface PackingSupplyCartItem {
   name: string;
   quantity: number;
   price: number; // Unit price
@@ -23,7 +23,7 @@ export interface CreatePackingSupplyOrderRequest {
   deliveryAddress: string;
 
   // Order items
-  cartItems: CartItem[];
+  cartItems: PackingSupplyCartItem[];
 
   // Payment information
   paymentMethod: string;

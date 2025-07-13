@@ -1,10 +1,6 @@
-/**
- * @fileoverview Validation Schemas Library
- * @source Created for boombox-11.0 validation system
- * @refactor Zod validation schemas
- */
+// Export all validation schemas for clean imports across the application
 
-// Note: Validation schemas will be added here as they are created
-// Examples: userSchema, bookingSchema, paymentSchema, etc.
+// API validation schemas (TYPES_002 completed)
+export * from './api.validations';
 
-export {}; // Temporary export to prevent empty module error
+// Note: Additional domain-specific validation files will be exported here as they are created

@@ -4,8 +4,6 @@
  * @refactor Enhanced user types with role-based interfaces
  */
 
-import type { ContactInfo } from './common.types';
-
 // ===== CORE USER TYPES =====
 
 export interface User {
@@ -31,7 +29,10 @@ export interface UserWithRole extends User {
 
 // ===== USER CREATION TYPES =====
 
-export interface CreateUserRequest extends ContactInfo {
+export interface CreateUserRequest {
+  email: string;
+  phone: string;
+  address: string;
   password: string;
   agreedToTerms: boolean;
   role?: UserRole;
