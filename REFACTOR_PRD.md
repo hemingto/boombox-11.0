@@ -447,7 +447,7 @@ For each major refactoring task, create a mapping file:
 **Completed**: 2025-01-28 by AI Assistant  
 **Time Taken**: 4 hours (vs 3 hours estimated)  
 **Git Commit**: dd297d6 - "Implement domain prefixing solution for export _ compatibility"  
-**Notes**: Successfully created comprehensive API types for all domains with Zod validation schemas, standardized response formats, and helper functions. **CRITICAL FIX**: Resolved file placement issue where files were created outside boombox-11.0 directory. Enhanced safety protocols in .cursor/rules to prevent future occurrences. **DOMAIN PREFIXING SOLUTION**: Implemented comprehensive domain prefixing (Api_ for API types, _Domain_ for domain types) with legacy type aliases for backward compatibility. This enables safe use of `export *` in index.ts while maintaining clear separation between API and domain layers. Build passes successfully with clean type exports.
+**Notes**: Successfully created comprehensive API types for all domains with Zod validation schemas, standardized response formats, and helper functions. **CRITICAL FIX**: Resolved file placement issue where files were created outside boombox-11.0 directory. Enhanced safety protocols in .cursor/rules to prevent future occurrences. **DOMAIN PREFIXING SOLUTION**: Implemented comprehensive domain prefixing (Api_ for API types, _Domain_ for domain types) with legacy type aliases for backward compatibility. This enables safe use of `export *` in index.ts while maintaining clear separation between API and domain layers. Build passes successfully with clean type exports. **CLEANUP NOTE**: Legacy type aliases will be removed in Phase 9 (CLEANUP_001) for final clean type system.
 
 - [x] Define standardized API response types
 - [x] Create request/response interfaces for all endpoints
@@ -917,6 +917,54 @@ For each major refactoring task, create a mapping file:
 - [ ] Validate environment variables
 - [ ] Prepare production deployment
 
+## Phase 9: Post-Migration Cleanup (Week 7) - [0/2 tasks completed]
+
+**Status**: Not Started  
+**Progress**: ░░░░░░░░░░ 0% (0/2 tasks completed)  
+**Goal**: Remove backward compatibility and finalize clean type system
+
+### CLEANUP_001_REMOVE_LEGACY_TYPE_ALIASES
+
+**Automation Level**: High | **Time**: 2 hours
+
+- [ ] **Codebase-wide Import Updates**:
+  - Run comprehensive find/replace to update all imports to use new prefixed type names
+  - Replace `Appointment` → `AppointmentDomainRecord`
+  - Replace `CreateAppointmentRequest` → `ApiCreateAppointmentRequest`
+  - Replace `LoginRequest` → `ApiLoginRequest`
+  - Update all other legacy type usages across 594 files
+- [ ] **Remove Legacy Type Aliases**:
+  - Delete all backward compatibility type aliases from type files
+  - Remove comments about legacy exports
+  - Clean up type export statements
+- [ ] **Validation**:
+  - Ensure TypeScript compilation passes with zero errors
+  - Run full test suite to validate no broken imports
+  - Verify all components and API routes use new type names
+  - Check that no legacy type names remain in codebase
+
+### CLEANUP_002_FINAL_TYPE_SYSTEM_VALIDATION
+
+**Automation Level**: Medium | **Time**: 2 hours
+
+- [ ] **Type System Audit**:
+  - Verify all types follow consistent domain prefixing patterns
+  - Ensure clear separation between API types (Api prefix) and domain types (Domain prefix)
+  - Validate that `export *` in index.ts works without conflicts
+  - Check for any remaining type naming inconsistencies
+- [ ] **Documentation Updates**:
+  - Update type system documentation to reflect final naming conventions
+  - Remove references to backward compatibility from docs
+  - Create clean type usage examples for new developers
+- [ ] **Performance Validation**:
+  - Confirm TypeScript compilation time is optimal
+  - Verify IDE autocomplete works efficiently with new type names
+  - Ensure no circular dependencies in type imports
+- [ ] **Final Cleanup**:
+  - Remove any temporary files or comments related to migration
+  - Ensure all files have proper @fileoverview documentation
+  - Validate consistent code formatting across all type files
+
 ---
 
 ## 5. API Route Documentation Template
@@ -981,6 +1029,7 @@ When refactoring API routes in Phase 4, each route file must include comprehensi
 - **PAGES** requires **FEATURES** and **API** completion
 - **TESTING** requires all previous phases
 - **DOCS** can run parallel to **TESTING**
+- **CLEANUP** requires all previous phases (Phases 1-8) completion
 
 ### Critical Path Tasks
 
@@ -990,6 +1039,7 @@ When refactoring API routes in Phase 4, each route file must include comprehensi
 4. All API tasks can run in parallel
 5. All FEATURES tasks require UI completion
 6. All PAGES tasks require FEATURES completion
+7. CLEANUP_001 → CLEANUP_002 (requires all previous phases)
 
 ---
 
