@@ -18,13 +18,15 @@ export interface ApiError {
   message: string;
   details?: Record<string, unknown>;
   field?: string; // For validation errors
+  timestamp?: string;
 }
 
 export interface ResponseMeta {
-  timestamp: string;
   requestId?: string;
-  pagination?: PaginationMeta;
+  timestamp: string;
   version?: string;
+  pagination?: PaginationMeta;
+  rateLimitRemaining?: number;
 }
 
 export interface PaginationMeta {
@@ -71,131 +73,269 @@ export type ApiErrorCode =
 
 // ===== AUTHENTICATION DOMAIN TYPES =====
 
-export interface LoginRequest {
+export interface ApiLoginRequest {
   email: string;
-  password?: string; // Optional for magic link login
+  password: string;
   rememberMe?: boolean;
 }
 
-export interface LoginResponse {
+export interface ApiLoginResponse {
   user: {
     id: number;
     email: string;
     firstName: string;
     lastName: string;
     role: string;
-    emailVerified: boolean;
+    isEmailVerified: boolean;
   };
-  session?: {
+  session: {
     token: string;
     expiresAt: string;
   };
   redirectUrl?: string;
 }
 
-export interface SignupRequest {
-  email: string;
-  password: string;
+export interface ApiSignupRequest {
   firstName: string;
   lastName: string;
+  email: string;
+  password: string;
   phoneNumber: string;
-  role?: 'customer' | 'driver' | 'mover';
+  zipCode?: string;
+  acceptTerms: boolean;
+  marketingOptIn?: boolean;
 }
 
-export interface SignupResponse {
+export interface ApiSignupResponse {
   user: {
     id: number;
     email: string;
     firstName: string;
     lastName: string;
   };
-  verificationRequired: boolean;
+  verificationEmailSent: boolean;
   message: string;
 }
 
-export interface VerifyCodeRequest {
+export interface ApiForgotPasswordRequest {
   email: string;
-  code: string;
-  type: 'email_verification' | 'phone_verification' | 'password_reset';
 }
 
-export interface VerifyCodeResponse {
-  verified: boolean;
-  token?: string;
+export interface ApiForgotPasswordResponse {
   message: string;
+  emailSent: boolean;
 }
 
-export interface ForgotPasswordRequest {
-  email: string;
-}
-
-export interface ResetPasswordRequest {
+export interface ApiResetPasswordRequest {
   token: string;
   newPassword: string;
+  confirmPassword: string;
+}
+
+export interface ApiResetPasswordResponse {
+  message: string;
+  success: boolean;
+}
+
+export interface ApiVerifyEmailRequest {
+  token: string;
+}
+
+export interface ApiVerifyEmailResponse {
+  message: string;
+  success: boolean;
+  redirectUrl?: string;
+}
+
+export interface ApiSendCodeRequest {
+  phoneNumber: string;
+  purpose: 'verification' | 'password_reset' | 'two_factor';
+}
+
+export interface ApiSendCodeResponse {
+  message: string;
+  codeSent: boolean;
+  expiresAt: string;
+}
+
+export interface ApiVerifyCodeRequest {
+  phoneNumber: string;
+  code: string;
+  purpose: 'verification' | 'password_reset' | 'two_factor';
+}
+
+export interface ApiVerifyCodeResponse {
+  message: string;
+  verified: boolean;
+  token?: string; // For password reset flow
+}
+
+export interface ApiDriverPhoneVerifyRequest {
+  driverId: number;
+  phoneNumber: string;
+  verificationCode: string;
+}
+
+export interface ApiDriverPhoneVerifyResponse {
+  verified: boolean;
+  message: string;
+  driverUpdated: boolean;
+}
+
+export interface ApiSessionResponse {
+  user: {
+    id: number;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+    isEmailVerified: boolean;
+    phoneNumber?: string;
+  } | null;
+  authenticated: boolean;
+}
+
+export interface ApiLogoutResponse {
+  message: string;
+  success: boolean;
 }
 
 // ===== PAYMENT DOMAIN TYPES =====
 
-export interface CreateStripeCustomerRequest {
-  email: string;
+export interface ApiCreateCustomerRequest {
   firstName: string;
   lastName: string;
+  email: string;
   phoneNumber: string;
-  address: string;
-  zipCode: string;
-  paymentMethodId: string;
+  address?: {
+    line1: string;
+    line2?: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+  };
+  paymentMethodId?: string; // From Stripe Elements
 }
 
-export interface CreateStripeCustomerResponse {
-  customerId: string;
-  setupIntentClientSecret: string;
+export interface ApiCreateCustomerResponse {
+  customerId: string; // Stripe customer ID
+  clientSecret?: string; // For SetupIntent if payment method provided
   message: string;
 }
 
-export interface CreatePaymentIntentRequest {
-  amount: number;
+export interface ApiCreatePaymentIntentRequest {
+  amount: number; // in cents
   currency: string;
   customerId: string;
-  appointmentId?: number;
-  orderId?: number;
+  paymentMethodId?: string;
   description?: string;
+  metadata?: Record<string, string>;
+  automaticPaymentMethods?: boolean;
 }
 
-export interface CreatePaymentIntentResponse {
+export interface ApiCreatePaymentIntentResponse {
   clientSecret: string;
   paymentIntentId: string;
+  status: string;
+  amount: number;
+  currency: string;
 }
 
-export interface StripeWebhookRequest {
+export interface ApiStripeWebhookRequest {
+  // Stripe webhook payload - varies by event type
+  id: string;
+  object: string;
   type: string;
   data: {
     object: Record<string, unknown>;
+    previous_attributes?: Record<string, unknown>;
   };
-  id: string;
   created: number;
+  livemode: boolean;
+  pending_webhooks: number;
+  request?: {
+    id: string;
+    idempotency_key?: string;
+  };
 }
 
-export interface PaymentMethodRequest {
+export interface ApiStripeWebhookResponse {
+  received: boolean;
+  processed: boolean;
+  message: string;
+  eventType: string;
+}
+
+export interface ApiConnectAccountRequest {
+  driverId: number;
+  businessType: 'individual' | 'company';
+  email: string;
+  country: string;
+  accountToken?: string; // From Stripe Connect onboarding
+}
+
+export interface ApiConnectAccountResponse {
+  accountId: string;
+  onboardingUrl?: string;
+  detailsSubmitted: boolean;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+}
+
+export interface ApiAddPaymentMethodRequest {
   customerId: string;
-  paymentMethodId: string;
+  paymentMethodId: string; // From Stripe Elements
+  setAsDefault?: boolean;
 }
 
-export interface PaymentHistoryResponse {
+export interface ApiAddPaymentMethodResponse {
+  paymentMethodId: string;
+  last4: string;
+  brand: string;
+  expiryMonth: number;
+  expiryYear: number;
+  isDefault: boolean;
+}
+
+export interface ApiRemovePaymentMethodRequest {
+  paymentMethodId: string;
+  customerId: string;
+}
+
+export interface ApiRemovePaymentMethodResponse {
+  removed: boolean;
+  message: string;
+}
+
+export interface ApiPaymentHistoryRequest {
+  customerId: string;
+  startDate?: string;
+  endDate?: string;
+  limit?: number;
+  page?: number;
+}
+
+export interface ApiPaymentHistoryResponse {
   payments: Array<{
     id: string;
     amount: number;
     currency: string;
     status: string;
-    created: number;
     description?: string;
-    appointmentId?: number;
+    createdAt: string;
+    paymentMethod: {
+      type: string;
+      last4?: string;
+      brand?: string;
+    };
   }>;
-  total: number;
+  pagination: PaginationMeta;
 }
 
 // ===== ORDERS DOMAIN TYPES =====
 
-export interface CreateAppointmentRequest {
+export interface ApiCreateAppointmentRequest {
   customerId: number;
   appointmentType:
     | 'Initial Pickup'
@@ -212,546 +352,1001 @@ export interface CreateAppointmentRequest {
   additionalUnitsOnly?: boolean;
 }
 
-export interface CreateAppointmentResponse {
-  appointment: {
-    id: number;
-    jobCode: string;
-    appointmentType: string;
-    date: string;
-    time: string;
-    status: string;
-  };
-  onfleetTasks?: Array<{
-    id: string;
-    shortId: string;
-    state: number;
-  }>;
+export interface ApiCreateAppointmentResponse {
+  appointmentId: number;
+  jobCode: string;
+  scheduledDateTime: string;
+  estimatedCost: number;
+  confirmationNumber: string;
+  trackingUrl?: string;
 }
 
-export interface EditAppointmentRequest {
+export interface ApiEditAppointmentRequest {
   appointmentId: number;
   date?: string;
   time?: string;
   address?: string;
+  zipCode?: string;
+  phoneNumber?: string;
   specialInstructions?: string;
-  notifyDriver?: boolean;
+  storageUnitIds?: number[];
 }
 
-export interface CancelAppointmentRequest {
+export interface ApiEditAppointmentResponse {
   appointmentId: number;
-  reason: string;
+  updated: boolean;
+  changes: string[];
+  newEstimatedCost?: number;
+  rescheduleRequired?: boolean;
+}
+
+export interface ApiCancelAppointmentRequest {
+  appointmentId: number;
+  cancellationReason: string;
   refundRequested?: boolean;
 }
 
-export interface CreatePackingSupplyOrderRequest {
+export interface ApiCancelAppointmentResponse {
+  appointmentId: number;
+  cancelled: boolean;
+  cancellationFee: number;
+  refundAmount?: number;
+  refundStatus?: 'pending' | 'processed' | 'denied';
+}
+
+export interface ApiCreatePackingSupplyOrderRequest {
   customerId: number;
-  items: Array<{
-    itemId: number;
-    quantity: number;
-  }>;
   deliveryAddress: string;
   deliveryZipCode: string;
+  deliveryDate: string; // ISO date string
+  deliveryTimeSlot: string; // e.g., "9:00 AM - 12:00 PM"
+  phoneNumber: string;
+  items: Array<{
+    productId: string;
+    quantity: number;
+    unitPrice: number;
+  }>;
+  specialInstructions?: string;
+  contactlessDelivery?: boolean;
+}
+
+export interface ApiCreatePackingSupplyOrderResponse {
+  orderId: string;
+  orderNumber: string;
+  totalAmount: number;
   deliveryDate: string;
-  deliveryTimeWindow: string;
+  deliveryTimeSlot: string;
+  trackingUrl?: string;
+  estimatedDeliveryTime?: string;
+}
+
+export interface ApiUpdatePackingSupplyOrderRequest {
+  orderId: string;
+  deliveryDate?: string;
+  deliveryTimeSlot?: string;
+  deliveryAddress?: string;
+  phoneNumber?: string;
+  items?: Array<{
+    productId: string;
+    quantity: number;
+    unitPrice: number;
+  }>;
   specialInstructions?: string;
 }
 
-export interface CreatePackingSupplyOrderResponse {
-  order: {
-    id: number;
-    orderNumber: string;
-    status: string;
-    totalAmount: number;
-    deliveryDate: string;
-  };
-  onfleetTask?: {
-    id: string;
-    shortId: string;
-  };
+export interface ApiUpdatePackingSupplyOrderResponse {
+  orderId: string;
+  updated: boolean;
+  changes: string[];
+  newTotalAmount?: number;
+  rescheduleRequired?: boolean;
 }
 
-export interface PackingSupplyOrderUpdate {
-  orderId: number;
-  status?: 'pending' | 'confirmed' | 'in_transit' | 'delivered' | 'cancelled';
-  trackingInfo?: string;
-  deliveryNotes?: string;
+export interface ApiCancelPackingSupplyOrderRequest {
+  orderId: string;
+  cancellationReason: string;
+  refundRequested?: boolean;
+}
+
+export interface ApiCancelPackingSupplyOrderResponse {
+  orderId: string;
+  cancelled: boolean;
+  cancellationFee: number;
+  refundAmount?: number;
+  refundStatus?: 'pending' | 'processed' | 'denied';
 }
 
 // ===== ONFLEET DOMAIN TYPES =====
 
-export interface CreateOnfleetTaskRequest {
-  appointmentId: number;
+export interface ApiCreateOnfleetTaskRequest {
   destination: {
     address: string;
-    coordinates?: [number, number];
+    coordinates?: [number, number]; // [longitude, latitude]
   };
   recipients: Array<{
     name: string;
     phone: string;
     notes?: string;
   }>;
-  completionWindow: {
-    start: number; // Unix timestamp
-    end: number; // Unix timestamp
+  completeBefore?: number; // Unix timestamp
+  completeAfter?: number; // Unix timestamp
+  pickupTask?: boolean;
+  autoAssign?: {
+    mode: 'distance' | 'load' | 'time';
+    maxAssignedTasks?: number;
+    team?: string;
+    maxTasksPerRoute?: number;
   };
-  metadata: Array<{
+  metadata?: Array<{
     name: string;
-    type: string;
-    value: string;
+    type: 'boolean' | 'number' | 'string' | 'object' | 'array';
+    value: unknown;
+    visibility?: 'api' | 'dashboard' | 'worker';
   }>;
   notes?: string;
-  autoAssign?: boolean;
+  merchantId?: string;
+  quantity?: number;
+  serviceTime?: number; // minutes
 }
 
-export interface CreateOnfleetTaskResponse {
-  task: {
-    id: string;
-    shortId: string;
-    state: number;
-    worker?: string;
-    estimatedArrivalTime?: number;
-    estimatedCompletionTime?: number;
-  };
-  trackingUrl: string;
-}
-
-export interface OnfleetWebhookData {
-  triggerId: number;
-  triggerName: string;
+export interface ApiCreateOnfleetTaskResponse {
   taskId: string;
+  shortId: string;
+  trackingURL: string;
+  worker?: string;
+  merchantId?: string;
+  executor?: string;
+  completeAfter: number;
+  completeBefore: number;
+  estimatedCompletionTime?: number;
+  estimatedArrivalTime?: number;
+}
+
+export interface ApiUpdateOnfleetTaskRequest {
+  taskId: string;
+  destination?: {
+    address: string;
+    coordinates?: [number, number];
+  };
+  recipients?: Array<{
+    name: string;
+    phone: string;
+    notes?: string;
+  }>;
+  completeBefore?: number;
+  completeAfter?: number;
+  notes?: string;
+  metadata?: Array<{
+    name: string;
+    type: 'boolean' | 'number' | 'string' | 'object' | 'array';
+    value: unknown;
+    visibility?: 'api' | 'dashboard' | 'worker';
+  }>;
+}
+
+export interface ApiUpdateOnfleetTaskResponse {
+  taskId: string;
+  updated: boolean;
+  changes: string[];
+  newEstimatedTime?: number;
+}
+
+export interface ApiOnfleetWebhookRequest {
   workerId?: string;
   adminId?: string;
   data: {
     task?: {
       id: string;
       shortId: string;
+      trackingURL: string;
+      worker?: string;
+      merchant?: string;
+      executor?: string;
+      creator?: string;
+      dependencies?: string[];
       state: number;
-      metadata: Array<{
-        name: string;
-        type: string;
-        value: string;
-      }>;
-      destination: {
-        address: {
-          unparsed: string;
-        };
-      };
-      completionDetails?: {
-        photoUploadIds?: string[];
-        signatureUploadId?: string;
-        notes?: string;
-        time?: number;
-      };
+      completeAfter: number;
+      completeBefore: number;
+      pickupTask: boolean;
+      notes?: string;
+      trackingViewed: boolean;
+      recipients: unknown[];
+      destination: unknown;
+      metadata?: unknown[];
     };
     worker?: {
       id: string;
       name: string;
       phone: string;
-      vehicle?: {
-        type: string;
-        licensePlate: string;
-      };
+      activeTask?: string;
+      tasks?: string[];
+      onDuty: boolean;
+      accountStatus: string;
+      metadata?: unknown[];
     };
   };
+  actionContext?: {
+    type: string;
+    id: string;
+  };
+  taskId?: string;
+  triggerId: number;
   time: number;
 }
 
-export interface UpdateOnfleetTaskRequest {
-  taskId: string;
-  notes?: string;
-  metadata?: Array<{
-    name: string;
-    type: string;
-    value: string;
-  }>;
-  destination?: {
-    address: string;
-    coordinates?: [number, number];
+export interface ApiOnfleetWebhookResponse {
+  received: boolean;
+  processed: boolean;
+  triggerId: number;
+  taskId?: string;
+  workerId?: string;
+  action: string;
+}
+
+export interface ApiOnfleetWorkersRequest {
+  page?: number;
+  limit?: number;
+  filter?: {
+    states?: number[];
+    teams?: string[];
+    phones?: string[];
   };
 }
 
-export interface OnfleetWorkerResponse {
+export interface ApiOnfleetWorkersResponse {
   workers: Array<{
     id: string;
     name: string;
     phone: string;
-    isActive: boolean;
+    activeTask?: string;
+    tasks: string[];
     onDuty: boolean;
+    accountStatus: string;
     location?: [number, number];
-    vehicle?: {
-      type: string;
-      licensePlate: string;
-    };
+    metadata?: unknown[];
   }>;
+  pagination: PaginationMeta;
+}
+
+export interface ApiCalculatePayoutRequest {
+  workerId: string;
+  startDate: string; // ISO date
+  endDate: string; // ISO date
+  includeBonus?: boolean;
+}
+
+export interface ApiCalculatePayoutResponse {
+  workerId: string;
+  period: {
+    startDate: string;
+    endDate: string;
+  };
+  completedTasks: number;
+  totalEarnings: number;
+  breakdown: {
+    basePay: number;
+    bonuses: number;
+    deductions: number;
+  };
+  payoutDate?: string;
+}
+
+export interface ApiDispatchTeamRequest {
+  teamId: string;
+  tasks: string[]; // Array of task IDs
+  optimizeRoute?: boolean;
+  serviceTime?: number; // minutes per task
+}
+
+export interface ApiDispatchTeamResponse {
+  teamId: string;
+  dispatchedTasks: string[];
+  optimizedRoute?: {
+    totalDistance: number;
+    totalTime: number;
+    waypoints: Array<{
+      taskId: string;
+      estimatedArrival: number;
+      estimatedCompletion: number;
+    }>;
+  };
 }
 
 // ===== DRIVERS DOMAIN TYPES =====
 
-export interface DriverAssignmentRequest {
+export interface ApiAssignDriverRequest {
   appointmentId: number;
-  onfleetTaskId?: string;
-  driverId?: number;
-  action: 'assign' | 'accept' | 'decline' | 'retry' | 'cancel' | 'reconfirm';
+  driverId?: number; // If not provided, auto-assign
+  preferredDate?: string;
+  preferredTime?: string;
+  specialRequirements?: string[];
+  estimatedDuration?: number; // minutes
+  autoAssign?: boolean;
 }
 
-export interface DriverAssignmentResponse {
-  success: boolean;
-  assignment?: {
-    driverId: number;
-    appointmentId: number;
-    taskId: string;
-    estimatedPayment: number;
-  };
-  nextAction?: 'wait_for_acceptance' | 'find_new_driver' | 'notify_admin';
-  message: string;
-}
-
-export interface DriverAvailabilityRequest {
+export interface ApiAssignDriverResponse {
+  appointmentId: number;
   driverId: number;
-  date: string;
-  timeSlots: Array<{
-    start: string;
-    end: string;
-    available: boolean;
-  }>;
+  driverName: string;
+  assignmentDate: string;
+  estimatedArrival: string;
+  trackingUrl?: string;
+  driverPhone?: string;
 }
 
-export interface DriverAvailabilityResponse {
-  updated: boolean;
-  conflicts?: Array<{
-    appointmentId: number;
-    time: string;
-  }>;
-}
-
-export interface CreateDriverRequest {
-  email: string;
+export interface ApiCreateDriverRequest {
   firstName: string;
   lastName: string;
+  email: string;
   phoneNumber: string;
   licenseNumber: string;
-  vehicleInfo: {
+  licenseState: string;
+  licenseExpiry: string; // ISO date
+  backgroundCheckStatus?: 'pending' | 'approved' | 'rejected';
+  vehicleInfo?: {
     make: string;
     model: string;
     year: number;
     licensePlate: string;
-    type: 'pickup_truck' | 'van' | 'box_truck';
+    insurance: {
+      provider: string;
+      policyNumber: string;
+      expiryDate: string;
+    };
   };
-  coverageAreas: string[]; // ZIP codes
+  coverageAreas: string[]; // Array of zip codes
   hourlyRate?: number;
+  isActive?: boolean;
 }
 
-export interface DriverProfileResponse {
+export interface ApiCreateDriverResponse {
+  driverId: number;
+  invitationSent: boolean;
+  onboardingUrl?: string;
+  backgroundCheckInitiated: boolean;
+}
+
+export interface ApiAcceptInvitationRequest {
+  invitationToken: string;
+  password: string;
+  confirmPassword: string;
+  acceptTerms: boolean;
+  phoneVerificationCode?: string;
+}
+
+export interface ApiAcceptInvitationResponse {
+  driverId: number;
+  accountActivated: boolean;
+  loginUrl: string;
+  requiresPhoneVerification: boolean;
+}
+
+export interface ApiDriverProfileRequest {
+  driverId: number;
+}
+
+export interface ApiDriverProfileResponse {
   driver: {
     id: number;
     firstName: string;
     lastName: string;
     email: string;
     phoneNumber: string;
+    licenseNumber: string;
+    licenseState: string;
+    licenseExpiry: string;
     isActive: boolean;
-    onfleetWorkerId?: string;
-    rating: number;
-    totalJobs: number;
-    vehicle?: {
-      make: string;
-      model: string;
-      year: number;
-      licensePlate: string;
-      type: string;
-    };
-    coverageAreas: string[];
-  };
-  stats: {
+    rating?: number;
     completedJobs: number;
-    cancelledJobs: number;
-    totalEarnings: number;
-    averageRating: number;
+    joinDate: string;
+    backgroundCheckStatus: string;
+    stripeAccountId?: string;
+    payoutEnabled: boolean;
+  };
+  vehicle?: {
+    make: string;
+    model: string;
+    year: number;
+    licensePlate: string;
+    insurance: {
+      provider: string;
+      policyNumber: string;
+      expiryDate: string;
+    };
+  };
+  coverageAreas: string[];
+  earnings: {
+    thisMonth: number;
+    lastMonth: number;
+    total: number;
   };
 }
 
-export interface DriverAcceptInvitationRequest {
-  token: string;
-  acceptTerms: boolean;
-  additionalInfo?: {
-    emergencyContact: string;
-    insuranceInfo: string;
+export interface ApiUpdateDriverVehicleRequest {
+  driverId: number;
+  vehicle: {
+    make: string;
+    model: string;
+    year: number;
+    licensePlate: string;
+    insurance: {
+      provider: string;
+      policyNumber: string;
+      expiryDate: string;
+    };
   };
+}
+
+export interface ApiUpdateDriverVehicleResponse {
+  driverId: number;
+  vehicleUpdated: boolean;
+  requiresVerification: boolean;
+}
+
+export interface ApiDriverAvailabilityRequest {
+  driverId: number;
+  date?: string; // ISO date, defaults to today
+  timeZone?: string;
+}
+
+export interface ApiDriverAvailabilityResponse {
+  driverId: number;
+  date: string;
+  available: boolean;
+  timeSlots: Array<{
+    startTime: string;
+    endTime: string;
+    available: boolean;
+    bookedAppointment?: number;
+  }>;
+  totalHours: number;
+  bookedHours: number;
+}
+
+export interface ApiUpdateDriverAvailabilityRequest {
+  driverId: number;
+  date: string; // ISO date
+  timeSlots: Array<{
+    startTime: string;
+    endTime: string;
+    available: boolean;
+  }>;
+}
+
+export interface ApiUpdateDriverAvailabilityResponse {
+  driverId: number;
+  date: string;
+  updated: boolean;
+  conflictingAppointments?: number[];
+}
+
+export interface ApiDriverAppointmentsRequest {
+  driverId: number;
+  startDate?: string; // ISO date
+  endDate?: string; // ISO date
+  status?: string[];
+  page?: number;
+  limit?: number;
+}
+
+export interface ApiDriverAppointmentsResponse {
+  appointments: Array<{
+    id: number;
+    jobCode: string;
+    appointmentType: string;
+    date: string;
+    time: string;
+    address: string;
+    status: string;
+    customerName: string;
+    estimatedDuration: number;
+    actualDuration?: number;
+    earnings?: number;
+  }>;
+  pagination: PaginationMeta;
 }
 
 // ===== MOVING PARTNERS DOMAIN TYPES =====
 
-export interface CreateMovingPartnerRequest {
-  name: string;
+export interface ApiCreateMovingPartnerRequest {
+  businessName: string;
+  contactFirstName: string;
+  contactLastName: string;
   email: string;
   phoneNumber: string;
-  companyName?: string;
-  serviceAreas: string[]; // ZIP codes
-  vehicleTypes: string[];
+  businessAddress: {
+    line1: string;
+    line2?: string;
+    city: string;
+    state: string;
+    postalCode: string;
+  };
+  licenseNumber?: string;
+  insuranceInfo: {
+    provider: string;
+    policyNumber: string;
+    expiryDate: string; // ISO date
+    coverageAmount: number;
+  };
+  serviceAreas: string[]; // Array of zip codes
   hourlyRate: number;
-  minimumHours: number;
+  minimumHours?: number;
+  specialties?: string[]; // e.g., ["piano_moving", "antiques", "commercial"]
+  equipmentAvailable?: string[];
+  isActive?: boolean;
 }
 
-export interface MovingPartnerAssignmentRequest {
+export interface ApiCreateMovingPartnerResponse {
+  partnerId: number;
+  invitationSent: boolean;
+  onboardingUrl?: string;
+  contractSent: boolean;
+}
+
+export interface ApiAssignMovingPartnerRequest {
+  appointmentId: number;
+  partnerId?: number; // If not provided, auto-assign
+  preferredDate?: string;
+  preferredTime?: string;
+  specialRequirements?: string[];
+  estimatedHours?: number;
+  hourlyRate?: number;
+  autoAssign?: boolean;
+}
+
+export interface ApiAssignMovingPartnerResponse {
   appointmentId: number;
   partnerId: number;
-  estimatedHours: number;
-  specialRequirements?: string;
+  partnerName: string;
+  assignmentDate: string;
+  estimatedStartTime: string;
+  hourlyRate: number;
+  estimatedCost: number;
+  contactPhone: string;
 }
 
-export interface MovingPartnerAvailabilityRequest {
+export interface ApiMovingPartnerProfileRequest {
+  partnerId: number;
+}
+
+export interface ApiMovingPartnerProfileResponse {
+  partner: {
+    id: number;
+    businessName: string;
+    contactFirstName: string;
+    contactLastName: string;
+    email: string;
+    phoneNumber: string;
+    isActive: boolean;
+    rating?: number;
+    completedJobs: number;
+    joinDate: string;
+    hourlyRate: number;
+    minimumHours?: number;
+  };
+  businessAddress: {
+    line1: string;
+    line2?: string;
+    city: string;
+    state: string;
+    postalCode: string;
+  };
+  licenseNumber?: string;
+  insuranceInfo: {
+    provider: string;
+    policyNumber: string;
+    expiryDate: string;
+    coverageAmount: number;
+  };
+  serviceAreas: string[];
+  specialties?: string[];
+  equipmentAvailable?: string[];
+  earnings: {
+    thisMonth: number;
+    lastMonth: number;
+    total: number;
+  };
+}
+
+export interface ApiMovingPartnerAvailabilityRequest {
+  partnerId: number;
+  date?: string; // ISO date, defaults to today
+  timeZone?: string;
+}
+
+export interface ApiMovingPartnerAvailabilityResponse {
   partnerId: number;
   date: string;
   available: boolean;
-  blockedTimeSlots?: Array<{
-    start: string;
-    end: string;
-    reason: string;
+  timeSlots: Array<{
+    startTime: string;
+    endTime: string;
+    available: boolean;
+    bookedAppointment?: number;
+    minimumHours?: number;
   }>;
+  totalHours: number;
+  bookedHours: number;
+}
+
+export interface ApiMovingPartnerAppointmentsRequest {
+  partnerId: number;
+  startDate?: string; // ISO date
+  endDate?: string; // ISO date
+  status?: string[];
+  page?: number;
+  limit?: number;
+}
+
+export interface ApiMovingPartnerAppointmentsResponse {
+  appointments: Array<{
+    id: number;
+    jobCode: string;
+    appointmentType: string;
+    date: string;
+    time: string;
+    address: string;
+    status: string;
+    customerName: string;
+    estimatedHours: number;
+    actualHours?: number;
+    hourlyRate: number;
+    totalEarnings?: number;
+  }>;
+  pagination: PaginationMeta;
+}
+
+export interface ApiUpdateMovingPartnerBlockedDatesRequest {
+  partnerId: number;
+  blockedDates: Array<{
+    date: string; // ISO date
+    reason?: string;
+    allDay: boolean;
+    timeSlots?: Array<{
+      startTime: string;
+      endTime: string;
+    }>;
+  }>;
+}
+
+export interface ApiUpdateMovingPartnerBlockedDatesResponse {
+  partnerId: number;
+  blockedDatesUpdated: boolean;
+  conflictingAppointments?: number[];
 }
 
 // ===== CUSTOMERS DOMAIN TYPES =====
 
-export interface CreateCustomerRequest {
-  email: string;
+export interface ApiCreateCustomerAccountRequest {
   firstName: string;
   lastName: string;
+  email: string;
   phoneNumber: string;
-  address: string;
-  zipCode: string;
-  referralSource?: string;
+  password: string;
+  confirmPassword: string;
+  address?: {
+    line1: string;
+    line2?: string;
+    city: string;
+    state: string;
+    postalCode: string;
+  };
+  marketingOptIn?: boolean;
+  referralCode?: string;
 }
 
-export interface CustomerProfileResponse {
+export interface ApiCreateCustomerAccountResponse {
+  customerId: number;
+  accountCreated: boolean;
+  verificationEmailSent: boolean;
+  welcomePackageSent: boolean;
+}
+
+export interface ApiCustomerProfileRequest {
+  customerId: number;
+}
+
+export interface ApiCustomerProfileResponse {
   customer: {
     id: number;
     firstName: string;
     lastName: string;
     email: string;
     phoneNumber: string;
-    address: string;
-    zipCode: string;
-    stripeCustomerId?: string;
-    createdAt: string;
-  };
-  stats: {
-    totalAppointments: number;
-    activeStorageUnits: number;
+    isEmailVerified: boolean;
+    isPhoneVerified: boolean;
+    joinDate: string;
     totalSpent: number;
-    memberSince: string;
+    appointmentsCount: number;
+    loyaltyPoints?: number;
   };
-  recentActivity: Array<{
-    type: 'appointment' | 'payment' | 'storage_access';
-    description: string;
-    date: string;
+  address?: {
+    line1: string;
+    line2?: string;
+    city: string;
+    state: string;
+    postalCode: string;
+  };
+  preferences: {
+    marketingOptIn: boolean;
+    smsNotifications: boolean;
+    emailNotifications: boolean;
+    preferredContactMethod: string;
+  };
+  paymentMethods: Array<{
+    id: string;
+    type: string;
+    last4: string;
+    brand?: string;
+    expiryMonth?: number;
+    expiryYear?: number;
+    isDefault: boolean;
   }>;
 }
 
-export interface UpdateCustomerProfileRequest {
+export interface ApiUpdateCustomerProfileRequest {
   customerId: number;
   firstName?: string;
   lastName?: string;
   phoneNumber?: string;
-  address?: string;
-  zipCode?: string;
-  email?: string;
+  address?: {
+    line1: string;
+    line2?: string;
+    city: string;
+    state: string;
+    postalCode: string;
+  };
+  preferences?: {
+    marketingOptIn?: boolean;
+    smsNotifications?: boolean;
+    emailNotifications?: boolean;
+    preferredContactMethod?: string;
+  };
+}
+
+export interface ApiUpdateCustomerProfileResponse {
+  customerId: number;
+  profileUpdated: boolean;
+  changes: string[];
+  requiresVerification?: string[]; // e.g., ["email", "phone"]
+}
+
+export interface ApiCustomerAppointmentsRequest {
+  customerId: number;
+  startDate?: string; // ISO date
+  endDate?: string; // ISO date
+  status?: string[];
+  page?: number;
+  limit?: number;
+}
+
+export interface ApiCustomerAppointmentsResponse {
+  appointments: Array<{
+    id: number;
+    jobCode: string;
+    appointmentType: string;
+    date: string;
+    time: string;
+    address: string;
+    status: string;
+    quotedPrice: number;
+    actualPrice?: number;
+    trackingUrl?: string;
+    canCancel: boolean;
+    canReschedule: boolean;
+  }>;
+  pagination: PaginationMeta;
+  summary: {
+    upcoming: number;
+    completed: number;
+    cancelled: number;
+    totalSpent: number;
+  };
 }
 
 // ===== ADMIN DOMAIN TYPES =====
 
-export interface AdminTasksResponse {
-  tasks: {
-    unassignedJobs: Array<{
-      id: number;
-      jobCode: string;
-      address: string;
-      date: string;
-      time: string;
-      customerName: string;
-      movingPartner?: {
-        name: string;
-        phoneNumber: string;
-      };
-    }>;
-    negativeFeedback: Array<{
-      id: number;
-      appointmentId: number;
-      rating: number;
-      comments: string;
-      customerName: string;
-      date: string;
-    }>;
-    pendingCleaning: Array<{
-      id: number;
-      unitNumber: string;
-      location: string;
-      lastAccessed: string;
-      priority: 'low' | 'medium' | 'high';
-    }>;
-    storageUnitNeeded: Array<{
-      id: number;
-      appointmentId: number;
-      customerName: string;
-      appointmentDate: string;
-      unitsRequested: number;
-    }>;
-    pendingLocationUpdate: Array<{
-      id: number;
-      unitNumber: string;
-      currentLocation: string;
-      requestedLocation: string;
-      reason: string;
-    }>;
-  };
-  counts: {
-    unassignedJobs: number;
-    negativeFeedback: number;
-    pendingCleaning: number;
-    storageUnitNeeded: number;
-    pendingLocationUpdate: number;
-  };
+export interface ApiAdminDashboardStatsRequest {
+  period: 'today' | 'week' | 'month' | 'quarter' | 'year';
+  startDate?: string; // ISO date for custom period
+  endDate?: string; // ISO date for custom period
 }
 
-export interface AdminDashboardStatsResponse {
-  today: {
-    appointments: number;
+export interface ApiAdminDashboardStatsResponse {
+  period: string;
+  appointments: {
+    total: number;
+    scheduled: number;
+    completed: number;
+    cancelled: number;
     revenue: number;
-    activeDrivers: number;
-    completedJobs: number;
   };
-  thisWeek: {
-    appointments: number;
-    revenue: number;
-    newCustomers: number;
-    driverUtilization: number;
+  customers: {
+    total: number;
+    new: number;
+    active: number;
+    churnRate: number;
   };
-  thisMonth: {
-    appointments: number;
-    revenue: number;
-    storageUnitsActive: number;
-    customerRetention: number;
+  drivers: {
+    total: number;
+    active: number;
+    onDuty: number;
+    averageRating: number;
   };
-  trends: {
-    appointmentGrowth: number;
-    revenueGrowth: number;
-    customerSatisfaction: number;
+  movingPartners: {
+    total: number;
+    active: number;
+    averageRating: number;
+    totalEarnings: number;
   };
-}
-
-export interface AdminReportsRequest {
-  reportType: 'revenue' | 'drivers' | 'customers' | 'operations';
-  dateRange: {
-    start: string;
-    end: string;
-  };
-  filters?: {
-    driverId?: number;
-    customerId?: number;
-    zipCode?: string;
-    appointmentType?: string;
+  operations: {
+    storageUnitsOccupied: number;
+    storageUnitsAvailable: number;
+    packingSupplyOrders: number;
+    onfleetTasksActive: number;
   };
 }
 
-export interface TaskCompletionRequest {
-  taskId: string;
-  taskType: 'storage' | 'feedback' | 'cleaning' | 'access' | 'prep-delivery';
-  completedBy: number; // Admin user ID
-  notes?: string;
-  followUpRequired?: boolean;
+export interface ApiAdminTasksRequest {
+  category?: 'storage' | 'feedback' | 'cleaning' | 'access' | 'prep_delivery';
+  status?: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  assignedTo?: number; // admin user ID
+  page?: number;
+  limit?: number;
+  sortBy?: 'created_date' | 'due_date' | 'priority' | 'status';
+  sortOrder?: 'asc' | 'desc';
 }
 
-// ===== NOTIFICATION TYPES =====
-
-export interface NotificationRequest {
-  recipientId: number;
-  recipientType: 'customer' | 'driver' | 'mover' | 'admin';
-  type: 'sms' | 'email' | 'push';
-  templateId: string;
-  variables: Record<string, unknown>;
-  scheduledFor?: string; // ISO datetime for scheduled notifications
-}
-
-export interface NotificationResponse {
-  notificationId: string;
-  status: 'sent' | 'scheduled' | 'failed';
-  deliveredAt?: string;
-  error?: string;
-}
-
-// ===== FEEDBACK TYPES =====
-
-export interface SubmitFeedbackRequest {
-  appointmentId?: number;
-  packingSupplyOrderId?: number;
-  rating: number; // 1-5
-  comments?: string;
-  categories: string[]; // e.g., ['timeliness', 'quality', 'communication']
-  photos?: string[]; // Upload IDs
-}
-
-export interface FeedbackResponse {
-  feedbackId: number;
-  processed: boolean;
-  followUpRequired: boolean;
-  adminNotified: boolean;
-}
-
-// ===== STORAGE UNIT TYPES =====
-
-export interface StorageUnitRequest {
-  customerId: number;
-  size: 'small' | 'medium' | 'large' | 'extra_large';
-  location: string;
-  specialRequirements?: string;
-}
-
-export interface StorageUnitResponse {
-  unit: {
-    id: number;
-    unitNumber: string;
-    size: string;
-    location: string;
-    status: 'available' | 'occupied' | 'maintenance' | 'cleaning';
-    assignedCustomerId?: number;
-    lastAccessed?: string;
-  };
-}
-
-export interface AccessStorageUnitRequest {
-  customerId: number;
-  storageUnitIds: number[];
-  accessDate: string;
-  accessTime: string;
-  reason: string;
-  specialInstructions?: string;
-}
-
-// ===== UTILITY TYPES =====
-
-export interface FileUploadResponse {
-  uploadId: string;
-  fileName: string;
-  fileSize: number;
-  mimeType: string;
-  url: string;
-}
-
-export interface BulkOperationRequest<T> {
-  operation: 'create' | 'update' | 'delete';
-  items: T[];
-  validateOnly?: boolean;
-}
-
-export interface BulkOperationResponse<T> {
-  successful: T[];
-  failed: Array<{
-    item: T;
-    error: ApiError;
+export interface ApiAdminTasksResponse {
+  tasks: Array<{
+    id: string;
+    category: string;
+    title: string;
+    description: string;
+    status: string;
+    priority: string;
+    assignedTo?: {
+      id: number;
+      name: string;
+    };
+    createdAt: string;
+    dueDate?: string;
+    completedAt?: string;
+    relatedAppointment?: number;
+    relatedCustomer?: number;
   }>;
+  pagination: PaginationMeta;
   summary: {
     total: number;
-    successful: number;
-    failed: number;
+    pending: number;
+    inProgress: number;
+    completed: number;
+    overdue: number;
   };
+}
+
+export interface ApiAdminTaskDetailsRequest {
+  taskId: string;
+}
+
+export interface ApiAdminTaskDetailsResponse {
+  task: {
+    id: string;
+    category: string;
+    title: string;
+    description: string;
+    status: string;
+    priority: string;
+    assignedTo?: {
+      id: number;
+      name: string;
+      email: string;
+    };
+    createdBy: {
+      id: number;
+      name: string;
+    };
+    createdAt: string;
+    updatedAt: string;
+    dueDate?: string;
+    completedAt?: string;
+    estimatedDuration?: number; // minutes
+    actualDuration?: number; // minutes
+    tags?: string[];
+    attachments?: Array<{
+      id: string;
+      filename: string;
+      url: string;
+      uploadedAt: string;
+    }>;
+  };
+  relatedData?: {
+    appointment?: {
+      id: number;
+      jobCode: string;
+      customerName: string;
+      date: string;
+      status: string;
+    };
+    customer?: {
+      id: number;
+      name: string;
+      email: string;
+      phoneNumber: string;
+    };
+    storageUnits?: Array<{
+      id: number;
+      unitNumber: string;
+      status: string;
+    }>;
+  };
+  comments: Array<{
+    id: number;
+    content: string;
+    author: {
+      id: number;
+      name: string;
+    };
+    createdAt: string;
+    attachments?: Array<{
+      id: string;
+      filename: string;
+      url: string;
+    }>;
+  }>;
+}
+
+export interface ApiUpdateAdminTaskRequest {
+  taskId: string;
+  status?: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  assignedTo?: number; // admin user ID
+  dueDate?: string; // ISO date
+  description?: string;
+  tags?: string[];
+  comment?: string; // Add a comment with the update
+}
+
+export interface ApiUpdateAdminTaskResponse {
+  taskId: string;
+  updated: boolean;
+  changes: string[];
+  newStatus: string;
+  commentAdded: boolean;
+}
+
+export interface ApiAdminReportsRequest {
+  reportType:
+    | 'revenue'
+    | 'appointments'
+    | 'customers'
+    | 'drivers'
+    | 'moving_partners'
+    | 'operations';
+  period: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+  startDate: string; // ISO date
+  endDate: string; // ISO date
+  filters?: {
+    zipCodes?: string[];
+    appointmentTypes?: string[];
+    customerSegments?: string[];
+  };
+  format?: 'json' | 'csv' | 'pdf';
+}
+
+export interface ApiAdminReportsResponse {
+  reportId: string;
+  reportType: string;
+  period: string;
+  dateRange: {
+    startDate: string;
+    endDate: string;
+  };
+  data: unknown; // Report-specific data structure
+  downloadUrl?: string; // For CSV/PDF formats
+  generatedAt: string;
+  expiresAt?: string; // For download links
 }
 
 // ===== API ENDPOINT CONSTANTS =====
@@ -805,8 +1400,11 @@ export const API_ENDPOINTS = {
   // Moving Partners
   MOVING_PARTNERS_CREATE: '/api/moving-partners/create-partner',
   MOVING_PARTNERS_ASSIGN: '/api/moving-partners/assign-partner',
+  MOVING_PARTNERS_PROFILE: '/api/moving-partners/[partnerId]',
   MOVING_PARTNERS_AVAILABILITY: '/api/moving-partners/[partnerId]/availability',
   MOVING_PARTNERS_APPOINTMENTS: '/api/moving-partners/[partnerId]/appointments',
+  MOVING_PARTNERS_BLOCKED_DATES:
+    '/api/moving-partners/[partnerId]/blocked-dates',
 
   // Customers
   CUSTOMERS_CREATE: '/api/customers/create-customer',
@@ -816,86 +1414,39 @@ export const API_ENDPOINTS = {
   // Admin
   ADMIN_DASHBOARD_STATS: '/api/admin/dashboard-stats',
   ADMIN_TASKS: '/api/admin/tasks',
-  ADMIN_TASKS_DETAIL: '/api/admin/tasks/[taskId]',
+  ADMIN_TASK_DETAILS: '/api/admin/tasks/[taskId]',
   ADMIN_REPORTS: '/api/admin/reports',
-  ADMIN_DRIVERS: '/api/admin/drivers',
-  ADMIN_CUSTOMERS: '/api/admin/customers',
-  ADMIN_STORAGE_UNITS: '/api/admin/storage-units',
-  ADMIN_FEEDBACK: '/api/admin/feedback',
-
-  // Utility
-  UPLOAD_FILE: '/api/upload',
-  AVAILABILITY_CHECK: '/api/availability',
-  ACCESS_STORAGE_UNIT: '/api/accessStorageUnit',
-  ADD_ADDITIONAL_STORAGE: '/api/addAdditionalStorage',
-  STORAGE_UNITS_BY_USER: '/api/storageUnitsByUser',
-  SUBMIT_QUOTE: '/api/submitQuote',
-  SEND_QUOTE_EMAIL: '/api/send-quote-email',
-  UPDATE_PHONE_NUMBER: '/api/updatephonenumber',
-
-  // Webhooks
-  WEBHOOKS_ONFLEET: '/api/webhooks/onfleet',
-  WEBHOOKS_STRIPE: '/api/webhooks/stripe',
-
-  // Cron Jobs
-  CRON_DAILY_DISPATCH: '/api/cron/daily-dispatch',
-  CRON_PACKING_SUPPLY_PAYOUTS: '/api/cron/packing-supply-payouts',
-  CRON_DRIVER_REMINDERS: '/api/cron/driver-reminders',
-  CRON_CLEANUP_TASKS: '/api/cron/cleanup-tasks',
-
-  // Testing
-  TEST_ONFLEET: '/api/test-onfleet',
 } as const;
+
+// ===== UTILITY TYPES =====
 
 export type ApiEndpoint = (typeof API_ENDPOINTS)[keyof typeof API_ENDPOINTS];
 
-// ===== HTTP STATUS CODES =====
-
-export const HTTP_STATUS = {
-  OK: 200,
-  CREATED: 201,
-  NO_CONTENT: 204,
-  BAD_REQUEST: 400,
-  UNAUTHORIZED: 401,
-  FORBIDDEN: 403,
-  NOT_FOUND: 404,
-  CONFLICT: 409,
-  UNPROCESSABLE_ENTITY: 422,
-  TOO_MANY_REQUESTS: 429,
-  INTERNAL_SERVER_ERROR: 500,
-  SERVICE_UNAVAILABLE: 503,
-} as const;
-
-export type HttpStatusCode = (typeof HTTP_STATUS)[keyof typeof HTTP_STATUS];
-
-// ===== HELPER TYPES =====
-
-export type RequestMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-
-export interface ApiRouteConfig {
-  method: RequestMethod;
-  endpoint: string;
-  requiresAuth: boolean;
-  roles?: string[];
-  rateLimit?: {
-    requests: number;
-    windowMs: number;
-  };
-}
-
-// Type utility for creating success responses
-export type SuccessResponse<T> = {
+// Helper type for API responses with data
+export type ApiSuccessResponse<T> = ApiResponse<T> & {
   success: true;
   data: T;
-  meta?: ResponseMeta;
 };
 
-// Type utility for creating error responses
-export type ErrorResponse = {
+// Helper type for API error responses
+export type ApiErrorResponse = ApiResponse<never> & {
   success: false;
   error: ApiError;
-  meta?: ResponseMeta;
 };
 
 // Union type for all possible API responses
-export type ApiResult<T> = SuccessResponse<T> | ErrorResponse;
+export type ApiResult<T> = ApiSuccessResponse<T> | ApiErrorResponse;
+
+// Generic pagination request
+export interface ApiPaginationRequest {
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+// Generic search request
+export interface ApiSearchRequest extends ApiPaginationRequest {
+  query?: string;
+  filters?: Record<string, unknown>;
+}

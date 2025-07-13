@@ -8,29 +8,17 @@ export * from './common.types';
 export * from './user.types';
 export * from './database.types';
 
-// Domain-specific types (selective exports to avoid API conflicts)
-export type {
-  // Core appointment types (non-conflicting)
-  AppointmentStatus,
-  AppointmentType,
-  Appointment,
-  AppointmentWithDetails,
-} from './appointment.types';
-
-export type {
-  // Core storage types
-  StorageUnit,
-} from './storage.types';
-
-// Integration types (non-conflicting)
+// Domain-specific types (now with domain prefixing - no conflicts)
+export * from './appointment.types';
+export * from './packingSupply.types';
+export * from './storage.types';
+export * from './onfleet.types';
 export * from './stripe.types';
 export * from './driver.types';
 export * from './movingPartner.types';
 export * from './notification.types';
 
-// Note: Some domain types have naming conflicts with API types
-// Import them directly from their respective files when needed:
-// - './appointment.types' for detailed appointment interfaces
-// - './packingSupply.types' for packing supply domain types
-// - './storage.types' for detailed storage interfaces
-// - './onfleet.types' for Onfleet-specific types
+// Note: With domain prefixing implemented, all types can be safely exported
+// - API types: Prefixed with "Api" (e.g., ApiCreateAppointmentRequest)
+// - Domain types: Prefixed with domain name (e.g., AppointmentDomainCreateRequest)
+// - Legacy exports maintained for backward compatibility

@@ -2,18 +2,18 @@
  * @fileoverview Appointment and booking domain types
  * @source boombox-10.0/src/app/types/types.ts
  * @source boombox-11.0/prisma/schema.prisma (Appointment, AdditionalAppointmentInfo models)
- * @refactor Enhanced with comprehensive appointment management types
+ * @refactor Enhanced with comprehensive appointment management types and domain prefixing
  */
 
 // ===== CORE APPOINTMENT TYPES =====
 
-export interface Appointment {
+export interface AppointmentDomainRecord {
   id: number;
   jobCode?: string | null;
   userId: number;
   movingPartnerId?: number | null;
   thirdPartyMovingPartnerId?: number | null;
-  appointmentType: AppointmentType;
+  appointmentType: AppointmentDomainType;
   address: string;
   zipcode: string;
   date: string;
@@ -26,7 +26,7 @@ export interface Appointment {
   monthlyInsuranceRate?: number | null;
   quotedPrice: number;
   invoiceTotal?: number | null;
-  status: AppointmentStatus;
+  status: AppointmentDomainStatus;
   description?: string | null;
   deliveryReason?: string | null;
   totalEstimatedCost?: number | null;
@@ -41,10 +41,13 @@ export interface Appointment {
   gotHoldOfMovingPartner?: boolean | null;
   hasAdditionalInfo: boolean;
   thirdPartyTitle?: string | null;
-  requestedStorageUnits: AppointmentRequestedStorageUnit[];
+  requestedStorageUnits: AppointmentDomainRequestedStorageUnit[];
 }
 
-export type AppointmentType =
+// Legacy export for backward compatibility
+export type Appointment = AppointmentDomainRecord;
+
+export type AppointmentDomainType =
   | 'Initial Pickup'
   | 'Storage Unit Access'
   | 'Additional Storage'
@@ -52,7 +55,10 @@ export type AppointmentType =
   | 'Return Delivery'
   | 'Damage Inspection';
 
-export type AppointmentStatus =
+// Legacy export for backward compatibility
+export type AppointmentType = AppointmentDomainType;
+
+export type AppointmentDomainStatus =
   | 'Scheduled'
   | 'Confirmed'
   | 'In Progress'
@@ -62,7 +68,10 @@ export type AppointmentStatus =
   | 'Failed'
   | 'No Show';
 
-export interface AdditionalAppointmentInfo {
+// Legacy export for backward compatibility
+export type AppointmentStatus = AppointmentDomainStatus;
+
+export interface AppointmentDomainAdditionalInfo {
   id: number;
   appointmentId: number;
   itemsOver100lbs: boolean;
@@ -72,15 +81,19 @@ export interface AdditionalAppointmentInfo {
   conditionsDescription?: string | null;
 }
 
-// Rename the interface:
-export interface AppointmentRequestedStorageUnit {
+// Legacy export for backward compatibility
+export type AdditionalAppointmentInfo = AppointmentDomainAdditionalInfo;
+
+export interface AppointmentDomainRequestedStorageUnit {
   id: number;
   storageUnitNumber: string;
 }
 
-// ===== APPOINTMENT SCHEDULING TYPES =====
+// Legacy export for backward compatibility
+export type AppointmentRequestedStorageUnit =
+  AppointmentDomainRequestedStorageUnit;
 
-export interface AppointmentTimeSlot {
+export interface AppointmentDomainTimeSlot {
   id: string;
   date: string;
   startTime: string;
@@ -92,7 +105,10 @@ export interface AppointmentTimeSlot {
   driverId?: number;
 }
 
-export interface AppointmentAvailabilityRequest {
+// Legacy export for backward compatibility
+export type AppointmentTimeSlot = AppointmentDomainTimeSlot;
+
+export interface AppointmentDomainAvailabilityRequest {
   planType: string;
   year: number;
   month: number;
@@ -102,34 +118,49 @@ export interface AppointmentAvailabilityRequest {
   zipcode?: string;
 }
 
-export interface AppointmentAvailabilityResponse {
-  availableSlots: AppointmentTimeSlot[];
+// Legacy export for backward compatibility
+export type AppointmentAvailabilityRequest =
+  AppointmentDomainAvailabilityRequest;
+
+export interface AppointmentDomainAvailabilityResponse {
+  availableSlots: AppointmentDomainTimeSlot[];
   unavailableDates: string[];
-  partnerAvailability: AppointmentPartnerAvailability[];
-  driverAvailability: AppointmentDriverAvailability[];
+  partnerAvailability: AppointmentDomainPartnerAvailability[];
+  driverAvailability: AppointmentDomainDriverAvailability[];
 }
 
-export interface AppointmentPartnerAvailability {
+// Legacy export for backward compatibility
+export type AppointmentAvailabilityResponse =
+  AppointmentDomainAvailabilityResponse;
+
+export interface AppointmentDomainPartnerAvailability {
   partnerId: number;
   partnerName: string;
-  availableSlots: AppointmentTimeSlot[];
+  availableSlots: AppointmentDomainTimeSlot[];
   hourlyRate?: number;
   rating?: number;
 }
 
-export interface AppointmentDriverAvailability {
+// Legacy export for backward compatibility
+export type AppointmentPartnerAvailability =
+  AppointmentDomainPartnerAvailability;
+
+export interface AppointmentDomainDriverAvailability {
   driverId: number;
   driverName: string;
-  availableSlots: AppointmentTimeSlot[];
+  availableSlots: AppointmentDomainTimeSlot[];
   vehicleType?: string;
   rating?: number;
 }
 
-// ===== APPOINTMENT BOOKING TYPES =====
+// Legacy export for backward compatibility
+export type AppointmentDriverAvailability = AppointmentDomainDriverAvailability;
 
-export interface AppointmentCreateRequest {
+// ===== APPOINTMENT CRUD OPERATIONS =====
+
+export interface AppointmentDomainCreateRequest {
   userId: number;
-  appointmentType: AppointmentType;
+  appointmentType: AppointmentDomainType;
   address: string;
   zipcode: string;
   date: string;
@@ -155,8 +186,11 @@ export interface AppointmentCreateRequest {
   requestedStorageUnits?: number[];
 }
 
-export interface AppointmentUpdateRequest {
-  appointmentType?: AppointmentType;
+// Legacy export for backward compatibility
+export type AppointmentCreateRequest = AppointmentDomainCreateRequest;
+
+export interface AppointmentDomainUpdateRequest {
+  appointmentType?: AppointmentDomainType;
   address?: string;
   zipcode?: string;
   date?: string;
@@ -168,16 +202,19 @@ export interface AppointmentUpdateRequest {
   monthlyStorageRate?: number;
   monthlyInsuranceRate?: number;
   quotedPrice?: number;
-  status?: AppointmentStatus;
+  status?: AppointmentDomainStatus;
   description?: string;
   deliveryReason?: string;
   movingPartnerId?: number;
   thirdPartyMovingPartnerId?: number;
 }
 
-// ===== APPOINTMENT CANCELLATION TYPES =====
+// Legacy export for backward compatibility
+export type AppointmentUpdateRequest = AppointmentDomainUpdateRequest;
 
-export interface AppointmentCancellation {
+// ===== APPOINTMENT CANCELLATION =====
+
+export interface AppointmentDomainCancellation {
   id: number;
   appointmentId: number;
   cancellationFee: number;
@@ -188,7 +225,10 @@ export interface AppointmentCancellation {
   refundStatus?: 'pending' | 'processed' | 'failed';
 }
 
-export interface CancelAppointmentRequest {
+// Legacy export for backward compatibility
+export type AppointmentCancellation = AppointmentDomainCancellation;
+
+export interface AppointmentDomainCancelRequest {
   appointmentId: number;
   cancellationReason: string;
   cancellationFee?: number;
@@ -197,9 +237,12 @@ export interface CancelAppointmentRequest {
   refundRequested?: boolean;
 }
 
-// ===== APPOINTMENT ASSIGNMENT TYPES =====
+// Legacy export for backward compatibility
+export type CancelAppointmentRequest = AppointmentDomainCancelRequest;
 
-export interface AppointmentAssignment {
+// ===== APPOINTMENT ASSIGNMENT =====
+
+export interface AppointmentDomainAssignment {
   appointmentId: number;
   assignedType: 'moving_partner' | 'driver' | 'third_party';
   assignedId: number;
@@ -210,7 +253,10 @@ export interface AppointmentAssignment {
   internalNotes?: string;
 }
 
-export interface AssignmentRequest {
+// Legacy export for backward compatibility
+export type AppointmentAssignment = AppointmentDomainAssignment;
+
+export interface AppointmentDomainAssignmentRequest {
   appointmentId: number;
   assignedType: 'moving_partner' | 'driver' | 'third_party';
   assignedId: number;
@@ -219,13 +265,16 @@ export interface AssignmentRequest {
   internalNotes?: string;
 }
 
-// ===== APPOINTMENT TRACKING TYPES =====
+// Legacy export for backward compatibility
+export type AssignmentRequest = AppointmentDomainAssignmentRequest;
 
-export interface AppointmentTracking {
+// ===== APPOINTMENT TRACKING =====
+
+export interface AppointmentDomainTracking {
   appointmentId: number;
   trackingToken: string;
   trackingUrl: string;
-  currentStatus: AppointmentStatus;
+  currentStatus: AppointmentDomainStatus;
   estimatedArrival?: Date;
   actualArrival?: Date;
   serviceStartTime?: Date;
@@ -235,9 +284,12 @@ export interface AppointmentTracking {
   notes?: string;
 }
 
-export interface AppointmentStatusUpdate {
+// Legacy export for backward compatibility
+export type AppointmentTracking = AppointmentDomainTracking;
+
+export interface AppointmentDomainStatusUpdate {
   appointmentId: number;
-  newStatus: AppointmentStatus;
+  newStatus: AppointmentDomainStatus;
   updatedBy: number; // user ID
   updateReason?: string;
   estimatedTime?: Date;
@@ -246,9 +298,12 @@ export interface AppointmentStatusUpdate {
   photos?: string[];
 }
 
-// ===== APPOINTMENT COST TYPES =====
+// Legacy export for backward compatibility
+export type AppointmentStatusUpdate = AppointmentDomainStatusUpdate;
 
-export interface AppointmentCostBreakdown {
+// ===== APPOINTMENT COST MANAGEMENT =====
+
+export interface AppointmentDomainCostBreakdown {
   appointmentId: number;
   baseCost: number;
   loadingHelpCost: number;
@@ -261,7 +316,10 @@ export interface AppointmentCostBreakdown {
   discountReason?: string;
 }
 
-export interface CostEstimate {
+// Legacy export for backward compatibility
+export type AppointmentCostBreakdown = AppointmentDomainCostBreakdown;
+
+export interface AppointmentDomainCostEstimate {
   baseCost: number;
   loadingHelpCost: number;
   monthlyStorageCost: number;
@@ -272,13 +330,16 @@ export interface CostEstimate {
     planType: string;
     insuranceCoverage: string;
     zipcode: string;
-    appointmentType: AppointmentType;
+    appointmentType: AppointmentDomainType;
   };
 }
 
-// ===== APPOINTMENT FEEDBACK TYPES =====
+// Legacy export for backward compatibility
+export type CostEstimate = AppointmentDomainCostEstimate;
 
-export interface AppointmentFeedback {
+// ===== APPOINTMENT FEEDBACK =====
+
+export interface AppointmentDomainFeedback {
   id: number;
   appointmentId: number;
   rating: number; // 1-5
@@ -296,7 +357,10 @@ export interface AppointmentFeedback {
   adminResponse?: string;
 }
 
-export interface FeedbackRequest {
+// Legacy export for backward compatibility
+export type AppointmentFeedback = AppointmentDomainFeedback;
+
+export interface AppointmentDomainFeedbackRequest {
   appointmentId: number;
   rating: number;
   comment?: string;
@@ -310,9 +374,12 @@ export interface FeedbackRequest {
   wouldRecommend: boolean;
 }
 
-// ===== ENHANCED APPOINTMENT TYPES =====
+// Legacy export for backward compatibility
+export type FeedbackRequest = AppointmentDomainFeedbackRequest;
 
-export interface AppointmentWithDetails extends Appointment {
+// ===== APPOINTMENT EXTENDED VIEWS =====
+
+export interface AppointmentDomainWithDetails extends AppointmentDomainRecord {
   user: {
     id: number;
     firstName: string;
@@ -332,19 +399,22 @@ export interface AppointmentWithDetails extends Appointment {
     name: string;
     contactInfo: string;
   };
-  additionalInfo?: AdditionalAppointmentInfo;
-  cancellations: AppointmentCancellation[];
-  feedback?: AppointmentFeedback;
-  assignment?: AppointmentAssignment;
-  tracking?: AppointmentTracking;
-  costBreakdown?: AppointmentCostBreakdown;
+  additionalInfo?: AppointmentDomainAdditionalInfo;
+  cancellations: AppointmentDomainCancellation[];
+  feedback?: AppointmentDomainFeedback;
+  assignment?: AppointmentDomainAssignment;
+  tracking?: AppointmentDomainTracking;
+  costBreakdown?: AppointmentDomainCostBreakdown;
 }
 
-export interface AppointmentSummary {
+// Legacy export for backward compatibility
+export type AppointmentWithDetails = AppointmentDomainWithDetails;
+
+export interface AppointmentDomainSummary {
   id: number;
   jobCode?: string;
-  appointmentType: AppointmentType;
-  status: AppointmentStatus;
+  appointmentType: AppointmentDomainType;
+  status: AppointmentDomainStatus;
   date: string;
   time: string;
   address: string;
@@ -354,11 +424,14 @@ export interface AppointmentSummary {
   trackingUrl?: string;
 }
 
-// ===== API RESPONSE TYPES =====
+// Legacy export for backward compatibility
+export type AppointmentSummary = AppointmentDomainSummary;
 
-export interface AppointmentSearchFilters {
-  status?: AppointmentStatus[];
-  appointmentType?: AppointmentType[];
+// ===== APPOINTMENT SEARCH & FILTERING =====
+
+export interface AppointmentDomainSearchFilters {
+  status?: AppointmentDomainStatus[];
+  appointmentType?: AppointmentDomainType[];
   dateRange?: {
     start: Date;
     end: Date;
@@ -370,10 +443,13 @@ export interface AppointmentSearchFilters {
   maxPrice?: number;
 }
 
-export interface AppointmentSearchResult {
-  appointments: AppointmentSummary[];
+// Legacy export for backward compatibility
+export type AppointmentSearchFilters = AppointmentDomainSearchFilters;
+
+export interface AppointmentDomainSearchResult {
+  appointments: AppointmentDomainSummary[];
   totalCount: number;
-  filters: AppointmentSearchFilters;
+  filters: AppointmentDomainSearchFilters;
   pagination: {
     page: number;
     limit: number;
@@ -381,24 +457,35 @@ export interface AppointmentSearchResult {
   };
 }
 
+// Legacy export for backward compatibility
+export type AppointmentSearchResult = AppointmentDomainSearchResult;
+
 // ===== TYPE GUARDS =====
 
-export function isValidAppointmentType(type: string): type is AppointmentType {
-  const validTypes: AppointmentType[] = [
+export function isValidAppointmentDomainType(
+  type: string
+): type is AppointmentDomainType {
+  return [
     'Initial Pickup',
     'Storage Unit Access',
     'Additional Storage',
     'End Storage Term',
     'Return Delivery',
     'Damage Inspection',
-  ];
-  return validTypes.includes(type as AppointmentType);
+  ].includes(type);
 }
 
-export function isValidAppointmentStatus(
+// Legacy export for backward compatibility
+export function isValidAppointmentType(
+  type: string
+): type is AppointmentDomainType {
+  return isValidAppointmentDomainType(type);
+}
+
+export function isValidAppointmentDomainStatus(
   status: string
-): status is AppointmentStatus {
-  const validStatuses: AppointmentStatus[] = [
+): status is AppointmentDomainStatus {
+  return [
     'Scheduled',
     'Confirmed',
     'In Progress',
@@ -407,12 +494,25 @@ export function isValidAppointmentStatus(
     'Rescheduled',
     'Failed',
     'No Show',
-  ];
-  return validStatuses.includes(status as AppointmentStatus);
+  ].includes(status);
 }
 
-export function isAssignmentType(
+// Legacy export for backward compatibility
+export function isValidAppointmentStatus(
+  status: string
+): status is AppointmentDomainStatus {
+  return isValidAppointmentDomainStatus(status);
+}
+
+export function isAppointmentDomainAssignmentType(
   type: string
 ): type is 'moving_partner' | 'driver' | 'third_party' {
   return ['moving_partner', 'driver', 'third_party'].includes(type);
+}
+
+// Legacy export for backward compatibility
+export function isAssignmentType(
+  type: string
+): type is 'moving_partner' | 'driver' | 'third_party' {
+  return isAppointmentDomainAssignmentType(type);
 }
