@@ -1,10 +1,25 @@
 /**
- * @fileoverview Utility Functions Library
- * @source Created for boombox-11.0 utilities system
- * @refactor Utility functions and helpers
+ * @fileoverview Centralized exports for utility functions
+ * @refactor Consolidated utility exports from boombox-10.0
  */
 
-// Note: Utility functions will be added here as they are migrated
-// Examples: date/time utilities, formatting, validation helpers, etc.
+// Phone utilities
+export * from './phoneUtils';
 
-export {}; // Temporary export to prevent empty module error
+// Currency utilities
+export * from './currencyUtils';
+
+// Validation utilities
+export * from './validationUtils';
+
+// Formatting utilities
+export * from './formatUtils';
+
+// Date utilities
+export * from './dateUtils';
+
+// Legacy compatibility (will be removed in cleanup phase)
+export { formatCurrency } from './currencyUtils';
+export { formatPhoneNumberForDisplay as formatPhoneNumber } from './phoneUtils';
+export { generateJobCode, generateVerificationCode } from './formatUtils';
+export { parseAddress } from './formatUtils';
