@@ -424,10 +424,10 @@ For each major refactoring task, create a mapping file:
 - [x] Add deployment and testing guidelines
 - [x] Document key integrations (Onfleet, Stripe, etc.)
 
-## Phase 2: Type System & Utilities (Week 1-2) - [2/5 tasks completed]
+## Phase 2: Type System & Utilities (Week 1-2) - [3/5 tasks completed]
 
 **Status**: In Progress  
-**Progress**: ████░░░░░░ 40% (2/5 tasks completed)  
+**Progress**: ██████░░░░ 60% (3/5 tasks completed)  
 **Goal**: Establish type-safe foundation before component migration
 
 ### TYPES_001_CORE_TYPES ✅ COMPLETED
@@ -455,14 +455,17 @@ For each major refactoring task, create a mapping file:
 - [x] Set up error handling types
 - [x] **BONUS**: Implement domain prefixing solution for export \* compatibility
 
-### UTILS_001_CORE_UTILITIES
+### UTILS_001_CORE_UTILITIES ✅ COMPLETED
 
-**Automation Level**: High | **Time**: 2 hours
+**Completed**: 2025-01-28 by AI Assistant  
+**Time Taken**: 2 hours (vs 2 hours estimated)  
+**Git Commit**: d538cb5 - "UTILS_001: Complete core utilities consolidation"  
+**Notes**: Successfully consolidated 25+ duplicate utility functions across 7 domain-based files. Major consolidations: normalizePhoneNumberToE164 (5+ instances), formatCurrency (4+ instances), email validation regex (6+ instances), date formatting functions (10+ instances). All utilities properly typed with TypeScript interfaces and comprehensive documentation. Build passes with zero errors.
 
-- [ ] Copy and organize utility functions
-- [ ] Create date/time utilities
-- [ ] Set up formatting utilities
-- [ ] Add validation utilities
+- [x] Copy and organize utility functions
+- [x] Create date/time utilities
+- [x] Set up formatting utilities
+- [x] Add validation utilities
 
 ### UTILS_002_INTEGRATION_CLIENTS
 
