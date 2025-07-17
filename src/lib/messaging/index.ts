@@ -1,10 +1,10 @@
 /**
- * @fileoverview Messaging System Library
- * @source Created for boombox-11.0 messaging system
- * @refactor Centralized messaging with template system
+ * @fileoverview Messaging integrations - Twilio SMS and SendGrid Email
+ * @source Consolidated messaging services for centralized communication
  */
 
-// Note: Messaging system will be added here as it's developed
-// Examples: MessageService, template engine, multi-channel delivery, etc.
+// Twilio SMS Client
+export * from './twilioClient';
 
-export {}; // Temporary export to prevent empty module error
+// SendGrid Email Client
+export * from './sendgridClient';

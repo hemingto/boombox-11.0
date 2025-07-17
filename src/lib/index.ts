@@ -1,23 +1,10 @@
 /**
- * @fileoverview Library Utilities and Configurations
- * @source Created for boombox-11.0 lib organization
- * @refactor Centralized library exports
+ * @fileoverview Main library exports for boombox-11.0
+ * @source Consolidated exports from various boombox-10.0 lib files
  */
 
-// Authentication
-export * from './auth';
-
-// Database
-export * from './database';
-
-// External Integrations
-export * from './integrations';
-
-// Messaging System
+// Messaging (Twilio + SendGrid)
 export * from './messaging';
 
-// Utility Functions
-export * from './utils';
-
-// Validation Schemas
-export * from './validations';
+// Configuration
+export * from './config/environment';
