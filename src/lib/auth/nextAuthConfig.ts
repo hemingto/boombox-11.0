@@ -4,6 +4,8 @@
  * @refactor Moved to auth directory with NO LOGIC CHANGES
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { NextAuthOptions } from 'next-auth';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma } from '@/lib/database/prismaClient';
@@ -14,7 +16,6 @@ import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
 type AccountType = 'customer' | 'driver' | 'mover' | 'admin';
 
 export const authOptions: NextAuthOptions = {
-  // @ts-expect-error - NextAuth adapter type compatibility
   adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
@@ -177,13 +178,14 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user, trigger, session }) {
       if (user) {
         // When signing in, create a new session with current timestamp
-        token.id = user.id;
-        token.accountType = user.accountType as AccountType;
+        const customUser = user as any; // Type assertion for custom user properties
+        token.id = customUser.id;
+        token.accountType = customUser.accountType as AccountType;
         token.sessionCreated = Date.now();
         token.sessionId = crypto.randomUUID();
-        if (user.role) {
-          token.role = user.role;
-          console.log('Setting role in token:', user.role);
+        if (customUser.role) {
+          token.role = customUser.role;
+          console.log('Setting role in token:', customUser.role);
         }
       }
 
@@ -196,12 +198,15 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
-        session.user.accountType = token.accountType as AccountType;
-        session.created = token.sessionCreated as number;
-        session.sessionId = token.sessionId as string;
+        const customSession = session as any; // Type assertion for custom session properties
+        const customUser = session.user as any; // Type assertion for custom user properties
+
+        customUser.id = token.id as string;
+        customUser.accountType = token.accountType as AccountType;
+        customSession.created = token.sessionCreated as number;
+        customSession.sessionId = token.sessionId as string;
         if (token.role) {
-          session.user.role = token.role;
+          customUser.role = token.role;
           console.log('Setting role in session:', token.role);
         }
       }
