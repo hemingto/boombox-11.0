@@ -1,24 +1,30 @@
 /**
- * @fileoverview Centralized exports for utility functions
- * @refactor Consolidated utility exports from boombox-10.0
+ * @fileoverview Centralized exports for all utility functions
+ * @refactor Consolidated utility exports from boombox-10.0 into organized structure
  */
 
-// Phone utilities
+// Phone number utilities
 export * from './phoneUtils';
 
-// Currency utilities
-export * from './currencyUtils';
+// Date and time utilities
+export * from './dateUtils';
 
 // Validation utilities
 export * from './validationUtils';
 
-// Formatting utilities
+// Currency utilities
+export * from './currencyUtils';
+
+// General formatting utilities
 export * from './formatUtils';
 
-// Date utilities
-export * from './dateUtils';
+// Status management utilities
+export * from './statusUtils';
 
-// Legacy compatibility (will be removed in cleanup phase)
+// Business logic utilities
+export * from './businessUtils';
+
+// Legacy compatibility exports (to be removed in CLEANUP_001)
 export { formatCurrency } from './currencyUtils';
 export { formatPhoneNumberForDisplay as formatPhoneNumber } from './phoneUtils';
 export { generateJobCode, generateVerificationCode } from './formatUtils';

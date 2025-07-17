@@ -255,6 +255,166 @@ When working with Twilio/SendGrid messaging:
 - Support multi-channel delivery (SMS + Email)
 - Use variable substitution with `{{variableName}}` syntax
 
+### Utility Function Consolidation (CRITICAL for Phase 5+)
+**During component migration, ALWAYS extract utility functions to centralized utils:**
+
+#### Detection Patterns
+Look for these patterns in components that should be moved to `@/lib/utils/`:
+- **Formatting functions**: `formatCurrency`, `formatDate`, `formatPhoneNumber`, `formatAddress`
+- **Validation functions**: Email regex, phone validation, URL validation, form validation
+- **Calculation functions**: Pricing calculations, capacity calculations, distance calculations
+- **Parsing functions**: Address parsing, name parsing, data transformation
+- **Helper functions**: Array manipulation, object utilities, string utilities
+- **Business logic utilities**: Service area checks, availability calculations, pricing rules
+
+#### Consolidation Process
+1. **Identify**: Scan each component for utility functions (non-React, reusable logic)
+2. **Extract**: Move functions to appropriate domain file in `@/lib/utils/`:
+   - `phoneUtils.ts` - Phone formatting, validation, normalization
+   - `dateUtils.ts` - Date formatting, parsing, calculations
+   - `currencyUtils.ts` - Currency formatting, Stripe conversions
+   - `validationUtils.ts` - Form validation, regex patterns
+   - `formatUtils.ts` - General formatting, address parsing
+   - `businessUtils.ts` - Business rules, capacity, pricing
+   - `statusUtils.ts` - Status management, badge colors
+   - **OR CREATE NEW FILE** if no existing domain fits (see "New Utility File Creation" below)
+3. **Enhance**: Add proper TypeScript interfaces and documentation
+4. **Update**: Replace component-level functions with imports from `@/lib/utils/`
+5. **Test**: Ensure functionality remains identical
+
+#### New Utility File Creation
+**When existing utility files don't fit the new function's domain:**
+
+##### Naming Convention
+- **Format**: `{domain}Utils.ts` (camelCase + Utils suffix)
+- **Examples**:
+  - `imageUtils.ts` - Image processing, optimization, manipulation
+  - `storageUtils.ts` - localStorage, sessionStorage, browser storage
+  - `routingUtils.ts` - URL manipulation, route generation, navigation helpers
+  - `analyticsUtils.ts` - Tracking, metrics, event logging
+  - `fileUtils.ts` - File upload, download, processing
+  - `mapUtils.ts` - Geographic calculations, coordinate transformations
+  - `notificationUtils.ts` - Push notifications, alerts, toast management
+  - `searchUtils.ts` - Search algorithms, filtering, sorting
+  - `exportUtils.ts` - Data export, CSV generation, report formatting
+
+##### File Structure Template
+```typescript
+/**
+ * @fileoverview [Domain] utility functions for [specific purpose]
+ * @source boombox-10.0/src/app/components/[component]/[file].tsx ([functionName])
+ * @source boombox-10.0/src/app/[another-path]/[file].tsx ([functionName])
+ * @refactor Consolidated [domain] utilities from multiple components
+ */
+
+// Types and interfaces
+export interface [DomainName]Options {
+  // ... interface definition
+}
+
+export interface [DomainName]Result {
+  // ... interface definition
+}
+
+// Main utility functions
+export function [primaryFunction](
+  input: [InputType],
+  options?: [DomainName]Options
+): [DomainName]Result {
+  // ... implementation
+}
+
+export function [secondaryFunction](
+  // ... parameters
+): [ReturnType] {
+  // ... implementation
+}
+
+// Helper functions (not exported)
+function [helperFunction](
+  // ... parameters
+): [ReturnType] {
+  // ... implementation
+}
+
+// Constants
+export const [DOMAIN_CONSTANTS] = {
+  // ... constants
+} as const;
+```
+
+##### Decision Matrix for New Files
+**Create new utility file when:**
+- ✅ Function doesn't logically fit in existing 7 domain files
+- ✅ You find 2+ similar functions that would group together
+- ✅ The domain is distinct enough to warrant its own file
+- ✅ Functions are reusable across multiple components
+
+**Add to existing file when:**
+- ❌ Function is closely related to existing domain (e.g., phone formatting → `phoneUtils.ts`)
+- ❌ Only 1 function and unlikely to grow
+- ❌ Function is a variation of existing utility (e.g., new date format → `dateUtils.ts`)
+
+##### Update Index.ts
+**ALWAYS update `@/lib/utils/index.ts` when creating new utility files:**
+```typescript
+// Add to existing exports
+export * from './newDomainUtils';
+```
+
+##### Documentation Requirements
+- Include comprehensive JSDoc comments for all exported functions
+- Add usage examples in comments
+- Document any external dependencies
+- Include performance considerations if applicable
+- Add @since tag with version/date when function was added
+
+##### Testing Considerations
+- Add unit tests for new utility files in `tests/lib/utils/`
+- Test edge cases and error conditions
+- Validate TypeScript interfaces work correctly
+- Ensure functions are pure (no side effects) when possible
+
+#### Common Extraction Examples
+```typescript
+// ❌ BAD: Utility function in component
+function CustomerDashboard() {
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
+  };
+  // ... component logic
+}
+
+// ✅ GOOD: Extract to utils
+import { formatCurrency } from '@/lib/utils/currencyUtils';
+
+function CustomerDashboard() {
+  // ... component logic using formatCurrency()
+}
+```
+
+#### Duplicate Function Priority
+- **Phone normalization**: `normalizePhoneNumberToE164` (found in 5+ API routes)
+- **Currency formatting**: `formatCurrency` variations (found in 4+ components)
+- **Email validation**: Regex patterns (found in 6+ forms)
+- **Date formatting**: Various date/time functions (found in 10+ components)
+- **Address parsing**: Street address formatting (found in 3+ components)
+- **Status colors**: Badge color logic (found in admin components)
+
+#### Documentation Requirements
+When extracting utilities, add source documentation:
+```typescript
+/**
+ * @fileoverview Enhanced currency formatting utilities
+ * @source boombox-10.0/src/app/components/dashboard/CustomerDashboard.tsx (formatCurrency)
+ * @source boombox-10.0/src/app/components/admin/PayoutComponent.tsx (formatCurrency)
+ * @refactor Consolidated duplicate currency formatting functions
+ */
+```
+
 ### Business Logic Preservation
 - Maintain 99.9% functional compatibility with boombox-10.0
 - Preserve ALL Onfleet integration logic exactly as-is
