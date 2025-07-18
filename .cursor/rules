@@ -451,6 +451,21 @@ When extracting utilities, add source documentation:
 
 ## File Creation Safety Rules
 
+### 🚨 CRITICAL: edit_file Tool Path Requirements
+**MANDATORY**: When using `edit_file`, ALWAYS use the FULL path including `boombox-11.0/` prefix:
+
+**✅ CORRECT edit_file paths:**
+- `boombox-11.0/src/components/ui/Button.tsx`
+- `boombox-11.0/src/lib/messaging/MessageService.ts`
+- `boombox-11.0/src/types/api.types.ts`
+
+**❌ WRONG edit_file paths (will create files outside boombox-11.0):**
+- `src/components/ui/Button.tsx` (creates in workspace root)
+- `src/lib/messaging/MessageService.ts` (creates in workspace root)
+- `src/types/api.types.ts` (creates in workspace root)
+
+**WHY**: The `edit_file` tool interprets relative paths relative to the WORKSPACE ROOT (`/Users/calvinhemington/Desktop/boombox-workspace/`) NOT the current working directory. This has caused multiple incidents where files were created outside boombox-11.0.
+
 ### CRITICAL: Always Stay Within boombox-11.0 Directory
 - **REFERENCE**: See "CRITICAL: Workspace Directory Structure" section above for visual layout
 - **NEVER create files outside the boombox-11.0 directory**

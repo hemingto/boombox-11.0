@@ -2,20 +2,193 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Design Tokens as CSS Custom Properties */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand colors */
+  --color-primary: 24 24 27; /* zinc-950 */
+  --color-primary-hover: 39 39 42; /* zinc-800 */
+  --color-primary-active: 63 63 70; /* zinc-700 */
+
+  /* Status colors */
+  --color-success: 34 197 94; /* green-500 */
+  --color-warning: 245 158 11; /* amber-500 */
+  --color-error: 239 68 68; /* red-500 */
+  --color-info: 59 130 246; /* blue-500 */
+
+  /* Surface colors */
+  --color-surface-primary: 255 255 255; /* white */
+  --color-surface-secondary: 248 250 252; /* slate-50 */
+  --color-surface-tertiary: 241 245 249; /* slate-100 */
+  --color-surface-disabled: 226 232 240; /* slate-200 */
+
+  /* Text colors */
+  --color-text-primary: 24 24 27; /* zinc-950 */
+  --color-text-secondary: 161 161 170; /* zinc-400 */
+  --color-text-tertiary: 113 113 122; /* zinc-500 */
+
+  /* Focus ring for accessibility */
+  --focus-ring-color: rgb(24 24 27); /* zinc-950 */
+  --focus-ring-offset: 2px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* Base styles */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: rgb(var(--color-surface-primary));
+  color: rgb(var(--color-text-primary));
+  font-family:
+    var(--font-inter),
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+}
+
+/* Component utility classes */
+@layer components {
+  /* Button variants - primary pattern from boombox-10.0 */
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-6 py-2.5 text-white font-semibold rounded-md transition-colors duration-200;
+    @apply bg-primary hover:bg-primary-hover active:bg-primary-active;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-6 py-2.5 font-semibold rounded-md transition-colors duration-200;
+    @apply bg-surface-tertiary text-text-primary border border-border;
+    @apply hover:bg-surface-disabled focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-destructive {
+    @apply inline-flex items-center justify-center px-6 py-2.5 text-white font-semibold rounded-md transition-colors duration-200;
+    @apply bg-status-error hover:bg-red-600 active:bg-red-700;
+    @apply focus:outline-none focus:ring-2 focus:ring-status-error focus:ring-offset-2;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Input field pattern from boombox-10.0 */
+  .input-field {
+    @apply w-full px-3 py-2.5 text-sm rounded-md transition-colors duration-200;
+    @apply bg-surface-tertiary border border-border;
+    @apply placeholder:text-text-secondary;
+    @apply focus:bg-surface-primary focus:outline-none focus:ring-2 focus:ring-border-focus focus:border-transparent;
+    @apply focus:placeholder:text-text-primary;
+    @apply disabled:bg-surface-disabled disabled:cursor-not-allowed;
+  }
+
+  .input-field--error {
+    @apply border-border-error focus:ring-border-error;
+    @apply bg-red-50 focus:bg-red-50;
+  }
+
+  /* Card patterns */
+  .card {
+    @apply bg-surface-primary rounded-lg shadow-card border border-gray-200;
+  }
+
+  .card-elevated {
+    @apply bg-surface-primary rounded-lg shadow-elevated border border-gray-200;
+  }
+
+  /* Status badge patterns - directly from statusUtils.ts */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-success {
+    @apply badge bg-status-bg-success text-status-text-success;
+  }
+
+  .badge-warning {
+    @apply badge bg-status-bg-warning text-status-text-warning;
+  }
+
+  .badge-error {
+    @apply badge bg-status-bg-error text-status-text-error;
+  }
+
+  .badge-info {
+    @apply badge bg-status-bg-info text-status-text-info;
+  }
+
+  .badge-pending {
+    @apply badge bg-status-bg-pending text-status-text-pending;
+  }
+
+  .badge-processing {
+    @apply badge bg-status-bg-processing text-status-text-processing;
+  }
+
+  /* Loading skeleton patterns */
+  .skeleton {
+    @apply bg-surface-tertiary rounded animate-pulse;
+    @apply bg-shimmer bg-cover bg-no-repeat animate-shimmer;
+  }
+
+  .skeleton-text {
+    @apply skeleton h-4;
+  }
+
+  .skeleton-title {
+    @apply skeleton h-6;
+  }
+
+  .skeleton-avatar {
+    @apply skeleton rounded-full;
+  }
+
+  /* Modal/overlay patterns */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
+  }
+
+  .modal-content {
+    @apply bg-surface-primary rounded-lg shadow-elevated p-6 mx-4 max-w-md w-full;
+  }
+
+  /* Form patterns */
+  .form-group {
+    @apply space-y-2;
+  }
+
+  .form-label {
+    @apply block text-sm font-medium text-text-primary;
+  }
+
+  .form-error {
+    @apply text-sm text-status-error mt-1;
+  }
+
+  .form-helper {
+    @apply text-sm text-text-secondary mt-1;
+  }
+
+  /* Layout utilities */
+  .page-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .section-spacing {
+    @apply py-16 lg:py-24;
+  }
+
+  /* Focus styles for accessibility */
+  .focus-visible {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
+  }
+
+  /* Text utilities */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Animation utilities */
+  .animate-fade-in {
+    @apply animate-fadeIn;
+  }
+
+  .animate-slide-in {
+    @apply animate-slideIn;
+  }
 }

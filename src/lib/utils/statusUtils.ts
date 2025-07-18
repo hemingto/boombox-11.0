@@ -2,12 +2,52 @@
  * @fileoverview Status badge colors and status management utilities
  * @source boombox-10.0/src/app/admin/delivery-routes/page.tsx (getStatusColor, getPayoutStatusColor)
  * @refactor Consolidated all status color logic and added status management utilities
+ * Updated to use design token classes for consistency and maintainability
  */
 
 /**
  * Status color mapping for consistent badge styling across the app
+ * Now uses design token classes for better maintainability
  */
 export const StatusColors = {
+  // General status colors - using design token classes
+  pending: 'badge-pending',
+  in_progress: 'badge-processing',
+  completed: 'badge-success',
+  failed: 'badge-error',
+  cancelled: 'badge-error',
+  active: 'badge-success',
+  inactive: 'badge-error',
+  processing: 'badge-processing',
+
+  // Appointment specific
+  scheduled: 'badge-info',
+  confirmed: 'badge-success',
+
+  // Payment specific
+  paid: 'badge-success',
+  unpaid: 'badge-error',
+  refunded: 'badge-warning',
+
+  // Driver specific
+  available: 'badge-success',
+  busy: 'badge-warning',
+  offline: 'badge-error',
+
+  // Task specific
+  assigned: 'badge-info',
+  started: 'badge-processing',
+  delivered: 'badge-success',
+
+  // Default
+  unknown: 'badge-info',
+} as const;
+
+/**
+ * Legacy status colors for backward compatibility during migration
+ * @deprecated Use StatusColors instead
+ */
+export const LegacyStatusColors = {
   // General status colors
   pending: 'bg-amber-100 text-amber-800',
   in_progress: 'bg-blue-100 text-blue-800',
@@ -42,153 +82,124 @@ export const StatusColors = {
 } as const;
 
 /**
- * Get Tailwind CSS classes for status badge based on status string
+ * Status type definitions
  */
-export function getStatusColor(status: string): string {
+export type StatusType = keyof typeof StatusColors;
+
+/**
+ * Get badge class for a status using the design token system
+ */
+export function getStatusBadgeClass(status: string): string {
   const normalizedStatus = status
     .toLowerCase()
-    .replace(/\s+/g, '_') as keyof typeof StatusColors;
+    .replace(/\s+/g, '_') as StatusType;
   return StatusColors[normalizedStatus] || StatusColors.unknown;
 }
 
 /**
- * Get specific payout status colors (enhanced from delivery routes)
+ * Get legacy badge class for backward compatibility
+ * @deprecated Use getStatusBadgeClass instead
  */
-export function getPayoutStatusColor(status: string): string {
-  const payoutStatusMap: Record<string, string> = {
-    pending: StatusColors.pending,
-    processing: StatusColors.processing,
-    completed: StatusColors.completed,
-    failed: StatusColors.failed,
-    cancelled: StatusColors.cancelled,
-  };
-
-  const normalizedStatus = status.toLowerCase();
-  return payoutStatusMap[normalizedStatus] || StatusColors.unknown;
+export function getLegacyStatusBadgeClass(status: string): string {
+  const normalizedStatus = status
+    .toLowerCase()
+    .replace(/\s+/g, '_') as StatusType;
+  return LegacyStatusColors[normalizedStatus] || LegacyStatusColors.unknown;
 }
 
 /**
- * Get appointment status colors
+ * Status badge component helper
  */
-export function getAppointmentStatusColor(status: string): string {
-  const appointmentStatusMap: Record<string, string> = {
-    scheduled: StatusColors.scheduled,
-    confirmed: StatusColors.confirmed,
-    in_progress: StatusColors.in_progress,
-    completed: StatusColors.completed,
-    cancelled: StatusColors.cancelled,
-  };
-
-  const normalizedStatus = status.toLowerCase();
-  return appointmentStatusMap[normalizedStatus] || StatusColors.unknown;
+export interface StatusBadgeProps {
+  status: string;
+  className?: string;
+  useLegacy?: boolean;
 }
 
 /**
- * Get driver status colors
+ * Get the appropriate CSS classes for a status badge
  */
-export function getDriverStatusColor(status: string): string {
-  const driverStatusMap: Record<string, string> = {
-    available: StatusColors.available,
-    busy: StatusColors.busy,
-    offline: StatusColors.offline,
-    active: StatusColors.active,
-    inactive: StatusColors.inactive,
-  };
-
-  const normalizedStatus = status.toLowerCase();
-  return driverStatusMap[normalizedStatus] || StatusColors.unknown;
-}
-
-/**
- * Get payment status colors
- */
-export function getPaymentStatusColor(status: string): string {
-  const paymentStatusMap: Record<string, string> = {
-    paid: StatusColors.paid,
-    unpaid: StatusColors.unpaid,
-    pending: StatusColors.pending,
-    failed: StatusColors.failed,
-    refunded: StatusColors.refunded,
-    processing: StatusColors.processing,
-  };
-
-  const normalizedStatus = status.toLowerCase();
-  return paymentStatusMap[normalizedStatus] || StatusColors.unknown;
+export function getStatusClasses({
+  status,
+  className = '',
+  useLegacy = false,
+}: StatusBadgeProps): string {
+  const badgeClass = useLegacy
+    ? getLegacyStatusBadgeClass(status)
+    : getStatusBadgeClass(status);
+  return `${badgeClass} ${className}`.trim();
 }
 
 /**
  * Status priority for sorting (higher number = higher priority)
  */
 export const StatusPriority: Record<string, number> = {
-  failed: 10,
-  cancelled: 9,
-  pending: 8,
-  in_progress: 7,
-  processing: 6,
-  assigned: 5,
-  scheduled: 4,
-  confirmed: 3,
-  started: 2,
+  failed: 5,
+  error: 5,
+  cancelled: 4,
+  pending: 3,
+  processing: 2,
+  in_progress: 2,
   completed: 1,
   delivered: 1,
-  paid: 1,
-  active: 3,
-  available: 3,
-  busy: 5,
-  offline: 8,
-  inactive: 9,
-};
+  success: 1,
+  unknown: 0,
+} as const;
 
 /**
- * Sort items by status priority
+ * Get status priority for sorting
+ */
+export function getStatusPriority(status: string): number {
+  const normalizedStatus = status.toLowerCase().replace(/\s+/g, '_');
+  return StatusPriority[normalizedStatus] || 0;
+}
+
+/**
+ * Sort statuses by priority (highest priority first)
  */
 export function sortByStatusPriority<T extends { status: string }>(
   items: T[]
 ): T[] {
-  return items.sort((a, b) => {
-    const priorityA = StatusPriority[a.status.toLowerCase()] || 0;
-    const priorityB = StatusPriority[b.status.toLowerCase()] || 0;
-    return priorityB - priorityA; // Higher priority first
-  });
+  return [...items].sort(
+    (a, b) => getStatusPriority(b.status) - getStatusPriority(a.status)
+  );
 }
 
 /**
- * Check if status indicates an active/in-progress state
- */
-export function isActiveStatus(status: string): boolean {
-  const activeStatuses = [
-    'in_progress',
-    'processing',
-    'assigned',
-    'started',
-    'active',
-    'busy',
-  ];
-  return activeStatuses.includes(status.toLowerCase().replace(/\s+/g, '_'));
-}
-
-/**
- * Check if status indicates a completed state
+ * Check if a status indicates completion
  */
 export function isCompletedStatus(status: string): boolean {
-  const completedStatuses = ['completed', 'delivered', 'paid'];
+  const completedStatuses = [
+    'completed',
+    'delivered',
+    'paid',
+    'success',
+    'confirmed',
+  ];
   return completedStatuses.includes(status.toLowerCase());
 }
 
 /**
- * Check if status indicates a failed/error state
+ * Check if a status indicates an error or failure
  */
 export function isErrorStatus(status: string): boolean {
-  const errorStatuses = ['failed', 'cancelled', 'unpaid'];
+  const errorStatuses = ['failed', 'error', 'cancelled', 'unpaid', 'offline'];
   return errorStatuses.includes(status.toLowerCase());
 }
 
 /**
- * Check if status indicates a pending state
+ * Check if a status indicates pending or in-progress
  */
 export function isPendingStatus(status: string): boolean {
-  const pendingStatuses = ['pending', 'scheduled', 'confirmed'];
-  return pendingStatuses.includes(status.toLowerCase());
+  const pendingStatuses = [
+    'pending',
+    'processing',
+    'in_progress',
+    'assigned',
+    'started',
+    'busy',
+  ];
+  return pendingStatuses.includes(status.toLowerCase().replace(/\s+/g, '_'));
 }
 
 /**
