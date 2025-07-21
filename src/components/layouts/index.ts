@@ -1,10 +1,10 @@
 /**
- * @fileoverview Layout Components
- * @source Created for boombox-11.0 layout system
- * @refactor Layout component exports
+ * @fileoverview Layout component exports
+ * @refactor Centralized exports for all layout components
  */
 
-// Note: Layout components will be added here as they are created
-// Examples: PageLayout, DashboardLayout, AuthLayout, etc.
-
-export {}; // Temporary export to prevent empty module error
+// Layout components
+export * from './Header';
+export * from './Footer';
+export * from './Container';
+export * from './Grid';
