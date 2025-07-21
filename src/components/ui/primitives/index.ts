@@ -1,6 +1,6 @@
 /**
- * @fileoverview Primitive UI component exports
- * @refactor Organized base components into primitives folder for better structure
+ * @fileoverview UI Primitives - Foundational components
+ * All components organized in folders with co-located stories
  */
 
 // Form primitives
@@ -8,6 +8,9 @@ export * from './Button';
 export * from './Input';
 export * from './TextArea';
 export * from './Select';
+
+// Media primitives
+export * from './OptimizedImage';
 
 // Layout primitives
 export * from './Modal';

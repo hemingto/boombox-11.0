@@ -12,27 +12,27 @@ export interface OptimizedImageProps extends Omit<ImageProps, 'placeholder'> {
    * Fallback image URL if main image fails to load
    */
   fallbackSrc?: string;
-  
+
   /**
    * Show loading skeleton while image loads
    */
   showSkeleton?: boolean;
-  
+
   /**
    * Custom skeleton className
    */
   skeletonClassName?: string;
-  
+
   /**
    * Aspect ratio for consistent sizing
    */
   aspectRatio?: 'square' | 'video' | 'portrait' | 'landscape' | 'wide';
-  
+
   /**
    * Optimized loading strategy
    */
   loading?: 'lazy' | 'eager';
-  
+
   /**
    * Container className for styling wrapper
    */
@@ -40,11 +40,11 @@ export interface OptimizedImageProps extends Omit<ImageProps, 'placeholder'> {
 }
 
 const ASPECT_RATIOS = {
-  square: 'aspect-square',      // 1:1
-  video: 'aspect-video',        // 16:9
-  portrait: 'aspect-[3/4]',     // 3:4
-  landscape: 'aspect-[4/3]',    // 4:3
-  wide: 'aspect-[21/9]',        // 21:9
+  square: 'aspect-square', // 1:1
+  video: 'aspect-video', // 16:9
+  portrait: 'aspect-[3/4]', // 3:4
+  landscape: 'aspect-[4/3]', // 4:3
+  wide: 'aspect-[21/9]', // 21:9
 } as const;
 
 export const OptimizedImage = forwardRef<HTMLImageElement, OptimizedImageProps>(
@@ -78,7 +78,7 @@ export const OptimizedImage = forwardRef<HTMLImageElement, OptimizedImageProps>(
     const handleError = (e: React.SyntheticEvent<HTMLImageElement>) => {
       setHasError(true);
       setIsLoading(false);
-      
+
       // Try fallback image if available
       if (fallbackSrc && currentSrc !== fallbackSrc) {
         setCurrentSrc(fallbackSrc);
@@ -86,7 +86,7 @@ export const OptimizedImage = forwardRef<HTMLImageElement, OptimizedImageProps>(
         setIsLoading(true);
         return;
       }
-      
+
       onError?.(e);
     };
 
@@ -209,4 +209,4 @@ export function AvatarImage(props: OptimizedImageProps) {
       sizes="(max-width: 768px) 64px, 128px"
     />
   );
-} 
+}
