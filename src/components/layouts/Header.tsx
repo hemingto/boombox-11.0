@@ -126,9 +126,9 @@ const Header: React.FC<HeaderProps> = ({
   ];
 
   // User-specific navigation items (for future Phase 5 implementation)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const userNavItems = userId
     ? [
-        // eslint-disable-line @typescript-eslint/no-unused-vars
         { label: 'Home', href: `/user-page/${userId}` },
         { label: 'Add storage unit', href: `/user-page/${userId}/add-storage` },
         {
@@ -145,9 +145,9 @@ const Header: React.FC<HeaderProps> = ({
     : [];
 
   // Mover-specific navigation items (for future Phase 5 implementation)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const moverNavItems = userId
     ? [
-        // eslint-disable-line @typescript-eslint/no-unused-vars
         { label: 'Home', href: `/${userType}-account-page/${userId}` },
         {
           label: 'Calendar',
