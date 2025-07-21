@@ -7,6 +7,8 @@
 import { MessageTemplate } from '@/lib/messaging/types';
 
 export const driverInvitationEmail: MessageTemplate = {
+  channel: 'email',
+  domain: 'auth',
   subject: "You've been invited to join ${movingPartnerName} on Boombox",
   text: "You've been invited to join ${movingPartnerName} as a driver on Boombox. This invitation will expire in 15 days.\n\nClick the button below to complete your driver profile and start accepting deliveries: ${inviteLink}",
   html: `

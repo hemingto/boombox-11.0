@@ -1,10 +1,9 @@
 /**
- * @fileoverview Main components export file
- * @source Created for boombox-11.0 clean architecture
- * @refactor Centralized component exports for clean imports
+ * @fileoverview Component exports for boombox-11.0
+ * @refactor Centralized component exports
  */
 
-// UI Components
+// UI Design System Components
 export * from './ui';
 
 // Layout Components
@@ -13,7 +12,7 @@ export * from './layouts';
 // Form Components
 export * from './forms';
 
-// Feature Components
+// Feature Components (will be added during Phase 5)
 export * from './features';
 
 // Icon Components

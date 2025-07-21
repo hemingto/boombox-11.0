@@ -1,17 +1,18 @@
 /**
- * @fileoverview UI Design System Components
- * @source Created for boombox-11.0 design system
- * @refactor Centralized UI component exports
+ * @fileoverview UI component exports
+ * @refactor Centralized exports for all base UI components
  */
 
-// Form UI Components
-export * from './forms';
+// Base components
+export * from './Button';
+export * from './Input';
+export * from './TextArea';
+export * from './Select';
 
-// Navigation UI Components
-export * from './navigation';
+// Modal components
+export * from './Modal';
 
-// Feedback UI Components (alerts, modals, toasts)
-export * from './feedback';
-
-// Note: Individual UI components will be added here as they are created
-// Examples: Button, Input, Modal, etc.
+// Loading components
+export * from './Spinner';
+export * from './LoadingOverlay';
+export * from './Skeleton';
