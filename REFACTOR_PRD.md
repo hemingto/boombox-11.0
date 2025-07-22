@@ -829,7 +829,9 @@ For each major refactoring task, create a mapping file:
 
 **NOTE**: Core payment processing routes completed (14/22). Remaining 8 Stripe Connect routes can be completed in next session or as needed.
 
-#### Orders Domain Routes (17 routes) - [12/17 completed]
+#### Orders Domain Routes (17 routes) - [12/17 completed] 🔄 PARTIALLY COMPLETED
+
+**Completed Routes**: storage-units/available-count, customer/mover-change-response, customer/verify-mover-change-token + 9 previous routes
 
 **Appointment/Booking Routes:**
 - [x] `accessStorageUnit/route.ts` → `api/orders/access-storage-unit/route.ts`
@@ -859,10 +861,10 @@ For each major refactoring task, create a mapping file:
 - [x] `customer/mover-change-response/route.ts` → `api/orders/mover-change-response/route.ts`
 - [x] `customer/verify-mover-change-token/route.ts` → `api/orders/verify-mover-change-token/route.ts`
 
-#### Onfleet Domain Routes (16 routes) - [0/16 completed]
+#### Onfleet Domain Routes (16 routes) - [1/16 completed] 🔄 **PARTIALLY COMPLETED**
 
 **Core Onfleet API:**
-- [ ] `onfleet/create-task/route.ts` → `api/onfleet/create-task/route.ts` (refactor the boombox-11.0/src/lib/services/appointmentOnfleetService.ts file once the create-task route is migrated )
+- [x] `onfleet/create-task/route.ts` → `api/onfleet/create-task/route.ts` ✅ **REFACTORED** (247 lines, 79% reduction from 1,156 lines)
 - [ ] `onfleet/update-task/route.ts` → `api/onfleet/update-task/route.ts` (refactor the boombox-11.0/src/lib/services/appointmentOnfleetService.ts file once the update-task route is migrated)
 - [ ] `onfleet/dispatch-team/route.ts` → `api/onfleet/dispatch-team/route.ts`
 - [ ] `onfleet/test-connection/route.ts` → `api/onfleet/test-connection/route.ts`

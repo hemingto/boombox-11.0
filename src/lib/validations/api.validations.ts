@@ -24,6 +24,16 @@ const timeStringSchema = z
 const positiveIntSchema = z.number().int().positive();
 const nonNegativeIntSchema = z.number().int().min(0);
 
+// Onfleet-specific validations
+const onfleetTeamIdSchema = z.string().min(1, 'Onfleet Team ID is required');
+const appointmentTypeSchema = z.enum([
+  'Storage Unit Access',
+  'End Storage Term',
+  'Additional Storage',
+  'Initial Storage',
+  'Mobile Storage'
+]);
+
 // ===== CORE API RESPONSE SCHEMAS =====
 
 export const ApiErrorSchema = z.object({
@@ -1136,4 +1146,49 @@ export const VerifyMoverChangeTokenResponseSchema = z.object({
       averageRating: z.number().min(0).max(5),
     }),
   }),
+});
+
+// ===== ONFLEET APPOINTMENT TASK CREATION SCHEMAS =====
+
+// Create Onfleet Appointment Tasks API (for appointment-based task sequences)
+export const CreateOnfleetAppointmentTasksRequestSchema = z.object({
+  appointmentId: z.string().or(positiveIntSchema),
+  userId: z.string().or(positiveIntSchema),
+  address: z.string().min(1, 'Address is required'),
+  appointmentDateTime: z.string().refine(
+    (val) => !isNaN(Date.parse(val)),
+    'Invalid appointment date time format'
+  ),
+  appointmentType: appointmentTypeSchema,
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
+  phoneNumber: phoneSchema,
+  deliveryReason: z.string().optional(),
+  description: z.string().optional(),
+  selectedPlanName: z.string().optional(),
+  selectedLabor: z.object({
+    title: z.string(),
+    onfleetTeamId: onfleetTeamIdSchema,
+  }).optional(),
+  parsedLoadingHelpPrice: z.string().optional(),
+  storageUnitIds: z.array(z.number().int().positive()).optional(),
+  storageUnitCount: nonNegativeIntSchema.optional(),
+  startingUnitNumber: positiveIntSchema.optional().default(1),
+  additionalUnitsOnly: z.boolean().optional().default(false),
+});
+
+export const CreateOnfleetAppointmentTasksResponseSchema = z.object({
+  success: z.boolean(),
+  taskIds: z.object({
+    pickup: z.array(z.string()),
+    customer: z.array(z.string()),
+    return: z.array(z.string()),
+  }),
+  shortIds: z.object({
+    pickup: z.array(z.string()),
+    customer: z.array(z.string()),
+    return: z.array(z.string()),
+  }),
+  error: z.string().optional(),
+  details: z.string().optional(),
 });
