@@ -23,6 +23,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
+import { formatCurrency } from '@/lib/utils/currencyUtils';
 import { cancelPackingSupplyOrderWithOnfleetCleanup } from '@/lib/integrations/onfleetClient';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { packingSupplyOrderCancellationSms } from '@/lib/messaging/templates/sms/booking/packingSupplyOrderCancellation';
@@ -105,7 +106,7 @@ export async function POST(
         {
           orderId: orderIdNum.toString(),
           cancellationReason: cancellationReason,
-          refundAmount: order.totalPrice.toFixed(2),
+          refundAmount: formatCurrency(order.totalPrice),
           refundStatus: 'pending',
         }
       );

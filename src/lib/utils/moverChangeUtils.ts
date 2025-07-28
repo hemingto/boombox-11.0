@@ -7,6 +7,7 @@
 
 import { prisma } from '@/lib/database/prismaClient';
 import { getOnfleetClient } from '@/lib/integrations/onfleetClient';
+import { formatTime24Hour } from '@/lib/utils/dateUtils';
 
 /**
  * Find available drivers for appointment
@@ -15,9 +16,7 @@ export async function findAvailableDrivers(appointment: any, task: any, excludeD
   const appointmentDate = new Date(appointment.date);
   const dayOfWeek = appointmentDate.toLocaleDateString("en-US", { weekday: "long" });
   const appointmentTime = new Date(appointment.time);
-  const hours = appointmentTime.getHours();
-  const minutes = appointmentTime.getMinutes();
-  const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  const formattedTime = formatTime24Hour(appointmentTime);
 
   return prisma.driver.findMany({
     where: {
@@ -75,9 +74,7 @@ export async function assignMovingPartnerDriver(appointment: any, movingPartnerI
   const appointmentDate = new Date(appointment.date);
   const appointmentTime = new Date(appointment.time);
   const dayOfWeek = appointmentDate.toLocaleDateString("en-US", { weekday: "long" });
-  const hours = appointmentTime.getHours();
-  const minutes = appointmentTime.getMinutes();
-  const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  const formattedTime = formatTime24Hour(appointmentTime);
 
   // Find available driver from this moving partner
   const availableDriver = movingPartnerDrivers.find(mpd => {
@@ -151,9 +148,7 @@ export async function createTimeSlotBooking(appointment: any, movingPartnerId: n
 
   // Find availability slot for the moving partner
   const dayOfWeek = appointmentDate.toLocaleDateString("en-US", { weekday: "long" });
-  const hours = appointmentTime.getHours();
-  const minutes = appointmentTime.getMinutes();
-  const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  const formattedTime = formatTime24Hour(appointmentTime);
 
   const availabilitySlot = await prisma.movingPartnerAvailability.findFirst({
     where: {

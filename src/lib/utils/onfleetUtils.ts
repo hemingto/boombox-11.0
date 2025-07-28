@@ -1,194 +1,295 @@
 /**
- * @fileoverview Onfleet utility functions for task creation and management
- * @source boombox-10.0/src/app/api/onfleet/create-task/route.ts (calculateTaskTiming, processStorageUnits, buildTaskPayload, validateTaskTimes)
- * @refactor Extracted reusable Onfleet utilities from monolithic route function
+ * @fileoverview Onfleet integration utility functions
+ * @source boombox-10.0/src/app/api/onfleet/dispatch-team/route.ts (dispatch functions)
+ * @source boombox-10.0/src/app/api/onfleet/test-connection/route.ts (connection testing)
+ * @source boombox-10.0/src/app/api/onfleet/calculate-payout/route.ts (payout calculations)
+ * @refactor Consolidated Onfleet utilities from multiple API routes
  */
 
-export interface TaskTimingOptions {
-  appointmentTime: Date;
-  existingUnitCount: number;
-  currentUnitIndex: number;
+import { prisma } from '@/lib/database/prismaClient';
+
+// Types and interfaces
+export interface OnfleetDispatchResult {
+  routeId: string;
+  orderIds: number[];
+  assignedDriverId?: number | null;
+  estimatedServiceTime: number;
+  totalCapacity: {
+    weight: number;
+    volume: number;
+    itemCount: number;
+  };
+  onfleetDispatchResult?: any;
 }
 
-export interface TaskTimingResult {
-  adjustedStartTime: Date;
-  adjustedAppointmentTime: Date;
-  adjustedWindowEnd: Date;
+export interface OnfleetDispatchSummary {
+  totalOrders: number;
+  dispatchedOrders: number;
+  overflowOrders: number;
+  availableDrivers: number;
+  routesCreated: number;
 }
 
-export interface StorageUnitInfo {
-  id: number;
-  storageUnitNumber: string;
-}
-
-export interface StorageUnitProcessingResult {
-  storageUnitIds: number[];
-  unitCount: number;
-  storageUnitNumbersMap: Record<number, string>;
-  allUnitNumbers: string;
+export interface PayoutStatistics {
+  allTime: {
+    totalPayouts: number;
+    totalAmount: number;
+    averageAmount: number;
+  };
+  last30Days: {
+    totalPayouts: number;
+    totalAmount: number;
+    averageAmount: number;
+  };
+  pending: {
+    count: number;
+    needsAttention: boolean;
+  };
+  failed: {
+    count: number;
+    needsAttention: boolean;
+  };
 }
 
 /**
- * Calculate adjusted timing for Onfleet tasks with proper validation
+ * Check if current time allows dispatch (12 PM PST or later)
  */
-export function calculateTaskTiming(options: TaskTimingOptions): TaskTimingResult {
-  const { appointmentTime, existingUnitCount, currentUnitIndex } = options;
+export function isValidDispatchTime(): boolean {
+  const now = new Date();
+  const pstTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+  return pstTime.getHours() >= 12;
+}
+
+/**
+ * Execute team auto-dispatch for a specific route
+ */
+export async function executeTeamDispatch(
+  route: any,
+  onfleetClient: any,
+  dispatchId: string
+): Promise<OnfleetDispatchResult> {
+  const teamId = process.env.BOOMBOX_PACKING_SUPPLY_DELIVERY_DRIVERS;
   
-  const windowEnd = new Date(appointmentTime.getTime() + 60 * 60 * 1000);
-  const routeStartTime = new Date(appointmentTime.getTime() - 60 * 60 * 1000);
-  
-  // Calculate time offset based on existing units plus current index
-  const timeOffset = (existingUnitCount + currentUnitIndex) * 45 * 60 * 1000;
-  
-  let adjustedStartTime = new Date(routeStartTime.getTime() + timeOffset);
-  let adjustedAppointmentTime = new Date(appointmentTime.getTime() + timeOffset);
-  let adjustedWindowEnd = new Date(windowEnd.getTime() + timeOffset);
-  
-  // Validate times aren't in the past
-  const now = new Date().getTime();
-  
-  if (adjustedStartTime.getTime() < now) {
-    console.warn(`Warning: adjustedStartTime is in the past. Using now + 1 hour instead.`);
-    adjustedStartTime = new Date(now + 60 * 60 * 1000);
+  if (!teamId) {
+    throw new Error('Team ID not configured');
   }
-  
-  if (adjustedAppointmentTime.getTime() < now) {
-    console.warn(`Warning: adjustedAppointmentTime is in the past. Using now + 2 hours instead.`);
-    adjustedAppointmentTime = new Date(now + 2 * 60 * 60 * 1000);
+
+  // Get task IDs for the orders in this route
+  const taskIds = await prisma.packingSupplyOrder.findMany({
+    where: {
+      id: {
+        in: route.orders.map((o: any) => o.orderId),
+      },
+    },
+    select: {
+      id: true,
+      onfleetTaskId: true,
+    },
+  });
+
+  const validTaskIds = taskIds
+    .filter((task: { id: number; onfleetTaskId: string | null }) => task.onfleetTaskId)
+    .map((task: { id: number; onfleetTaskId: string | null }) => task.onfleetTaskId!);
+
+  if (validTaskIds.length === 0) {
+    throw new Error('No valid Onfleet tasks found for route');
   }
-  
-  if (adjustedWindowEnd.getTime() < now) {
-    console.warn(`Warning: adjustedWindowEnd is in the past. Using now + 3 hours instead.`);
-    adjustedWindowEnd = new Date(now + 3 * 60 * 60 * 1000);
-  }
-  
+
+  // Execute team auto-dispatch
+  const dispatchResult = await onfleetClient.autoDispatchTeam(teamId, {
+    taskIds: validTaskIds,
+    mode: 'load', // Load balancing mode
+    considerDependencies: false,
+    restrictAutoAssignmentToTeam: true,
+  });
+
+  console.log(`📋 Dispatched ${validTaskIds.length} tasks to team ${teamId}`);
+
   return {
-    adjustedStartTime,
-    adjustedAppointmentTime,
-    adjustedWindowEnd
+    routeId: `route_${dispatchId}_${Date.now()}`,
+    orderIds: route.orders.map((o: any) => o.orderId),
+    assignedDriverId: dispatchResult.assignedWorkers?.[0]?.id || null,
+    estimatedServiceTime: route.orders.reduce((sum: number, o: any) => sum + o.estimatedServiceTime, 0),
+    totalCapacity: {
+      weight: route.totalCapacity.totalWeight,
+      volume: route.totalCapacity.totalVolume,
+      itemCount: route.totalCapacity.itemCount,
+    },
+    onfleetDispatchResult: dispatchResult,
   };
 }
 
 /**
- * Process storage units and create mappings for task creation
+ * Update order statuses after dispatch
  */
-export async function processStorageUnits(
-  storageUnitIds: number[],
-  isAccessAppointment: boolean,
-  unitCount: number
-): Promise<StorageUnitProcessingResult> {
-  // Get storage unit numbers for mapping
-  const { prisma } = await import('@/lib/database/prismaClient');
+export async function updateOrdersAfterDispatch(
+  orderIds: number[],
+  status: string,
+  assignedDriverId?: number | null,
+  newDeliveryDate?: Date
+): Promise<void> {
+  await prisma.packingSupplyOrder.updateMany({
+    where: {
+      id: {
+        in: orderIds,
+      },
+    },
+    data: {
+      status,
+      assignedDriverId,
+      ...(newDeliveryDate && { deliveryDate: newDeliveryDate }),
+    },
+  });
+}
+
+/**
+ * Log dispatch results for monitoring and analytics
+ */
+export async function logDispatchResults(
+  dispatchId: string,
+  targetDate: string,
+  summary: OnfleetDispatchSummary,
+  results: any
+): Promise<void> {
+  // This could be enhanced to store in a dedicated dispatch log table
+  console.log(`📊 Dispatch Log ${dispatchId}:`, {
+    targetDate,
+    summary,
+    routeCount: results.routes.length,
+    overflowCount: results.overflow.length,
+    warningCount: results.warnings.length,
+    errorCount: results.errors.length,
+  });
   
-  const storageUnits = await prisma.storageUnit.findMany({
-    where: { id: { in: storageUnitIds } },
-    select: { id: true, storageUnitNumber: true }
-  });
+  // TODO: Store in database dispatch log table for analytics
+}
 
-  const storageUnitNumbersMap: Record<number, string> = {};
-  storageUnits.forEach((unit: StorageUnitInfo) => {
-    storageUnitNumbersMap[unit.id] = unit.storageUnitNumber || `Unit #${unit.id}`;
-  });
+/**
+ * Get overall payout statistics
+ */
+export async function getPayoutStatistics(): Promise<PayoutStatistics> {
+  const [totalStats, recentStats] = await Promise.all([
+    // All time stats
+    prisma.packingSupplyOrder.aggregate({
+      where: {
+        status: 'Delivered',
+        driverPayoutStatus: 'completed'
+      },
+      _sum: {
+        driverPayoutAmount: true
+      },
+      _count: {
+        id: true
+      }
+    }),
+    
+    // Last 30 days stats
+    prisma.packingSupplyOrder.aggregate({
+      where: {
+        status: 'Delivered',
+        driverPayoutStatus: 'completed',
+        actualDeliveryTime: {
+          gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // 30 days ago
+        }
+      },
+      _sum: {
+        driverPayoutAmount: true
+      },
+      _count: {
+        id: true
+      }
+    })
+  ]);
 
-  const allUnitNumbers = storageUnitIds.map((id: number) => 
-    storageUnitNumbersMap[id] || id.toString()
-  ).join(', ');
-
-  const finalUnitCount = isAccessAppointment && storageUnitIds.length > 0 
-    ? storageUnitIds.length 
-    : unitCount;
+  const [pendingCount, failedCount] = await Promise.all([
+    prisma.packingSupplyOrder.count({
+      where: {
+        status: 'Delivered',
+        driverPayoutStatus: 'pending'
+      }
+    }),
+    
+    prisma.packingSupplyOrder.count({
+      where: {
+        status: 'Delivered',
+        driverPayoutStatus: 'failed'
+      }
+    })
+  ]);
 
   return {
-    storageUnitIds,
-    unitCount: finalUnitCount,
-    storageUnitNumbersMap,
-    allUnitNumbers
+    allTime: {
+      totalPayouts: totalStats._count.id,
+      totalAmount: parseFloat(totalStats._sum.driverPayoutAmount?.toString() || '0'),
+      averageAmount: totalStats._count.id > 0 
+        ? parseFloat(totalStats._sum.driverPayoutAmount?.toString() || '0') / totalStats._count.id
+        : 0
+    },
+    last30Days: {
+      totalPayouts: recentStats._count.id,
+      totalAmount: parseFloat(recentStats._sum.driverPayoutAmount?.toString() || '0'),
+      averageAmount: recentStats._count.id > 0 
+        ? parseFloat(recentStats._sum.driverPayoutAmount?.toString() || '0') / recentStats._count.id
+        : 0
+    },
+    pending: {
+      count: pendingCount,
+      needsAttention: pendingCount > 0
+    },
+    failed: {
+      count: failedCount,
+      needsAttention: failedCount > 0
+    }
   };
 }
 
 /**
- * Build Onfleet task payload with proper metadata and custom fields
+ * Get recent dispatch history
  */
-export function buildOnfleetTaskPayload(options: {
-  destination: { address: any };
-  recipients: any[];
-  notes: string;
-  serviceTime: number;
-  completeAfter: number;
-  completeBefore: number;
-  teamId: string;
-  dependencies?: string[];
-  customFields: Record<string, any>;
-  metadata: Record<string, any>;
-  pickupTask?: boolean;
-  recipientSkipSMSNotifications?: boolean;
-  requirePhoto?: boolean;
-}) {
-  const {
-    destination,
-    recipients,
-    notes,
-    serviceTime,
-    completeAfter,
-    completeBefore,
-    teamId,
-    dependencies,
-    customFields,
-    metadata,
-    pickupTask = false,
-    recipientSkipSMSNotifications = false,
-    requirePhoto = false
-  } = options;
-
-  // Convert customFields object to Onfleet array format
-  const customFieldsArray = Object.entries(customFields).map(([key, value]) => ({
-    key,
-    value
-  }));
-
-  // Convert metadata object to Onfleet array format
-  const metadataArray = Object.entries(metadata).map(([name, value]) => {
-    let type = 'string';
-    if (typeof value === 'number') type = 'number';
-    if (typeof value === 'boolean') type = 'boolean';
-
-    return {
-      name,
-      type,
-      value,
-      visibility: ['api']
-    };
+export async function getRecentDispatchHistory(limit: number = 10) {
+  return await prisma.packingSupplyOrder.groupBy({
+    by: ['deliveryDate', 'status'],
+    where: {
+      deliveryDate: {
+        gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
+      },
+    },
+    _count: {
+      id: true,
+    },
+    orderBy: {
+      deliveryDate: 'desc',
+    },
   });
+}
 
-  const payload: any = {
-    destination,
-    recipients,
-    notes,
-    serviceTime,
-    completeAfter,
-    completeBefore,
-    quantity: 1,
-    container: { type: 'TEAM', team: teamId },
-    customFields: customFieldsArray,
-    metadata: metadataArray
-  };
+/**
+ * Get dispatch details by date
+ */
+export async function getDispatchDetailsByDate(date: string, limit: number = 10) {
+  return await prisma.packingSupplyOrder.findMany({
+    where: {
+      deliveryDate: {
+        gte: new Date(date),
+      },
+    },
+    include: {
+      assignedDriver: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+    },
+    orderBy: { orderDate: 'desc' },
+    take: limit,
+  });
+}
 
-  // Add optional fields
-  if (dependencies && dependencies.length > 0) {
-    payload.dependencies = dependencies;
-  }
-  
-  if (pickupTask) {
-    payload.pickupTask = true;
-  }
-  
-  if (recipientSkipSMSNotifications) {
-    payload.recipientSkipSMSNotifications = true;
-  }
-  
-  if (requirePhoto) {
-    payload.requirePhoto = true;
-  }
-
-  return payload;
-} 
+// Constants
+export const ONFLEET_DISPATCH_CONSTANTS = {
+  PST_DISPATCH_HOUR: 12,
+  DEFAULT_DISPATCH_MODE: 'load',
+  ROUTE_PREFIX: 'route_',
+} as const; 

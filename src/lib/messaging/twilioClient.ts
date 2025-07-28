@@ -5,6 +5,7 @@
  */
 
 import Twilio from 'twilio';
+import { formatCurrency } from '@/lib/utils/currencyUtils';
 
 if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
   throw new Error('Twilio environment variables are not set');
@@ -43,7 +44,7 @@ export async function sendPackingSupplyOrderConfirmationSms(
     : `${process.env.NEXT_PUBLIC_APP_URL}${orderDetails.trackingUrl}`;
 
   // Create the SMS message
-  const messageBody = `Hi ${orderDetails.customerName}! 📦 Your Boombox packing supply order #${orderDetails.orderId} has been confirmed ($${orderDetails.totalPrice.toFixed(2)}). 
+  const messageBody = `Hi ${orderDetails.customerName}! 📦 Your Boombox packing supply order #${orderDetails.orderId} has been confirmed (${formatCurrency(orderDetails.totalPrice)}). 
 
 📧 A receipt was sent to your email.
 

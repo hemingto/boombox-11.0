@@ -22,6 +22,7 @@
 
 import { NextResponse } from 'next/server';
 import { stripe } from '@/lib/integrations/stripeClient';
+import { formatCurrency } from '@/lib/utils/currencyUtils';
 import { getStripeCustomerId } from '@/lib/integrations/stripeUtils';
 import type { Stripe } from 'stripe';
 
@@ -82,7 +83,7 @@ export async function GET(request: Request) {
         id: payment.id,
         status: payment.status === 'succeeded' ? 'Paid' : 'Outstanding',
         dueDate: new Date(payment.created * 1000).toLocaleDateString(),
-        amount: (payment.amount / 100).toFixed(2),
+        amount: formatCurrency(payment.amount / 100),
         title: payment.description || 'Payment',
         last4: last4,
         cardBrand: cardBrand,

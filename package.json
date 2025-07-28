@@ -22,7 +22,17 @@
     "analyze:browser": "BUNDLE_ANALYZE=browser next build",
     "lighthouse": "lhci autorun",
     "lighthouse:collect": "lhci collect",
-    "lighthouse:assert": "lhci assert"
+    "lighthouse:assert": "lhci assert",
+    "migration:analyze": "node tools/api-migration-analyzer.js analyze-domain",
+    "migration:check-duplicates": "node tools/api-migration-analyzer.js check-duplicates",
+    "migration:suggest-consolidation": "node tools/api-migration-analyzer.js suggest-consolidation",
+    "utils:scan-duplicates": "node tools/utility-duplication-scanner.js scan",
+    "utils:detailed-report": "node tools/utility-duplication-scanner.js detailed-report",
+    "refactor:scan": "node tools/refactor-scanner.js scan",
+    "refactor:ready": "node tools/refactor-scanner.js ready",
+    "refactor:update": "node tools/refactor-scanner.js update",
+    "refactor:report": "node tools/refactor-scanner.js scan",
+    "refactor:validate": "npm run lint && npm run type-check && npm run refactor:scan"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",

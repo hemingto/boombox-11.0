@@ -22,19 +22,11 @@
 
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
+import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { verify } from 'hcaptcha';
 
-// Format phone number to E.164
-const formatPhoneNumberToE164 = (phone: string): string => {
-  // Remove all non-numeric characters except '+'
-  const cleaned = phone.replace(/[^0-9+]/g, '');
-  // Add country code if missing
-  if (!cleaned.startsWith('+')) {
-    return `+1${cleaned}`; // Default to US numbers
-  }
-  return cleaned;
-};
+
 
 export async function POST(request: Request) {
   try {
@@ -99,7 +91,7 @@ export async function POST(request: Request) {
     }
 
     // Format phone number
-    const formattedPhoneNumber = formatPhoneNumberToE164(phoneNumber);
+    const formattedPhoneNumber = normalizePhoneNumberToE164(phoneNumber);
 
     try {
       // Create admin account

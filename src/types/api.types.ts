@@ -1450,3 +1450,7 @@ export interface ApiSearchRequest extends ApiPaginationRequest {
   query?: string;
   filters?: Record<string, unknown>;
 }
+
+// @REFACTOR-P9-LEGACY: Remove backward compatibility type aliases once migration is complete
+// Priority: Low | Est: 15min | Dependencies: All phases complete
+// Legacy type aliases temporarily removed due to missing domain record types

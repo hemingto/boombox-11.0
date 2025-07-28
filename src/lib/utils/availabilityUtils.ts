@@ -16,6 +16,7 @@ import {
   PartnerWithAvailability
 } from '@/types/availability.types';
 import { MovingPartnerAvailability, DriverAvailability } from '@prisma/client';
+import { formatTime24Hour } from '@/lib/utils/dateUtils';
 
 // Business Configuration
 export const DEFAULT_BUSINESS_HOURS: BusinessHoursConfig = {
@@ -109,8 +110,13 @@ export function generateBusinessHourSlots(
     }
     if (slotStart.getHours() >= config.endHour) continue;
 
-    const startTimeStr = `${String(hour).padStart(2, '0')}:00`;
-    const endTimeStr = `${String(hour + 1).padStart(2, '0')}:00`;
+    const startTime = new Date();
+    startTime.setHours(hour, 0, 0, 0);
+    const endTime = new Date();
+    endTime.setHours(hour + 1, 0, 0, 0);
+    
+    const startTimeStr = formatTime24Hour(startTime);
+    const endTimeStr = formatTime24Hour(endTime);
     
     slots.push({
       slotStart,

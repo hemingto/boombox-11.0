@@ -23,14 +23,9 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prismaClient";
+import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
 
-const formatPhoneNumberToE164 = (phone: string): string => {
-  const cleaned = phone.replace(/[^0-9+]/g, '');
-  if (!cleaned.startsWith('+')) {
-    return `+1${cleaned}`;
-  }
-  return cleaned;
-};
+
 
 export async function POST(req: Request) {
   try {
@@ -43,7 +38,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const formattedPhoneNumber = phoneNumber ? formatPhoneNumberToE164(phoneNumber) : null;
+    const formattedPhoneNumber = phoneNumber ? normalizePhoneNumberToE164(phoneNumber) : null;
     const contact = formattedPhoneNumber || email || '';
 
     // Verify the code

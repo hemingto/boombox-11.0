@@ -70,6 +70,13 @@ export function formatTime(date: Date): string {
 }
 
 /**
+ * Format time as "HH:mm" (24-hour format)
+ */
+export function formatTime24Hour(date: Date): string {
+  return format(date, 'HH:mm');
+}
+
+/**
  * Format time duration from seconds to "Xh Ym"
  */
 export function formatDuration(seconds: number | null): string {

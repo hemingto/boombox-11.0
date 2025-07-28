@@ -108,6 +108,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // @REFACTOR-P9-TEMP: Uses placeholder service implementation until API_004 completes
+    // Priority: High | Est: 2h | Dependencies: API_004_ONFLEET_DOMAIN
     // Create Onfleet tasks using centralized service
     const convertedPayload = {
       appointmentId: appointmentIdForLock,
@@ -126,7 +128,7 @@ export async function POST(req: NextRequest) {
       selectedLabor: payload.selectedLabor,
       parsedLoadingHelpPrice: payload.parsedLoadingHelpPrice,
       storageUnitIds: payload.storageUnitIds,
-      storageUnitCount: payload.storageUnitCount,
+      storageUnitCount: payload.storageUnitCount || 1,
       startingUnitNumber: payload.startingUnitNumber,
       additionalUnitsOnly: payload.additionalUnitsOnly
     };
@@ -167,6 +169,8 @@ export async function POST(req: NextRequest) {
 /**
  * Export function for direct calls (maintain backward compatibility)
  * @source boombox-10.0/src/app/api/onfleet/create-task/route.ts (createLinkedOnfleetTasksDirectly)
+ * @REFACTOR-P9-TYPES: Replace any payload type with proper TypeScript interface
+ * Priority: Medium | Est: 30min | Dependencies: None
  */
 export async function createLinkedOnfleetTasksDirectly(payload: any) {
   console.log('Direct call to createLinkedOnfleetTasksDirectly for appointment:', payload.appointmentId);
@@ -228,7 +232,7 @@ export async function createLinkedOnfleetTasksDirectly(payload: any) {
       selectedLabor: payload.selectedLabor,
       parsedLoadingHelpPrice: payload.parsedLoadingHelpPrice,
       storageUnitIds: payload.storageUnitIds,
-      storageUnitCount: payload.storageUnitCount,
+      storageUnitCount: payload.storageUnitCount || 1,
       startingUnitNumber: payload.startingUnitNumber,
       additionalUnitsOnly: payload.additionalUnitsOnly
     };

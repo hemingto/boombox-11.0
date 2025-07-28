@@ -17,11 +17,15 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
+// @REFACTOR-P9-LINT: Replace any with proper generic constraints for form interface
+// Priority: Medium | Est: 30min | Dependencies: None
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface FormProviderProps<T extends Record<string, any>> {
   /**
    * Zod schema for form validation
    */
+  // @REFACTOR-P9-LINT: Use proper Zod schema typing instead of any
+  // Priority: Medium | Est: 30min | Dependencies: None
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   schema: z.ZodType<any, any, T>;
 

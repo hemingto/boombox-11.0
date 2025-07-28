@@ -24,19 +24,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
 import { twilioClient } from '@/lib/messaging/twilioClient';
 import { generateVerificationCode } from '@/lib/utils/formatUtils';
+import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
 import { sendAdminVerificationEmail } from '@/lib/messaging/sendgridClient';
 import { z } from 'zod';
 
-// Format phone number to E.164
-const formatPhoneNumberToE164 = (phone: string): string => {
-  // Remove all non-numeric characters except '+'
-  const cleaned = phone.replace(/[^0-9+]/g, '');
-  // Add country code if missing
-  if (!cleaned.startsWith('+')) {
-    return `+1${cleaned}`; // Default to +1 for US numbers
-  }
-  return cleaned;
-};
+
 
 const loginSchema = z.object({
   phoneNumber: z.string().min(1, 'Phone number is required'),
@@ -54,7 +46,7 @@ export async function POST(req: Request) {
     }
 
     // Format phone number if provided
-    const formattedPhoneNumber = phoneNumber ? formatPhoneNumberToE164(phoneNumber) : undefined;
+    const formattedPhoneNumber = phoneNumber ? normalizePhoneNumberToE164(phoneNumber) : undefined;
 
     // Find admin by email or phone number
     const admin = await prisma.admin.findFirst({
@@ -147,7 +139,7 @@ export async function PUT(req: Request) {
     }
 
     // Format phone number if provided
-    const formattedPhoneNumber = phoneNumber ? formatPhoneNumberToE164(phoneNumber) : undefined;
+    const formattedPhoneNumber = phoneNumber ? normalizePhoneNumberToE164(phoneNumber) : undefined;
 
     // Find and verify the code
     const verificationCode = await prisma.verificationCode.findFirst({

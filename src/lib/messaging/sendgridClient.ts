@@ -7,6 +7,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import sgMail from '@sendgrid/mail';
+import { formatCurrency } from '@/lib/utils/currencyUtils';
 
 // Initialize SendGrid with API key
 sgMail.setApiKey(process.env.SENDGRID_API_KEY || '');
@@ -319,7 +320,7 @@ export async function sendPackingSupplyOrderConfirmationEmail(
         <span style="font-weight: 500;">${item.quantity}x</span> ${item.name}
       </td>
       <td style="padding: 8px 0; border-bottom: 1px solid #f0f0f0; text-align: right;">
-        $${(item.price * item.quantity).toFixed(2)}
+        ${formatCurrency(item.price * item.quantity)}
       </td>
     </tr>
   `
@@ -336,10 +337,10 @@ Thank you for your packing supply order!
 Order #${orderDetails.orderId}
 Delivery to: ${orderDetails.deliveryAddress}
 Delivery: ${deliveryTimeText}
-Total: $${orderDetails.totalPrice.toFixed(2)}
+Total: ${formatCurrency(orderDetails.totalPrice)}
 
 Items:
-${orderDetails.cartItems.map(item => `- ${item.quantity}x ${item.name} - $${(item.price * item.quantity).toFixed(2)}`).join('\n')}
+${orderDetails.cartItems.map(item => `- ${item.quantity}x ${item.name} - ${formatCurrency(item.price * item.quantity)}`).join('\n')}
 
 Track your order: ${fullTrackingUrl}
 ${stripeReceiptUrl ? `View receipt: ${stripeReceiptUrl}` : ''}
@@ -391,7 +392,7 @@ Thanks for choosing Boombox!
                       Total
                     </td>
                     <td style="padding: 15px 0; text-align: right; font-weight: 600; font-size: 18px; color: #1a1a1a;">
-                      $${orderDetails.totalPrice.toFixed(2)}
+                      ${formatCurrency(orderDetails.totalPrice)}
                     </td>
                   </tr>
                 </tbody>

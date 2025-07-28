@@ -15,6 +15,7 @@
 
 import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { formatTime } from '@/lib/utils/dateUtils';
 import { prisma } from '@/lib/database/prismaClient';
 import { getOnfleetClient } from '@/lib/integrations/onfleetClient';
 import { MessageService } from '@/lib/messaging/MessageService';
@@ -236,11 +237,7 @@ async function notifyAssignedWorkersOfCancellation(
     month: 'long', 
     day: 'numeric' 
   });
-  const formattedTime = appointmentTime.toLocaleTimeString('en-US', { 
-    hour: 'numeric', 
-    minute: '2-digit', 
-    hour12: true 
-  });
+  const formattedTime = formatTime(appointmentTime);
 
   const notificationData = {
     appointmentId: appointment.id.toString(),

@@ -160,6 +160,72 @@ OPENAI_API_KEY="your-openai-api-key"
    pnpm dev
    ```
 
+---
+
+## 🔄 API Migration Workflow
+
+### Migration Workflow (Phase 4)
+
+When migrating API routes from boombox-10.0, follow the systematic approach to prevent duplicate utilities:
+
+#### Before Starting Domain Migration:
+
+```bash
+# 1. Analyze domain for utility consolidation opportunities
+npm run migration:analyze <domain-name>
+
+# 2. Check for cross-domain duplicate utilities  
+npm run migration:check-duplicates
+
+# 3. Review migration strategy and planning
+# See: docs/api-migration-prevention-strategy.md
+```
+
+#### During Route Migration:
+
+- ✅ **Check existing utilities**: Search `src/lib/utils/index.ts` exports first
+- ✅ **Reuse before creating**: Import existing utilities when possible
+- ✅ **Follow patterns**: Use established naming and organization conventions
+- ✅ **Document sources**: Add @source comments to all new utilities
+
+#### Migration Commands:
+
+```bash
+# Analyze specific domain before migration
+npm run migration:analyze orders
+
+# Check for duplicates across all domains
+npm run migration:check-duplicates
+
+# Get full consolidation analysis
+npm run migration:suggest-consolidation
+```
+
+#### Documentation:
+
+- **📋 Strategy Guide**: `docs/api-migration-prevention-strategy.md`
+- **⚡ Quick Reference**: `docs/api-migration-quick-reference.md`
+- **🔧 Utility Index**: `src/lib/utils/index.ts`
+
+### Utility Duplication Management
+
+Clean up existing redundancies before continuing migration:
+
+```bash
+# Scan current codebase for duplicate utilities
+npm run utils:scan-duplicates
+
+# Generate detailed analysis report
+npm run utils:detailed-report
+```
+
+**Current Status**: 21 files with utility duplicates identified
+- **High Priority**: Phone normalization, email validation
+- **Medium Priority**: Time formatting (40 instances), currency formatting (32 instances)
+- **Action Required**: See `docs/utility-redundancy-analysis.md`
+
+---
+
 5. **Open your browser**
    Navigate to [http://localhost:3000](http://localhost:3000)
 

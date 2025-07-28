@@ -99,6 +99,33 @@ export const SignupRequestSchema = z.object({
   role: z.enum(['customer', 'driver', 'mover']).optional(),
 });
 
+// ===== DRIVER ASSIGNMENT DOMAIN SCHEMAS =====
+
+export const DriverAssignmentRequestSchema = z.object({
+  appointmentId: z.number().int().positive('Appointment ID must be a positive integer'),
+  onfleetTaskId: z.string().optional(),
+  driverId: z.number().int().positive().optional(),
+  action: z.enum(['assign', 'accept', 'decline', 'retry', 'cancel', 'reconfirm']).default('assign'),
+});
+
+export const DriverAssignmentResponseSchema = z.object({
+  message: z.string(),
+  appointmentId: z.number(),
+  unitNumber: z.number().optional(),
+  unitResults: z.array(z.object({
+    unitNumber: z.number(),
+    status: z.string(),
+    message: z.string().optional(),
+    driverId: z.number().optional(),
+    movingPartnerId: z.number().optional(),
+  })).optional(),
+  driverId: z.number().optional(),
+  tasksAssigned: z.array(z.number()).optional(),
+  tasksReconfirmed: z.array(z.number()).optional(),
+  tasksReassigned: z.number().optional(),
+  nextDriverId: z.number().optional(),
+});
+
 export const SignupResponseSchema = z.object({
   success: z.boolean(),
   userId: positiveIntSchema,
@@ -1191,4 +1218,250 @@ export const CreateOnfleetAppointmentTasksResponseSchema = z.object({
   }),
   error: z.string().optional(),
   details: z.string().optional(),
+});
+
+// ===== ONFLEET UPDATE TASK SCHEMAS =====
+
+export const UpdateOnfleetTaskRequestSchema = z.object({
+  appointmentId: z.string().or(positiveIntSchema)
+    .transform(val => typeof val === 'string' ? parseInt(val, 10) : val),
+  updatedData: z.object({
+    appointmentType: appointmentTypeSchema.optional(),
+    address: z.string().min(5, 'Address must be at least 5 characters').optional(),
+    zipcode: zipCodeSchema.optional(),
+    date: z.string().or(z.date()).optional(),
+    time: z.string().or(z.date()).optional(),
+    description: z.string().optional(),
+    numberOfUnits: positiveIntSchema.optional(),
+    planType: z.enum(['Do It Yourself Plan', 'Full Service Plan']).optional(),
+    movingPartnerId: positiveIntSchema.optional(),
+    selectedLabor: z.object({
+      onfleetTeamId: z.string().optional()
+    }).optional()
+  }).optional()
+});
+
+export const UpdateOnfleetTaskResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string(),
+  results: z.array(z.object({
+    taskId: z.string(),
+    shortId: z.string(),
+    success: z.boolean(),
+    status: z.number().optional(),
+    error: z.any().optional(),
+    updatedTask: z.any().optional()
+  }))
+});
+
+// ====================
+// ONFLEET API VALIDATION SCHEMAS
+// ====================
+
+/**
+ * Onfleet dispatch team request validation
+ * @source boombox-10.0/src/app/api/onfleet/dispatch-team/route.ts
+ */
+export const OnfleetDispatchTeamRequestSchema = z.object({
+  targetDate: z.string().optional(),
+  forceDispatch: z.boolean().optional(),
+  dryRun: z.boolean().optional(),
+});
+
+/**
+ * Onfleet test connection request validation
+ * @source boombox-10.0/src/app/api/onfleet/test-connection/route.ts
+ */
+export const OnfleetTestConnectionRequestSchema = z.object({
+  teamName: z.string().optional(),
+});
+
+/**
+ * Onfleet calculate payout request validation
+ * @source boombox-10.0/src/app/api/onfleet/calculate-payout/route.ts
+ */
+export const OnfleetCalculatePayoutRequestSchema = z.object({
+  action: z.enum(['process_single', 'process_multiple', 'retry_failed', 'calculate_only']),
+  orderId: z.number().optional(),
+  orderIds: z.array(z.number()).optional(),
+  forceRetry: z.boolean().optional(),
+  routeMetrics: z.object({
+    distance: z.number(),
+    duration: z.number(),
+    stops: z.number(),
+    weight: z.number().optional(),
+    volume: z.number().optional(),
+  }).optional(),
+});
+
+/**
+ * Onfleet test route plan - no request validation needed (GET only)
+ * @source boombox-10.0/src/app/api/test-onfleet/route.ts
+ */
+
+// Type exports for the Onfleet schemas
+export type OnfleetDispatchTeamRequest = z.infer<typeof OnfleetDispatchTeamRequestSchema>;
+export type OnfleetTestConnectionRequest = z.infer<typeof OnfleetTestConnectionRequestSchema>;
+export type OnfleetCalculatePayoutRequest = z.infer<typeof OnfleetCalculatePayoutRequestSchema>;
+
+/**
+ * Onfleet webhook validation schemas
+ * @source boombox-10.0/src/app/api/webhooks/onfleet/route.ts
+ */
+
+// Webhook task completion details
+const WebhookCompletionDetailsSchema = z.object({
+  photoUploadId: z.string().optional(),
+  photoUploadIds: z.array(z.string()).optional(),
+  unavailableAttachments: z.array(z.object({
+    attachmentType: z.string(),
+    attachmentId: z.string().optional()
+  })).optional(),
+  drivingDistance: z.number().optional(),
+  drivingTime: z.number().optional(),
+  time: z.number().optional()
+});
+
+// Webhook task details
+const WebhookTaskDetailsSchema = z.object({
+  shortId: z.string(),
+  estimatedArrivalTime: z.string().optional(),
+  trackingURL: z.string().optional(),
+  completionDetails: WebhookCompletionDetailsSchema.optional(),
+  metadata: z.array(z.object({
+    name: z.string(),
+    value: z.string()
+  })).optional(),
+  worker: z.object({
+    name: z.string().optional()
+  }).optional()
+});
+
+// Main webhook payload
+export const OnfleetWebhookPayloadSchema = z.object({
+  taskId: z.string(),
+  time: z.number(),
+  triggerName: z.enum(['taskStarted', 'taskArrival', 'taskCompleted', 'taskFailed']),
+  data: z.object({
+    task: WebhookTaskDetailsSchema.optional(),
+    worker: z.object({
+      name: z.string().optional()
+    }).optional()
+  }).optional()
+});
+
+// GET request validation for webhook endpoint
+export const OnfleetWebhookGetRequestSchema = z.object({
+  check: z.string().optional(),
+  testOrderId: z.string().optional(),
+  testPhotoUrl: z.string().url().optional()
+});
+
+export type OnfleetWebhookPayload = z.infer<typeof OnfleetWebhookPayloadSchema>;
+export type OnfleetWebhookGetRequest = z.infer<typeof OnfleetWebhookGetRequestSchema>;
+
+// ===== PACKING SUPPLY ROUTE ASSIGNMENT SCHEMAS =====
+
+export const AssignOrdersToRouteRequestSchema = z.object({
+  action: z.literal('assign_orders_to_route'),
+  driverId: z.string().or(positiveIntSchema).transform(val => parseInt(String(val), 10)),
+  deliveryDate: z.string().refine(
+    (date) => !isNaN(Date.parse(date)),
+    'Invalid delivery date format'
+  ),
+  orderIds: z.array(z.string().or(positiveIntSchema).transform(val => parseInt(String(val), 10)))
+    .min(1, 'At least one order ID is required')
+});
+
+export const TriggerBatchOptimizationRequestSchema = z.object({
+  action: z.literal('trigger_batch_optimization'),
+  deliveryDate: z.string().refine(
+    (date) => !isNaN(Date.parse(date)),
+    'Invalid delivery date format'
+  ).optional()
+});
+
+export const AssignRoutesRequestSchema = z.discriminatedUnion('action', [
+  AssignOrdersToRouteRequestSchema,
+  TriggerBatchOptimizationRequestSchema
+]);
+
+export const AssignRoutesGetRequestSchema = z.object({
+  deliveryDate: z.string().refine(
+    (date) => !isNaN(Date.parse(date)),
+    'Invalid delivery date format'
+  ).optional(),
+  status: z.string().optional()
+});
+
+export type AssignOrdersToRouteRequest = z.infer<typeof AssignOrdersToRouteRequestSchema>;
+export type TriggerBatchOptimizationRequest = z.infer<typeof TriggerBatchOptimizationRequestSchema>;
+export type AssignRoutesRequest = z.infer<typeof AssignRoutesRequestSchema>;
+export type AssignRoutesGetRequest = z.infer<typeof AssignRoutesGetRequestSchema>;
+
+// ===== DRIVER OFFER SCHEMAS =====
+
+export const DriverOfferRequestSchema = z.object({
+  routeId: z.string().min(1, 'Route ID is required'),
+  targetDate: z.string().refine(
+    (date) => !isNaN(Date.parse(date)),
+    'Invalid target date format'
+  ).optional(),
+  source: z.string().optional()
+});
+
+export const DriverOfferGetRequestSchema = z.object({
+  status: z.string().optional(),
+  date: z.string().refine(
+    (date) => !isNaN(Date.parse(date)),
+    'Invalid date format'
+  ).optional()
+});
+
+export type DriverOfferRequest = z.infer<typeof DriverOfferRequestSchema>;
+export type DriverOfferGetRequest = z.infer<typeof DriverOfferGetRequestSchema>;
+
+// ===== ONFLEET PACKING SUPPLY ROUTES VALIDATION =====
+
+// Driver response validation (POST and GET)
+export const DriverResponseRequestSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+  action: z.enum(['accept', 'decline'], {
+    errorMap: () => ({ message: 'Action must be "accept" or "decline"' })
+  })
+});
+
+export const DriverResponseGetSchema = z.object({
+  token: z.string().min(1, 'Token is required')
+});
+
+// Handle expired offers validation (POST and GET)
+export const HandleExpiredOffersRequestSchema = z.object({
+  // No body validation needed - uses auth header
+});
+
+export const HandleExpiredOffersGetSchema = z.object({
+  dryRun: z.string().optional().transform(val => val === 'true')
+});
+
+// Process route payout validation
+export const ProcessRoutePayoutRequestSchema = z.object({
+  routeId: z.string().min(1, 'Route ID is required').optional(),
+  action: z.enum(['process_all_pending']).optional()
+}).refine(
+  (data) => data.routeId || data.action === 'process_all_pending',
+  { message: 'Either routeId or action=process_all_pending is required' }
+);
+
+export const ProcessRoutePayoutGetSchema = z.object({
+  routeId: z.string().optional()
+});
+
+// Route details validation (parameterized route)
+export const RouteDetailsParamsSchema = z.object({
+  routeId: z.string().min(1, 'Route ID is required')
+});
+
+export const RouteDetailsQuerySchema = z.object({
+  token: z.string().min(1, 'Token is required')
 });

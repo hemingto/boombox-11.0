@@ -25,6 +25,7 @@
 
 import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { formatTime } from '@/lib/utils/dateUtils';
 import { prisma } from '@/lib/database/prismaClient';
 import { getOnfleetClient } from '@/lib/integrations/onfleetClient';
 import { sendNoDriverAvailableAlert } from '@/lib/messaging/sendgridClient';
@@ -401,7 +402,7 @@ async function notifyAdminNoDrivers(appointment: any, task: { unitNumber: number
       appointmentId: appointment.id,
       jobCode: `JOB-${appointment.id}`,
       date: appointment.date.toLocaleDateString(),
-      time: appointment.time.toLocaleTimeString(),
+      time: formatTime(appointment.time),
       address: appointment.address,
       unitNumber: task.unitNumber,
       userName: appointment.user?.firstName + ' ' + appointment.user?.lastName || 'Unknown',

@@ -8,6 +8,7 @@
 
 import { twilioClient } from './twilioClient';
 import sgMail from '@sendgrid/mail';
+import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
 import {
   MessageTemplate,
   TemplateVariables,
@@ -202,24 +203,5 @@ export class MessageService {
     return emailRegex.test(email);
   }
 
-  /**
-   * Normalize phone number to E.164 format (preserved from existing utility)
-   */
-  static normalizePhoneNumberToE164(phone: string): string {
-    const digits = phone.replace(/\D/g, ''); // Remove all non-numeric characters
 
-    if (digits.length === 10) {
-      return `+1${digits}`; // Default to US numbers
-    }
-
-    if (digits.startsWith('1') && digits.length === 11) {
-      return `+${digits}`;
-    }
-
-    if (phone.startsWith('+')) {
-      return phone;
-    }
-
-    throw new Error('Invalid phone number format');
-  }
 }

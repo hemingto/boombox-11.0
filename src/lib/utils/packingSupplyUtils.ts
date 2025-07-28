@@ -6,6 +6,7 @@
  */
 
 import { PackingSupplyCartItem } from '@/types/packingSupply.types';
+import { formatCurrency } from '@/lib/utils/currencyUtils';
 import crypto from 'crypto';
 
 export interface DeliveryTimeWindow {
@@ -234,5 +235,5 @@ export function createTrackingUrl(trackingToken: string): string {
  */
 export function formatOrderItemsForNotes(cartItems: PackingSupplyCartItem[], totalPrice: number): string {
   const itemsText = cartItems.map(item => `- ${item.quantity}x ${item.name}`).join('\n');
-  return `Items:\n${itemsText}\n\nTotal: $${totalPrice.toFixed(2)}`;
+  return `Items:\n${itemsText}\n\nTotal: ${formatCurrency(totalPrice)}`;
 } 

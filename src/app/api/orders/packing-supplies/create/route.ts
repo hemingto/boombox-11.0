@@ -29,6 +29,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
+import { formatCurrency } from '@/lib/utils/currencyUtils';
 import { createPackingSupplyTask } from '@/lib/integrations/onfleetClient';
 import { stripe } from '@/lib/integrations/stripeClient';
 import { getStripeCustomerId } from '@/lib/integrations/stripeUtils';
@@ -319,7 +320,7 @@ export async function POST(request: NextRequest) {
           deliveryDate: timeWindow.deliveryDate,
           trackingUrl: `${process.env.NEXT_PUBLIC_BASE_URL}${updatedOrder.trackingUrl}`,
           orderId: createdOrder.id.toString(),
-          totalPrice: body.totalPrice.toFixed(2),
+          totalPrice: formatCurrency(body.totalPrice),
           itemCount: capacity.itemCount.toString(),
         }
       );

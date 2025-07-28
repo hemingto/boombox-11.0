@@ -6,6 +6,7 @@
 
 import { prisma } from '@/lib/database/prismaClient';
 import { MessageService } from '@/lib/messaging/MessageService';
+import { formatTime, formatTime24Hour } from '@/lib/utils/dateUtils';
 import { driverReassignmentOfferTemplate, moverChangeNotificationTemplate } from '@/lib/messaging/templates/sms/booking';
 
 // Types for utility functions
@@ -74,9 +75,7 @@ export async function findAvailableDrivers(
   const appointmentDate = new Date(appointment.date);
   const dayOfWeek = appointmentDate.toLocaleDateString("en-US", { weekday: "long" });
   const appointmentTime = new Date(appointment.time);
-  const hours = appointmentTime.getHours();
-  const minutes = appointmentTime.getMinutes();
-  const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  const formattedTime = formatTime24Hour(appointmentTime);
 
   return prisma.driver.findMany({
     where: {
@@ -143,11 +142,7 @@ export async function notifyDriverReassignment(
     month: 'long', 
     day: 'numeric' 
   });
-  const formattedTime = appointmentTimeOriginal.toLocaleTimeString('en-US', { 
-    hour: 'numeric', 
-    minute: '2-digit', 
-    hour12: true 
-  });
+  const formattedTime = formatTime(appointmentTimeOriginal);
 
   await MessageService.sendSms(
     driver.phoneNumber,
@@ -191,11 +186,7 @@ export async function notifyCustomerMoverChange(
     month: 'long', 
     day: 'numeric' 
   });
-  const formattedTime = appointmentTime.toLocaleTimeString('en-US', { 
-    hour: 'numeric', 
-    minute: '2-digit', 
-    hour12: true 
-  });
+  const formattedTime = formatTime(appointmentTime);
 
   const priceDifference = (suggestedMover.hourlyRate || 0) - originalLoadingHelpPrice;
   const priceText = priceDifference === 0 

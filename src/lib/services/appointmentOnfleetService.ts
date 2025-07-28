@@ -1,343 +1,307 @@
 /**
- * @fileoverview Appointment Onfleet service for task creation and management
- * @source boombox-10.0/src/app/api/onfleet/create-task/route.ts (createLinkedOnfleetTasks, createLinkedOnfleetTasksDirectly)
- * @refactor Extracted main orchestration logic from monolithic route function
+ * @fileoverview Appointment Onfleet service for team assignment and task management
+ * @source boombox-10.0/src/app/api/onfleet/update-task/route.ts (team assignment and business logic)
+ * @refactor Extracted core appointment Onfleet operations into centralized service
  */
 
 import { prisma } from '@/lib/database/prismaClient';
-import { calculateTaskTiming, processStorageUnits } from '@/lib/utils/onfleetUtils';
-import {
-  generatePickupInstructions,
-  generateCustomerDeliveryInstructions as generateDiyCustomerInstructions,
-  generateReturnInstructions,
-  generateFullServicePickupInstructions,
-  generateFullServiceCustomerDeliveryInstructions,
-  generateDriverNetworkPickupInstructions,
-  generateDriverNetworkCustomerDeliveryInstructions,
-  generateFullServiceReturnInstructions,
-} from '@/lib/messaging/onfleet-notes';
+import { geocodeAddress } from '@/lib/services/geocodingService';
+import { 
+  calculateTaskTimeWindows, 
+  updateStorageUnitNotes,
+  buildTaskDestination,
+  type TaskPayload,
+  WAREHOUSE_ADDRESS 
+} from '@/lib/utils/onfleetTaskUtils';
+import { parseAddress } from '@/lib/utils/formatUtils';
 
-export interface CreateTaskPayload {
-  appointmentId: string | number;
-  userId: string | number;
-  appointmentType: string;
-  firstName: string;
-  lastName: string;
-  phoneNumber: string;
-  selectedPlanName?: string;
+export interface AppointmentUpdateData {
+  id: number;
+  appointmentType?: string | null;
+  address?: string | null;
+  zipcode?: string | null;
+  date?: string | Date | null;
+  time?: string | Date | null;
+  description?: string | null;
+  numberOfUnits?: number | null;
+  planType?: string | null;
+  movingPartnerId?: number | null;
   selectedLabor?: {
-    title: string;
-    onfleetTeamId: string;
-  };
-  storageUnitCount: number;
-  storageUnitIds?: number[];
-  deliveryReason?: string;
-  description?: string;
-  appointmentDateTime: string;
-  address: string;
-  startingUnitNumber?: number;
-  additionalUnitsOnly?: boolean;
+    onfleetTeamId?: string;
+  } | null;
 }
 
-// Temporary placeholder implementations until dependencies are migrated
-const WAREHOUSE_ADDRESS = "105 Associated Road, South San Francisco, CA 94080";
+export interface OnfleetTaskData {
+  id: number;
+  taskId: string;
+  shortId: string;
+  stepNumber: number | null;
+  unitNumber: number | null;
+}
 
-const parseAddress = (address: string) => ({
-  address,
-  unparsed: address,
-  // Temporary implementation - will be replaced with real parseAddress function
-});
-
-const calculateAndSaveAppointmentCosts = async (appointmentId: string | number) => {
-  // Temporary implementation - will be replaced with real cost calculation
-  console.log(`Calculating costs for appointment ${appointmentId}`);
-  return { totalEstimatedCost: 0 };
-};
+export interface StorageUnitMapping {
+  storageUnitId: number;
+  storageUnit: {
+    storageUnitNumber?: string | null;
+    id: number;
+  };
+}
 
 /**
- * Generate task notes based on appointment type and plan
+ * Determines the appropriate Onfleet team ID based on appointment data and task details
+ * @param appointmentData - The appointment information
+ * @param stepNumber - Task step number (1, 2, or 3)
+ * @param unitNumber - Unit number for the task
+ * @returns Team ID or null if no team assignment needed
  */
-function generateTaskNotes(
-  payload: CreateTaskPayload,
-  isAccessAppointment: boolean,
-  isDIY: boolean,
-  isFirstUnit: boolean,
-  unitInfo?: {
-    unitId?: number;
-    unitNumber?: string;
-    allUnitNumbers?: string;
+export async function determineTeamAssignment(
+  appointmentData: AppointmentUpdateData,
+  stepNumber: number,
+  unitNumber: number
+): Promise<string | null> {
+  // Only update team for steps 1-3 and only for unitNumber === 1
+  if (!(stepNumber >= 1 && stepNumber <= 3 && unitNumber === 1)) {
+    return null;
   }
-): { pickup: string; customer: string; return: string } {
+
+  // First check if we have selectedLabor with onfleetTeamId
+  if (appointmentData.selectedLabor?.onfleetTeamId) {
+    return appointmentData.selectedLabor.onfleetTeamId;
+  }
+
+  // Fall back to plan type logic
+  const isDIY = appointmentData.planType === "Do It Yourself Plan";
   
-  if (isAccessAppointment && unitInfo) {
-    // For access appointments, use more detailed customer-specific notes
-    const customerName = `${payload.firstName} ${payload.lastName}`;
-    
-    if (isDIY) {
-      return {
-        pickup: `STEP 1: WAREHOUSE PICKUP
-
-Customer needs access to storage unit ${unitInfo.unitNumber}.
-
-All requested units: ${unitInfo.allUnitNumbers}
-
-Customer Name: ${customerName}
-Phone: ${payload.phoneNumber}
-Reason: ${payload.deliveryReason || 'Storage access'}
-Plan: Do It Yourself Plan (Customer will handle loading/unloading)
-
-Instructions: Please locate and retrieve unit ${unitInfo.unitNumber}`,
-
-        customer: `STEP 2: CUSTOMER DELIVERY
-
-Storage Unit Access: ${unitInfo.unitNumber}
-
-Customer Name: ${customerName}
-Phone: ${payload.phoneNumber}
-Plan: Do It Yourself Plan (Customer will handle loading/unloading)
-
-Instructions: Customer will handle loading/unloading. Please wait for them to complete.
-Additional Notes: ${payload.description || 'No added info'}`,
-
-        return: `STEP 3: RETURN TO WAREHOUSE
-
-Return storage unit #${unitInfo.unitNumber} to warehouse.
-
-Customer Name: ${customerName}
-Phone: ${payload.phoneNumber}
-Instructions: Return unit to warehouse, ensure unit is secure.`
-      };
-    } else {
-      // Full Service Access Appointments
-      if (isFirstUnit) {
-        return {
-          pickup: `STEP 1: WAREHOUSE PICKUP
-
-Customer needs access to storage unit #${unitInfo.unitNumber}.
-
-Customer Name: ${customerName}
-Phone: ${payload.phoneNumber}
-Reason: ${payload.deliveryReason || 'Storage access'}
-Plan: Full Service Plan (Moving partner will assist with loading/unloading)
-
-Instructions: Please locate and retrieve unit #${unitInfo.unitId}`,
-
-          customer: `STEP 2: CUSTOMER DELIVERY
-
-Storage Unit Access: #${unitInfo.unitNumber}
-
-Customer Name: ${customerName}
-Phone: ${payload.phoneNumber}
-Plan: Full Service (Moving partner will assist with loading/unloading)
-
-Partner: ${payload.selectedLabor?.title || 'Moving Partner'}
-Instructions: Assist customer with loading/unloading as needed.
-Additional Notes: ${payload.description || 'No added info'}`,
-
-          return: `STEP 3: RETURN TO WAREHOUSE
-
-Return storage unit #${unitInfo.unitNumber} to warehouse.
-
-Customer Name: ${customerName}
-Phone: ${payload.phoneNumber}
-Instructions: Return unit to warehouse, ensure unit is secure.`
-        };
+  if (isDIY || unitNumber > 1) {
+    return process.env.BOOMBOX_DELIVERY_NETWORK_TEAM_ID || null;
+  } else if (appointmentData.movingPartnerId) {
+    // Get the moving partner's Onfleet team ID from the database
+    try {
+      const movingPartner = await prisma.movingPartner.findUnique({
+        where: { id: appointmentData.movingPartnerId },
+        select: { onfleetTeamId: true, name: true }
+      });
+      
+      if (movingPartner?.onfleetTeamId) {
+        return movingPartner.onfleetTeamId;
       } else {
-        // Additional units for full service access
-        return {
-          pickup: `STEP 1: WAREHOUSE PICKUP
-
-Customer needs access to storage unit #${unitInfo.unitNumber}.
-
-Customer Name: ${customerName}
-Phone: ${payload.phoneNumber}
-Reason: ${payload.deliveryReason || 'Storage access'}
-Plan: Full Service Plan (Additional unit)
-
-Instructions: Please locate and retrieve unit #${unitInfo.unitId}`,
-
-          customer: `STEP 2: CUSTOMER DELIVERY (Additional Unit)
-
-Storage Unit Access: #${unitInfo.unitNumber}
-
-Customer Name: ${customerName}
-Phone: ${payload.phoneNumber}
-Instructions: This is an additional unit for this customer. Deliver to customer location.
-Additional Notes: ${payload.description || 'No added info'}`,
-
-          return: `STEP 3: RETURN TO WAREHOUSE
-
-Return storage unit #${unitInfo.unitNumber} to warehouse.
-
-Customer Name: ${customerName}
-Phone: ${payload.phoneNumber}
-Instructions: Return unit to warehouse, ensure unit is secure.`
-        };
+        // No onfleetTeamId found for moving partner, use default team
+        return process.env.BOOMBOX_DELIVERY_NETWORK_TEAM_ID || null;
       }
+    } catch (error) {
+      console.error(`❌ Error fetching moving partner: ${error}`);
+      return process.env.BOOMBOX_DELIVERY_NETWORK_TEAM_ID || null;
     }
   } else {
-    // For regular storage appointments, use standard templates from constants
-    if (isDIY) {
-      return {
-        pickup: generatePickupInstructions({
-          firstName: payload.firstName,
-          lastName: payload.lastName,
-          appointmentId: typeof payload.appointmentId === 'string' ? parseInt(payload.appointmentId) : payload.appointmentId
-        }),
-        customer: generateDiyCustomerInstructions(),
-        return: generateReturnInstructions()
-      };
-    } else {
-      if (isFirstUnit) {
-        return {
-          pickup: generateFullServicePickupInstructions({
-            storageUnitCount: payload.storageUnitCount,
-            firstName: payload.firstName,
-            lastName: payload.lastName,
-            appointmentId: typeof payload.appointmentId === 'string' ? parseInt(payload.appointmentId) : payload.appointmentId
-          }),
-          customer: generateFullServiceCustomerDeliveryInstructions({
-            storageUnitCount: payload.storageUnitCount
-          }),
-          return: generateFullServiceReturnInstructions()
-        };
-      } else {
-        // Additional units use driver network templates
-        return {
-          pickup: generateDriverNetworkPickupInstructions({
-            firstName: payload.firstName,
-            lastName: payload.lastName,
-            appointmentId: typeof payload.appointmentId === 'string' ? parseInt(payload.appointmentId) : payload.appointmentId
-          }),
-          customer: generateDriverNetworkCustomerDeliveryInstructions(),
-          return: generateFullServiceReturnInstructions()
-        };
-      }
-    }
+    // Default to Boombox team if no moving partner
+    return process.env.BOOMBOX_DELIVERY_NETWORK_TEAM_ID || null;
   }
 }
 
 /**
- * Create linked Onfleet tasks for an appointment
+ * Builds the complete task payload for Onfleet API
+ * @param originalNotes - The original task notes from Onfleet
+ * @param appointmentData - Appointment information
+ * @param stepNumber - Task step number
+ * @param unitNumbers - Comma-separated storage unit numbers
+ * @param actualUnitNumber - Specific unit number for this task
+ * @param teamId - Team ID for assignment (optional)
+ * @param coordinates - Address coordinates (optional)
+ * @param warehouseCoordinates - Warehouse coordinates (optional)
+ * @returns Complete task payload for Onfleet API
  */
-export async function createLinkedOnfleetTasks(payload: CreateTaskPayload) {
-  try {
-    console.log('Creating Onfleet tasks for appointment:', payload.appointmentId);
-    
-    // Determine appointment type
-    const isAccessAppointment = payload.appointmentType === "Storage Unit Access" || payload.appointmentType === "End Storage Term";
-    const isDIY = payload.selectedPlanName === 'Do It Yourself Plan' || !payload.selectedLabor;
-    
-    // Process storage units
-    const storageUnitIds = payload.storageUnitIds || [];
-    const unitProcessingResult = await processStorageUnits(
-      storageUnitIds,
-      isAccessAppointment,
-      payload.storageUnitCount
+export async function buildTaskPayload(
+  originalNotes: string,
+  appointmentData: AppointmentUpdateData,
+  stepNumber: number,
+  unitNumbers: string,
+  actualUnitNumber: string,
+  teamId?: string | null,
+  coordinates?: [number, number] | null,
+  warehouseCoordinates?: [number, number] | null
+): Promise<TaskPayload> {
+  // Calculate time windows
+  const appointmentTime = appointmentData.time ? 
+    (typeof appointmentData.time === 'string' ? new Date(appointmentData.time) : appointmentData.time) : 
+    new Date();
+  const timeWindows = calculateTaskTimeWindows(appointmentTime, stepNumber);
+  
+  // Update notes with current storage unit information
+  const updatedNotes = updateStorageUnitNotes(
+    originalNotes,
+    unitNumbers,
+    actualUnitNumber,
+    appointmentData.numberOfUnits || 1
+  );
+
+  // Build base payload
+  const payload: TaskPayload = {
+    notes: updatedNotes,
+    completeAfter: timeWindows.completeAfter,
+    completeBefore: timeWindows.completeBefore,
+    metadata: [
+      { 
+        name: "appointmentId", 
+        type: "string", 
+        value: String(appointmentData.id), 
+        visibility: ["api"] 
+      },
+      { 
+        name: "updatedAt", 
+        type: "string", 
+        value: new Date().toISOString(), 
+        visibility: ["api"] 
+      },
+      { 
+        name: "planType", 
+        type: "string", 
+        value: String(appointmentData.planType || ''), 
+        visibility: ["api"] 
+      }
+    ]
+  };
+
+  // Add team assignment if provided
+  if (teamId) {
+    payload.container = {
+      type: "TEAM",
+      team: teamId
+    };
+  }
+
+  // Add destination if coordinates are available
+  if (coordinates && appointmentData.address) {
+    const parsedAddress = parseAddress(appointmentData.address);
+    const destination = buildTaskDestination(
+      stepNumber,
+      parsedAddress,
+      coordinates,
+      warehouseCoordinates || null
     );
-    const { storageUnitNumbersMap, allUnitNumbers } = unitProcessingResult;
     
-    // Calculate timing
-    const existingTasks = await prisma.onfleetTask.findMany({
-      where: { appointmentId: typeof payload.appointmentId === 'string' ? parseInt(payload.appointmentId) : payload.appointmentId },
-      orderBy: [{ unitNumber: 'asc' }, { stepNumber: 'asc' }]
+    if (destination) {
+      payload.destination = destination;
+    }
+  }
+
+  return payload;
+}
+
+/**
+ * Gets storage unit mapping for an appointment
+ * @param appointmentId - The appointment ID
+ * @returns Array of storage unit mappings
+ */
+export async function getStorageUnitMapping(appointmentId: number): Promise<StorageUnitMapping[]> {
+  return await prisma.requestedAccessStorageUnit.findMany({
+    where: { appointmentId },
+    include: { 
+      storageUnit: {
+        select: {
+          id: true,
+          storageUnitNumber: true
+        }
+      }
+    }
+  });
+}
+
+/**
+ * Fetches original task data from Onfleet API
+ * @param taskId - Onfleet task ID
+ * @returns Original task data or null if failed
+ */
+export async function fetchOriginalOnfleetTask(taskId: string): Promise<any> {
+  try {
+    const response = await fetch(`https://onfleet.com/api/v2/tasks/${taskId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Basic ${Buffer.from(process.env.ONFLEET_API_KEY || '').toString('base64')}`
+      }
     });
     
-    const existingUnitCount = Math.max(...[1, 2, 3].map(step => 
-      existingTasks.filter(t => t.stepNumber === step).length
-    ));
-    
-    const allTaskIds = {
-      pickup: [] as string[],
-      customer: [] as string[],
-      return: [] as string[]
-    };
-    
-    const allShortIds = {
-      pickup: [] as string[],
-      customer: [] as string[],
-      return: [] as string[]
-    };
-    
-    // Create tasks for each unit
-    const startingUnitNumber = payload.startingUnitNumber || 1;
-    
-    for (let i = 0; i < payload.storageUnitCount; i++) {
-      const currentUnitNumber = startingUnitNumber + i;
-      const isFirstUnit = currentUnitNumber === 1;
-      
-      // Check if tasks already exist
-      const existingTasksForUnit = existingTasks.filter(t => t.unitNumber === currentUnitNumber);
-      if (existingTasksForUnit.length === 3) {
-        console.log(`Tasks for unit ${currentUnitNumber} already exist, skipping`);
-        continue;
-      }
-      
-      // Get unit info
-      const specificUnitId = storageUnitIds[i];
-      const specificUnitNumber = specificUnitId ? storageUnitNumbersMap[specificUnitId] : `Unit #${currentUnitNumber}`;
-      
-      // Calculate timing
-      const timingResult = calculateTaskTiming({
-        appointmentTime: new Date(payload.appointmentDateTime),
-        existingUnitCount,
-        currentUnitIndex: i
-      });
-      
-      // Generate notes
-      const notes = generateTaskNotes(
-        payload,
-        isAccessAppointment,
-        isDIY,
-        isFirstUnit,
-        {
-          unitId: specificUnitId,
-          unitNumber: specificUnitNumber,
-          allUnitNumbers
-        }
-      );
-      
-      // Build task payloads (using temporary implementation)
-      const customerAddress = parseAddress(payload.address);
-      const warehouseAddress = parseAddress(WAREHOUSE_ADDRESS);
-      
-      // Temporary mock task creation - will be replaced with real Onfleet API calls
-      console.log(`Creating tasks for unit ${currentUnitNumber}:`, {
-        pickup: notes.pickup,
-        customer: notes.customer,  
-        return: notes.return,
-        timing: timingResult,
-        customerAddress,
-        warehouseAddress
-      });
-      
-      // Add to results (temporary mock)
-      allTaskIds.pickup.push(`pickup-${currentUnitNumber}`);
-      allTaskIds.customer.push(`customer-${currentUnitNumber}`);
-      allTaskIds.return.push(`return-${currentUnitNumber}`);
-      
-      allShortIds.pickup.push(`P${currentUnitNumber}`);
-      allShortIds.customer.push(`C${currentUnitNumber}`);
-      allShortIds.return.push(`R${currentUnitNumber}`);
+    if (!response.ok) {
+      console.error(`❌ Failed to fetch original task ${taskId}:`, response.status);
+      return null;
     }
     
-    // Calculate costs
-    await calculateAndSaveAppointmentCosts(payload.appointmentId);
-    
-    return {
-      taskIds: allTaskIds,
-      shortIds: allShortIds
-    };
-    
+    return await response.json();
   } catch (error) {
-    console.error('Error creating Onfleet tasks:', error);
-    throw error;
+    console.error(`❌ Error fetching original task ${taskId}:`, error);
+    return null;
   }
 }
 
 /**
- * Create linked Onfleet tasks directly (without HTTP request)
+ * Updates a single Onfleet task
+ * @param taskId - Onfleet task ID
+ * @param payload - Task update payload
+ * @returns Update result with success status
  */
-export async function createLinkedOnfleetTasksDirectly(payload: CreateTaskPayload) {
-  return createLinkedOnfleetTasks(payload);
-} 
+export async function updateOnfleetTask(taskId: string, payload: TaskPayload): Promise<{
+  taskId: string;
+  shortId?: string;
+  success: boolean;
+  status?: number;
+  error?: any;
+  updatedTask?: any;
+}> {
+  try {
+    const response = await fetch(`https://onfleet.com/api/v2/tasks/${taskId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${Buffer.from(process.env.ONFLEET_API_KEY || '').toString('base64')}`
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    const responseData = await response.json();
+    
+    if (!response.ok) {
+      return {
+        taskId,
+        success: false,
+        status: response.status,
+        error: responseData
+      };
+    }
+    
+    return {
+      taskId,
+      success: true,
+      status: response.status,
+      updatedTask: responseData
+    };
+  } catch (error) {
+         return {
+       taskId,
+       success: false,
+       error: String(error)
+     };
+   }
+ }
+ 
+ /**
+  * Legacy function for create-task route compatibility
+  * @REFACTOR-P9-TEMP: Replace with proper Onfleet task creation when create-task route is refactored
+  * Priority: High | Est: 6h | Dependencies: API_004_ONFLEET_DOMAIN
+  */
+ export async function createOnfleetTasksWithDatabaseSave(payload: any) {
+   // @REFACTOR-P9-TEMP: Replace mock implementation with actual Onfleet API calls and database saves
+   // Priority: High | Est: 4h | Dependencies: API_004_ONFLEET_DOMAIN
+   console.log('PLACEHOLDER: Legacy createOnfleetTasksWithDatabaseSave called for appointment:', payload.appointmentId);
+   
+   return {
+     taskIds: {
+       pickup: [`pickup-${payload.appointmentId}`],
+       customer: [`customer-${payload.appointmentId}`],
+       return: [`return-${payload.appointmentId}`]
+     },
+     shortIds: {
+       pickup: [`P-${payload.appointmentId}`],
+       customer: [`C-${payload.appointmentId}`],
+       return: [`R-${payload.appointmentId}`]
+     }
+   };
+ } 

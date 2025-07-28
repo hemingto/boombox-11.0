@@ -23,21 +23,14 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
+import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
 import { twilioClient } from '@/lib/messaging/twilioClient';
 
 // Simple in-memory rate limiting to prevent sending multiple codes in quick succession
 const rateLimitMap = new Map<string, number>();
 const RATE_LIMIT_WINDOW = 60 * 1000; // 60 seconds
 
-const formatPhoneNumberToE164 = (phone: string): string => {
-  // Remove all non-numeric characters except '+'
-  const cleaned = phone.replace(/[^0-9+]/g, '');
-  // Add country code if missing
-  if (!cleaned.startsWith('+')) {
-    return `+1${cleaned}`; // Default to +1 for US numbers
-  }
-  return cleaned;
-};
+
 
 export async function POST(req: NextRequest) {
   try {
@@ -52,7 +45,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Format phone number if provided
-    const formattedPhoneNumber = phoneNumber ? formatPhoneNumberToE164(phoneNumber) : null;
+    const formattedPhoneNumber = phoneNumber ? normalizePhoneNumberToE164(phoneNumber) : null;
     
     // Rate limiting check for phone verification
     if (formattedPhoneNumber) {
