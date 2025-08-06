@@ -45,11 +45,36 @@ export {
   type AvailableDriver,
 } from './cancellationUtils';
 
-// Domain-specific utilities
+// Domain-specific utilities (avoiding conflicts)
+// Note: appointmentUtils contains formatAppointmentTime which conflicts with dateFormattingUtils
+// Using appointmentUtils version for appointment-specific formatting
 export * from './appointmentUtils';
-export * from './availabilityUtils';
+
+// Explicit exports from availabilityUtils to avoid conflicts
+export {
+  AvailabilityType,
+  DEFAULT_AVAILABILITY_SETTINGS,
+  convertToPacificTime,
+  buildAvailabilityTimeSlots,
+  // getDayOfWeekString - conflicts with dateFormattingUtils, using that version
+} from './availabilityUtils';
+
 export * from './moverChangeUtils';
-export * from './movingPartnerUtils';
+
+// Explicit exports from movingPartnerUtils to avoid conflicts
+export {
+  generateMovingPartnerInvite,
+  approveMovingPartnerApplication,
+  updateMovingPartnerStatus,
+  findMovingPartnerByEmail,
+  validateMovingPartnerUniqueness,
+  // assignMovingPartnerDriver - conflicts with moverChangeUtils, using that version
+  // getDayOfWeekString - conflicts with availabilityUtils, using dateFormattingUtils version
+  DEFAULT_MOVING_PARTNER_SERVICES,
+  MOVING_PARTNER_STATUSES,
+  type MovingPartnerRegistrationData,
+  type MovingPartnerApprovalResult,
+} from './movingPartnerUtils';
 
 // Messaging and communication utilities
 export * from './twilioUtils';

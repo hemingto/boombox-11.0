@@ -5,25 +5,29 @@
  */
 
 import { NextResponse } from 'next/server';
-import { 
-  findCustomerByPhone, 
+import {
+  findCustomerByPhone,
   findDriverByPhone,
   classifyMessageIntent,
-  type MessageIntent 
+  type MessageIntent,
 } from '@/lib/utils';
 import { MoverChangeHandler } from './MoverChangeHandler';
 import { DriverResponseHandler } from './DriverResponseHandler';
-import { MessageService } from '../MessageService';
-import { 
+import { MessageService } from '../../messaging/MessageService';
+import {
   customerNotFoundTemplate,
   generalSupportTemplate,
-  generalAmbiguousTemplate 
+  generalAmbiguousTemplate,
 } from '@/lib/messaging/templates/sms/customer';
 
 export interface MessageRouteResult {
   success: boolean;
   action?: string;
-  type?: 'packing_supply_route' | 'driver_task' | 'mover_change' | 'customer_general';
+  type?:
+    | 'packing_supply_route'
+    | 'driver_task'
+    | 'mover_change'
+    | 'customer_general';
   appointmentId?: string;
   routeId?: string;
   error?: string;
@@ -44,32 +48,35 @@ export class InboundMessageRouter {
    * @param messageText - Message content (already lowercased)
    * @returns Promise<MessageRouteResult>
    */
-  async routeMessage(phoneNumber: string, messageText: string): Promise<MessageRouteResult> {
+  async routeMessage(
+    phoneNumber: string,
+    messageText: string
+  ): Promise<MessageRouteResult> {
     try {
       // Classify message intent
       const intent: MessageIntent = classifyMessageIntent(messageText);
-      
+
       // Handle mover change responses first (customer domain)
       if (intent === 'mover_accept' || intent === 'mover_diy') {
         return await this.moverChangeHandler.handleResponse(
-          phoneNumber, 
+          phoneNumber,
           intent === 'mover_accept' ? 'accept' : 'diy'
         );
       }
 
       // Find driver by phone number for driver responses
       const driver = await findDriverByPhone(phoneNumber);
-      
+
       if (!driver) {
         // Check if this is a customer
         const customer = await findCustomerByPhone(phoneNumber);
-        
+
         if (customer) {
           // Customer message but not mover change - send general support
           await MessageService.sendSms(phoneNumber, generalSupportTemplate, {});
           return { success: true, type: 'customer_general' };
         }
-        
+
         // Neither driver nor customer found
         await MessageService.sendSms(phoneNumber, customerNotFoundTemplate, {});
         return { success: false, error: 'User not found' };
@@ -97,12 +104,12 @@ export class InboundMessageRouter {
       // Fallback - should not reach here
       await MessageService.sendSms(phoneNumber, generalAmbiguousTemplate, {});
       return { success: false, error: 'Unable to classify message intent' };
-
     } catch (error) {
       console.error('Error routing inbound message:', error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Internal routing error' 
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error.message : 'Internal routing error',
       };
     }
   }

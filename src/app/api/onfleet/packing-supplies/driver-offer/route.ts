@@ -31,15 +31,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { driverOfferTemplate } from '@/lib/messaging/templates/sms/packing-supply';
-import { 
+import {
   calculateRoutePayoutEstimate,
   calculateEstimatedDuration,
   formatRouteSummary,
-  getDeliveryArea 
+  getDeliveryArea,
 } from '@/lib/utils/packingSupplyUtils';
-import { 
-  DriverOfferRequestSchema, 
-  DriverOfferGetRequestSchema 
+import {
+  DriverOfferRequestSchema,
+  DriverOfferGetRequestSchema,
 } from '@/lib/validations/api.validations';
 import { ApiResponse } from '@/types/api.types';
 import jwt from 'jsonwebtoken';
@@ -49,7 +49,7 @@ const OFFER_TIMEOUT_MINUTES = 20;
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     // Validate request body with Zod
     const validatedData = DriverOfferRequestSchema.parse(body);
     const { routeId, targetDate, source } = validatedData;
@@ -77,8 +77,8 @@ export async function POST(request: NextRequest) {
           success: false,
           error: {
             code: 'ROUTE_NOT_FOUND',
-            message: 'Route not found'
-          }
+            message: 'Route not found',
+          },
         },
         { status: 404 }
       );
@@ -90,8 +90,8 @@ export async function POST(request: NextRequest) {
           success: false,
           error: {
             code: 'ROUTE_OFFER_NOT_PENDING',
-            message: `Route already has offer status: ${route.driverOfferStatus}`
-          }
+            message: `Route already has offer status: ${route.driverOfferStatus}`,
+          },
         },
         { status: 400 }
       );
@@ -100,7 +100,15 @@ export async function POST(request: NextRequest) {
     // Find available drivers for packing supply deliveries with enhanced filtering
     const deliveryDate = targetDate ? new Date(targetDate) : route.deliveryDate;
     // Fix timezone issue - use UTC methods to get correct day of week
-    const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][deliveryDate.getUTCDay()];
+    const dayOfWeek = [
+      'Sunday',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+    ][deliveryDate.getUTCDay()];
     const startOfDay = new Date(deliveryDate.toDateString());
     const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
 
@@ -161,9 +169,13 @@ export async function POST(request: NextRequest) {
     });
 
     // DEBUG: Log what we found
-    console.log(`DEBUG: Found ${candidateDrivers.length} candidate drivers for ${dayOfWeek}`);
-    console.log(`DEBUG: Team ID being searched: ${process.env.BOOMBOX_PACKING_SUPPLY_DELIVERY_DRIVERS}`);
-    
+    console.log(
+      `DEBUG: Found ${candidateDrivers.length} candidate drivers for ${dayOfWeek}`
+    );
+    console.log(
+      `DEBUG: Team ID being searched: ${process.env.BOOMBOX_PACKING_SUPPLY_DELIVERY_DRIVERS}`
+    );
+
     // Let's also get ALL drivers to see what's in the system
     const allDrivers = await prisma.driver.findMany({
       select: {
@@ -176,20 +188,25 @@ export async function POST(request: NextRequest) {
         phoneNumber: true,
         onfleetWorkerId: true,
         onfleetTeamIds: true,
-      }
+      },
     });
-    
+
     console.log(`DEBUG: Total drivers in system: ${allDrivers.length}`);
     allDrivers.forEach(driver => {
-      console.log(`DEBUG: Driver ${driver.id} (${driver.firstName} ${driver.lastName}):`, {
-        isApproved: driver.isApproved,
-        status: driver.status,
-        applicationComplete: driver.applicationComplete,
-        hasPhone: !!driver.phoneNumber,
-        hasOnfleetWorker: !!driver.onfleetWorkerId,
-        teamIds: driver.onfleetTeamIds,
-        hasTargetTeam: driver.onfleetTeamIds?.includes(process.env.BOOMBOX_PACKING_SUPPLY_DELIVERY_DRIVERS || ''),
-      });
+      console.log(
+        `DEBUG: Driver ${driver.id} (${driver.firstName} ${driver.lastName}):`,
+        {
+          isApproved: driver.isApproved,
+          status: driver.status,
+          applicationComplete: driver.applicationComplete,
+          hasPhone: !!driver.phoneNumber,
+          hasOnfleetWorker: !!driver.onfleetWorkerId,
+          teamIds: driver.onfleetTeamIds,
+          hasTargetTeam: driver.onfleetTeamIds?.includes(
+            process.env.BOOMBOX_PACKING_SUPPLY_DELIVERY_DRIVERS || ''
+          ),
+        }
+      );
     });
 
     // Enhanced driver sorting with multiple criteria
@@ -197,9 +214,13 @@ export async function POST(request: NextRequest) {
       .map(driver => {
         // Calculate recent performance metrics
         const recentRoutes = driver.packingSupplyRoutes.length;
-        const totalRecentStops = driver.packingSupplyRoutes.reduce((sum, route) => sum + route.totalStops, 0);
-        const avgStopsPerRoute = recentRoutes > 0 ? totalRecentStops / recentRoutes : 0;
-        
+        const totalRecentStops = driver.packingSupplyRoutes.reduce(
+          (sum, route) => sum + route.totalStops,
+          0
+        );
+        const avgStopsPerRoute =
+          recentRoutes > 0 ? totalRecentStops / recentRoutes : 0;
+
         // Calculate availability score (more available hours = higher score)
         const availabilityScore = driver.availability.reduce((score, avail) => {
           const start = parseInt(avail.startTime.split(':')[0]);
@@ -209,11 +230,18 @@ export async function POST(request: NextRequest) {
 
         // Calculate overall score for ranking
         const ratingScore = (driver.averageRating || 0) * 20; // Max 100 points
-        const experienceScore = Math.min(driver.completedPackingSupplyJobs * 2, 50); // Max 50 points
+        const experienceScore = Math.min(
+          driver.completedPackingSupplyJobs * 2,
+          50
+        ); // Max 50 points
         const recentActivityScore = Math.min(recentRoutes * 5, 30); // Max 30 points
         const availabilityBonus = Math.min(availabilityScore * 2, 20); // Max 20 points
 
-        const totalScore = ratingScore + experienceScore + recentActivityScore + availabilityBonus;
+        const totalScore =
+          ratingScore +
+          experienceScore +
+          recentActivityScore +
+          availabilityBonus;
 
         return {
           ...driver,
@@ -242,8 +270,8 @@ export async function POST(request: NextRequest) {
           success: false,
           error: {
             code: 'NO_AVAILABLE_DRIVERS',
-            message: 'No available drivers found for this route'
-          }
+            message: 'No available drivers found for this route',
+          },
         },
         { status: 400 }
       );
@@ -261,8 +289,8 @@ export async function POST(request: NextRequest) {
           success: false,
           error: {
             code: 'DRIVER_NO_PHONE',
-            message: 'Selected driver has no phone number'
-          }
+            message: 'Selected driver has no phone number',
+          },
         },
         { status: 400 }
       );
@@ -274,7 +302,7 @@ export async function POST(request: NextRequest) {
       driverId: selectedDriver.id,
       action: 'packing_supply_route_offer',
       timestamp: Date.now(),
-      expiresAt: Date.now() + (OFFER_TIMEOUT_MINUTES * 60 * 1000),
+      expiresAt: Date.now() + OFFER_TIMEOUT_MINUTES * 60 * 1000,
     };
 
     const offerToken = jwt.sign(
@@ -284,16 +312,17 @@ export async function POST(request: NextRequest) {
     );
 
     // Create offer URLs
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.boomboxstorage.com';
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL || 'https://app.boomboxstorage.com';
     const offerUrl = `${baseUrl}/driver/packing-supply-offer/${offerToken}`;
 
     // Format route summary and delivery area using extracted utilities
     const deliveryArea = getDeliveryArea(route.orders);
     const estimatedDuration = calculateEstimatedDuration(route);
-    const formattedDate = deliveryDate.toLocaleDateString('en-US', { 
-      weekday: 'short', 
-      month: 'numeric', 
-      day: 'numeric' 
+    const formattedDate = deliveryDate.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'numeric',
+      day: 'numeric',
     });
 
     // Send SMS using centralized messaging template
@@ -304,10 +333,12 @@ export async function POST(request: NextRequest) {
       payoutEstimate,
       estimatedDuration,
       offerUrl,
-      timeoutMinutes: OFFER_TIMEOUT_MINUTES.toString()
+      timeoutMinutes: OFFER_TIMEOUT_MINUTES.toString(),
     };
 
-    console.log(`Sending SMS to ${selectedDriver.firstName} ${selectedDriver.lastName} (${selectedDriver.phoneNumber})`);
+    console.log(
+      `Sending SMS to ${selectedDriver.firstName} ${selectedDriver.lastName} (${selectedDriver.phoneNumber})`
+    );
 
     try {
       await MessageService.sendSms(
@@ -315,24 +346,27 @@ export async function POST(request: NextRequest) {
         driverOfferTemplate,
         templateVariables
       );
-      
+
       console.log(`SMS sent successfully to ${selectedDriver.phoneNumber}`);
     } catch (smsError: any) {
-      console.error(`Failed to send SMS to ${selectedDriver.phoneNumber}:`, smsError);
+      console.error(
+        `Failed to send SMS to ${selectedDriver.phoneNumber}:`,
+        smsError
+      );
       return NextResponse.json<ApiResponse<null>>(
         {
           success: false,
           error: {
             code: 'SMS_DELIVERY_FAILED',
-            message: `SMS delivery failed: ${smsError.message}`
-          }
+            message: `SMS delivery failed: ${smsError.message}`,
+          },
         },
         { status: 500 }
       );
     }
 
     // Update route with offer details
-    const expiresAt = new Date(Date.now() + (OFFER_TIMEOUT_MINUTES * 60 * 1000));
+    const expiresAt = new Date(Date.now() + OFFER_TIMEOUT_MINUTES * 60 * 1000);
     await prisma.packingSupplyRoute.update({
       where: { routeId },
       data: {
@@ -342,18 +376,22 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    console.log(`Sent route offer to driver ${selectedDriver.id} for route ${routeId}`);
+    console.log(
+      `Sent route offer to driver ${selectedDriver.id} for route ${routeId}`
+    );
 
-    return NextResponse.json<ApiResponse<{
-      routeId: string;
-      driverId: number;
-      driverName: string;
-      payoutEstimate: string;
-      expiresAt: string;
-      totalStops: number;
-      deliveryArea: string;
-      message: string;
-    }>>({
+    return NextResponse.json<
+      ApiResponse<{
+        routeId: string;
+        driverId: number;
+        driverName: string;
+        payoutEstimate: string;
+        expiresAt: string;
+        totalStops: number;
+        deliveryArea: string;
+        message: string;
+      }>
+    >({
       success: true,
       data: {
         routeId,
@@ -366,18 +404,17 @@ export async function POST(request: NextRequest) {
         message: `Route offer sent to ${selectedDriver.firstName} ${selectedDriver.lastName}`,
       },
     });
-
   } catch (error: any) {
     // Handle Zod validation errors
     if (error.name === 'ZodError') {
       return NextResponse.json<ApiResponse<null>>(
-        { 
+        {
           success: false,
           error: {
             code: 'VALIDATION_ERROR',
             message: 'Invalid request data',
-            details: { errors: error.errors }
-          }
+            details: { errors: error.errors },
+          },
         },
         { status: 400 }
       );
@@ -385,12 +422,12 @@ export async function POST(request: NextRequest) {
 
     console.error('Error sending driver offer:', error);
     return NextResponse.json<ApiResponse<null>>(
-      { 
+      {
         success: false,
         error: {
           code: 'INTERNAL_ERROR',
-          message: error.message || 'Unknown error occurred'
-        }
+          message: error.message || 'Unknown error occurred',
+        },
       },
       { status: 500 }
     );
@@ -402,20 +439,22 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const queryParams = {
       status: searchParams.get('status'),
-      date: searchParams.get('date')
+      date: searchParams.get('date'),
     };
 
     // Validate query parameters
     const validatedParams = DriverOfferGetRequestSchema.parse(queryParams);
     const { status, date } = validatedParams;
 
-    let whereClause: any = {};
+    const whereClause: any = {};
 
     if (date) {
       const targetDate = new Date(date);
       whereClause.deliveryDate = {
         gte: new Date(targetDate.toDateString()),
-        lt: new Date(new Date(targetDate.toDateString()).getTime() + 24 * 60 * 60 * 1000),
+        lt: new Date(
+          new Date(targetDate.toDateString()).getTime() + 24 * 60 * 60 * 1000
+        ),
       };
     }
 
@@ -456,28 +495,29 @@ export async function GET(request: NextRequest) {
       expired: routes.filter(r => r.driverOfferStatus === 'expired').length,
     };
 
-    return NextResponse.json<ApiResponse<{
-      summary: typeof summary;
-      routes: typeof routes;
-    }>>({
+    return NextResponse.json<
+      ApiResponse<{
+        summary: typeof summary;
+        routes: typeof routes;
+      }>
+    >({
       success: true,
       data: {
         summary,
         routes,
       },
     });
-
   } catch (error: any) {
     // Handle Zod validation errors
     if (error.name === 'ZodError') {
       return NextResponse.json<ApiResponse<null>>(
-        { 
+        {
           success: false,
           error: {
             code: 'VALIDATION_ERROR',
             message: 'Invalid query parameters',
-            details: { errors: error.errors }
-          }
+            details: { errors: error.errors },
+          },
         },
         { status: 400 }
       );
@@ -485,14 +525,14 @@ export async function GET(request: NextRequest) {
 
     console.error('Error fetching driver offers:', error);
     return NextResponse.json<ApiResponse<null>>(
-      { 
+      {
         success: false,
         error: {
           code: 'INTERNAL_ERROR',
-          message: error.message || 'Unknown error occurred'
-        }
+          message: error.message || 'Unknown error occurred',
+        },
       },
       { status: 500 }
     );
   }
-} 
+}

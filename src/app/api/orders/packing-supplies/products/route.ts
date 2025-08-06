@@ -29,10 +29,10 @@ export async function GET(request: NextRequest) {
     const includeOutOfStock = searchParams.get('includeOutOfStock') === 'true';
 
     // Build where clause for product filtering
-    let whereClause: any = {
+    const whereClause: any = {
       category: {
-        in: ['Packing Supplies', 'Moving Boxes']
-      }
+        in: ['Packing Supplies', 'Moving Boxes'],
+      },
     };
 
     // Optionally filter out out-of-stock items
@@ -70,7 +70,6 @@ export async function GET(request: NextRequest) {
         hasLowStock: product.stockCount < 50, // Flag for low stock warning
       })),
     });
-
   } catch (error: any) {
     console.error('Error fetching products:', error);
     return NextResponse.json(
@@ -78,4 +77,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

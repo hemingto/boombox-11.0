@@ -25,16 +25,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { findOrCreateRouteForOrders } from '@/lib/services/route-manager';
 import { prisma } from '@/lib/database/prismaClient';
-import { 
-  AssignRoutesRequestSchema, 
-  AssignRoutesGetRequestSchema 
+import {
+  AssignRoutesRequestSchema,
+  AssignRoutesGetRequestSchema,
 } from '@/lib/validations/api.validations';
 import { ApiResponse } from '@/types/api.types';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     // Validate request body with Zod
     const validatedData = AssignRoutesRequestSchema.parse(body);
     const { action } = validatedData;
@@ -53,12 +53,13 @@ export async function POST(request: NextRequest) {
 
       if (orders.length !== orderIds.length) {
         return NextResponse.json<ApiResponse<null>>(
-          { 
+          {
             success: false,
             error: {
               code: 'ORDERS_NOT_AVAILABLE',
-              message: 'Some orders are not found, not available for assignment, or already assigned to routes'
-            }
+              message:
+                'Some orders are not found, not available for assignment, or already assigned to routes',
+            },
           },
           { status: 400 }
         );
@@ -72,12 +73,12 @@ export async function POST(request: NextRequest) {
 
       if (!driver) {
         return NextResponse.json<ApiResponse<null>>(
-          { 
+          {
             success: false,
             error: {
               code: 'DRIVER_NOT_FOUND',
-              message: 'Driver not found'
-            }
+              message: 'Driver not found',
+            },
           },
           { status: 404 }
         );
@@ -93,21 +94,23 @@ export async function POST(request: NextRequest) {
       // Update orders with assigned driver and status
       await prisma.packingSupplyOrder.updateMany({
         where: { id: { in: orderIds } },
-        data: { 
+        data: {
           assignedDriverId: driverId,
-          status: 'Assigned' // Update status to indicate manual assignment
+          status: 'Assigned', // Update status to indicate manual assignment
         },
       });
 
-      return NextResponse.json<ApiResponse<{
-        routeId: string;
-        driverId: number;
-        driverName: string;
-        orderIds: number[];
-        deliveryDate: string;
-        assignmentType: string;
-        message: string;
-      }>>({
+      return NextResponse.json<
+        ApiResponse<{
+          routeId: string;
+          driverId: number;
+          driverName: string;
+          orderIds: number[];
+          deliveryDate: string;
+          assignmentType: string;
+          message: string;
+        }>
+      >({
         success: true,
         data: {
           routeId,
@@ -125,20 +128,23 @@ export async function POST(request: NextRequest) {
       const { deliveryDate } = validatedData;
       // Trigger the batch optimization process manually
       const targetDate = deliveryDate ? new Date(deliveryDate) : new Date();
-      
+
       try {
         // Call the batch optimization endpoint
         // @REFACTOR-P9-TEMP: Update URL path when batch-optimize route is migrated
-        const batchOptimizeResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/packing-supplies/batch-optimize`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            date: targetDate.toISOString().split('T')[0],
-            source: 'manual_trigger',
-          }),
-        });
+        const batchOptimizeResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_APP_URL}/api/packing-supplies/batch-optimize`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              date: targetDate.toISOString().split('T')[0],
+              source: 'manual_trigger',
+            }),
+          }
+        );
 
         if (!batchOptimizeResponse.ok) {
           const errorData = await batchOptimizeResponse.json();
@@ -147,12 +153,14 @@ export async function POST(request: NextRequest) {
 
         const batchOptimizeResult = await batchOptimizeResponse.json();
 
-        return NextResponse.json<ApiResponse<{
-          targetDate: string;
-          optimizationResult: any;
-          assignmentType: string;
-          message: string;
-        }>>({
+        return NextResponse.json<
+          ApiResponse<{
+            targetDate: string;
+            optimizationResult: any;
+            assignmentType: string;
+            message: string;
+          }>
+        >({
           success: true,
           data: {
             targetDate: targetDate.toISOString().split('T')[0],
@@ -161,17 +169,16 @@ export async function POST(request: NextRequest) {
             message: 'Batch optimization triggered successfully',
           },
         });
-
       } catch (error: any) {
         console.error('Error triggering batch optimization:', error);
         return NextResponse.json<ApiResponse<null>>(
-          { 
+          {
             success: false,
             error: {
               code: 'BATCH_OPTIMIZATION_FAILED',
               message: 'Failed to trigger batch optimization',
-              details: { originalError: error.message }
-            }
+              details: { originalError: error.message },
+            },
           },
           { status: 500 }
         );
@@ -180,27 +187,27 @@ export async function POST(request: NextRequest) {
 
     // This should never be reached due to Zod validation, but keeping for safety
     return NextResponse.json<ApiResponse<null>>(
-      { 
+      {
         success: false,
         error: {
           code: 'INVALID_ACTION',
-          message: 'Invalid action. Use "assign_orders_to_route" or "trigger_batch_optimization"'
-        }
+          message:
+            'Invalid action. Use "assign_orders_to_route" or "trigger_batch_optimization"',
+        },
       },
       { status: 400 }
     );
-
   } catch (error: any) {
     // Handle Zod validation errors
     if (error.name === 'ZodError') {
       return NextResponse.json<ApiResponse<null>>(
-        { 
+        {
           success: false,
           error: {
             code: 'VALIDATION_ERROR',
             message: 'Invalid request data',
-            details: { errors: error.errors }
-          }
+            details: { errors: error.errors },
+          },
         },
         { status: 400 }
       );
@@ -208,12 +215,12 @@ export async function POST(request: NextRequest) {
 
     console.error('Error assigning routes:', error);
     return NextResponse.json<ApiResponse<null>>(
-      { 
+      {
         success: false,
         error: {
           code: 'INTERNAL_ERROR',
-          message: error.message || 'Unknown error occurred'
-        }
+          message: error.message || 'Unknown error occurred',
+        },
       },
       { status: 500 }
     );
@@ -225,20 +232,22 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const queryParams = {
       deliveryDate: searchParams.get('deliveryDate'),
-      status: searchParams.get('status')
+      status: searchParams.get('status'),
     };
 
     // Validate query parameters
     const validatedParams = AssignRoutesGetRequestSchema.parse(queryParams);
     const { deliveryDate, status } = validatedParams;
 
-    let whereClause: any = {};
+    const whereClause: any = {};
 
     if (deliveryDate) {
       const targetDate = new Date(deliveryDate);
       whereClause.deliveryDate = {
         gte: new Date(targetDate.toDateString()),
-        lt: new Date(new Date(targetDate.toDateString()).getTime() + 24 * 60 * 60 * 1000),
+        lt: new Date(
+          new Date(targetDate.toDateString()).getTime() + 24 * 60 * 60 * 1000
+        ),
       };
     }
 
@@ -272,21 +281,25 @@ export async function GET(request: NextRequest) {
     // Group orders by route assignment status
     const unassignedOrders = orders.filter(order => !order.routeId);
     const assignedOrders = orders.filter(order => order.routeId);
-    const pendingBatchOrders = orders.filter(order => order.status === 'Pending Batch');
+    const pendingBatchOrders = orders.filter(
+      order => order.status === 'Pending Batch'
+    );
 
-    return NextResponse.json<ApiResponse<{
-      summary: {
-        total: number;
-        unassigned: number;
-        assigned: number;
-        pendingBatch: number;
-      };
-      orders: {
-        unassigned: any[];
-        assigned: any[];
-        pendingBatch: any[];
-      };
-    }>>({
+    return NextResponse.json<
+      ApiResponse<{
+        summary: {
+          total: number;
+          unassigned: number;
+          assigned: number;
+          pendingBatch: number;
+        };
+        orders: {
+          unassigned: any[];
+          assigned: any[];
+          pendingBatch: any[];
+        };
+      }>
+    >({
       success: true,
       data: {
         summary: {
@@ -302,18 +315,17 @@ export async function GET(request: NextRequest) {
         },
       },
     });
-
   } catch (error: any) {
     // Handle Zod validation errors
     if (error.name === 'ZodError') {
       return NextResponse.json<ApiResponse<null>>(
-        { 
+        {
           success: false,
           error: {
             code: 'VALIDATION_ERROR',
             message: 'Invalid query parameters',
-            details: { errors: error.errors }
-          }
+            details: { errors: error.errors },
+          },
         },
         { status: 400 }
       );
@@ -321,14 +333,14 @@ export async function GET(request: NextRequest) {
 
     console.error('Error fetching route assignment data:', error);
     return NextResponse.json<ApiResponse<null>>(
-      { 
+      {
         success: false,
         error: {
           code: 'INTERNAL_ERROR',
-          message: error.message || 'Unknown error occurred'
-        }
+          message: error.message || 'Unknown error occurred',
+        },
       },
       { status: 500 }
     );
   }
-} 
+}

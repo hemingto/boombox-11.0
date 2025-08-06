@@ -2,24 +2,24 @@
  * @fileoverview API endpoint to fetch storage unit details by unit number
  * @source boombox-10.0/src/app/api/admin/storage-units/[number]/route.ts
  * @refactor PHASE 4 - Admin Domain Routes
- * 
+ *
  * ROUTE FUNCTIONALITY:
  * GET endpoint that retrieves detailed storage unit information by unit number.
  * Includes usage history and associated customer information for admin management.
- * 
+ *
  * USED BY (boombox-10.0 files):
  * - Admin storage unit management interface
  * - Storage unit lookup and search
  * - Unit history and tracking
  * - Customer relationship management
- * 
+ *
  * INTEGRATION NOTES:
  * - Requires admin authentication and authorization
  * - Uses storage unit number as path parameter
  * - Includes storageUnitUsages with associated user details
  * - Returns comprehensive unit information with customer data
  * - User details include id, name, and contact information
- * 
+ *
  * @refactor Uses centralized auth configuration from @/lib/auth/nextAuthConfig
  */
 
@@ -41,7 +41,7 @@ export async function GET(
 
     const admin = await prisma.admin.findUnique({
       where: { id: parseInt(session.user.id) },
-      select: { id: true, email: true, role: true }
+      select: { id: true, email: true, role: true },
     });
 
     if (!admin) {
@@ -49,7 +49,7 @@ export async function GET(
     }
 
     const storageUnitNumber = (await params).number;
-    
+
     if (!storageUnitNumber) {
       return NextResponse.json(
         { error: 'Storage unit number is required' },
@@ -69,11 +69,11 @@ export async function GET(
                 firstName: true,
                 lastName: true,
                 email: true,
-              }
-            }
-          }
-        }
-      }
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!storageUnit) {
@@ -91,4 +91,4 @@ export async function GET(
       { status: 500 }
     );
   }
-} 
+}

@@ -10,7 +10,7 @@ import {
   MonthlyAvailabilityResponse,
   DailyAvailabilityResponse,
   EnhancedTimeSlot,
-  MonthlyAvailabilityDate
+  MonthlyAvailabilityDate,
 } from '@/types/availability.types';
 
 import {
@@ -23,7 +23,7 @@ import {
   hasTimeConflict,
   checkOnfleetTaskConflicts,
   determineAvailabilityLevel,
-  isDateInPast
+  isDateInPast,
 } from '@/lib/utils/availabilityUtils';
 
 import {
@@ -31,7 +31,7 @@ import {
   getResourceCountsByDayOfWeek,
   getDateSpecificAvailabilityData,
   getPartnerBookingConflicts,
-  getDriverBookingConflicts
+  getDriverBookingConflicts,
 } from '@/lib/database/availability.queries';
 
 import { cacheService, CACHE_TTL } from '@/lib/services/CacheService';
@@ -41,28 +41,40 @@ export class AvailabilityService {
    * Get monthly availability overview
    * @source Original month type handler
    */
-  async getMonthlyAvailability(params: MonthlyAvailabilityParams): Promise<MonthlyAvailabilityResponse> {
+  async getMonthlyAvailability(
+    params: MonthlyAvailabilityParams
+  ): Promise<MonthlyAvailabilityResponse> {
     const startTime = Date.now();
-    
+
     // Generate cache key
     const cacheKey = generateCacheKey('monthly', params);
-    
+
     // Try cache first
-    const cached = await cacheService.get<MonthlyAvailabilityResponse>(cacheKey);
+    const cached =
+      await cacheService.get<MonthlyAvailabilityResponse>(cacheKey);
     if (cached) {
       cached.metadata.cacheHit = true;
       return cached;
     }
 
-    console.log(`[AvailabilityService] Computing monthly availability for ${params.year}-${params.month}`);
+    console.log(
+      `[AvailabilityService] Computing monthly availability for ${params.year}-${params.month}`
+    );
 
-    const daysInMonth = new Date(Date.UTC(params.year, params.month, 0)).getUTCDate();
+    const daysInMonth = new Date(
+      Date.UTC(params.year, params.month, 0)
+    ).getUTCDate();
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
 
     // Get distinct days of week for optimization
-    const distinctDaysOfWeek = getDistinctDaysOfWeekInMonth(params.year, params.month);
-    console.log(`[Monthly] Distinct days of week: ${distinctDaysOfWeek.join(', ')}`);
+    const distinctDaysOfWeek = getDistinctDaysOfWeekInMonth(
+      params.year,
+      params.month
+    );
+    console.log(
+      `[Monthly] Distinct days of week: ${distinctDaysOfWeek.join(', ')}`
+    );
 
     // Get resource counts by day of week
     const dbQueryStart = Date.now();
@@ -77,23 +89,29 @@ export class AvailabilityService {
 
     // Process each day in the month
     const dates: MonthlyAvailabilityDate[] = [];
-    let totalConflicts = { blockedDates: 0, existingBookings: 0, onfleetTasks: 0 };
+    const totalConflicts = {
+      blockedDates: 0,
+      existingBookings: 0,
+      onfleetTasks: 0,
+    };
 
     for (let dayCount = 1; dayCount <= daysInMonth; dayCount++) {
-      const currentDate = new Date(Date.UTC(params.year, params.month - 1, dayCount));
+      const currentDate = new Date(
+        Date.UTC(params.year, params.month - 1, dayCount)
+      );
       const currentDateStr = currentDate.toISOString().split('T')[0];
-      
+
       // Skip past dates
       if (currentDate < today) {
         dates.push({
           date: currentDateStr,
-          hasAvailability: false
+          hasAvailability: false,
         });
         continue;
       }
 
       const dayOfWeek = getDayOfWeekString(currentDate);
-      
+
       // Calculate driver requirements
       const driverRequirement = calculateDriverRequirements(
         params.planType,
@@ -104,16 +122,23 @@ export class AvailabilityService {
       // Check availability
       const moverCount = moversByDay[dayOfWeek] || 0;
       const driverCount = driversByDay[dayOfWeek] || 0;
-      
+
       const moverIsOK = params.planType === 'DIY' || moverCount > 0;
-      const driverIsOK = driverRequirement.driversNeeded === 0 || driverCount >= driverRequirement.driversNeeded;
-      
+      const driverIsOK =
+        driverRequirement.driversNeeded === 0 ||
+        driverCount >= driverRequirement.driversNeeded;
+
       const hasAvailability = moverIsOK && driverIsOK;
-      
+
       // Determine availability level
       const requiredMovers = params.planType === 'FULL_SERVICE' ? 1 : 0;
-      const availabilityLevel = hasAvailability 
-        ? determineAvailabilityLevel(moverCount, driverCount, requiredMovers, driverRequirement.driversNeeded)
+      const availabilityLevel = hasAvailability
+        ? determineAvailabilityLevel(
+            moverCount,
+            driverCount,
+            requiredMovers,
+            driverRequirement.driversNeeded
+          )
         : undefined;
 
       dates.push({
@@ -122,35 +147,43 @@ export class AvailabilityService {
         availabilityLevel,
         resourceCounts: {
           availableMovers: moverCount,
-          availableDrivers: driverCount
-        }
+          availableDrivers: driverCount,
+        },
       });
 
       // Log some days for debugging
       if (['Monday', 'Tuesday', 'Wednesday'].includes(dayOfWeek)) {
-        console.log(`[Monthly Check] ${currentDateStr} (${dayOfWeek}): Movers=${moverCount}, Drivers=${driverCount}, DriversNeeded=${driverRequirement.driversNeeded}, Available=${hasAvailability}`);
+        console.log(
+          `[Monthly Check] ${currentDateStr} (${dayOfWeek}): Movers=${moverCount}, Drivers=${driverCount}, DriversNeeded=${driverRequirement.driversNeeded}, Available=${hasAvailability}`
+        );
       }
     }
 
     const totalTime = Date.now() - startTime;
-    
+
     const response: MonthlyAvailabilityResponse = {
       dates,
       metadata: {
         queryTimeMs: totalTime,
         totalDaysChecked: daysInMonth,
         resourcesChecked: {
-          movers: Object.values(moversByDay).reduce((sum, count) => sum + count, 0),
-          drivers: Object.values(driversByDay).reduce((sum, count) => sum + count, 0)
+          movers: Object.values(moversByDay).reduce(
+            (sum, count) => sum + count,
+            0
+          ),
+          drivers: Object.values(driversByDay).reduce(
+            (sum, count) => sum + count,
+            0
+          ),
         },
         conflictsFound: totalConflicts,
-        cacheHit: false
-      }
+        cacheHit: false,
+      },
     };
 
     // Cache the result
     await cacheService.set(cacheKey, response, CACHE_TTL.MONTHLY_AVAILABILITY);
-    
+
     return response;
   }
 
@@ -158,12 +191,14 @@ export class AvailabilityService {
    * Get daily time slot availability
    * @source Original date type handler
    */
-  async getDailyTimeSlots(params: DailyAvailabilityParams): Promise<DailyAvailabilityResponse> {
+  async getDailyTimeSlots(
+    params: DailyAvailabilityParams
+  ): Promise<DailyAvailabilityResponse> {
     const startTime = Date.now();
 
     // Generate cache key
     const cacheKey = generateCacheKey('daily', params);
-    
+
     // Try cache first
     const cached = await cacheService.get<DailyAvailabilityResponse>(cacheKey);
     if (cached) {
@@ -171,7 +206,9 @@ export class AvailabilityService {
       return cached;
     }
 
-    console.log(`[AvailabilityService] Computing daily availability for ${params.date}`);
+    console.log(
+      `[AvailabilityService] Computing daily availability for ${params.date}`
+    );
 
     // Check if date is in the past
     if (isDateInPast(params.date)) {
@@ -179,7 +216,7 @@ export class AvailabilityService {
         startTime: slot.startTimeStr,
         endTime: slot.endTimeStr,
         display: slot.display,
-        available: false
+        available: false,
       }));
 
       return {
@@ -187,9 +224,13 @@ export class AvailabilityService {
         metadata: {
           queryTimeMs: Date.now() - startTime,
           resourcesChecked: { movers: 0, drivers: 0 },
-          conflictsFound: { blockedDates: 0, existingBookings: 0, onfleetTasks: 0 },
-          cacheHit: false
-        }
+          conflictsFound: {
+            blockedDates: 0,
+            existingBookings: 0,
+            onfleetTasks: 0,
+          },
+          cacheHit: false,
+        },
       };
     }
 
@@ -201,21 +242,30 @@ export class AvailabilityService {
       resourceData,
       partnerBookingConflicts,
       driverBookingConflicts,
-      onfleetTasks
-    } = await getDateSpecificAvailabilityData(params.date, dayOfWeek, params.planType);
+      onfleetTasks,
+    } = await getDateSpecificAvailabilityData(
+      params.date,
+      dayOfWeek,
+      params.planType
+    );
     const dbQueryTime = Date.now() - dbQueryStart;
 
-    console.log(`[Daily] Found ${resourceData.movers.length} movers, ${resourceData.drivers.length} drivers`);
-    console.log(`[Daily] Blocked: ${resourceData.blockedMoverIds.size} movers, ${resourceData.blockedDriverIds.size} drivers`);
+    console.log(
+      `[Daily] Found ${resourceData.movers.length} movers, ${resourceData.drivers.length} drivers`
+    );
+    console.log(
+      `[Daily] Blocked: ${resourceData.blockedMoverIds.size} movers, ${resourceData.blockedDriverIds.size} drivers`
+    );
 
     // Generate time slots
     const potentialSlots = generateBusinessHourSlots(params.date);
     const timeSlots: EnhancedTimeSlot[] = [];
-    
-    let totalConflicts = { 
-      blockedDates: resourceData.blockedMoverIds.size + resourceData.blockedDriverIds.size, 
-      existingBookings: 0, 
-      onfleetTasks: 0 
+
+    const totalConflicts = {
+      blockedDates:
+        resourceData.blockedMoverIds.size + resourceData.blockedDriverIds.size,
+      existingBookings: 0,
+      onfleetTasks: 0,
     };
 
     for (const slot of potentialSlots) {
@@ -235,8 +285,13 @@ export class AvailabilityService {
           if (isGenerallyAvailable) {
             // Check for booking conflicts
             const conflicts = partnerBookingConflicts.get(partner.id) || [];
-            const hasConflict = conflicts.some(conflict => 
-              hasTimeConflict(slot.slotStart, slot.slotEnd, conflict.bookingDate, conflict.endDate)
+            const hasConflict = conflicts.some(conflict =>
+              hasTimeConflict(
+                slot.slotStart,
+                slot.slotEnd,
+                conflict.bookingDate,
+                conflict.endDate
+              )
             );
 
             if (!hasConflict) {
@@ -271,9 +326,15 @@ export class AvailabilityService {
 
           if (isGenerallyAvailable) {
             // Check for booking conflicts
-            const bookingConflicts = driverBookingConflicts.get(driver.id) || [];
-            const hasBookingConflict = bookingConflicts.some(conflict => 
-              hasTimeConflict(slot.slotStart, slot.slotEnd, conflict.bookingDate, conflict.endDate)
+            const bookingConflicts =
+              driverBookingConflicts.get(driver.id) || [];
+            const hasBookingConflict = bookingConflicts.some(conflict =>
+              hasTimeConflict(
+                slot.slotStart,
+                slot.slotEnd,
+                conflict.bookingDate,
+                conflict.endDate
+              )
             );
 
             if (hasBookingConflict) {
@@ -290,7 +351,8 @@ export class AvailabilityService {
             );
 
             if (onfleetConflictResult.hasConflict) {
-              totalConflicts.onfleetTasks += onfleetConflictResult.conflicts.length;
+              totalConflicts.onfleetTasks +=
+                onfleetConflictResult.conflicts.length;
               continue;
             }
 
@@ -298,15 +360,21 @@ export class AvailabilityService {
           }
         }
 
-        driversAreAvailable = availableDrivers >= driverRequirement.driversNeeded;
+        driversAreAvailable =
+          availableDrivers >= driverRequirement.driversNeeded;
       }
 
       const slotIsAvailable = moverIsAvailable && driversAreAvailable;
-      
+
       // Determine availability level
       const requiredMovers = params.planType === 'FULL_SERVICE' ? 1 : 0;
-      const availabilityLevel = slotIsAvailable 
-        ? determineAvailabilityLevel(availableMovers, availableDrivers, requiredMovers, driverRequirement.driversNeeded)
+      const availabilityLevel = slotIsAvailable
+        ? determineAvailabilityLevel(
+            availableMovers,
+            availableDrivers,
+            requiredMovers,
+            driverRequirement.driversNeeded
+          )
         : 'low';
 
       timeSlots.push({
@@ -317,8 +385,8 @@ export class AvailabilityService {
         availabilityLevel,
         resourceCounts: {
           availableMovers,
-          availableDrivers
-        }
+          availableDrivers,
+        },
       });
     }
 
@@ -330,11 +398,11 @@ export class AvailabilityService {
         queryTimeMs: totalTime,
         resourcesChecked: {
           movers: resourceData.movers.length,
-          drivers: resourceData.drivers.length
+          drivers: resourceData.drivers.length,
         },
         conflictsFound: totalConflicts,
-        cacheHit: false
-      }
+        cacheHit: false,
+      },
     };
 
     // Cache the result
@@ -353,21 +421,29 @@ export class AvailabilityService {
   /**
    * Warm cache for popular dates (for background processing)
    */
-  async warmCache(dates: string[], planTypes: Array<'DIY' | 'FULL_SERVICE'> = ['DIY', 'FULL_SERVICE']): Promise<void> {
-    console.log(`[AvailabilityService] Warming cache for ${dates.length} dates`);
-    
+  async warmCache(
+    dates: string[],
+    planTypes: Array<'DIY' | 'FULL_SERVICE'> = ['DIY', 'FULL_SERVICE']
+  ): Promise<void> {
+    console.log(
+      `[AvailabilityService] Warming cache for ${dates.length} dates`
+    );
+
     for (const date of dates) {
       for (const planType of planTypes) {
         try {
           await this.getDailyTimeSlots({
             date,
             planType,
-            numberOfUnits: 1
+            numberOfUnits: 1,
           });
         } catch (error) {
-          console.error(`[AvailabilityService] Failed to warm cache for ${date} ${planType}:`, error);
+          console.error(
+            `[AvailabilityService] Failed to warm cache for ${date} ${planType}:`,
+            error
+          );
         }
       }
     }
   }
-} 
+}

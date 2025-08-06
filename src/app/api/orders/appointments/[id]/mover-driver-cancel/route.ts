@@ -29,7 +29,10 @@ import { formatTime } from '@/lib/utils/dateUtils';
 import { prisma } from '@/lib/database/prismaClient';
 import { getOnfleetClient } from '@/lib/integrations/onfleetClient';
 import { sendNoDriverAvailableAlert } from '@/lib/messaging/sendgridClient';
-import { CancelAppointmentRequestSchema, CancelAppointmentResponseSchema } from '@/lib/validations/api.validations';
+import {
+  CancelAppointmentRequestSchema,
+  CancelAppointmentResponseSchema,
+} from '@/lib/validations/api.validations';
 import {
   findAvailableDrivers,
   notifyDriverReassignment,
@@ -82,7 +85,10 @@ export async function POST(
 
     if (!validationResult.success) {
       return NextResponse.json(
-        { error: 'Invalid request parameters', details: validationResult.error.errors },
+        {
+          error: 'Invalid request parameters',
+          details: validationResult.error.errors,
+        },
         { status: 400 }
       );
     }
@@ -103,15 +109,15 @@ export async function POST(
           select: {
             firstName: true,
             lastName: true,
-            phoneNumber: true
-          }
+            phoneNumber: true,
+          },
         },
         movingPartner: true,
         onfleetTasks: {
           include: {
-            driver: true
-          }
-        }
+            driver: true,
+          },
+        },
       },
     });
 
@@ -124,23 +130,28 @@ export async function POST(
 
     // Handle driver cancellation
     if (userType === 'driver') {
-      await handleDriverCancellation(appointment, currentUserId, cancellationReason);
-    } 
+      await handleDriverCancellation(
+        appointment,
+        currentUserId,
+        cancellationReason
+      );
+    }
     // Handle mover cancellation
     else if (userType === 'mover') {
-      await handleMoverCancellation(appointment, currentUserId, cancellationReason);
-    } 
-    else {
-      return NextResponse.json(
-        { error: 'Invalid user type' },
-        { status: 400 }
+      await handleMoverCancellation(
+        appointment,
+        currentUserId,
+        cancellationReason
       );
+    } else {
+      return NextResponse.json({ error: 'Invalid user type' }, { status: 400 });
     }
 
     const response = { success: true };
 
     // Validate response format
-    const responseValidation = CancelAppointmentResponseSchema.safeParse(response);
+    const responseValidation =
+      CancelAppointmentResponseSchema.safeParse(response);
     if (!responseValidation.success) {
       console.error('Response validation failed:', responseValidation.error);
       return NextResponse.json(
@@ -150,7 +161,6 @@ export async function POST(
     }
 
     return NextResponse.json(response);
-
   } catch (error) {
     console.error('Error canceling appointment:', error);
     return NextResponse.json(
@@ -175,7 +185,9 @@ async function handleDriverCancellation(
   );
 
   if (tasksAssignedToCancelingDriver.length === 0) {
-    throw new Error('Driver not assigned to this appointment or already unassigned.');
+    throw new Error(
+      'Driver not assigned to this appointment or already unassigned.'
+    );
   }
 
   // Record cancellation in database
@@ -198,22 +210,28 @@ async function handleDriverCancellation(
   for (const task of tasksAssignedToCancelingDriver) {
     try {
       // Keep task in the Boombox Delivery Network team, just unassign the worker
-      await (onfleetClient as any).tasks.update(task.taskId, { 
-        container: { type: "TEAM", team: process.env.BOOMBOX_DELIVERY_NETWORK_TEAM_ID },
-        worker: null 
+      await (onfleetClient as any).tasks.update(task.taskId, {
+        container: {
+          type: 'TEAM',
+          team: process.env.BOOMBOX_DELIVERY_NETWORK_TEAM_ID,
+        },
+        worker: null,
       });
     } catch (onfleetError) {
-      console.error(`Error unassigning task ${task.taskId} from Onfleet:`, onfleetError);
+      console.error(
+        `Error unassigning task ${task.taskId} from Onfleet:`,
+        onfleetError
+      );
     }
 
     // Update database task record
     await prisma.onfleetTask.update({
       where: { id: task.id },
-      data: { 
+      data: {
         driverId: null,
         declinedDriverIds: { push: currentDriverId },
         driverNotificationStatus: 'cancelled_by_driver',
-        driverAcceptedAt: null
+        driverAcceptedAt: null,
       },
     });
   }
@@ -223,9 +241,9 @@ async function handleDriverCancellation(
     const tasksForThisUnit = appointment.onfleetTasks.filter(
       (t: any) => t.unitNumber === unitNumber
     );
-    
+
     // Build exclusion list for this unit
-    let excludeDriverIdsForUnit: number[] = [currentDriverId];
+    const excludeDriverIdsForUnit: number[] = [currentDriverId];
     tasksForThisUnit.forEach((t: any) => {
       if (t.id && t.declinedDriverIds) {
         (t.declinedDriverIds as number[]).forEach((id: number) => {
@@ -241,14 +259,18 @@ async function handleDriverCancellation(
       (t: any) => t.driverId === currentDriverId
     );
 
-    console.log(`DEBUG: Unit ${unitNumber} - Found ${unassignedTasksForUnit.length} tasks that were assigned to cancelling driver ${currentDriverId}`);
+    console.log(
+      `DEBUG: Unit ${unitNumber} - Found ${unassignedTasksForUnit.length} tasks that were assigned to cancelling driver ${currentDriverId}`
+    );
 
     if (unassignedTasksForUnit.length > 0) {
-      console.log(`Triggering re-assignment for appointment ${appointment.id}, unit ${unitNumber}`);
+      console.log(
+        `Triggering re-assignment for appointment ${appointment.id}, unit ${unitNumber}`
+      );
       await triggerReassignmentForUnit(
-        appointment, 
-        unassignedTasksForUnit, 
-        unitNumber, 
+        appointment,
+        unassignedTasksForUnit,
+        unitNumber,
         excludeDriverIdsForUnit
       );
     }
@@ -270,11 +292,11 @@ async function handleMoverCancellation(
 
   // Get all drivers associated with this moving partner
   const movingPartnerDrivers = await prisma.movingPartnerDriver.findMany({
-    where: { 
+    where: {
       movingPartnerId: currentMoverId,
-      isActive: true 
+      isActive: true,
     },
-    select: { driverId: true }
+    select: { driverId: true },
   });
 
   const movingPartnerDriverIds = movingPartnerDrivers.map(mpd => mpd.driverId);
@@ -287,44 +309,52 @@ async function handleMoverCancellation(
   });
 
   // Update appointment to remove moving partner
-  await prisma.appointment.update({ 
-    where: { id: appointment.id }, 
-    data: { movingPartnerId: null } 
+  await prisma.appointment.update({
+    where: { id: appointment.id },
+    data: { movingPartnerId: null },
   });
 
   // Only unassign tasks that are assigned to the moving partner's drivers
-  const tasksToUnassign = appointment.onfleetTasks.filter((task: any) => 
-    task.driverId !== null && movingPartnerDriverIds.includes(task.driverId)
+  const tasksToUnassign = appointment.onfleetTasks.filter(
+    (task: any) =>
+      task.driverId !== null && movingPartnerDriverIds.includes(task.driverId)
   );
 
   if (tasksToUnassign.length > 0) {
     const onfleetClient = await getOnfleetClient();
     for (const task of tasksToUnassign) {
       try {
-        await (onfleetClient as any).tasks.update(task.taskId, { 
-          container: { type: "ORGANIZATION" } 
+        await (onfleetClient as any).tasks.update(task.taskId, {
+          container: { type: 'ORGANIZATION' },
         });
       } catch (onfleetError) {
-        console.error(`Error unassigning task ${task.taskId} from Onfleet during mover cancellation:`, onfleetError);
+        console.error(
+          `Error unassigning task ${task.taskId} from Onfleet during mover cancellation:`,
+          onfleetError
+        );
       }
     }
 
     // Update database records for unassigned tasks
     const taskIdsToUpdate = tasksToUnassign.map((task: any) => task.id);
     await prisma.onfleetTask.updateMany({
-      where: { 
-        id: { in: taskIdsToUpdate }
+      where: {
+        id: { in: taskIdsToUpdate },
       },
-      data: { 
-        driverId: null, 
-        driverNotificationStatus: 'cancelled_by_mover', 
-        driverAcceptedAt: null 
+      data: {
+        driverId: null,
+        driverNotificationStatus: 'cancelled_by_mover',
+        driverAcceptedAt: null,
       },
     });
 
-    console.log(`Mover cancelled appointment. ${tasksToUnassign.length} tasks assigned to moving partner drivers were unassigned. Boombox Delivery Network tasks remain intact.`);
+    console.log(
+      `Mover cancelled appointment. ${tasksToUnassign.length} tasks assigned to moving partner drivers were unassigned. Boombox Delivery Network tasks remain intact.`
+    );
   } else {
-    console.log("Mover cancelled appointment. No tasks were assigned to moving partner drivers, so no task reassignment needed.");
+    console.log(
+      'Mover cancelled appointment. No tasks were assigned to moving partner drivers, so no task reassignment needed.'
+    );
   }
 
   // TODO: Implement mover replacement logic
@@ -334,7 +364,9 @@ async function handleMoverCancellation(
   // - findBestReplacementMovingPartner()
   // - notifyCustomerMoverChange()
   // - handleThirdPartyMoverFallback()
-  console.log('Note: Mover replacement logic not fully implemented in migrated version');
+  console.log(
+    'Note: Mover replacement logic not fully implemented in migrated version'
+  );
 }
 
 /**
@@ -342,34 +374,40 @@ async function handleMoverCancellation(
  * @source boombox-10.0/src/app/api/appointments/[appointmentId]/mover-driver-cancel/route.ts (triggerReassignmentForUnit)
  */
 async function triggerReassignmentForUnit(
-  appointment: any, 
+  appointment: any,
   unitTasks: any[],
-  unitNumber: number, 
+  unitNumber: number,
   excludeDriverIds: number[]
 ): Promise<void> {
   if (unitTasks.length === 0) {
-    console.log(`No tasks to reassign for unit ${unitNumber} in appointment ${appointment.id}.`);
+    console.log(
+      `No tasks to reassign for unit ${unitNumber} in appointment ${appointment.id}.`
+    );
     return;
   }
 
   // Find available drivers for reassignment
   const availableDrivers = await findAvailableDrivers(
-    appointment, 
-    unitTasks[0], 
+    appointment,
+    unitTasks[0],
     excludeDriverIds
   );
 
   if (availableDrivers.length === 0) {
     // No drivers available - notify admin
     await notifyAdminNoDrivers(appointment, { unitNumber });
-    console.log(`No available drivers found for re-assignment of unit ${unitNumber}, appointment ${appointment.id}.`);
+    console.log(
+      `No available drivers found for re-assignment of unit ${unitNumber}, appointment ${appointment.id}.`
+    );
     return;
   }
 
   const nextDriver = availableDrivers[0];
 
   if (!nextDriver.phoneNumber) {
-    console.error(`Cannot notify next driver ${nextDriver.id} (Boombox): no phone number for unit ${unitNumber}, appointment ${appointment.id}.`);
+    console.error(
+      `Cannot notify next driver ${nextDriver.id} (Boombox): no phone number for unit ${unitNumber}, appointment ${appointment.id}.`
+    );
     return;
   }
 
@@ -384,19 +422,24 @@ async function triggerReassignmentForUnit(
         driverNotificationSentAt: new Date(),
         driverNotificationStatus: 'sent',
         lastNotifiedDriverId: nextDriver.id,
-        declinedDriverIds: excludeDriverIds
+        declinedDriverIds: excludeDriverIds,
       },
     });
   }
 
-  console.log(`Driver reassignment notification sent to ${nextDriver.firstName} ${nextDriver.lastName} for unit ${unitNumber}, appointment ${appointment.id}`);
+  console.log(
+    `Driver reassignment notification sent to ${nextDriver.firstName} ${nextDriver.lastName} for unit ${unitNumber}, appointment ${appointment.id}`
+  );
 }
 
 /**
  * Notify admin when no drivers are available
  * @source boombox-10.0/src/app/api/appointments/[appointmentId]/mover-driver-cancel/route.ts (notifyAdminNoDrivers)
  */
-async function notifyAdminNoDrivers(appointment: any, task: { unitNumber: number }): Promise<void> {
+async function notifyAdminNoDrivers(
+  appointment: any,
+  task: { unitNumber: number }
+): Promise<void> {
   try {
     await sendNoDriverAvailableAlert('admin@boomboxstorage.com', {
       appointmentId: appointment.id,
@@ -405,11 +448,15 @@ async function notifyAdminNoDrivers(appointment: any, task: { unitNumber: number
       time: formatTime(appointment.time),
       address: appointment.address,
       unitNumber: task.unitNumber,
-      userName: appointment.user?.firstName + ' ' + appointment.user?.lastName || 'Unknown',
-      userPhone: appointment.user?.phoneNumber || 'Unknown'
+      userName:
+        appointment.user?.firstName + ' ' + appointment.user?.lastName ||
+        'Unknown',
+      userPhone: appointment.user?.phoneNumber || 'Unknown',
     });
-    console.log(`Admin notification sent for no available drivers - appointment ${appointment.id}, unit ${task.unitNumber}`);
+    console.log(
+      `Admin notification sent for no available drivers - appointment ${appointment.id}, unit ${task.unitNumber}`
+    );
   } catch (error) {
     console.error('Error sending admin notification:', error);
   }
-} 
+}

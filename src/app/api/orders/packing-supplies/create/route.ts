@@ -35,9 +35,7 @@ import { stripe } from '@/lib/integrations/stripeClient';
 import { getStripeCustomerId } from '@/lib/utils/stripeUtils';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { packingSupplyOrderConfirmationSms } from '@/lib/messaging/templates/sms/orders/packingSupplyOrderConfirmation';
-import {
-  CreatePackingSupplyOrderRequestSchema,
-} from '@/lib/validations/api.validations';
+import { CreatePackingSupplyOrderRequestSchema } from '@/lib/validations/api.validations';
 import {
   calculateDeliveryTimeWindow,
   calculateOrderCapacity,
@@ -57,7 +55,8 @@ export async function POST(request: NextRequest) {
     const body: CreateOrderRequest = await request.json();
 
     // Validate request with Zod schema
-    const validationResult = CreatePackingSupplyOrderRequestSchema.safeParse(body);
+    const validationResult =
+      CreatePackingSupplyOrderRequestSchema.safeParse(body);
     if (!validationResult.success) {
       return NextResponse.json(
         {
@@ -91,10 +90,10 @@ export async function POST(request: NextRequest) {
     // Process Stripe payment if payment method ID is provided
     let paymentIntentId: string | null = null;
     let paymentStatus = 'pending';
-    
+
     if (body.stripePaymentMethodId) {
       try {
-        let paymentIntentData: any = {
+        const paymentIntentData: any = {
           amount: Math.round(body.totalPrice * 100), // Convert to cents
           currency: 'usd',
           payment_method: body.stripePaymentMethodId,
@@ -114,13 +113,16 @@ export async function POST(request: NextRequest) {
 
         // Associate with Stripe customer if user is logged in
         if (body.userId) {
-          const stripeCustomerId = await getStripeCustomerId(body.userId.toString());
+          const stripeCustomerId = await getStripeCustomerId(
+            body.userId.toString()
+          );
           if (stripeCustomerId) {
             paymentIntentData.customer = stripeCustomerId;
           }
         }
 
-        const paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
+        const paymentIntent =
+          await stripe.paymentIntents.create(paymentIntentData);
         paymentIntentId = paymentIntent.id;
         paymentStatus = paymentIntent.status;
 
@@ -142,20 +144,23 @@ export async function POST(request: NextRequest) {
 
         // Handle payment failures
         if (paymentIntent.status !== 'succeeded') {
-          throw new Error(`Payment failed with status: ${paymentIntent.status}`);
+          throw new Error(
+            `Payment failed with status: ${paymentIntent.status}`
+          );
         }
 
         console.log(`✅ Payment processed successfully: ${paymentIntentId}`);
-
       } catch (stripeError: any) {
         console.error('❌ Stripe payment error:', stripeError);
-        
+
         // Handle specific Stripe error codes
         let errorMessage = 'Payment processing failed';
         if (stripeError.code === 'card_declined') {
-          errorMessage = 'Your card was declined. Please try a different payment method.';
+          errorMessage =
+            'Your card was declined. Please try a different payment method.';
         } else if (stripeError.code === 'insufficient_funds') {
-          errorMessage = 'Insufficient funds. Please try a different payment method.';
+          errorMessage =
+            'Insufficient funds. Please try a different payment method.';
         } else if (stripeError.code === 'authentication_required') {
           errorMessage = 'Your card requires authentication. Please try again.';
         } else if (stripeError.message) {
@@ -198,7 +203,9 @@ export async function POST(request: NextRequest) {
     // Get packing supply team ID from environment
     const teamId = process.env.BOOMBOX_PACKING_SUPPLY_DELIVERY_DRIVERS;
     if (!teamId) {
-      throw new Error('BOOMBOX_PACKING_SUPPLY_DELIVERY_DRIVERS environment variable not configured');
+      throw new Error(
+        'BOOMBOX_PACKING_SUPPLY_DELIVERY_DRIVERS environment variable not configured'
+      );
     }
 
     // Create Onfleet task for batch optimization
@@ -208,11 +215,13 @@ export async function POST(request: NextRequest) {
           unparsed: body.deliveryAddress,
         },
       },
-      recipients: [{
-        name: body.customerName,
-        phone: body.customerPhone,
-        notes: body.deliveryNotes || '',
-      }],
+      recipients: [
+        {
+          name: body.customerName,
+          phone: body.customerPhone,
+          notes: body.deliveryNotes || '',
+        },
+      ],
       completeBefore: timeWindow.end.getTime(),
       completeAfter: timeWindow.start.getTime(),
       container: {
@@ -227,7 +236,11 @@ export async function POST(request: NextRequest) {
         { name: 'item_count', type: 'number', value: capacity.itemCount },
         { name: 'total_weight', type: 'number', value: capacity.totalWeight },
         { name: 'total_volume', type: 'number', value: capacity.totalVolume },
-        { name: 'capacity_score', type: 'number', value: capacity.capacityScore },
+        {
+          name: 'capacity_score',
+          type: 'number',
+          value: capacity.capacityScore,
+        },
         { name: 'batch_ready', type: 'boolean', value: true },
       ],
     };
@@ -235,7 +248,9 @@ export async function POST(request: NextRequest) {
     const task = await createPackingSupplyTask(taskData);
     createdTaskId = task.id;
 
-    console.log(`✅ Onfleet task ${task.shortId} created for order ${createdOrderId}`);
+    console.log(
+      `✅ Onfleet task ${task.shortId} created for order ${createdOrderId}`
+    );
 
     // Generate tracking information
     const trackingToken = generateTrackingToken();
@@ -253,10 +268,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    console.log(`✅ Order ${createdOrderId} updated with Onfleet task and tracking info`);
+    console.log(
+      `✅ Order ${createdOrderId} updated with Onfleet task and tracking info`
+    );
 
     // Create order details and manage inventory
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async tx => {
       for (const item of body.cartItems) {
         // Find or create product
         let product = await tx.product.findFirst({
@@ -282,7 +299,9 @@ export async function POST(request: NextRequest) {
         } else {
           // Validate stock availability
           if (product.stockCount < item.quantity) {
-            throw new Error(`Sorry, we don't have enough ${item.name} in stock. We only have ${product.stockCount} available, but you requested ${item.quantity}. Please reduce the quantity and try again.`);
+            throw new Error(
+              `Sorry, we don't have enough ${item.name} in stock. We only have ${product.stockCount} available, but you requested ${item.quantity}. Please reduce the quantity and try again.`
+            );
           }
 
           // Update stock count
@@ -326,7 +345,10 @@ export async function POST(request: NextRequest) {
       );
       console.log(`✅ Order confirmation SMS sent for order ${createdOrderId}`);
     } catch (smsError) {
-      console.error(`⚠️ Failed to send order confirmation SMS for order ${createdOrderId}:`, smsError);
+      console.error(
+        `⚠️ Failed to send order confirmation SMS for order ${createdOrderId}:`,
+        smsError
+      );
       // Continue with order creation even if SMS fails
     }
 
@@ -351,7 +373,6 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-
   } catch (error) {
     console.error('❌ Error creating packing supply order:', error);
 
@@ -359,7 +380,7 @@ export async function POST(request: NextRequest) {
     if (createdOrderId && !createdTaskId) {
       try {
         // Restore inventory and delete order
-        await prisma.$transaction(async (tx) => {
+        await prisma.$transaction(async tx => {
           // Get order details to restore inventory
           const orderDetails = await tx.packingSupplyOrderDetails.findMany({
             where: { orderId: createdOrderId! },
@@ -388,18 +409,26 @@ export async function POST(request: NextRequest) {
           });
         });
 
-        console.log(`🔄 Rolled back order ${createdOrderId} due to Onfleet task creation failure`);
+        console.log(
+          `🔄 Rolled back order ${createdOrderId} due to Onfleet task creation failure`
+        );
       } catch (rollbackError) {
-        console.error(`❌ Failed to rollback order ${createdOrderId}:`, rollbackError);
+        console.error(
+          `❌ Failed to rollback order ${createdOrderId}:`,
+          rollbackError
+        );
       }
     }
 
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to create packing supply order',
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to create packing supply order',
       } as CreateOrderResponse,
       { status: 500 }
     );
   }
-} 
+}
