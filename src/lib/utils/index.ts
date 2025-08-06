@@ -52,10 +52,22 @@ export * from './appointmentUtils';
 
 // Explicit exports from availabilityUtils to avoid conflicts
 export {
-  AvailabilityType,
-  DEFAULT_AVAILABILITY_SETTINGS,
-  convertToPacificTime,
-  buildAvailabilityTimeSlots,
+  DEFAULT_BUSINESS_HOURS,
+  calculateDriverRequirements,
+  formatTimeLocal,
+  generateBusinessHourSlots,
+  hasTimeConflict,
+  isResourceAvailableInSlot,
+  createTimeConflict,
+  checkOnfleetTaskConflicts,
+  determineAvailabilityLevel,
+  getDistinctDaysOfWeekInMonth,
+  groupBy,
+  isDateInPast,
+  generateCacheKey,
+  getMinutesDifference,
+  isValidTimeSlot,
+  timeStringToMinutes,
   // getDayOfWeekString - conflicts with dateFormattingUtils, using that version
 } from './availabilityUtils';
 
@@ -63,24 +75,25 @@ export * from './moverChangeUtils';
 
 // Explicit exports from movingPartnerUtils to avoid conflicts
 export {
-  generateMovingPartnerInvite,
-  approveMovingPartnerApplication,
-  updateMovingPartnerStatus,
-  findMovingPartnerByEmail,
-  validateMovingPartnerUniqueness,
-  // assignMovingPartnerDriver - conflicts with moverChangeUtils, using that version
-  // getDayOfWeekString - conflicts with availabilityUtils, using dateFormattingUtils version
-  DEFAULT_MOVING_PARTNER_SERVICES,
-  MOVING_PARTNER_STATUSES,
-  type MovingPartnerRegistrationData,
-  type MovingPartnerApprovalResult,
+  createDefaultMoverAvailability,
+  parseTimeToMinutes,
+  checkMoverExists,
+  createMover,
+  findAvailableMovingPartners,
+  uploadFileToCloudinary,
+  deleteOldCloudinaryFile,
+  getMovingPartnerJobs,
+  assignMovingPartnerDriver,
+  // getDayOfWeekString - conflicts with other modules, already exported from dateFormattingUtils
 } from './movingPartnerUtils';
 
 // Messaging and communication utilities
 export * from './twilioUtils';
 export * from './messageClassificationUtils';
 export * from './inboundMessageUtils';
-export * from './dateFormattingUtils';
+// Note: dateFormattingUtils contains formatAppointmentTime which conflicts with appointmentUtils
+// Using appointmentUtils version for appointment-specific formatting
+// export * from './dateFormattingUtils';
 
 // Driver utilities (explicit exports to avoid conflicts)
 export {

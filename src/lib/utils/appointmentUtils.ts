@@ -33,8 +33,8 @@ export interface AppointmentComparisonData {
  * @source boombox-10.0/src/app/api/appointments/[appointmentId]/edit/route.ts (line 60)
  */
 export function generateDriverReconfirmToken(
-  driverId: number, 
-  appointmentId: number, 
+  driverId: number,
+  appointmentId: number,
   unitNumber: number
 ): string {
   const payload: DriverReconfirmToken = {
@@ -42,9 +42,9 @@ export function generateDriverReconfirmToken(
     appointmentId,
     unitNumber,
     action: 'reconfirm',
-    timestamp: Date.now()
+    timestamp: Date.now(),
   };
-  
+
   // Use base64 encoding for the token (same as driver-assign route)
   return Buffer.from(JSON.stringify(payload)).toString('base64');
 }
@@ -56,8 +56,9 @@ export function calculateAppointmentChanges(
   existingAppointment: any,
   updateData: any
 ): AppointmentChanges {
-  const planChanged = updateData.planType && updateData.planType !== existingAppointment.planType;
-  
+  const planChanged =
+    updateData.planType && updateData.planType !== existingAppointment.planType;
+
   let timeChanged = false;
   if (updateData.appointmentDateTime) {
     const newDateTime = new Date(updateData.appointmentDateTime);
@@ -65,19 +66,28 @@ export function calculateAppointmentChanges(
   }
 
   // Calculate unit changes
-  const existingUnitIds = existingAppointment.requestedStorageUnits?.map((unit: any) => unit.storageUnitId) || [];
+  const existingUnitIds =
+    existingAppointment.requestedStorageUnits?.map(
+      (unit: any) => unit.storageUnitId
+    ) || [];
   const newUnitIds = updateData.selectedStorageUnits || [];
-  
-  const unitsAdded = newUnitIds.filter((id: number) => !existingUnitIds.includes(id));
-  const unitsRemoved = existingUnitIds.filter((id: number) => !newUnitIds.includes(id));
 
-  const movingPartnerChanged = updateData.movingPartnerId !== existingAppointment.movingPartnerId;
+  const unitsAdded = newUnitIds.filter(
+    (id: number) => !existingUnitIds.includes(id)
+  );
+  const unitsRemoved = existingUnitIds.filter(
+    (id: number) => !newUnitIds.includes(id)
+  );
+
+  const movingPartnerChanged =
+    updateData.movingPartnerId !== existingAppointment.movingPartnerId;
 
   // Driver reassignment is required when:
   // 1. Plan changes between DIY and Full Service
   // 2. Moving partner changes
   // 3. Units are reduced (need to cancel some driver assignments)
-  const driverReassignmentRequired = planChanged || movingPartnerChanged || unitsRemoved.length > 0;
+  const driverReassignmentRequired =
+    planChanged || movingPartnerChanged || unitsRemoved.length > 0;
 
   return {
     planChanged,
@@ -85,7 +95,7 @@ export function calculateAppointmentChanges(
     unitsAdded,
     unitsRemoved,
     movingPartnerChanged,
-    driverReassignmentRequired
+    driverReassignmentRequired,
   };
 }
 
@@ -95,8 +105,8 @@ export function calculateAppointmentChanges(
 export function formatAppointmentDateForSms(date: Date): string {
   return date.toLocaleDateString('en-US', {
     weekday: 'long',
-    month: 'long', 
-    day: 'numeric'
+    month: 'long',
+    day: 'numeric',
   });
 }
 
@@ -106,21 +116,21 @@ export function formatAppointmentDateForSms(date: Date): string {
  */
 export function formatTimeMinusOneHour(date: Date): string {
   const newDate = new Date(date.getTime() - 60 * 60 * 1000);
-  return newDate.toLocaleTimeString('en-US', { 
-    hour: 'numeric', 
-    minute: '2-digit', 
-    hour12: true 
+  return newDate.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
   });
 }
 
 /**
- * Format time for regular appointments 
+ * Format time for regular appointments
  */
 export function formatAppointmentTime(date: Date): string {
-  return date.toLocaleTimeString('en-US', { 
-    hour: 'numeric', 
-    minute: '2-digit', 
-    hour12: true 
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
   });
 }
 
@@ -141,19 +151,21 @@ export function validateMovingPartnerAvailability(
     return hours * 60 + minutes;
   };
 
-  const appointmentMinutes = timeToMinutes(appointmentDate.toLocaleTimeString('en-US', { 
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit'
-  }));
-  
+  const appointmentMinutes = timeToMinutes(
+    appointmentDate.toLocaleTimeString('en-US', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  );
+
   const startMinutes = timeToMinutes(availabilitySlot.startTime);
   const endMinutes = timeToMinutes(availabilitySlot.endTime);
 
   if (appointmentMinutes < startMinutes || appointmentMinutes > endMinutes) {
     return {
       isValid: false,
-      error: `Time ${appointmentDate.toLocaleTimeString()} is outside available hours (${availabilitySlot.startTime}-${availabilitySlot.endTime})`
+      error: `Time ${appointmentDate.toLocaleTimeString()} is outside available hours (${availabilitySlot.startTime}-${availabilitySlot.endTime})`,
     };
   }
 
@@ -184,7 +196,10 @@ export function calculateFinalUnitCount(
 /**
  * Determine which unit numbers need to be removed when reducing unit count
  */
-export function getUnitNumbersToRemove(currentUnitCount: number, newUnitCount: number): number[] {
+export function getUnitNumbersToRemove(
+  currentUnitCount: number,
+  newUnitCount: number
+): number[] {
   if (newUnitCount >= currentUnitCount) {
     return [];
   }
@@ -207,7 +222,11 @@ export function parseLoadingHelpPrice(priceString: string): number {
 /**
  * Validate appointment date time format
  */
-export function validateAppointmentDateTime(dateTimeString: string): { isValid: boolean; date?: Date; error?: string } {
+export function validateAppointmentDateTime(dateTimeString: string): {
+  isValid: boolean;
+  date?: Date;
+  error?: string;
+} {
   if (!dateTimeString) {
     return { isValid: false, error: 'Appointment date time is required' };
   }
@@ -224,9 +243,10 @@ export function validateAppointmentDateTime(dateTimeString: string): { isValid: 
  * Generate web view URL for driver tokens
  */
 export function generateDriverWebViewUrl(token: string): string {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.boomboxstorage.com';
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL || 'https://app.boomboxstorage.com';
   return `${baseUrl}/driver/offer/${token}`;
-} 
+}
 
 // ===== DRIVER HELPER FUNCTIONS =====
 // @source boombox-10.0/src/app/lib/driverHelpers.ts
@@ -238,39 +258,45 @@ import type { Driver, OnfleetTask } from '@prisma/client';
  * Get all drivers assigned to an appointment through OnfleetTasks
  * @source boombox-10.0/src/app/lib/driverHelpers.ts (getDriversForAppointment)
  */
-export async function getDriversForAppointment(appointmentId: number): Promise<Driver[]> {
+export async function getDriversForAppointment(
+  appointmentId: number
+): Promise<Driver[]> {
   const onfleetTasks = await prisma.onfleetTask.findMany({
-    where: { 
+    where: {
       appointmentId,
-      driverId: { not: null }
+      driverId: { not: null },
     },
     include: {
-      driver: true
+      driver: true,
     },
     distinct: ['driverId'],
   });
-  
-  return onfleetTasks.map((task: OnfleetTask & { driver: Driver | null }) => task.driver).filter(Boolean) as Driver[];
+
+  return onfleetTasks
+    .map((task: OnfleetTask & { driver: Driver | null }) => task.driver)
+    .filter(Boolean) as Driver[];
 }
 
 /**
  * Get the primary driver for an appointment (the first driver with the lowest unit number)
  * @source boombox-10.0/src/app/lib/driverHelpers.ts (getPrimaryDriverForAppointment)
  */
-export async function getPrimaryDriverForAppointment(appointmentId: number): Promise<Driver | null> {
+export async function getPrimaryDriverForAppointment(
+  appointmentId: number
+): Promise<Driver | null> {
   const onfleetTask = await prisma.onfleetTask.findFirst({
-    where: { 
+    where: {
       appointmentId,
-      driverId: { not: null }
+      driverId: { not: null },
     },
     include: {
-      driver: true
+      driver: true,
     },
     orderBy: {
-      unitNumber: 'asc'
-    }
+      unitNumber: 'asc',
+    },
   });
-  
+
   return onfleetTask?.driver || null;
 }
 
@@ -280,7 +306,7 @@ export async function getPrimaryDriverForAppointment(appointmentId: number): Pro
  */
 export function formatDriverInfo(driver: Driver | null) {
   if (!driver) return null;
-  
+
   return {
     firstName: driver.firstName,
     lastName: driver.lastName,
@@ -296,11 +322,11 @@ export function formatDriverInfo(driver: Driver | null) {
 export async function includeDriversWithAppointment(appointment: any) {
   // Get the primary driver
   const primaryDriver = await getPrimaryDriverForAppointment(appointment.id);
-  
+
   // Add the driver info to the appointment
   return {
     ...appointment,
-    driver: formatDriverInfo(primaryDriver)
+    driver: formatDriverInfo(primaryDriver),
   };
 }
 
@@ -308,13 +334,15 @@ export async function includeDriversWithAppointment(appointment: any) {
  * Include driver information with multiple appointments
  * @source boombox-10.0/src/app/lib/driverHelpers.ts (includeDriversWithAppointments)
  */
-export async function includeDriversWithAppointments(appointments: any[]): Promise<any[]> {
+export async function includeDriversWithAppointments(
+  appointments: any[]
+): Promise<any[]> {
   const appointmentsWithDrivers = await Promise.all(
-    appointments.map(async (appointment) => {
+    appointments.map(async appointment => {
       return await includeDriversWithAppointment(appointment);
     })
   );
-  
+
   return appointmentsWithDrivers;
 }
 
@@ -322,18 +350,21 @@ export async function includeDriversWithAppointments(appointments: any[]): Promi
  * Get the driver for a specific unit number in an appointment
  * @source boombox-10.0/src/app/lib/driverHelpers.ts (getDriverForUnitNumber)
  */
-export async function getDriverForUnitNumber(appointmentId: number, unitNumber: number): Promise<Driver | null> {
+export async function getDriverForUnitNumber(
+  appointmentId: number,
+  unitNumber: number
+): Promise<Driver | null> {
   const onfleetTask = await prisma.onfleetTask.findFirst({
-    where: { 
+    where: {
       appointmentId,
       unitNumber,
-      driverId: { not: null }
+      driverId: { not: null },
     },
     include: {
-      driver: true
-    }
+      driver: true,
+    },
   });
-  
+
   return onfleetTask?.driver || null;
 }
 
@@ -364,7 +395,7 @@ export async function getDriverAppointments(driverId: number) {
           },
           onfleetTasks: {
             where: {
-              driverId: { not: null }
+              driverId: { not: null },
             },
             include: {
               driver: {
@@ -373,13 +404,13 @@ export async function getDriverAppointments(driverId: number) {
                   lastName: true,
                   phoneNumber: true,
                   profilePicture: true,
-                }
-              }
+                },
+              },
             },
             orderBy: {
-              unitNumber: 'asc'
+              unitNumber: 'asc',
             },
-            take: 1
+            take: 1,
           },
           movingPartner: {
             select: {
@@ -389,9 +420,9 @@ export async function getDriverAppointments(driverId: number) {
           additionalInfo: true,
           requestedStorageUnits: {
             include: {
-              storageUnit: true
-            }
-          }
+              storageUnit: true,
+            },
+          },
         },
       },
     },
@@ -405,9 +436,9 @@ export async function getDriverAppointments(driverId: number) {
     where: {
       onfleetTasks: {
         some: {
-          driverId: driverId
-        }
-      }
+          driverId: driverId,
+        },
+      },
     },
     include: {
       user: {
@@ -420,7 +451,7 @@ export async function getDriverAppointments(driverId: number) {
       },
       onfleetTasks: {
         where: {
-          driverId: driverId
+          driverId: driverId,
         },
         include: {
           driver: {
@@ -429,12 +460,12 @@ export async function getDriverAppointments(driverId: number) {
               lastName: true,
               phoneNumber: true,
               profilePicture: true,
-            }
-          }
+            },
+          },
         },
         orderBy: {
-          unitNumber: 'asc'
-        }
+          unitNumber: 'asc',
+        },
       },
       movingPartner: {
         select: {
@@ -444,9 +475,9 @@ export async function getDriverAppointments(driverId: number) {
       additionalInfo: true,
       requestedStorageUnits: {
         include: {
-          storageUnit: true
-        }
-      }
+          storageUnit: true,
+        },
+      },
     },
     orderBy: {
       date: 'asc',
@@ -456,41 +487,51 @@ export async function getDriverAppointments(driverId: number) {
   // Extract and format the appointments from time slot bookings
   const timeSlotAppointments = timeSlotBookings.map(booking => {
     // Get primary driver from first OnfleetTask
-    const primaryDriver = booking.appointment.onfleetTasks.length > 0 
-      ? booking.appointment.onfleetTasks[0].driver 
-      : null;
-      
+    const primaryDriver =
+      booking.appointment.onfleetTasks.length > 0
+        ? booking.appointment.onfleetTasks[0].driver
+        : null;
+
     return {
       ...booking.appointment,
       bookingDate: booking.bookingDate,
       // Add driver property for backward compatibility
-      driver: primaryDriver
+      driver: primaryDriver,
     };
   });
 
   // Format the OnfleetTask appointments
-  const formattedOnfleetAppointments = onfleetTaskAppointments.map(appointment => {
-    // Get primary driver from first OnfleetTask
-    const primaryDriver = appointment.onfleetTasks.length > 0 
-      ? appointment.onfleetTasks[0].driver 
-      : null;
-      
-    return {
-      ...appointment,
-      bookingDate: appointment.date, // Use appointment date as booking date
-      // Add driver property for backward compatibility
-      driver: primaryDriver
-    };
-  });
+  const formattedOnfleetAppointments = onfleetTaskAppointments.map(
+    appointment => {
+      // Get primary driver from first OnfleetTask
+      const primaryDriver =
+        appointment.onfleetTasks.length > 0
+          ? appointment.onfleetTasks[0].driver
+          : null;
+
+      return {
+        ...appointment,
+        bookingDate: appointment.date, // Use appointment date as booking date
+        // Add driver property for backward compatibility
+        driver: primaryDriver,
+      };
+    }
+  );
 
   // Combine and deduplicate appointments by ID
-  const allAppointments = [...timeSlotAppointments, ...formattedOnfleetAppointments];
-  const uniqueAppointments = allAppointments.filter((appointment, index, arr) => 
-    arr.findIndex(a => a.id === appointment.id) === index
+  const allAppointments = [
+    ...timeSlotAppointments,
+    ...formattedOnfleetAppointments,
+  ];
+  const uniqueAppointments = allAppointments.filter(
+    (appointment, index, arr) =>
+      arr.findIndex(a => a.id === appointment.id) === index
   );
 
   // Sort by date
-  uniqueAppointments.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  uniqueAppointments.sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
 
   return uniqueAppointments;
 }
@@ -499,15 +540,22 @@ export async function getDriverAppointments(driverId: number) {
  * Verify JWT tracking token and extract appointment ID
  * @source boombox-10.0/src/app/api/tracking/[token]/route.ts (JWT verification logic)
  */
-export function verifyTrackingToken(token: string): { valid: boolean; appointmentId?: number; error?: string } {
+export function verifyTrackingToken(token: string): {
+  valid: boolean;
+  appointmentId?: number;
+  error?: string;
+} {
   try {
     const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any;
-    
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || 'fallback-secret'
+    ) as any;
+
     if (!decoded.appointmentId) {
       return { valid: false, error: 'Invalid token - no appointment ID' };
     }
-    
+
     return { valid: true, appointmentId: decoded.appointmentId };
   } catch (error) {
     console.error('JWT verification failed:', error);
@@ -516,12 +564,39 @@ export function verifyTrackingToken(token: string): { valid: boolean; appointmen
 }
 
 /**
+ * Update appointment additional details
+ * @source boombox-10.0 (legacy appointment update logic)
+ * @refactor Added function for appointment detail updates
+ */
+export async function updateAppointmentAdditionalDetails(
+  appointmentId: number,
+  details: any
+) {
+  const { prisma } = await import('@/lib/database/prismaClient');
+
+  // @REFACTOR-P9-TEMP: Mock implementation
+  console.log('PLACEHOLDER: updateAppointmentAdditionalDetails called', {
+    appointmentId,
+    details,
+  });
+
+  return await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: {
+      description: details.description || null,
+      additionalNotes: details.additionalNotes || null,
+      // Add other fields as needed
+    },
+  });
+}
+
+/**
  * Fetch appointment data for customer tracking
  * @source boombox-10.0/src/app/api/tracking/[token]/route.ts (appointment query with relations)
  */
 export async function getAppointmentForTracking(appointmentId: number) {
   const { prisma } = await import('@/lib/database/prismaClient');
-  
+
   return await prisma.appointment.findUnique({
     where: { id: appointmentId },
     include: {
@@ -538,4 +613,4 @@ export async function getAppointmentForTracking(appointmentId: number) {
       // Add any other relations needed for tracking
     },
   });
-} 
+}

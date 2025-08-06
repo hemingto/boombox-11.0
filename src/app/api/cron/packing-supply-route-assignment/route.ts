@@ -6,13 +6,13 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { MessageService } from '@/lib/messaging/MessageService';
-import { 
+import {
   systemFailureTemplate,
-  dailySummaryTemplate 
+  dailySummaryTemplate,
 } from '@/lib/messaging/templates/email/admin';
-import { 
-  validateApiRequest, 
-  PackingSupplyRouteAssignmentCronRequestSchema 
+import {
+  validateApiRequest,
+  // PackingSupplyRouteAssignmentCronRequestSchema - not exported from route files
 } from '@/lib/validations/api.validations';
 
 // ===== ROUTE HANDLER =====
@@ -21,9 +21,12 @@ export async function GET(request: NextRequest) {
   try {
     // Verify this is a legitimate cron request
     const authHeader = request.headers.get('authorization');
-    
+
     // Skip auth check in development
-    if (process.env.NODE_ENV === 'production' && authHeader !== `Bearer ${process.env.CRON_API_SECRET}`) {
+    if (
+      process.env.NODE_ENV === 'production' &&
+      authHeader !== `Bearer ${process.env.CRON_API_SECRET}`
+    ) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -37,13 +40,19 @@ export async function GET(request: NextRequest) {
       forceOptimization: url.searchParams.get('forceOptimization') === 'true',
     };
 
-    const validation = validateApiRequest(PackingSupplyRouteAssignmentCronRequestSchema, queryParams);
+    const validation = validateApiRequest(
+      PackingSupplyRouteAssignmentCronRequestSchema,
+      queryParams
+    );
     if (!validation.success) {
-      return NextResponse.json({
-        success: false,
-        error: 'Invalid request parameters',
-        details: validation.error.errors,
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Invalid request parameters',
+          details: validation.error.errors,
+        },
+        { status: 400 }
+      );
     }
 
     const { targetDate, dryRun, forceOptimization } = validation.data;
@@ -52,40 +61,48 @@ export async function GET(request: NextRequest) {
     const today = new Date();
     const optimizationDate = targetDate || today.toISOString().split('T')[0]; // YYYY-MM-DD format
 
-    console.log(`Processing packing supply route assignment for date: ${optimizationDate}`);
+    console.log(
+      `Processing packing supply route assignment for date: ${optimizationDate}`
+    );
     if (dryRun) {
       console.log('🔍 DRY RUN MODE - No actual changes will be made');
     }
 
     // Call the batch optimization endpoint
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const optimizationResponse = await fetch(`${baseUrl}/api/packing-supplies/batch-optimize`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.INTERNAL_API_SECRET}`, // Internal authentication
-      },
-      body: JSON.stringify({
-        targetDate: optimizationDate,
-        dryRun,
-        forceOptimization,
-      }),
-    });
+    const optimizationResponse = await fetch(
+      `${baseUrl}/api/packing-supplies/batch-optimize`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.INTERNAL_API_SECRET}`, // Internal authentication
+        },
+        body: JSON.stringify({
+          targetDate: optimizationDate,
+          dryRun,
+          forceOptimization,
+        }),
+      }
+    );
 
     const optimizationResult = await optimizationResponse.json();
 
     if (!optimizationResponse.ok) {
       console.error('Batch optimization failed:', optimizationResult.error);
-      
+
       // Send admin notification about the failure
       await sendFailureNotification(optimizationDate, optimizationResult.error);
-      
-      return NextResponse.json({
-        success: false,
-        error: optimizationResult.error,
-        targetDate: optimizationDate,
-        dryRun,
-      }, { status: 500 });
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: optimizationResult.error,
+          targetDate: optimizationDate,
+          dryRun,
+        },
+        { status: 500 }
+      );
     }
 
     console.log('Batch optimization completed:', optimizationResult.details);
@@ -101,26 +118,31 @@ export async function GET(request: NextRequest) {
     }> = [];
 
     if (!dryRun && routesCreated.length > 0) {
-      console.log(`Sending driver offers for ${routesCreated.length} routes...`);
-      
+      console.log(
+        `Sending driver offers for ${routesCreated.length} routes...`
+      );
+
       for (const routeId of routesCreated) {
         try {
           console.log(`Sending driver offer for route: ${routeId}`);
-          
-          const offerResponse = await fetch(`${baseUrl}/api/packing-supplies/driver-offer`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${process.env.INTERNAL_API_SECRET}`,
-            },
-            body: JSON.stringify({
-              routeId,
-              targetDate: optimizationDate,
-            }),
-          });
+
+          const offerResponse = await fetch(
+            `${baseUrl}/api/packing-supplies/driver-offer`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${process.env.INTERNAL_API_SECRET}`,
+              },
+              body: JSON.stringify({
+                routeId,
+                targetDate: optimizationDate,
+              }),
+            }
+          );
 
           const offerResult = await offerResponse.json();
-          
+
           if (offerResponse.ok) {
             driverOfferResults.push({
               routeId,
@@ -128,17 +150,23 @@ export async function GET(request: NextRequest) {
               driverName: offerResult.details?.driverName,
               message: offerResult.message,
             });
-            console.log(`Driver offer sent for ${routeId}: ${offerResult.details?.driverName}`);
+            console.log(
+              `Driver offer sent for ${routeId}: ${offerResult.details?.driverName}`
+            );
           } else {
             driverOfferResults.push({
               routeId,
               success: false,
               error: offerResult.error,
             });
-            console.error(`Failed to send driver offer for ${routeId}:`, offerResult.error);
+            console.error(
+              `Failed to send driver offer for ${routeId}:`,
+              offerResult.error
+            );
           }
         } catch (error: unknown) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown error';
           driverOfferResults.push({
             routeId,
             success: false,
@@ -155,7 +183,11 @@ export async function GET(request: NextRequest) {
 
     // Send summary email to admin (skip in dry run mode)
     if (!dryRun) {
-      await sendSummaryNotification(optimizationResult, driverOfferResults, optimizationDate);
+      await sendSummaryNotification(
+        optimizationResult,
+        driverOfferResults,
+        optimizationDate
+      );
     } else {
       console.log('🔍 DRY RUN: Skipping admin summary notification');
     }
@@ -172,8 +204,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: dryRun 
-        ? 'Daily packing supply route assignment simulation completed' 
+      message: dryRun
+        ? 'Daily packing supply route assignment simulation completed'
         : 'Daily packing supply route assignment completed',
       summary,
       details: {
@@ -181,25 +213,30 @@ export async function GET(request: NextRequest) {
         driverOffers: driverOfferResults,
       },
     });
-
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error occurred';
     console.error('Error in packing supply route assignment cron:', error);
-    
+
     // Send failure notification (skip in dry run scenarios)
     const url = new URL(request.url);
     const isDryRun = url.searchParams.get('dryRun') === 'true';
-    
+
     if (!isDryRun) {
-      const targetDate = url.searchParams.get('targetDate') || new Date().toISOString().split('T')[0];
+      const targetDate =
+        url.searchParams.get('targetDate') ||
+        new Date().toISOString().split('T')[0];
       await sendFailureNotification(targetDate, errorMessage);
     }
-    
-    return NextResponse.json({
-      success: false,
-      error: errorMessage,
-      dryRun: isDryRun,
-    }, { status: 500 });
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: errorMessage,
+        dryRun: isDryRun,
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -208,11 +245,16 @@ export async function GET(request: NextRequest) {
 /**
  * Send failure notification to admin using centralized messaging service
  */
-async function sendFailureNotification(targetDate: string, errorMessage: string): Promise<void> {
+async function sendFailureNotification(
+  targetDate: string,
+  errorMessage: string
+): Promise<void> {
   try {
     console.log('Sending failure notification to admin...');
-    
-    const adminEmails = process.env.ADMIN_EMAILS?.split(',') || ['admin@boomboxstorage.com'];
+
+    const adminEmails = process.env.ADMIN_EMAILS?.split(',') || [
+      'admin@boomboxstorage.com',
+    ];
     const formattedDate = new Date(targetDate).toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
@@ -226,7 +268,8 @@ async function sendFailureNotification(targetDate: string, errorMessage: string)
       formattedDate,
       timestamp: new Date().toLocaleString(),
       errorMessage,
-      impactDescription: 'The automated batch optimization process failed to complete. This may result in delayed packing supply deliveries and require manual intervention to assign routes to drivers.',
+      impactDescription:
+        'The automated batch optimization process failed to complete. This may result in delayed packing supply deliveries and require manual intervention to assign routes to drivers.',
       nextStepsText: `1. Check the batch optimization endpoint
 2. Verify Onfleet integration status
 3. Review pending packing supply orders
@@ -250,13 +293,18 @@ async function sendFailureNotification(targetDate: string, errorMessage: string)
         systemFailureTemplate,
         templateVariables
       );
-      
+
       if (!result.success) {
-        console.error(`Failed to send failure notification to ${email}:`, result.error);
+        console.error(
+          `Failed to send failure notification to ${email}:`,
+          result.error
+        );
       }
     }
-    
-    console.log(`Failure notification sent to ${adminEmails.length} admin recipients`);
+
+    console.log(
+      `Failure notification sent to ${adminEmails.length} admin recipients`
+    );
   } catch (error) {
     console.error('Failed to send failure notification:', error);
   }
@@ -278,11 +326,13 @@ async function sendSummaryNotification(
 ): Promise<void> {
   try {
     console.log('Sending daily summary notification to admin...');
-    
+
     const successfulOffers = driverOfferResults.filter(r => r.success);
     const failedOffers = driverOfferResults.filter(r => !r.success);
-    
-    const adminEmails = process.env.ADMIN_EMAILS?.split(',') || ['admin@boomboxstorage.com'];
+
+    const adminEmails = process.env.ADMIN_EMAILS?.split(',') || [
+      'admin@boomboxstorage.com',
+    ];
     const formattedDate = new Date(targetDate).toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
@@ -291,37 +341,53 @@ async function sendSummaryNotification(
     });
 
     // Prepare successful offers content
-    const successfulOffersText = successfulOffers.length > 0 
-      ? `SUCCESSFUL DRIVER OFFERS:\n${successfulOffers.map(offer => `- ${offer.routeId} → ${offer.driverName}`).join('\n')}`
-      : '';
+    const successfulOffersText =
+      successfulOffers.length > 0
+        ? `SUCCESSFUL DRIVER OFFERS:\n${successfulOffers.map(offer => `- ${offer.routeId} → ${offer.driverName}`).join('\n')}`
+        : '';
 
-    const successfulOffersSection = successfulOffers.length > 0 ? `
+    const successfulOffersSection =
+      successfulOffers.length > 0
+        ? `
       <h4 style="color: #28a745;">✅ Driver Offers Sent Successfully:</h4>
       <ul>
-        ${successfulOffers.map(offer => `
+        ${successfulOffers
+          .map(
+            offer => `
           <li>${offer.routeId} → ${offer.driverName}</li>
-        `).join('')}
+        `
+          )
+          .join('')}
       </ul>
-    ` : '';
+    `
+        : '';
 
     // Prepare failed offers content
-    const failedOffersText = failedOffers.length > 0 
-      ? `FAILED DRIVER OFFERS:\n${failedOffers.map(offer => `- ${offer.routeId}: ${offer.error}`).join('\n')}\n\nACTION REQUIRED: Please manually assign drivers to the failed routes.`
-      : '';
+    const failedOffersText =
+      failedOffers.length > 0
+        ? `FAILED DRIVER OFFERS:\n${failedOffers.map(offer => `- ${offer.routeId}: ${offer.error}`).join('\n')}\n\nACTION REQUIRED: Please manually assign drivers to the failed routes.`
+        : '';
 
-    const failedOffersSection = failedOffers.length > 0 ? `
+    const failedOffersSection =
+      failedOffers.length > 0
+        ? `
       <h4 style="color: #dc3545;">❌ Failed Driver Offers:</h4>
       <ul>
-        ${failedOffers.map(offer => `
+        ${failedOffers
+          .map(
+            offer => `
           <li>${offer.routeId}: ${offer.error}</li>
-        `).join('')}
+        `
+          )
+          .join('')}
       </ul>
       <div style="background-color: #f8d7da; padding: 15px; border-radius: 5px; border-left: 4px solid #dc3545; margin-top: 15px;">
         <p style="margin: 0; color: #721c24;">
           <strong>Action Required:</strong> Please manually assign drivers to the failed routes.
         </p>
       </div>
-    ` : '';
+    `
+        : '';
 
     // Use the dailySummaryTemplate for summary notifications
     const templateVariables = {
@@ -344,17 +410,19 @@ async function sendSummaryNotification(
         dailySummaryTemplate,
         templateVariables
       );
-      
+
       if (!result.success) {
-        console.error(`Failed to send daily summary to ${email}:`, result.error);
+        console.error(
+          `Failed to send daily summary to ${email}:`,
+          result.error
+        );
       }
     }
-    
+
     console.log(`Daily summary sent to ${adminEmails.length} admin recipients`);
   } catch (error) {
     console.error('Failed to send summary notification:', error);
   }
 }
 
-// Export the request validation schema for testing
-export { PackingSupplyRouteAssignmentCronRequestSchema };
+// Note: PackingSupplyRouteAssignmentCronRequestSchema not exported from route files
