@@ -23,7 +23,7 @@
 import { NextResponse } from 'next/server';
 import { stripe } from '@/lib/integrations/stripeClient';
 import { formatCurrency } from '@/lib/utils/currencyUtils';
-import { getStripeCustomerId } from '@/lib/integrations/stripeUtils';
+import { getStripeCustomerId } from '@/lib/utils/stripeUtils';
 import type { Stripe } from 'stripe';
 
 export async function GET(request: Request) {

@@ -4,4 +4,5 @@
 
 export * from './stripeCustomerService';
 export * from './stripeInvoiceService'; 
-export * from './stripeSubscriptionService'; 
+export * from './stripeSubscriptionService';
+export * from './stripeTipPaymentService'; 

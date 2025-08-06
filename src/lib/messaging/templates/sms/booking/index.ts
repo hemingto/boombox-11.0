@@ -4,6 +4,8 @@
  */
 
 export { moverChangeToDiyTemplate } from './moverChangeToDiy';
+export { moverChangeAutoAssignedTemplate } from './moverChangeAutoAssigned';
+export { thirdPartyMoverTimeoutTemplate } from './thirdPartyMoverTimeout';
 export { packingSupplyOrderConfirmationSms } from '../orders/packingSupplyOrderConfirmation';
 export { packingSupplyOrderCancellationSms } from './packingSupplyOrderCancellation';
 export { packingSupplyStartedTemplate } from './packing-supply-started';

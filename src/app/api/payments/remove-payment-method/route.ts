@@ -22,7 +22,7 @@
 
 import { NextResponse } from 'next/server';
 import { stripe } from '@/lib/integrations/stripeClient';
-import { getStripeCustomerId } from '@/lib/integrations/stripeUtils';
+import { getStripeCustomerId } from '@/lib/utils/stripeUtils';
 import type { Stripe } from 'stripe';
 
 export async function DELETE(request: Request) {

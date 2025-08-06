@@ -7,4 +7,11 @@
 // Note: Integration clients will be added here as they are migrated
 // Examples: onfleetClient, stripeClient, twilioClient, sendgridClient, etc.
 
-export {}; // Temporary export to prevent empty module error
+// Onfleet integrations
+export {
+  fetchOnfleetTaskPhotos,
+  fetchOnfleetTaskPhotoForStorageUnit
+} from './onfleetPhotoUtils';
+
+// Cloudinary integrations
+export { default as cloudinary } from './cloudinaryClient';

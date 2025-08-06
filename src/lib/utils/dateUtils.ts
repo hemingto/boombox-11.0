@@ -63,10 +63,27 @@ export function formatDateTime(date: Date | string): string {
 }
 
 /**
- * Format time as "h:mm AM/PM"
+ * Format time as "h:mm AM/PM" or with specified format
  */
-export function formatTime(date: Date): string {
+export function formatTime(date: Date, formatType?: string): string {
+  if (formatType === '12-hour-padded') {
+    return format(date, 'hh:mm a');
+  }
   return format(date, 'h:mm a');
+}
+
+/**
+ * Format date with specified format type
+ */
+export function formatDate(date: Date, formatType: string): string {
+  switch (formatType) {
+    case 'weekday-month-day':
+      return format(date, 'EEEE, MMMM d');
+    case 'full-date':
+      return format(date, 'EEEE, MMMM d, yyyy');
+    default:
+      return formatDateForDisplay(date);
+  }
 }
 
 /**

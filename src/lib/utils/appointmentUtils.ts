@@ -1,7 +1,8 @@
 /**
  * @fileoverview Appointment utility functions for editing and managing appointments
  * @source boombox-10.0/src/app/api/appointments/[appointmentId]/edit/route.ts (various inline functions)
- * @refactor Consolidated appointment utilities from appointment edit route
+ * @source boombox-10.0/src/app/api/drivers/[driverId]/appointments/route.ts (driver appointments fetching)
+ * @refactor Consolidated appointment utilities from appointment edit route and driver appointments route
  */
 
 // Types and interfaces
@@ -334,4 +335,207 @@ export async function getDriverForUnitNumber(appointmentId: number, unitNumber: 
   });
   
   return onfleetTask?.driver || null;
+}
+
+/**
+ * Fetch all appointments for a specific driver
+ * @source boombox-10.0/src/app/api/drivers/[driverId]/appointments/route.ts
+ * @param driverId - The ID of the driver
+ * @returns Array of appointments with user, driver, and storage unit information
+ */
+export async function getDriverAppointments(driverId: number) {
+  // First get the driver's time slot bookings
+  const timeSlotBookings = await prisma.driverTimeSlotBooking.findMany({
+    where: {
+      driverAvailability: {
+        driverId: driverId,
+      },
+    },
+    include: {
+      appointment: {
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              phoneNumber: true,
+            },
+          },
+          onfleetTasks: {
+            where: {
+              driverId: { not: null }
+            },
+            include: {
+              driver: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  phoneNumber: true,
+                  profilePicture: true,
+                }
+              }
+            },
+            orderBy: {
+              unitNumber: 'asc'
+            },
+            take: 1
+          },
+          movingPartner: {
+            select: {
+              name: true,
+            },
+          },
+          additionalInfo: true,
+          requestedStorageUnits: {
+            include: {
+              storageUnit: true
+            }
+          }
+        },
+      },
+    },
+    orderBy: {
+      bookingDate: 'asc',
+    },
+  });
+
+  // Also get appointments where this driver is assigned through OnfleetTask
+  const onfleetTaskAppointments = await prisma.appointment.findMany({
+    where: {
+      onfleetTasks: {
+        some: {
+          driverId: driverId
+        }
+      }
+    },
+    include: {
+      user: {
+        select: {
+          firstName: true,
+          lastName: true,
+          email: true,
+          phoneNumber: true,
+        },
+      },
+      onfleetTasks: {
+        where: {
+          driverId: driverId
+        },
+        include: {
+          driver: {
+            select: {
+              firstName: true,
+              lastName: true,
+              phoneNumber: true,
+              profilePicture: true,
+            }
+          }
+        },
+        orderBy: {
+          unitNumber: 'asc'
+        }
+      },
+      movingPartner: {
+        select: {
+          name: true,
+        },
+      },
+      additionalInfo: true,
+      requestedStorageUnits: {
+        include: {
+          storageUnit: true
+        }
+      }
+    },
+    orderBy: {
+      date: 'asc',
+    },
+  });
+
+  // Extract and format the appointments from time slot bookings
+  const timeSlotAppointments = timeSlotBookings.map(booking => {
+    // Get primary driver from first OnfleetTask
+    const primaryDriver = booking.appointment.onfleetTasks.length > 0 
+      ? booking.appointment.onfleetTasks[0].driver 
+      : null;
+      
+    return {
+      ...booking.appointment,
+      bookingDate: booking.bookingDate,
+      // Add driver property for backward compatibility
+      driver: primaryDriver
+    };
+  });
+
+  // Format the OnfleetTask appointments
+  const formattedOnfleetAppointments = onfleetTaskAppointments.map(appointment => {
+    // Get primary driver from first OnfleetTask
+    const primaryDriver = appointment.onfleetTasks.length > 0 
+      ? appointment.onfleetTasks[0].driver 
+      : null;
+      
+    return {
+      ...appointment,
+      bookingDate: appointment.date, // Use appointment date as booking date
+      // Add driver property for backward compatibility
+      driver: primaryDriver
+    };
+  });
+
+  // Combine and deduplicate appointments by ID
+  const allAppointments = [...timeSlotAppointments, ...formattedOnfleetAppointments];
+  const uniqueAppointments = allAppointments.filter((appointment, index, arr) => 
+    arr.findIndex(a => a.id === appointment.id) === index
+  );
+
+  // Sort by date
+  uniqueAppointments.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  return uniqueAppointments;
+}
+
+/**
+ * Verify JWT tracking token and extract appointment ID
+ * @source boombox-10.0/src/app/api/tracking/[token]/route.ts (JWT verification logic)
+ */
+export function verifyTrackingToken(token: string): { valid: boolean; appointmentId?: number; error?: string } {
+  try {
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any;
+    
+    if (!decoded.appointmentId) {
+      return { valid: false, error: 'Invalid token - no appointment ID' };
+    }
+    
+    return { valid: true, appointmentId: decoded.appointmentId };
+  } catch (error) {
+    console.error('JWT verification failed:', error);
+    return { valid: false, error: 'Invalid or expired token' };
+  }
+}
+
+/**
+ * Fetch appointment data for customer tracking
+ * @source boombox-10.0/src/app/api/tracking/[token]/route.ts (appointment query with relations)
+ */
+export async function getAppointmentForTracking(appointmentId: number) {
+  const { prisma } = await import('@/lib/database/prismaClient');
+  
+  return await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    include: {
+      user: {
+        select: {
+          phoneNumber: true,
+        },
+      },
+      movingPartner: {
+        select: {
+          name: true,
+        },
+      },
+      // Add any other relations needed for tracking
+    },
+  });
 } 

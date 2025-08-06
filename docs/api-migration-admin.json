@@ -1,0 +1,578 @@
+{
+  "analysis": {
+    "domain": "admin",
+    "routes": [
+      {
+        "path": "notifications/",
+        "file": "/Users/calvinhemington/Desktop/boombox-workspace/boombox-10.0/src/app/api/notifications/route.ts",
+        "utilities": [
+          {
+            "type": "date",
+            "category": "dateUtils",
+            "count": 1,
+            "examples": [
+              "new Date("
+            ]
+          },
+          {
+            "type": "database",
+            "category": "queries",
+            "count": 4,
+            "examples": [
+              "prisma.notification.findMany",
+              "prisma.notification.update",
+              "prisma.notification.create"
+            ]
+          },
+          {
+            "type": "validation",
+            "category": "validationUtils",
+            "count": 3,
+            "examples": [
+              "if (!recipientId || !recipientType)",
+              "if (!validTypes.includes(recipientType.toUpperCase()))",
+              "if (!recipientId || !recipientType || !type || !title || !message)"
+            ]
+          }
+        ],
+        "messages": [],
+        "validations": [],
+        "dependencies": [
+          "import { NextRequest, NextResponse } from 'next/server'",
+          "import { prisma } from '@/app/lib/prisma'",
+          "import { UserType } from '@prisma/client'"
+        ]
+      },
+      {
+        "path": "twilio/inbound",
+        "file": "/Users/calvinhemington/Desktop/boombox-workspace/boombox-10.0/src/app/api/twilio/inbound/route.ts",
+        "utilities": [
+          {
+            "type": "date",
+            "category": "dateUtils",
+            "count": 8,
+            "examples": [
+              "new Date(",
+              "new Date(",
+              "new Date("
+            ]
+          },
+          {
+            "type": "messaging",
+            "category": "messaging",
+            "count": 61,
+            "examples": [
+              "twilio",
+              "twilio",
+              "twilio"
+            ]
+          },
+          {
+            "type": "database",
+            "category": "queries",
+            "count": 1,
+            "examples": [
+              "prisma.onfleetTask.update"
+            ]
+          },
+          {
+            "type": "validation",
+            "category": "validationUtils",
+            "count": 20,
+            "examples": [
+              "if (!twilioSignature || !process.env.TWILIO_AUTH_TOKEN)",
+              "if (!customer)",
+              "if (!pendingAppointment)"
+            ]
+          }
+        ],
+        "messages": [
+          {
+            "template": "`${process.env.NEXT_PUBLIC_APP_URL}/api/customer/mover-change-response`",
+            "variables": [
+              "${process.env.NEXT_PUBLIC_APP_URL}"
+            ],
+            "type": "email"
+          },
+          {
+            "template": "`Great! We've confirmed your new moving partner${result.newMovingPartner ? ` (${result.newMovingPart...",
+            "variables": [
+              "${result.newMovingPartner ? ` (${result.newMovingPartner}"
+            ],
+            "type": "email"
+          },
+          {
+            "template": "`Perfect! We've switched your appointment to our DIY plan. Our drivers will handle the delivery and ...",
+            "variables": [
+              "${result.newQuotedPrice}"
+            ],
+            "type": "email"
+          },
+          {
+            "template": "`${process.env.NEXT_PUBLIC_APP_URL}/api/packing-supplies/driver-response`",
+            "variables": [
+              "${process.env.NEXT_PUBLIC_APP_URL}"
+            ],
+            "type": "email"
+          },
+          {
+            "template": "`There was an error ${action}ing the packing supply route. Please try using the link in your origina...",
+            "variables": [
+              "${action}"
+            ],
+            "type": "email"
+          },
+          {
+            "template": "`Error ${action}ing packing supply route`",
+            "variables": [
+              "${action}"
+            ],
+            "type": "email"
+          },
+          {
+            "template": "`🎉 Great! You've accepted the packing supply delivery route (${recentPackingSupplyRoute.totalStops}...",
+            "variables": [
+              "${recentPackingSupplyRoute.totalStops}"
+            ],
+            "type": "email"
+          },
+          {
+            "template": "`${process.env.NEXT_PUBLIC_APP_URL}/api/driver-assign`",
+            "variables": [
+              "${process.env.NEXT_PUBLIC_APP_URL}"
+            ],
+            "type": "email"
+          },
+          {
+            "template": "`Great! You have been assigned to the job on ${formattedDate} at ${formattedTime}. Please check the ...",
+            "variables": [
+              "${formattedDate}",
+              "${formattedTime}"
+            ],
+            "type": "email"
+          },
+          {
+            "template": "`Driver ${driver.id} declined reconfirmation for appointment ${latestTask.appointmentId}`",
+            "variables": [
+              "${driver.id}",
+              "${latestTask.appointmentId}"
+            ],
+            "type": "email"
+          },
+          {
+            "template": "`${process.env.NEXT_PUBLIC_APP_URL}/api/driver-assign`",
+            "variables": [
+              "${process.env.NEXT_PUBLIC_APP_URL}"
+            ],
+            "type": "email"
+          },
+          {
+            "template": "`${process.env.NEXT_PUBLIC_APP_URL}/api/driver-assign`",
+            "variables": [
+              "${process.env.NEXT_PUBLIC_APP_URL}"
+            ],
+            "type": "email"
+          }
+        ],
+        "validations": [],
+        "dependencies": [
+          "import { NextRequest, NextResponse } from 'next/server'",
+          "import { prisma } from '@/app/lib/prisma'",
+          "import { twilioClient } from '@/app/lib/twilio/twilio'",
+          "import { headers } from 'next/headers'",
+          "import crypto from 'crypto'"
+        ]
+      },
+      {
+        "path": "ai/query-ai",
+        "file": "/Users/calvinhemington/Desktop/boombox-workspace/boombox-10.0/src/app/api/ai/query-ai/route.ts",
+        "utilities": [
+          {
+            "type": "validation",
+            "category": "validationUtils",
+            "count": 3,
+            "examples": [
+              "if (!query)",
+              "if (!sqlQuery)",
+              "if (!sqlQuery.toLowerCase().startsWith('select'))"
+            ]
+          }
+        ],
+        "messages": [],
+        "validations": [],
+        "dependencies": [
+          "import { NextResponse } from 'next/server'",
+          "import OpenAI from 'openai'",
+          "import { prisma } from '@/app/lib/prisma'"
+        ]
+      }
+    ],
+    "potentialUtilities": [
+      {
+        "type": "date",
+        "category": "dateUtils",
+        "count": 1,
+        "examples": [
+          "new Date("
+        ]
+      },
+      {
+        "type": "database",
+        "category": "queries",
+        "count": 4,
+        "examples": [
+          "prisma.notification.findMany",
+          "prisma.notification.update",
+          "prisma.notification.create"
+        ]
+      },
+      {
+        "type": "validation",
+        "category": "validationUtils",
+        "count": 3,
+        "examples": [
+          "if (!recipientId || !recipientType)",
+          "if (!validTypes.includes(recipientType.toUpperCase()))",
+          "if (!recipientId || !recipientType || !type || !title || !message)"
+        ]
+      },
+      {
+        "type": "date",
+        "category": "dateUtils",
+        "count": 8,
+        "examples": [
+          "new Date(",
+          "new Date(",
+          "new Date("
+        ]
+      },
+      {
+        "type": "messaging",
+        "category": "messaging",
+        "count": 61,
+        "examples": [
+          "twilio",
+          "twilio",
+          "twilio"
+        ]
+      },
+      {
+        "type": "database",
+        "category": "queries",
+        "count": 1,
+        "examples": [
+          "prisma.onfleetTask.update"
+        ]
+      },
+      {
+        "type": "validation",
+        "category": "validationUtils",
+        "count": 20,
+        "examples": [
+          "if (!twilioSignature || !process.env.TWILIO_AUTH_TOKEN)",
+          "if (!customer)",
+          "if (!pendingAppointment)"
+        ]
+      },
+      {
+        "type": "validation",
+        "category": "validationUtils",
+        "count": 3,
+        "examples": [
+          "if (!query)",
+          "if (!sqlQuery)",
+          "if (!sqlQuery.toLowerCase().startsWith('select'))"
+        ]
+      }
+    ],
+    "messagePatterns": [
+      {
+        "template": "`${process.env.NEXT_PUBLIC_APP_URL}/api/customer/mover-change-response`",
+        "variables": [
+          "${process.env.NEXT_PUBLIC_APP_URL}"
+        ],
+        "type": "email"
+      },
+      {
+        "template": "`Great! We've confirmed your new moving partner${result.newMovingPartner ? ` (${result.newMovingPart...",
+        "variables": [
+          "${result.newMovingPartner ? ` (${result.newMovingPartner}"
+        ],
+        "type": "email"
+      },
+      {
+        "template": "`Perfect! We've switched your appointment to our DIY plan. Our drivers will handle the delivery and ...",
+        "variables": [
+          "${result.newQuotedPrice}"
+        ],
+        "type": "email"
+      },
+      {
+        "template": "`${process.env.NEXT_PUBLIC_APP_URL}/api/packing-supplies/driver-response`",
+        "variables": [
+          "${process.env.NEXT_PUBLIC_APP_URL}"
+        ],
+        "type": "email"
+      },
+      {
+        "template": "`There was an error ${action}ing the packing supply route. Please try using the link in your origina...",
+        "variables": [
+          "${action}"
+        ],
+        "type": "email"
+      },
+      {
+        "template": "`Error ${action}ing packing supply route`",
+        "variables": [
+          "${action}"
+        ],
+        "type": "email"
+      },
+      {
+        "template": "`🎉 Great! You've accepted the packing supply delivery route (${recentPackingSupplyRoute.totalStops}...",
+        "variables": [
+          "${recentPackingSupplyRoute.totalStops}"
+        ],
+        "type": "email"
+      },
+      {
+        "template": "`${process.env.NEXT_PUBLIC_APP_URL}/api/driver-assign`",
+        "variables": [
+          "${process.env.NEXT_PUBLIC_APP_URL}"
+        ],
+        "type": "email"
+      },
+      {
+        "template": "`Great! You have been assigned to the job on ${formattedDate} at ${formattedTime}. Please check the ...",
+        "variables": [
+          "${formattedDate}",
+          "${formattedTime}"
+        ],
+        "type": "email"
+      },
+      {
+        "template": "`Driver ${driver.id} declined reconfirmation for appointment ${latestTask.appointmentId}`",
+        "variables": [
+          "${driver.id}",
+          "${latestTask.appointmentId}"
+        ],
+        "type": "email"
+      },
+      {
+        "template": "`${process.env.NEXT_PUBLIC_APP_URL}/api/driver-assign`",
+        "variables": [
+          "${process.env.NEXT_PUBLIC_APP_URL}"
+        ],
+        "type": "email"
+      },
+      {
+        "template": "`${process.env.NEXT_PUBLIC_APP_URL}/api/driver-assign`",
+        "variables": [
+          "${process.env.NEXT_PUBLIC_APP_URL}"
+        ],
+        "type": "email"
+      }
+    ],
+    "validationSchemas": [],
+    "consolidationOpportunities": [
+      {
+        "type": "date",
+        "routes": [
+          "notifications/",
+          "twilio/inbound"
+        ],
+        "consolidateInto": "dateUtils",
+        "impact": 2
+      },
+      {
+        "type": "database",
+        "routes": [
+          "notifications/",
+          "twilio/inbound"
+        ],
+        "consolidateInto": "queries",
+        "impact": 2
+      },
+      {
+        "type": "validation",
+        "routes": [
+          "notifications/",
+          "twilio/inbound",
+          "ai/query-ai"
+        ],
+        "consolidateInto": "validationUtils",
+        "impact": 3
+      }
+    ],
+    "reuseRecommendations": [
+      {
+        "route": "notifications/",
+        "utilityType": "date",
+        "canReuse": [
+          "validateMovingPartnerAvailability",
+          "validateAppointmentDateTime",
+          "validateAppointmentRules",
+          "validateInvitationStatus",
+          "DriverProfileUpdateData",
+          "DriverAvailabilityUpdateData",
+          "validateMoverChangeTokenData",
+          "validateRecipientType",
+          "validateCreateNotificationData",
+          "updateStorageUnitNotes",
+          "validateOrderRequest",
+          "validateQuoteEmailData",
+          "StorageUnitUpdateRequest",
+          "validateField",
+          "validateForm",
+          "validateConfirmField"
+        ],
+        "recommendation": "Reuse existing dateUtils instead of creating new"
+      },
+      {
+        "route": "twilio/inbound",
+        "utilityType": "date",
+        "canReuse": [
+          "validateMovingPartnerAvailability",
+          "validateAppointmentDateTime",
+          "validateAppointmentRules",
+          "validateInvitationStatus",
+          "DriverProfileUpdateData",
+          "DriverAvailabilityUpdateData",
+          "validateMoverChangeTokenData",
+          "validateRecipientType",
+          "validateCreateNotificationData",
+          "updateStorageUnitNotes",
+          "validateOrderRequest",
+          "validateQuoteEmailData",
+          "StorageUnitUpdateRequest",
+          "validateField",
+          "validateForm",
+          "validateConfirmField"
+        ],
+        "recommendation": "Reuse existing dateUtils instead of creating new"
+      }
+    ]
+  },
+  "plan": {
+    "domain": "admin",
+    "consolidationOpportunities": [
+      {
+        "type": "date",
+        "routes": [
+          "notifications/",
+          "twilio/inbound"
+        ],
+        "consolidateInto": "dateUtils",
+        "impact": 2
+      },
+      {
+        "type": "database",
+        "routes": [
+          "notifications/",
+          "twilio/inbound"
+        ],
+        "consolidateInto": "queries",
+        "impact": 2
+      },
+      {
+        "type": "validation",
+        "routes": [
+          "notifications/",
+          "twilio/inbound",
+          "ai/query-ai"
+        ],
+        "consolidateInto": "validationUtils",
+        "impact": 3
+      }
+    ],
+    "reuseRecommendations": [
+      {
+        "route": "notifications/",
+        "utilityType": "date",
+        "canReuse": [
+          "validateMovingPartnerAvailability",
+          "validateAppointmentDateTime",
+          "validateAppointmentRules",
+          "validateInvitationStatus",
+          "DriverProfileUpdateData",
+          "DriverAvailabilityUpdateData",
+          "validateMoverChangeTokenData",
+          "validateRecipientType",
+          "validateCreateNotificationData",
+          "updateStorageUnitNotes",
+          "validateOrderRequest",
+          "validateQuoteEmailData",
+          "StorageUnitUpdateRequest",
+          "validateField",
+          "validateForm",
+          "validateConfirmField"
+        ],
+        "recommendation": "Reuse existing dateUtils instead of creating new"
+      },
+      {
+        "route": "twilio/inbound",
+        "utilityType": "date",
+        "canReuse": [
+          "validateMovingPartnerAvailability",
+          "validateAppointmentDateTime",
+          "validateAppointmentRules",
+          "validateInvitationStatus",
+          "DriverProfileUpdateData",
+          "DriverAvailabilityUpdateData",
+          "validateMoverChangeTokenData",
+          "validateRecipientType",
+          "validateCreateNotificationData",
+          "updateStorageUnitNotes",
+          "validateOrderRequest",
+          "validateQuoteEmailData",
+          "StorageUnitUpdateRequest",
+          "validateField",
+          "validateForm",
+          "validateConfirmField"
+        ],
+        "recommendation": "Reuse existing dateUtils instead of creating new"
+      }
+    ],
+    "newUtilities": [
+      {
+        "name": "databaseUtils",
+        "category": "queries",
+        "purpose": "Handle database operations for admin domain",
+        "routes": [
+          "notifications/"
+        ],
+        "examples": [
+          "prisma.notification.findMany",
+          "prisma.notification.update",
+          "prisma.notification.create"
+        ]
+      },
+      {
+        "name": "validationUtils",
+        "category": "validationUtils",
+        "purpose": "Handle validation operations for admin domain",
+        "routes": [
+          "notifications/"
+        ],
+        "examples": [
+          "if (!recipientId || !recipientType)",
+          "if (!validTypes.includes(recipientType.toUpperCase()))",
+          "if (!recipientId || !recipientType || !type || !title || !message)"
+        ]
+      },
+      {
+        "name": "messagingUtils",
+        "category": "messaging",
+        "purpose": "Handle messaging operations for admin domain",
+        "routes": [
+          "twilio/inbound"
+        ],
+        "examples": [
+          "twilio",
+          "twilio",
+          "twilio"
+        ]
+      }
+    ]
+  }
+}

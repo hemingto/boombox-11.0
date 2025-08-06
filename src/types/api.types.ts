@@ -1392,10 +1392,10 @@ export const API_ENDPOINTS = {
   DRIVERS_ASSIGN: '/api/drivers/assign',
   DRIVERS_CREATE: '/api/drivers/create-driver',
   DRIVERS_ACCEPT_INVITATION: '/api/drivers/accept-invitation',
-  DRIVERS_PROFILE: '/api/drivers/[driverId]',
-  DRIVERS_VEHICLE: '/api/drivers/[driverId]/vehicle',
-  DRIVERS_AVAILABILITY: '/api/drivers/[driverId]/availability',
-  DRIVERS_APPOINTMENTS: '/api/drivers/[driverId]/appointments',
+  DRIVERS_PROFILE: '/api/drivers/[id]/profile',
+  DRIVERS_VEHICLE: '/api/drivers/[id]/vehicle',
+  DRIVERS_AVAILABILITY: '/api/drivers/[id]/availability',
+  DRIVERS_APPOINTMENTS: '/api/drivers/[id]/appointments',
 
   // Moving Partners
   MOVING_PARTNERS_CREATE: '/api/moving-partners/create-partner',

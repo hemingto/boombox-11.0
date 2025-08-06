@@ -32,7 +32,7 @@ import { prisma } from '@/lib/database/prismaClient';
 import { formatCurrency } from '@/lib/utils/currencyUtils';
 import { createPackingSupplyTask } from '@/lib/integrations/onfleetClient';
 import { stripe } from '@/lib/integrations/stripeClient';
-import { getStripeCustomerId } from '@/lib/integrations/stripeUtils';
+import { getStripeCustomerId } from '@/lib/utils/stripeUtils';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { packingSupplyOrderConfirmationSms } from '@/lib/messaging/templates/sms/orders/packingSupplyOrderConfirmation';
 import {

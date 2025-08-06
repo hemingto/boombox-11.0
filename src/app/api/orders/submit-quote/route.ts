@@ -27,11 +27,12 @@ import { prisma } from '@/lib/database/prismaClient';
 import { 
   createAppointmentWithDriverAssignment, 
   processOnfleetAndAssignDriver 
-} from '@/lib/utils/appointmentUtils';
+} from '@/lib/services/appointmentService';
 import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
+import { formatTime } from '@/lib/utils/dateUtils';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { welcomeEmailNewCustomer } from '@/lib/messaging/templates/email/booking';
-import { welcomeSmsNewCustomer } from '@/lib/messaging/templates/sms/booking';
+import { welcomeSmsNewCustomer } from '@/lib/messaging/templates/sms/booking/welcomeSmsNewCustomer';
 import { CreateSubmitQuoteRequestSchema } from '@/lib/validations/api.validations';
 
 /**
@@ -221,11 +222,7 @@ export async function POST(req: NextRequest) {
         month: 'long', 
         day: 'numeric' 
       });
-      const appointmentDisplayTime = new Date(appointment.time).toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
-        minute: '2-digit', 
-        hour12: true 
-      });
+          const appointmentDisplayTime = formatTime(new Date(appointment.time));
       const appointmentShortDate = new Date(appointment.date).toLocaleDateString('en-US', { 
         month: 'short', 
         day: 'numeric' 
@@ -277,7 +274,7 @@ export async function POST(req: NextRequest) {
                       appointmentType === 'Additional Storage' ? 'Additional Storage' : 
                       appointmentType === 'Storage Unit Access' ? 'Access Storage' : 'End Storage Term'
       }
-    ).catch(error => {
+    ).catch((error: unknown) => {
       console.error('SUBMIT_QUOTE: DEBUG - Error in processOnfleetAndAssignDriver promise:', error);
       // We don't want to fail the response even if this part fails
     });

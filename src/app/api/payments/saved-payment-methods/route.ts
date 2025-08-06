@@ -22,7 +22,7 @@
 
 import { NextResponse } from 'next/server';
 import { stripe } from '@/lib/integrations/stripeClient';
-import { getUserById } from '@/lib/integrations/stripeUtils';
+import { getUserById } from '@/lib/utils/stripeUtils';
 import Stripe from 'stripe';
 
 export async function GET(request: Request) {

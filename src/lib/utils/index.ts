@@ -1,16 +1,25 @@
 /**
- * @fileoverview Centralized exports for all utility functions
- * @refactor Single source of truth for importing utilities across the app
+ * @fileoverview Central utility exports for boombox-11.0
+ * Organized by domain and functionality for clean imports
  */
 
-// Phone utilities
-export {
-  normalizePhoneNumberToE164,
-  formatPhoneNumberForDisplay,
-  isValidPhoneNumber,
-} from './phoneUtils';
+// Core utility functions
+export * from './phoneUtils';
+export * from './currencyUtils';
 
-// Date utilities  
+// Notification utilities
+export * from './notificationUtils';
+export * from './validationUtils';
+export * from './formatUtils';
+export * from './statusUtils';
+
+// Explicit exports to resolve conflicts
+export {
+  calculateMonthlyStorageCost,
+  isInServiceArea,
+  getServiceAreaForZip,
+} from './businessUtils';
+
 export {
   formatDateForInput,
   formatDateForDisplay,
@@ -20,44 +29,13 @@ export {
   formatTime24Hour,
   formatTimestamp,
   parseAppointmentTime,
-  formatTimeMinusOneHour,
-  getUnitSpecificStartTime,
   calculateDeliveryWindow,
+  getUnitSpecificStartTime,
 } from './dateUtils';
 
-// Currency utilities
-export { formatCurrency, centsToDollars } from './currencyUtils';
-
-// Validation utilities
-export {
-  isValidEmail,
-  isValidEmailStrict,
-  isValidURL,
-  isValidYear,
-  isRequired,
-  validateField,
-  validateForm,
-} from './validationUtils';
-
-// Format utilities
-export { generateJobCode, generateVerificationCode } from './formatUtils';
-
-// Status utilities
-export { StatusColors, getStatusBadgeClass } from './statusUtils';
-
-// Business utilities
-export {
-  parseLoadingHelpPrice,
-  calculateMonthlyStorageCost,
-  isInServiceArea,
-  getServiceAreaForZip,
-} from './businessUtils';
-
-// Cancellation utilities
 export {
   generateDriverToken,
   generateCustomerMoverChangeToken,
-  findAvailableDrivers,
   notifyDriverReassignment,
   notifyCustomerMoverChange,
   recordDriverCancellation,
@@ -67,53 +45,33 @@ export {
   type AvailableDriver,
 } from './cancellationUtils';
 
-// Appointment utilities
-export {
-  generateDriverReconfirmToken,
-  calculateAppointmentChanges,
-  formatAppointmentDateForSms,
-  formatAppointmentTime,
-  validateMovingPartnerAvailability,
-  getDayOfWeekForAvailability,
-  calculateFinalUnitCount,
-  getUnitNumbersToRemove,
-  validateAppointmentDateTime,
-  generateDriverWebViewUrl,
-  type AppointmentChanges,
-  type DriverReconfirmToken,
-} from './appointmentUtils';
-
-// Quote utilities
-export {
-  processQuoteDataForTemplate,
-  validateQuoteEmailData,
-  type QuoteEmailData,
-  type QuoteTemplateVariables,
-} from './quoteUtils';
-
-// Availability utilities
-export {
-  calculateDriverRequirements,
-  getDayOfWeekString,
-  formatTimeLocal,
-  generateBusinessHourSlots,
-  hasTimeConflict,
-  isResourceAvailableInSlot,
-  createTimeConflict,
-  checkOnfleetTaskConflicts,
-  determineAvailabilityLevel,
-  getDistinctDaysOfWeekInMonth,
-  groupBy,
-  isDateInPast,
-  generateCacheKey,
-  getMinutesDifference,
-  isValidTimeSlot,
-  timeStringToMinutes,
-  DEFAULT_BUSINESS_HOURS,
-} from './availabilityUtils';
-
-export * from './packingSupplyUtils';
-export * from './storageUtils';
+// Domain-specific utilities
+export * from './appointmentUtils';
+export * from './availabilityUtils';
 export * from './moverChangeUtils';
-export * from './driverNotificationUtils';
-export * from './driverAssignmentUtils';
+export * from './movingPartnerUtils';
+
+// Messaging and communication utilities
+export * from './twilioUtils';
+export * from './messageClassificationUtils';
+export * from './inboundMessageUtils';
+export * from './dateFormattingUtils';
+
+// Driver utilities (explicit exports to avoid conflicts)
+export {
+  getDriverTeamIds,
+  createDefaultDriverAvailability,
+  formatPhoneForOnfleet,
+  mapVehicleTypeToOnfleet,
+  buildOnfleetWorkerPayload,
+  validateDriverUniqueness,
+  findDriverInvitation,
+  validateInvitationStatus,
+  DEFAULT_DRIVER_SERVICES,
+  DEFAULT_MOVING_PARTNER_VEHICLE_TYPE,
+  DEFAULT_DRIVER_CAPACITY,
+  DRIVER_STATUSES,
+  type DriverRegistrationData,
+  type OnfleetWorkerPayload,
+  type DriverApprovalResult,
+} from './driverUtils';

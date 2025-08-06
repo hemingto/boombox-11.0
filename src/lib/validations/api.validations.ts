@@ -571,6 +571,411 @@ export const BatchOptimizeRequestSchema = z.object({
 
 // ===== DRIVERS DOMAIN SCHEMAS =====
 
+export const DriverAppointmentsRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ),
+});
+
+export const DriverAppointmentsResponseSchema = z.array(
+  z.object({
+    id: positiveIntSchema,
+    date: z.string(),
+    time: z.string(),
+    address: z.string(),
+    zipcode: z.string().nullable(),
+    status: z.string(),
+    appointmentType: z.string(),
+    bookingDate: z.string(),
+    user: z.object({
+      firstName: z.string(),
+      lastName: z.string(),
+      email: z.string(),
+      phoneNumber: z.string().nullable(),
+    }),
+    driver: z.object({
+      firstName: z.string(),
+      lastName: z.string(),
+      phoneNumber: z.string().nullable(),
+      profilePicture: z.string().nullable(),
+    }).nullable(),
+    movingPartner: z.object({
+      name: z.string(),
+    }).nullable(),
+    additionalInfo: z.any().nullable(),
+    requestedStorageUnits: z.array(z.object({
+      storageUnit: z.any(),
+    })),
+    onfleetTasks: z.array(z.any()),
+  })
+);
+
+export const DriverJobsRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ),
+});
+
+export const DriverJobsResponseSchema = z.array(
+  z.object({
+    id: positiveIntSchema,
+    appointmentType: z.string(),
+    address: z.string(),
+    date: z.string(),
+    time: z.string(),
+    numberOfUnits: positiveIntSchema,
+    planType: z.string().nullable(),
+    insuranceCoverage: z.string().nullable(),
+    loadingHelpPrice: z.number().nullable(),
+    serviceStartTime: z.string().nullable(),
+    serviceEndTime: z.string().nullable(),
+    feedback: z.object({
+      rating: z.number().min(1).max(5).nullable(),
+      comment: z.string().nullable(),
+      tipAmount: z.number().nullable(),
+    }).nullable(),
+    user: z.object({
+      firstName: z.string(),
+      lastName: z.string(),
+    }),
+    driver: z.object({
+      firstName: z.string(),
+      lastName: z.string(),
+    }).nullable(),
+    requestedStorageUnits: z.array(z.object({
+      unitType: z.string(),
+      quantity: positiveIntSchema,
+    })),
+    status: z.string(),
+    totalCost: z.number().nullable(),
+    notes: z.string().nullable(),
+  })
+);
+
+export const DriverLicensePhotosRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ),
+});
+
+export const DriverLicensePhotosResponseSchema = z.object({
+  frontPhoto: z.string().nullable(),
+  backPhoto: z.string().nullable(),
+});
+
+export const DriverMovingPartnerStatusRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ),
+});
+
+export const DriverMovingPartnerStatusResponseSchema = z.object({
+  isLinkedToMovingPartner: z.boolean(),
+  movingPartner: z.object({
+    id: positiveIntSchema,
+    name: z.string(),
+  }).nullable(),
+});
+
+export const DriverMovingPartnerRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ),
+});
+
+export const DriverMovingPartnerResponseSchema = z.object({
+  movingPartnerId: positiveIntSchema.nullable(),
+});
+
+export const DriverPackingSupplyRoutesRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ),
+});
+
+export const DriverPackingSupplyRoutesResponseSchema = z.array(
+  z.object({
+    id: positiveIntSchema,
+    routeId: z.string(),
+    appointmentType: z.string(),
+    address: z.string(),
+    date: z.string(),
+    time: z.string(),
+    numberOfUnits: positiveIntSchema,
+    planType: z.string(),
+    insuranceCoverage: z.null(),
+    description: z.string(),
+    user: z.null(),
+    driver: z.object({
+      id: positiveIntSchema,
+      firstName: z.string(),
+      lastName: z.string(),
+      phoneNumber: z.string().nullable(),
+      email: z.string(),
+    }),
+    routeStatus: z.string(),
+    totalStops: positiveIntSchema,
+    completedStops: nonNegativeIntSchema,
+    estimatedMiles: z.number().min(0),
+    estimatedDurationMinutes: positiveIntSchema,
+    estimatedPayout: z.number().min(0),
+    payoutStatus: z.string().nullable(),
+    orders: z.array(z.object({
+      id: positiveIntSchema,
+      deliveryAddress: z.string(),
+      contactName: z.string(),
+      contactEmail: z.string(),
+      contactPhone: z.string(),
+      deliveryDate: z.string(),
+      totalPrice: z.number(),
+      status: z.string(),
+      routeStopNumber: positiveIntSchema.nullable(),
+      actualDeliveryTime: z.string().nullable(),
+      trackingUrl: z.string().nullable(),
+      orderDetails: z.array(z.object({
+        product: z.object({
+          title: z.string(),
+          description: z.string().nullable(),
+          imageSrc: z.string().nullable(),
+        }),
+      })),
+    })),
+    routeMetrics: z.object({
+      totalDistance: z.number().min(0),
+      totalTime: positiveIntSchema,
+      startTime: z.string().nullable(),
+      endTime: z.string().nullable(),
+    }),
+    coordinates: z.null(),
+  })
+);
+
+export const DriverProfilePictureRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ),
+});
+
+export const DriverProfilePictureResponseSchema = z.object({
+  profilePictureUrl: z.string(),
+});
+
+export const DriverRemoveLicensePhotosRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ),
+  photoType: z.enum(['front', 'back'], {
+    errorMap: () => ({ message: 'Valid photoType (front or back) is required' })
+  }),
+});
+
+export const DriverRemoveLicensePhotosResponseSchema = z.object({
+  success: z.boolean(),
+});
+
+export const DriverRemoveVehicleRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ),
+});
+
+export const DriverRemoveVehicleResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string(),
+});
+
+export const DriverServicesRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ),
+  services: z.array(z.string()).min(0, 'Services must be an array'),
+});
+
+export const DriverServicesResponseSchema = z.object({
+  success: z.boolean(),
+  driver: z.object({
+    id: positiveIntSchema,
+    firstName: z.string(),
+    lastName: z.string(),
+    email: z.string(),
+    services: z.array(z.string()),
+    // Include other driver fields that might be returned
+  }).passthrough(), // Allow additional fields from the driver object
+});
+
+export const DriverStripeStatusRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ),
+  userType: z.enum(['driver', 'mover'], {
+    errorMap: () => ({ message: 'Invalid user type. Must be either "driver" or "mover".' })
+  }),
+});
+
+export const DriverStripeStatusResponseSchema = z.object({
+  hasStripeAccount: z.boolean(),
+  stripeConnectAccountId: z.string().nullable(),
+  onboardingComplete: z.boolean().nullable(),
+  payoutsEnabled: z.boolean().nullable(),
+  detailsSubmitted: z.boolean().nullable(),
+});
+
+export const DriverUploadDriversLicenseRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ),
+  file: z.any(), // File from FormData
+  photoDescription: z.enum(['front', 'back'], {
+    errorMap: () => ({ message: 'Invalid or missing photoDescription parameter. Must be "front" or "back"' })
+  }),
+});
+
+export const DriverUploadDriversLicenseResponseSchema = z.object({
+  success: z.boolean(),
+  url: z.string(),
+  message: z.string(),
+});
+
+export const DriverUploadNewInsuranceRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ),
+  file: z.any(), // File from FormData
+});
+
+export const DriverUploadNewInsuranceResponseSchema = z.object({
+  success: z.boolean(),
+  url: z.string(),
+  message: z.string(),
+});
+
+export const DriverUploadProfilePictureRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ),
+  file: z.any(), // File from FormData
+});
+
+export const DriverUploadProfilePictureResponseSchema = z.object({
+  success: z.boolean(),
+  url: z.string(),
+  message: z.string(),
+});
+
+export const DriverVehicleGetRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ),
+});
+
+export const DriverVehicleGetResponseSchema = z.object({
+  id: positiveIntSchema,
+  driverId: positiveIntSchema,
+  make: z.string().nullable(),
+  model: z.string().nullable(),
+  year: z.number().nullable(),
+  licensePlate: z.string().nullable(),
+  vehicleType: z.string().nullable(),
+  frontVehiclePhoto: z.string().nullable(),
+  backVehiclePhoto: z.string().nullable(),
+  autoInsurancePhoto: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+}).passthrough(); // Allow additional vehicle fields
+
+export const DriverVehiclePatchRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ),
+  // Allow any vehicle fields to be updated
+  make: z.string().optional(),
+  model: z.string().optional(),
+  year: z.number().optional(),
+  licensePlate: z.string().optional(),
+  vehicleType: z.string().optional(),
+}).passthrough(); // Allow additional vehicle fields
+
+export const DriverVehiclePostRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ),
+  // Required fields for creating a vehicle
+  make: z.string().min(1, 'Vehicle make is required'),
+  model: z.string().min(1, 'Vehicle model is required'),
+  year: z.number().int().min(1900).max(new Date().getFullYear() + 1),
+  licensePlate: z.string().min(1, 'License plate is required'),
+  vehicleType: z.string().min(1, 'Vehicle type is required'),
+}).passthrough(); // Allow additional vehicle fields
+
+export const DriverVehicleResponseSchema = z.object({
+  id: positiveIntSchema,
+  driverId: positiveIntSchema,
+  make: z.string().nullable(),
+  model: z.string().nullable(),
+  year: z.number().nullable(),
+  licensePlate: z.string().nullable(),
+  vehicleType: z.string().nullable(),
+  frontVehiclePhoto: z.string().nullable(),
+  backVehiclePhoto: z.string().nullable(),
+  autoInsurancePhoto: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+}).passthrough(); // Allow additional vehicle fields
+
+export const DriverAvailabilityGetRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ),
+});
+
+export const DriverAvailabilityGetResponseSchema = z.object({
+  success: z.boolean(),
+  availability: z.array(
+    z.object({
+      id: positiveIntSchema,
+      dayOfWeek: z.string(),
+      startTime: z.string(),
+      endTime: z.string(),
+      isBlocked: z.boolean(),
+      maxCapacity: positiveIntSchema,
+      createdAt: z.string(),
+      updatedAt: z.string(),
+    })
+  ),
+});
+
+export const DriverAvailabilityPostRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ),
+  id: positiveIntSchema.optional(),
+  dayOfWeek: z.enum(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']),
+  startTime: timeStringSchema.optional(),
+  endTime: timeStringSchema.optional(),
+  isBlocked: z.boolean().optional().default(false),
+}).refine(
+  (data) => data.isBlocked || (data.startTime && data.endTime),
+  {
+    message: "startTime and endTime are required when not blocked",
+    path: ["startTime", "endTime"],
+  }
+);
+
+export const DriverAvailabilityPostResponseSchema = z.object({
+  success: z.boolean(),
+  availability: z.object({
+    id: positiveIntSchema,
+    driverId: positiveIntSchema,
+    dayOfWeek: z.string(),
+    startTime: z.string(),
+    endTime: z.string(),
+    isBlocked: z.boolean(),
+    maxCapacity: positiveIntSchema,
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  }),
+});
+
 export const DriverAvailabilityRequestSchema = z.object({
   driverId: positiveIntSchema,
   date: dateStringSchema,
@@ -596,69 +1001,306 @@ export const DriverAvailabilityResponseSchema = z.object({
   ),
 });
 
+// Driver Management Validation Schemas
 export const CreateDriverRequestSchema = z.object({
-  email: emailSchema,
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
-  phoneNumber: phoneSchema,
-  licenseNumber: z.string().min(1, 'License number is required'),
-  vehicleInfo: z.object({
-    make: z.string().min(1, 'Vehicle make is required'),
-    model: z.string().min(1, 'Vehicle model is required'),
-    year: z
-      .number()
-      .int()
-      .min(1990)
-      .max(new Date().getFullYear() + 1),
-    licensePlate: z.string().min(1, 'License plate is required'),
-    type: z.enum(['pickup_truck', 'van', 'box_truck']),
-  }),
-  coverageAreas: z
-    .array(zipCodeSchema)
-    .min(1, 'At least one coverage area is required'),
-  hourlyRate: z.number().positive().optional(),
+  email: z.string().email('Valid email is required'),
+  phoneNumber: z.string().min(10, 'Valid phone number is required'),
+  phoneProvider: z.string().min(1, 'Phone provider is required'),
+  location: z.string().min(1, 'Location is required'),
+  services: z.array(z.string()).min(1, 'At least one service is required'),
+  vehicleType: z.string().min(1, 'Vehicle type is required'),
+  hasTrailerHitch: z.boolean(),
+  consentToBackgroundCheck: z.boolean(),
+  invitationToken: z.string().optional(),
+  createDefaultAvailability: z.boolean().optional()
 });
 
+export const ApproveDriverRequestSchema = z.object({
+  driverId: positiveIntSchema
+});
+
+export const AcceptDriverInvitationRequestSchema = z.object({
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
+  email: z.string().email('Valid email is required'),
+  phoneNumber: z.string().optional(),
+  phoneProvider: z.string().min(1, 'Phone provider is required'),
+  location: z.string().min(1, 'Location is required'),
+  backgroundCheckConsent: z.enum(['Yes', 'No']),
+  token: z.string().min(1, 'Invitation token is required')
+});
+
+export const DriverInvitationDetailsRequestSchema = z.object({
+  token: z.string().min(1, 'Token is required')
+});
+
+// Driver Response Types
 export const DriverResponseSchema = z.object({
-  success: z.boolean(),
-  driverId: positiveIntSchema,
-  invitationSent: z.boolean(),
-});
-
-export const DriverProfileSchema = z.object({
-  id: positiveIntSchema,
-  email: emailSchema,
+  id: z.number(),
   firstName: z.string(),
   lastName: z.string(),
-  phoneNumber: phoneSchema,
-  licenseNumber: z.string(),
-  status: z.enum(['pending', 'active', 'suspended', 'inactive']),
-  rating: z.number().min(0).max(5),
-  totalJobs: nonNegativeIntSchema,
-  vehicleInfo: z.object({
-    make: z.string(),
-    model: z.string(),
-    year: z.number().int(),
-    licensePlate: z.string(),
-    type: z.string(),
-  }),
-  coverageAreas: z.array(z.string()),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  email: z.string(),
+  phoneNumber: z.string().nullable(),
+  status: z.string(),
+  isApproved: z.boolean(),
+  onfleetWorkerId: z.string().nullable(),
+  assignedTeams: z.array(z.string()).optional()
 });
 
-export const DriverAcceptInvitationRequestSchema = z.object({
-  token: z.string().min(1, 'Invitation token is required'),
-  acceptTerms: z
-    .boolean()
-    .refine(val => val === true, 'Must accept terms and conditions'),
-  additionalInfo: z
-    .object({
-      emergencyContact: phoneSchema,
-      insuranceInfo: z.string().min(1, 'Insurance information is required'),
-    })
-    .optional(),
+export const DriverApprovalResponseSchema = z.object({
+  success: z.boolean(),
+  driver: DriverResponseSchema.optional(),
+  assignedTeams: z.array(z.string()).optional(),
+  message: z.string().optional(),
+  error: z.string().optional()
 });
+
+export const DriverInvitationDetailsResponseSchema = z.object({
+  movingPartnerName: z.string(),
+  email: z.string()
+});
+
+// Type exports
+export type DriverAppointmentsRequest = z.infer<typeof DriverAppointmentsRequestSchema>;
+export type DriverAppointmentsResponse = z.infer<typeof DriverAppointmentsResponseSchema>;
+export type DriverJobsRequest = z.infer<typeof DriverJobsRequestSchema>;
+export type DriverJobsResponse = z.infer<typeof DriverJobsResponseSchema>;
+export type DriverLicensePhotosRequest = z.infer<typeof DriverLicensePhotosRequestSchema>;
+export type DriverLicensePhotosResponse = z.infer<typeof DriverLicensePhotosResponseSchema>;
+export type DriverMovingPartnerStatusRequest = z.infer<typeof DriverMovingPartnerStatusRequestSchema>;
+export type DriverMovingPartnerStatusResponse = z.infer<typeof DriverMovingPartnerStatusResponseSchema>;
+export type DriverMovingPartnerRequest = z.infer<typeof DriverMovingPartnerRequestSchema>;
+export type DriverMovingPartnerResponse = z.infer<typeof DriverMovingPartnerResponseSchema>;
+export type DriverPackingSupplyRoutesRequest = z.infer<typeof DriverPackingSupplyRoutesRequestSchema>;
+export type DriverPackingSupplyRoutesResponse = z.infer<typeof DriverPackingSupplyRoutesResponseSchema>;
+export type DriverProfilePictureRequest = z.infer<typeof DriverProfilePictureRequestSchema>;
+export type DriverProfilePictureResponse = z.infer<typeof DriverProfilePictureResponseSchema>;
+export type DriverRemoveLicensePhotosRequest = z.infer<typeof DriverRemoveLicensePhotosRequestSchema>;
+export type DriverRemoveLicensePhotosResponse = z.infer<typeof DriverRemoveLicensePhotosResponseSchema>;
+export type DriverRemoveVehicleRequest = z.infer<typeof DriverRemoveVehicleRequestSchema>;
+export type DriverRemoveVehicleResponse = z.infer<typeof DriverRemoveVehicleResponseSchema>;
+export type DriverServicesRequest = z.infer<typeof DriverServicesRequestSchema>;
+export type DriverServicesResponse = z.infer<typeof DriverServicesResponseSchema>;
+export type DriverStripeStatusRequest = z.infer<typeof DriverStripeStatusRequestSchema>;
+export type DriverStripeStatusResponse = z.infer<typeof DriverStripeStatusResponseSchema>;
+export type DriverUploadDriversLicenseRequest = z.infer<typeof DriverUploadDriversLicenseRequestSchema>;
+export type DriverUploadDriversLicenseResponse = z.infer<typeof DriverUploadDriversLicenseResponseSchema>;
+export type DriverUploadNewInsuranceRequest = z.infer<typeof DriverUploadNewInsuranceRequestSchema>;
+export type DriverUploadNewInsuranceResponse = z.infer<typeof DriverUploadNewInsuranceResponseSchema>;
+export type DriverUploadProfilePictureRequest = z.infer<typeof DriverUploadProfilePictureRequestSchema>;
+export type DriverUploadProfilePictureResponse = z.infer<typeof DriverUploadProfilePictureResponseSchema>;
+export type DriverVehicleGetRequest = z.infer<typeof DriverVehicleGetRequestSchema>;
+export type DriverVehicleGetResponse = z.infer<typeof DriverVehicleGetResponseSchema>;
+export type DriverVehiclePatchRequest = z.infer<typeof DriverVehiclePatchRequestSchema>;
+export type DriverVehiclePostRequest = z.infer<typeof DriverVehiclePostRequestSchema>;
+export type DriverVehicleResponse = z.infer<typeof DriverVehicleResponseSchema>;
+export type DriverAvailabilityGetRequest = z.infer<typeof DriverAvailabilityGetRequestSchema>;
+export type DriverAvailabilityGetResponse = z.infer<typeof DriverAvailabilityGetResponseSchema>;
+export type DriverAvailabilityPostRequest = z.infer<typeof DriverAvailabilityPostRequestSchema>;
+export type DriverAvailabilityPostResponse = z.infer<typeof DriverAvailabilityPostResponseSchema>;
+export type CreateDriverRequest = z.infer<typeof CreateDriverRequestSchema>;
+export type ApproveDriverRequest = z.infer<typeof ApproveDriverRequestSchema>;
+export type AcceptDriverInvitationRequest = z.infer<typeof AcceptDriverInvitationRequestSchema>;
+export type DriverInvitationDetailsRequest = z.infer<typeof DriverInvitationDetailsRequestSchema>;
+export type DriverResponse = z.infer<typeof DriverResponseSchema>;
+export type DriverApprovalResponse = z.infer<typeof DriverApprovalResponseSchema>;
+export type DriverInvitationDetailsResponse = z.infer<typeof DriverInvitationDetailsResponseSchema>;
+
+// ===== DRIVER BLOCKED DATES SCHEMAS =====
+
+export const CreateDriverBlockedDateRequestSchema = z.object({
+  blockedDate: z.string().refine(
+    (date) => !isNaN(Date.parse(date)),
+    'Invalid date format'
+  )
+});
+
+export const DriverBlockedDatesGetRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ),
+});
+
+export const DriverBlockedDatesResponseSchema = z.array(
+  z.object({
+    id: positiveIntSchema,
+    userId: positiveIntSchema,
+    userType: z.string(),
+    blockedDate: z.string(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })
+);
+
+export const DeleteDriverBlockedDateRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ),
+  dateId: z.string().or(positiveIntSchema).transform(val => 
+    typeof val === 'string' ? parseInt(val, 10) : val
+  ),
+});
+
+export const DeleteDriverBlockedDateResponseSchema = z.object({
+  success: z.boolean(),
+});
+
+// Admin Drivers List Schema
+export const AdminDriversListResponseSchema = z.array(
+  z.object({
+    id: positiveIntSchema,
+    firstName: z.string(),
+    lastName: z.string(),
+    email: z.string(),
+    phoneNumber: z.string().nullable(),
+    verifiedPhoneNumber: z.boolean(),
+    services: z.array(z.string()),
+    isApproved: z.boolean(),
+    applicationComplete: z.boolean(),
+    onfleetWorkerId: z.string().nullable(),
+    onfleetTeamIds: z.array(z.string()),
+    driverLicenseFrontPhoto: z.string().nullable(),
+    driverLicenseBackPhoto: z.string().nullable(),
+    profilePicture: z.string().nullable(),
+    status: z.string(),
+    location: z.string().nullable(),
+    vehicleType: z.string().nullable(),
+    hasTrailerHitch: z.boolean().nullable(),
+    consentToBackgroundCheck: z.boolean().nullable(),
+    movingPartnerAssociations: z.array(z.object({
+      movingPartner: z.object({
+        name: z.string(),
+        onfleetTeamId: z.string().nullable(),
+      })
+    })),
+    vehicles: z.array(z.object({
+      id: positiveIntSchema,
+      make: z.string().nullable(),
+      model: z.string().nullable(),
+      year: z.number().nullable(),
+      licensePlate: z.string().nullable(),
+      isApproved: z.boolean(),
+    })),
+    availability: z.array(z.object({
+      id: positiveIntSchema,
+      dayOfWeek: z.string(),
+      startTime: z.string(),
+      endTime: z.string(),
+      maxCapacity: positiveIntSchema,
+    })),
+    cancellations: z.array(z.object({
+      id: positiveIntSchema,
+      cancellationReason: z.string().nullable(),
+      cancellationDate: z.string(),
+    })),
+    assignedTasks: z.array(z.object({
+      id: positiveIntSchema,
+      appointmentId: positiveIntSchema,
+      appointment: z.object({
+        id: positiveIntSchema,
+        date: z.string(),
+        status: z.string(),
+        jobCode: z.string().nullable(),
+        user: z.object({
+          firstName: z.string(),
+          lastName: z.string(),
+        })
+      })
+    }))
+  })
+);
+
+// Type exports for blocked dates schemas
+export type CreateDriverBlockedDateRequest = z.infer<typeof CreateDriverBlockedDateRequestSchema>;
+export type DriverBlockedDatesGetRequest = z.infer<typeof DriverBlockedDatesGetRequestSchema>;
+export type DriverBlockedDatesResponse = z.infer<typeof DriverBlockedDatesResponseSchema>;
+export type DeleteDriverBlockedDateRequest = z.infer<typeof DeleteDriverBlockedDateRequestSchema>;
+export type DeleteDriverBlockedDateResponse = z.infer<typeof DeleteDriverBlockedDateResponseSchema>;
+export type AdminDriversListResponse = z.infer<typeof AdminDriversListResponseSchema>;
+
+// ===== DRIVER PROFILE MANAGEMENT SCHEMAS =====
+
+export const DriverProfileUpdateRequestSchema = z.object({
+  firstName: z.string().min(1, 'First name is required').optional(),
+  lastName: z.string().min(1, 'Last name is required').optional(),
+  email: z.string().email('Valid email is required').optional(),
+  phoneNumber: z.string().min(10, 'Valid phone number is required').optional(),
+  location: z.string().min(1, 'Location is required').optional(),
+  services: z.array(z.string()).min(1, 'At least one service is required').optional(),
+  vehicleType: z.string().min(1, 'Vehicle type is required').optional(),
+  hasTrailerHitch: z.boolean().optional(),
+  // Allow other driver fields to be updated
+}).refine(data => Object.keys(data).length > 0, {
+  message: 'At least one field must be provided for update'
+});
+
+export const DriverProfileResponseSchema = z.object({
+  id: z.number(),
+  firstName: z.string(),
+  lastName: z.string(),
+  email: z.string(),
+  phoneNumber: z.string().nullable(),
+  location: z.string().nullable(),
+  services: z.array(z.string()),
+  vehicleType: z.string().nullable(),
+  hasTrailerHitch: z.boolean().nullable(),
+  status: z.string(),
+  isApproved: z.boolean(),
+  onfleetWorkerId: z.string().nullable(),
+  onfleetTeamIds: z.array(z.string()),
+  verifiedPhoneNumber: z.boolean(),
+  vehicles: z.array(z.object({
+    id: z.number(),
+    make: z.string().nullable(),
+    model: z.string().nullable(),
+    year: z.number().nullable(),
+    licensePlate: z.string().nullable(),
+    vehicleType: z.string().nullable()
+  })).optional(),
+  movingPartnerAssociations: z.array(z.object({
+    id: z.number(),
+    isActive: z.boolean(),
+    movingPartner: z.object({
+      id: z.number(),
+      name: z.string()
+    })
+  })).optional()
+});
+
+export const AgreeToTermsRequestSchema = z.object({
+  // No additional fields needed - the driverId comes from URL params
+});
+
+export const AgreeToTermsResponseSchema = z.object({
+  id: z.number(),
+  firstName: z.string(),
+  lastName: z.string(),
+  email: z.string(),
+  agreedToTerms: z.boolean(),
+  agreedToTermsAt: z.date().nullable()
+});
+
+export const ApplicationCompleteRequestSchema = z.object({
+  // No additional fields needed - the driverId comes from URL params  
+});
+
+export const ApplicationCompleteResponseSchema = z.object({
+  id: z.number(),
+  firstName: z.string(),
+  lastName: z.string(),
+  email: z.string(),
+  applicationComplete: z.boolean()
+});
+
+// Type exports for new schemas
+export type DriverProfileUpdateRequest = z.infer<typeof DriverProfileUpdateRequestSchema>;
+export type DriverProfileResponse = z.infer<typeof DriverProfileResponseSchema>;
+export type AgreeToTermsRequest = z.infer<typeof AgreeToTermsRequestSchema>;
+export type AgreeToTermsResponse = z.infer<typeof AgreeToTermsResponseSchema>;
+export type ApplicationCompleteRequest = z.infer<typeof ApplicationCompleteRequestSchema>;
+export type ApplicationCompleteResponse = z.infer<typeof ApplicationCompleteResponseSchema>;
 
 // ===== MOVING PARTNERS DOMAIN SCHEMAS =====
 
@@ -689,6 +1331,39 @@ export const MovingPartnerResponseSchema = z.object({
   partnerId: positiveIntSchema,
   estimatedCost: z.number(),
   availabilityConfirmed: z.boolean(),
+});
+
+export const UpdateMovingPartnerProfileRequestSchema = z.object({
+  name: z.string().min(1, 'Name is required').optional(),
+  description: z.string().optional(), 
+  email: emailSchema.optional(),
+  phoneNumber: phoneSchema.optional(),
+  hourlyRate: z.number().positive('Hourly rate must be positive').optional(),
+  website: z.string().url('Invalid website URL').optional(),
+});
+
+export const MovingPartnerProfileResponseSchema = z.object({
+  id: positiveIntSchema,
+  name: z.string(),
+  description: z.string().nullable(),
+  email: z.string(),
+  phoneNumber: z.string(),
+  hourlyRate: z.number(),
+  website: z.string().nullable(),
+  status: z.string(),
+  isApproved: z.boolean(),
+  verifiedPhoneNumber: z.boolean(),
+  vehicles: z.array(z.object({
+    id: positiveIntSchema,
+    isApproved: z.boolean(),
+  })),
+  approvedDrivers: z.array(z.object({
+    driver: z.object({
+      id: positiveIntSchema,
+      isApproved: z.boolean(),
+      status: z.string(),
+    }),
+  })),
 });
 
 // ===== CUSTOMERS DOMAIN SCHEMAS =====
@@ -766,6 +1441,30 @@ export const AdminDashboardStatsResponseSchema = z.object({
   averageRating: z.number().min(0).max(5),
 });
 
+// Admin Dashboard Data Response Schema
+// @source boombox-10.0/src/app/api/admin/dashboard/route.ts (response structure)
+export const AdminDashboardDataResponseSchema = z.object({
+  jobsToday: z.object({
+    Scheduled: nonNegativeIntSchema,
+    'In Transit': nonNegativeIntSchema, 
+    'Loading Complete': nonNegativeIntSchema,
+    'Admin Check': nonNegativeIntSchema,
+    Complete: nonNegativeIntSchema,
+  }),
+  awaitingApprovals: z.object({
+    drivers: nonNegativeIntSchema,
+    movers: nonNegativeIntSchema,
+    vehicles: nonNegativeIntSchema,
+  }),
+  taskCounts: z.object({
+    unassignedJobs: nonNegativeIntSchema,
+    negativeFeedback: nonNegativeIntSchema,
+    pendingCleaning: nonNegativeIntSchema,
+    adminCheck: nonNegativeIntSchema,
+    storageUnitNeeded: nonNegativeIntSchema,
+  }),
+});
+
 export const AdminCalendarEventSchema = z.object({
   id: positiveIntSchema,
   title: z.string(),
@@ -793,6 +1492,72 @@ export const AdminStorageUnitRequestSchema = z.object({
   location: z.string().min(1, 'Location is required'),
   status: z.enum(['available', 'occupied', 'maintenance', 'retired']),
   monthlyRate: z.number().positive('Monthly rate must be positive'),
+});
+
+// Admin Query AI Schemas
+// @source boombox-10.0/src/app/api/ai/query-ai/route.ts
+export const AdminQueryAIRequestSchema = z.object({
+  query: z.string().min(1, 'Query is required').max(1000, 'Query too long'),
+});
+
+export const AdminQueryAIResponseSchema = z.object({
+  sql: z.string(),
+  results: z.array(z.record(z.any())),
+});
+
+// Storage Units Admin Route Schemas
+// @source boombox-10.0/src/app/api/admin/storage-units/route.ts
+export const StorageUnitsListRequestSchema = z.object({
+  status: z.string().optional(),
+  sortBy: z.string().optional().default('storageUnitNumber'),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('asc'),
+});
+
+export const StorageUnitUpdateRequestSchema = z.object({
+  id: positiveIntSchema,
+  status: z.string().optional(),
+  usageId: positiveIntSchema.optional(),
+  warehouseLocation: z.string().optional(),
+  warehouseName: z.string().optional(),
+}).refine(
+  (data) => data.status || (data.usageId && (data.warehouseLocation !== undefined || data.warehouseName !== undefined)),
+  {
+    message: "Either status or warehouse information (usageId + location/name) must be provided",
+  }
+);
+
+// Storage Units Batch Upload Schema
+// @source boombox-10.0/src/app/api/admin/storage-units/batch-upload/route.ts
+export const StorageUnitCSVRecordSchema = z.object({
+  storageUnitNumber: z.string().min(1, 'Storage unit number is required'),
+  barcode: z.string().optional(),
+  status: z.enum(['Empty', 'Occupied', 'Pending Cleaning'], {
+    errorMap: () => ({ message: 'Status must be Empty, Occupied, or Pending Cleaning' })
+  }),
+});
+
+export const BatchUploadResponseSchema = z.object({
+  success: z.boolean(),
+  results: z.object({
+    successful: nonNegativeIntSchema,
+    failed: nonNegativeIntSchema,
+    details: z.object({
+      success: z.array(z.string()),
+      errors: z.array(z.string()),
+    }),
+  }),
+});
+
+// Storage Unit Photo Upload Schema
+// @source boombox-10.0/src/app/api/storage-unit/[id]/upload-photos/route.ts
+export const StorageUnitPhotoUploadRequestSchema = z.object({
+  id: positiveIntSchema,
+});
+
+export const StorageUnitPhotoUploadResponseSchema = z.object({
+  success: z.boolean(),
+  uploadedUrls: z.array(z.string().url()),
+  message: z.string(),
 });
 
 export const AdminInventoryRequestSchema = z.object({
@@ -825,7 +1590,498 @@ export const AdminUserManagementRequestSchema = z.object({
   notifyUser: z.boolean().optional().default(true),
 });
 
+export const AdminNotifyNoDriverRequestSchema = z.object({
+  routeId: z.string().min(1, 'Route ID is required'),
+  deliveryDate: z.string().min(1, 'Delivery date is required'),
+  totalStops: z.number().int().min(0).optional(),
+  reason: z.string().optional(),
+  source: z.string().optional(),
+  additionalInfo: z.string().optional(),
+});
+
+// Admin Delivery Routes Schema
+// @source boombox-10.0/src/app/api/admin/delivery-routes/route.ts
+export const AdminDeliveryRoutesRequestSchema = z.object({
+  date: z.string().datetime().optional(),
+});
+
+export const AdminDeliveryRoutesResponseSchema = z.array(
+  z.object({
+    id: positiveIntSchema,
+    routeId: z.string(),
+    driverId: positiveIntSchema.nullable(),
+    deliveryDate: z.date(),
+    totalStops: nonNegativeIntSchema,
+    completedStops: nonNegativeIntSchema,
+    routeStatus: z.string(),
+    totalDistance: z.string().nullable(),
+    totalTime: nonNegativeIntSchema.nullable(),
+    startTime: z.date().nullable(),
+    endTime: z.date().nullable(),
+    payoutAmount: z.string().nullable(),
+    payoutStatus: z.string(),
+    payoutTransferId: z.string().nullable(),
+    payoutProcessedAt: z.date().nullable(),
+    payoutFailureReason: z.string().nullable(),
+    onfleetOptimizationId: z.string().nullable(),
+    driverOfferSentAt: z.date().nullable(),
+    driverOfferExpiresAt: z.date().nullable(),
+    driverOfferStatus: z.string(),
+    createdAt: z.date(),
+    updatedAt: z.date(),
+    driver: z.object({
+      id: positiveIntSchema,
+      firstName: z.string(),
+      lastName: z.string(),
+      email: z.string().email(),
+      phoneNumber: z.string().nullable(),
+      profilePicture: z.string().nullable(),
+    }).nullable(),
+    orders: z.array(
+      z.object({
+        id: positiveIntSchema,
+        userId: positiveIntSchema,
+        deliveryAddress: z.string(),
+        contactName: z.string(),
+        contactEmail: z.string().email(),
+        contactPhone: z.string().nullable(),
+        orderDate: z.date(),
+        deliveryDate: z.date(),
+        totalPrice: z.string(),
+        status: z.string(),
+        paymentMethod: z.string(),
+        paymentStatus: z.string(),
+        stripePaymentIntentId: z.string().nullable(),
+        onfleetTaskId: z.string().nullable(),
+        onfleetTaskShortId: z.string().nullable(),
+        assignedDriverId: positiveIntSchema.nullable(),
+        deliveryWindowStart: z.date().nullable(),
+        deliveryWindowEnd: z.date().nullable(),
+        actualDeliveryTime: z.date().nullable(),
+        deliveryPhotoUrl: z.string().nullable(),
+        driverPayoutAmount: z.string().nullable(),
+        driverPayoutStatus: z.string().nullable(),
+        routeMetrics: z.string().nullable(),
+        routeStopNumber: nonNegativeIntSchema.nullable(),
+        trackingToken: z.string().nullable(),
+        trackingUrl: z.string().nullable(),
+        batchProcessedAt: z.date().nullable(),
+        optimizationJobId: z.string().nullable(),
+        user: z.object({
+          id: positiveIntSchema,
+          firstName: z.string(),
+          lastName: z.string(),
+          email: z.string().email(),
+          phoneNumber: z.string().nullable(),
+        }),
+        orderDetails: z.array(
+          z.object({
+            id: positiveIntSchema,
+            productId: positiveIntSchema,
+            quantity: nonNegativeIntSchema,
+            price: z.string(),
+            product: z.object({
+              id: positiveIntSchema,
+              title: z.string(),
+              description: z.string().nullable(),
+              category: z.string(),
+              imageSrc: z.string().nullable(),
+            }),
+          })
+        ),
+        cancellations: z.array(
+          z.object({
+            id: positiveIntSchema,
+            cancellationReason: z.string().nullable(),
+            cancellationFee: z.string().nullable(),
+            cancellationDate: z.date(),
+            refundAmount: z.string().nullable(),
+            refundStatus: z.string().nullable(),
+            adminNotes: z.string().nullable(),
+          })
+        ),
+        feedback: z.array(
+          z.object({
+            id: positiveIntSchema,
+            rating: nonNegativeIntSchema.nullable(),
+            comment: z.string().nullable(),
+            tipAmount: z.string().nullable(),
+            tipPaymentIntentId: z.string().nullable(),
+            tipPaymentStatus: z.string().nullable(),
+            driverRating: nonNegativeIntSchema.nullable(),
+            responded: z.boolean(),
+            response: z.string().nullable(),
+            createdAt: z.date(),
+            updatedAt: z.date(),
+          })
+        ),
+      })
+    ),
+  })
+);
+
+// ===== ADMIN TASKS SCHEMAS =====
+// @source boombox-10.0/src/app/api/admin/tasks/[taskId]/route.ts (refactored for domain separation)
+
+// Assign Storage Unit Task Schemas
+export const AssignStorageUnitParamsSchema = z.object({
+  appointmentId: z.string().transform((val) => parseInt(val, 10)),
+});
+
+export const AssignStorageUnitRequestSchema = z.object({
+  storageUnitNumbers: z.array(z.string().min(1, 'Storage unit number is required')),
+  driverMatches: z.boolean(),
+  trailerPhotos: z.array(z.string()).optional(),
+  unitIndex: z.number().int().positive(),
+});
+
+export const AssignStorageUnitResponseSchema = z.object({
+  id: z.string(),
+  title: z.literal('Assign Storage Unit'),
+  description: z.string(),
+  action: z.literal('Assign'),
+  color: z.literal('orange'),
+  details: z.string(),
+  jobCode: z.string(),
+  appointmentDate: z.string(),
+  appointmentAddress: z.string(),
+  unitIndex: z.number().optional(),
+  storageTotalUnits: z.number(),
+});
+
+// Common Admin Task Response Schema
+export const BaseAdminTaskResponseSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  description: z.string(),
+  action: z.string(),
+  color: z.enum(['rose', 'amber', 'cyan', 'orange', 'indigo', 'purple', 'emerald', 'sky', 'darkAmber']),
+  details: z.string(),
+});
+
+// Admin Task Assignment Success Response
+export const AdminTaskAssignmentSuccessSchema = z.object({
+  success: z.literal(true),
+  message: z.string(),
+  usages: z.array(z.any()).optional(),
+});
+
+// Unassigned Driver Task Schemas
+export const UnassignedDriverParamsSchema = z.object({
+  appointmentId: z.string().transform((val) => parseInt(val, 10)),
+});
+
+export const UnassignedDriverRequestSchema = z.object({
+  calledMovingPartner: z.boolean(),
+  gotHoldOfMovingPartner: z.boolean().optional(),
+});
+
+export const UnassignedDriverResponseSchema = z.object({
+  id: z.string(),
+  title: z.literal('Unassigned Driver'),
+  description: z.string(),
+  action: z.literal('Remind Mover'),
+  color: z.literal('rose'),
+  details: z.string(),
+  movingPartner: z.object({
+    name: z.string(),
+    email: z.string(),
+    phoneNumber: z.string(),
+    imageSrc: z.string().nullable(),
+  }).nullable(),
+  jobCode: z.string(),
+  appointmentDate: z.string(),
+  appointmentAddress: z.string(),
+  calledMovingPartner: z.boolean().nullable(),
+  onfleetTaskIds: z.string().optional(),
+  customerName: z.string(),
+});
+
+// Storage Unit Return Task Schemas
+export const StorageUnitReturnParamsSchema = z.object({
+  appointmentId: z.string().transform((val) => parseInt(val, 10)),
+});
+
+export const StorageUnitReturnRequestSchema = z.object({
+  hasDamage: z.boolean(),
+  damageDescription: z.string().nullable().optional(),
+  frontPhotos: z.array(z.string()),
+  backPhotos: z.array(z.string()),
+  isStillStoringItems: z.boolean().optional(),
+  isAllItemsRemoved: z.boolean().optional(),
+  isUnitEmpty: z.boolean().optional(),
+});
+
+export const StorageUnitReturnResponseSchema = z.object({
+  id: z.string(),
+  title: z.literal('Storage Unit Return'),
+  description: z.string(),
+  action: z.literal('Process Return'),
+  color: z.literal('purple'),
+  details: z.string(),
+  movingPartner: z.object({
+    name: z.string(),
+    email: z.string(),
+    phoneNumber: z.string(),
+    imageSrc: z.string().nullable(),
+  }).nullable(),
+  jobCode: z.string(),
+  customerName: z.string(),
+  appointmentDate: z.string(),
+  appointmentAddress: z.string(),
+  storageUnitNumber: z.string(),
+  appointmentId: z.string(),
+  storageUnitId: z.string().optional(),
+  appointment: z.object({
+    date: z.string(),
+    appointmentType: z.string(),
+    user: z.object({
+      firstName: z.string(),
+      lastName: z.string(),
+    }).nullable(),
+  }),
+});
+
+// Assign Requested Unit Task Schemas
+export const AssignRequestedUnitParamsSchema = z.object({
+  appointmentId: z.string().transform((val) => parseInt(val, 10)),
+});
+
+export const AssignRequestedUnitRequestSchema = z.object({
+  storageUnitId: z.number().int().positive(),
+  driverMatches: z.boolean(),
+  trailerPhotos: z.array(z.string()).optional(),
+  unitIndex: z.number().int().positive(),
+});
+
+export const AssignRequestedUnitResponseSchema = z.object({
+  id: z.string(),
+  title: z.literal('Assign Requested Unit'),
+  description: z.string(),
+  action: z.literal('Assign'),
+  color: z.literal('indigo'),
+  details: z.string(),
+  jobCode: z.string(),
+  appointmentDate: z.string(),
+  appointmentAddress: z.string(),
+  storageUnitNumber: z.string(),
+  unitIndex: z.number().int().positive(),
+  requestedTotalUnits: z.number().int().positive(),
+});
+
+// Negative Feedback Task Schemas
+export const NegativeFeedbackParamsSchema = z.object({
+  feedbackId: z.string().transform((val) => parseInt(val, 10)),
+});
+
+export const NegativeFeedbackRequestSchema = z.object({
+  emailSubject: z.string().min(1, 'Email subject is required'),
+  emailBody: z.string().min(1, 'Email body is required'),
+  feedbackType: z.enum(['regular', 'packing-supply']).optional(),
+});
+
+export const NegativeFeedbackResponseSchema = z.object({
+  id: z.string(),
+  title: z.enum(['Negative Feedback', 'Negative Packing Supply Feedback']),
+  description: z.string(),
+  action: z.literal('Respond'),
+  color: z.literal('amber'),
+  details: z.string(),
+  feedback: z.object({
+    id: z.number(),
+    rating: z.number(),
+    comment: z.string().nullable(),
+  }),
+  jobCode: z.string(),
+  appointment: z.object({
+    date: z.string(),
+    appointmentType: z.string(),
+    user: z.object({
+      firstName: z.string(),
+      lastName: z.string(),
+      email: z.string(),
+    }),
+  }),
+});
+
+// Pending Cleaning Task Schemas
+export const PendingCleaningParamsSchema = z.object({
+  storageUnitId: z.string().transform((val) => parseInt(val, 10)),
+});
+
+export const PendingCleaningRequestSchema = z.object({
+  photos: z.array(z.string()).min(1, 'At least one photo is required'),
+});
+
+export const PendingCleaningResponseSchema = z.object({
+  id: z.string(),
+  title: z.literal('Pending Cleaning'),
+  description: z.string(),
+  action: z.literal('Mark as Clean'),
+  color: z.literal('cyan'),
+  details: z.string(),
+  storageUnitNumber: z.string(),
+});
+
+// Prep Packing Supply Order Task Schemas
+export const PrepPackingSupplyOrderParamsSchema = z.object({
+  orderId: z.string().transform((val) => parseInt(val, 10)),
+});
+
+export const PrepPackingSupplyOrderRequestSchema = z.object({
+  isPrepped: z.boolean().default(true),
+});
+
+export const PrepPackingSupplyOrderResponseSchema = z.object({
+  id: z.string(),
+  title: z.literal('Prep Packing Supply Order'),
+  description: z.string(),
+  action: z.literal('Mark as Prepped'),
+  color: z.literal('darkAmber'),
+  details: z.string(),
+  customerName: z.string(),
+  deliveryAddress: z.string(),
+  driverName: z.string(),
+  onfleetTaskShortId: z.string().nullable(),
+  packingSupplyOrder: z.object({
+    id: z.number(),
+    contactName: z.string(),
+    contactEmail: z.string(),
+    contactPhone: z.string().nullable(),
+    deliveryAddress: z.string(),
+    deliveryDate: z.date(),
+    totalPrice: z.number(),
+    onfleetTaskShortId: z.string().nullable(),
+    assignedDriver: z.object({
+      firstName: z.string(),
+      lastName: z.string(),
+    }).nullable(),
+    orderDetails: z.array(z.object({
+      id: z.number(),
+      quantity: z.number(),
+      product: z.object({
+        title: z.string(),
+      }),
+    })),
+  }),
+});
+
+// Prep Units Delivery Task Schemas
+export const PrepUnitsDeliveryParamsSchema = z.object({
+  appointmentId: z.string().transform((val) => parseInt(val, 10)),
+});
+
+export const PrepUnitsDeliveryRequestSchema = z.object({
+  unitNumbers: z.array(z.string()).min(1, 'At least one unit number is required'),
+});
+
+export const PrepUnitsDeliveryResponseSchema = z.object({
+  id: z.string(),
+  title: z.literal('Prep Units for Delivery'),
+  description: z.string(),
+  action: z.literal('Mark Complete'),
+  color: z.literal('sky'),
+  details: z.string(),
+  jobCode: z.string(),
+  customerName: z.string(),
+  appointmentDate: z.string(),
+  appointmentAddress: z.string(),
+  requestedStorageUnits: z.array(z.object({
+    id: z.number(),
+    storageUnitId: z.number(),
+    unitsReady: z.boolean(),
+    storageUnit: z.object({
+      id: z.number(),
+      storageUnitNumber: z.string(),
+    }),
+  })),
+});
+
+// Update Location Task Schemas
+export const UpdateLocationParamsSchema = z.object({
+  usageId: z.string().transform((val) => parseInt(val, 10)),
+});
+
+export const UpdateLocationRequestSchema = z.object({
+  warehouseLocation: z.string().min(1, 'Warehouse location is required'),
+});
+
+export const UpdateLocationResponseSchema = z.object({
+  id: z.string(),
+  title: z.literal('Update Location'),
+  description: z.string(),
+  action: z.literal('Update'),
+  color: z.literal('emerald'),
+  details: z.string(),
+  storageUnitNumber: z.string(),
+  customerName: z.string(),
+  usageId: z.number(),
+});
+
+// Admin Task Listing Schemas
+export const AdminTaskListingResponseSchema = z.object({
+  tasks: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    description: z.string(),
+    details: z.string(),
+    action: z.string(),
+    actionUrl: z.string().optional(),
+    color: z.string(),
+  })),
+  summary: z.object({
+    total: z.number(),
+    byType: z.record(z.string(), z.number()),
+  }),
+});
+
+export const AdminTaskStatisticsResponseSchema = z.object({
+  totalTasks: z.number(),
+  criticalTasks: z.number(),
+  urgentTasks: z.number(),
+  tasksByType: z.record(z.string(), z.number()),
+  lastUpdated: z.string(),
+});
+
 // ===== NOTIFICATION SCHEMAS =====
+
+// Get Notifications Request Schema
+export const GetNotificationsRequestSchema = z.object({
+  recipientId: z.string().transform(val => parseInt(val, 10)),
+  recipientType: z.enum(['USER', 'DRIVER', 'MOVER', 'ADMIN']),
+  page: z.string().transform(val => parseInt(val, 10)).optional().default('1'),
+  limit: z.string().transform(val => parseInt(val, 10)).optional().default('5'),
+  status: z.string().optional(),
+});
+
+// Create Notification Request Schema
+export const CreateNotificationRequestSchema = z.object({
+  recipientId: positiveIntSchema,
+  recipientType: z.enum(['USER', 'DRIVER', 'MOVER', 'ADMIN']),
+  type: z.string().min(1, 'Type is required'), // Will be cast to NotificationType in utils
+  title: z.string().min(1, 'Title is required'),
+  message: z.string().min(1, 'Message is required'),
+  appointmentId: positiveIntSchema.optional(),
+  orderId: positiveIntSchema.optional(),
+  routeId: z.union([z.string(), positiveIntSchema]).optional(),
+  taskId: z.union([z.string(), positiveIntSchema]).optional(),
+  driverId: positiveIntSchema.optional(),
+  movingPartnerId: positiveIntSchema.optional(),
+  groupKey: z.string().optional(),
+});
+
+// Get Notifications Response Schema
+export const GetNotificationsResponseSchema = z.object({
+  notifications: z.array(z.any()),
+  pagination: z.object({
+    page: positiveIntSchema,
+    limit: positiveIntSchema,
+    total: nonNegativeIntSchema,
+    totalPages: nonNegativeIntSchema,
+    hasMore: z.boolean(),
+  }),
+  unreadCount: nonNegativeIntSchema,
+});
 
 export const NotificationRequestSchema = z.object({
   recipientId: positiveIntSchema,
@@ -977,6 +2233,7 @@ export const CronJobRequestSchema = z.object({
     'packing_supply_payouts',
     'expired_offers',
     'route_optimization',
+    'packing_supply_route_assignment',
   ]),
   parameters: z.record(z.any()).optional(),
 });
@@ -986,6 +2243,74 @@ export const CronJobResponseSchema = z.object({
   jobId: z.string(),
   executionTime: z.string(),
   results: z.any(),
+});
+
+// Packing Supply Route Assignment Cron Schema
+export const PackingSupplyRouteAssignmentCronRequestSchema = z.object({
+  targetDate: z.string().optional(),
+  dryRun: z.boolean().optional().default(false),
+  forceOptimization: z.boolean().optional().default(false),
+});
+
+export const PackingSupplyRouteAssignmentCronResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string(),
+  summary: z.object({
+    targetDate: z.string(),
+    dryRun: z.boolean(),
+    ordersProcessed: z.number().int().min(0),
+    routesCreated: z.number().int().min(0),
+    driverOffersSuccessful: z.number().int().min(0),
+    driverOffersFailed: z.number().int().min(0),
+  }),
+  details: z.object({
+    optimization: z.any(),
+    driverOffers: z.array(z.object({
+      routeId: z.string(),
+      success: z.boolean(),
+      driverName: z.string().optional(),
+      message: z.string().optional(),
+      error: z.string().optional(),
+    })),
+  }),
+});
+
+// Daily Dispatch Cron Schema
+export const DailyDispatchCronRequestSchema = z.object({
+  targetDate: z.string().optional(),
+  dryRun: z.boolean().optional().default(false),
+  forceDispatch: z.boolean().optional().default(false),
+});
+
+export const DailyDispatchCronResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string(),
+  data: z.object({
+    dispatchId: z.string(),
+    targetDate: z.string(),
+    dryRun: z.boolean(),
+    tasksDispatched: z.number().int().min(0),
+    teamId: z.string(),
+    teamName: z.string(),
+  }).optional(),
+  executionTime: z.number().int().min(0),
+});
+
+// Driver Assignment Cron Schema
+export const DriverAssignCronRequestSchema = z.object({
+  // No parameters needed - this is a simple GET endpoint that processes expired assignments
+});
+
+export const DriverAssignCronResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string(),
+  results: z.array(z.object({
+    appointmentId: z.number(),
+    status: z.enum(['retried', 'error']),
+    tasksRetried: z.number().int().min(0).optional(),
+    error: z.string().optional(),
+  })),
+  appointmentsProcessed: z.number().int().min(0),
 });
 
 // ===== VALIDATION HELPER FUNCTIONS =====
@@ -1465,3 +2790,596 @@ export const RouteDetailsParamsSchema = z.object({
 export const RouteDetailsQuerySchema = z.object({
   token: z.string().min(1, 'Token is required')
 });
+
+// ===== MOVING PARTNERS MIGRATION SCHEMAS =====
+
+export const CreateMoverRequestSchema = z.object({
+  companyName: z.string().min(1, 'Company name is required'),
+  email: emailSchema,
+  phoneNumber: phoneSchema,
+  website: z.string().url('Valid website URL is required'),
+  employeeCount: positiveIntSchema,
+  createDefaultAvailability: z.boolean().optional().default(false)
+});
+
+export const CreateMoverResponseSchema = z.object({
+  success: z.boolean(),
+  mover: z.object({
+    id: positiveIntSchema,
+    name: z.string(),
+    email: emailSchema,
+    phoneNumber: phoneSchema,
+    website: z.string(),
+    numberOfEmployees: positiveIntSchema,
+    isApproved: z.boolean(),
+    createdAt: z.date(),
+    updatedAt: z.date()
+  }).optional()
+});
+
+export const SearchMovingPartnersRequestSchema = z.object({
+  date: z.string().min(1, 'Date is required'),
+  time: z.string().regex(/^\d{2}:\d{2}$/, 'Time must be in HH:mm format'),
+  excludeAppointmentId: z.string().or(positiveIntSchema).optional()
+});
+
+export const SearchMovingPartnersResponseSchema = z.array(z.object({
+  id: positiveIntSchema,
+  name: z.string(),
+  email: emailSchema,
+  phoneNumber: phoneSchema,
+  status: z.string(),
+  availability: z.array(z.object({
+    id: positiveIntSchema,
+    dayOfWeek: z.string(),
+    startTime: z.string(),
+    endTime: z.string(),
+    maxCapacity: positiveIntSchema,
+    isBlocked: z.boolean()
+  }))
+}));
+
+// Type exports for migration schemas
+export type CreateMoverRequest = z.infer<typeof CreateMoverRequestSchema>;
+export type CreateMoverResponse = z.infer<typeof CreateMoverResponseSchema>;
+export type SearchMovingPartnersRequest = z.infer<typeof SearchMovingPartnersRequestSchema>;
+export type SearchMovingPartnersResponse = z.infer<typeof SearchMovingPartnersResponseSchema>;
+export type UpdateMovingPartnerProfileRequest = z.infer<typeof UpdateMovingPartnerProfileRequestSchema>;
+export type MovingPartnerProfileResponse = z.infer<typeof MovingPartnerProfileResponseSchema>;
+
+export const MovingPartnerDriversListResponseSchema = z.array(z.object({
+  id: positiveIntSchema,
+  firstName: z.string(),
+  lastName: z.string(), 
+  email: z.string(),
+  phoneNumber: z.string(),
+  isActive: z.boolean(),
+  createdAt: z.string(),
+  isApproved: z.boolean(),
+}));
+
+export const UpdateMovingPartnerDriverStatusRequestSchema = z.object({
+  driverId: positiveIntSchema,
+  isActive: z.boolean(),
+});
+
+export const UpdateMovingPartnerDriverStatusResponseSchema = z.object({
+  id: positiveIntSchema,
+  firstName: z.string(),
+  lastName: z.string(),
+  email: z.string(),
+  phoneNumber: z.string(),
+  isActive: z.boolean(),
+  createdAt: z.string(),
+});
+
+export type MovingPartnerDriversListResponse = z.infer<typeof MovingPartnerDriversListResponseSchema>;
+export type UpdateMovingPartnerDriverStatusRequest = z.infer<typeof UpdateMovingPartnerDriverStatusRequestSchema>;
+export type UpdateMovingPartnerDriverStatusResponse = z.infer<typeof UpdateMovingPartnerDriverStatusResponseSchema>;
+
+// Moving Partner Availability Schemas
+export const MovingPartnerAvailabilityGetResponseSchema = z.object({
+  success: z.boolean(),
+  availability: z.array(
+    z.object({
+      id: positiveIntSchema,
+      dayOfWeek: z.enum(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']),
+      startTime: z.string(),
+      endTime: z.string(),
+      isBlocked: z.boolean(),
+      maxCapacity: positiveIntSchema,
+      createdAt: z.string(),
+      updatedAt: z.string(),
+    })
+  ),
+});
+
+export const MovingPartnerAvailabilityPostRequestSchema = z.object({
+  id: positiveIntSchema.optional(),
+  dayOfWeek: z.enum(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']),
+  startTime: z.string().min(1, 'Start time is required'),
+  endTime: z.string().min(1, 'End time is required'),
+  isBlocked: z.boolean().optional().default(false),
+  maxCapacity: z.number().int().min(1, 'Job capacity must be at least 1').max(10, 'Job capacity must be at most 10').optional().default(1),
+});
+
+export const MovingPartnerAvailabilityPostResponseSchema = z.object({
+  success: z.boolean(),
+  availability: z.object({
+    id: positiveIntSchema,
+    dayOfWeek: z.enum(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']),
+    startTime: z.string(),
+    endTime: z.string(),
+    isBlocked: z.boolean(),
+    maxCapacity: positiveIntSchema,
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  }),
+});
+
+export type MovingPartnerAvailabilityGetResponse = z.infer<typeof MovingPartnerAvailabilityGetResponseSchema>;
+export type MovingPartnerAvailabilityPostRequest = z.infer<typeof MovingPartnerAvailabilityPostRequestSchema>;
+export type MovingPartnerAvailabilityPostResponse = z.infer<typeof MovingPartnerAvailabilityPostResponseSchema>;
+
+// ===== MOVING PARTNER FILE UPLOAD SCHEMAS =====
+
+export const MovingPartnerJobsRequestSchema = z.object({
+  id: z.string().or(positiveIntSchema),
+});
+
+export const MovingPartnerJobsResponseSchema = z.object({
+  success: z.boolean(),
+  data: z.array(z.object({
+    id: z.number(),
+    appointmentType: z.string(),
+    address: z.string(),
+    date: z.string(),
+    time: z.string(),
+    numberOfUnits: z.number(),
+    planType: z.string(),
+    insuranceCoverage: z.number(),
+    loadingHelpPrice: z.number(),
+    serviceStartTime: z.string().nullable(),
+    serviceEndTime: z.string().nullable(),
+    feedback: z.object({
+      rating: z.number(),
+      comment: z.string(),
+      tipAmount: z.number(),
+    }).nullable(),
+    user: z.object({
+      firstName: z.string(),
+      lastName: z.string(),
+    }),
+    driver: z.object({
+      firstName: z.string(),
+      lastName: z.string(),
+    }).nullable(),
+    requestedStorageUnits: z.array(z.object({
+      unitType: z.string(),
+      quantity: z.number(),
+    })),
+    status: z.string(),
+    totalCost: z.number(),
+    notes: z.string().nullable(),
+  })),
+});
+
+export const MovingPartnerUploadInsuranceRequestSchema = z.object({
+  id: z.string().or(positiveIntSchema),
+  file: z.any(), // File from FormData
+});
+
+export const MovingPartnerUploadInsuranceResponseSchema = z.object({
+  success: z.boolean(),
+  url: z.string(),
+  message: z.string(),
+});
+
+export const MovingPartnerUploadProfilePictureRequestSchema = z.object({
+  id: z.string().or(positiveIntSchema),
+  file: z.any(), // File from FormData
+});
+
+export const MovingPartnerUploadProfilePictureResponseSchema = z.object({
+  success: z.boolean(),
+  url: z.string(),
+  message: z.string(),
+});
+
+export const MovingPartnerUploadVehiclePhotosRequestSchema = z.object({
+  id: z.string().or(positiveIntSchema),
+  file: z.any(), // File from FormData
+  fieldName: z.enum(['frontVehiclePhoto', 'backVehiclePhoto', 'autoInsurancePhoto']),
+});
+
+export const MovingPartnerUploadVehiclePhotosResponseSchema = z.object({
+  url: z.string(),
+  message: z.string(),
+});
+
+// Type exports for moving partner file uploads
+export type MovingPartnerJobsRequest = z.infer<typeof MovingPartnerJobsRequestSchema>;
+export type MovingPartnerJobsResponse = z.infer<typeof MovingPartnerJobsResponseSchema>;
+export type MovingPartnerUploadInsuranceRequest = z.infer<typeof MovingPartnerUploadInsuranceRequestSchema>;
+export type MovingPartnerUploadInsuranceResponse = z.infer<typeof MovingPartnerUploadInsuranceResponseSchema>;
+export type MovingPartnerUploadProfilePictureRequest = z.infer<typeof MovingPartnerUploadProfilePictureRequestSchema>;
+export type MovingPartnerUploadProfilePictureResponse = z.infer<typeof MovingPartnerUploadProfilePictureResponseSchema>;
+export type MovingPartnerUploadVehiclePhotosRequest = z.infer<typeof MovingPartnerUploadVehiclePhotosRequestSchema>;
+export type MovingPartnerUploadVehiclePhotosResponse = z.infer<typeof MovingPartnerUploadVehiclePhotosResponseSchema>;
+
+// ===== CUSTOMER UPCOMING APPOINTMENTS SCHEMAS =====
+
+export const CustomerUpcomingAppointmentsRequestSchema = z.object({
+  userType: z.enum(['mover', 'driver']),
+  userId: z.string().or(positiveIntSchema),
+});
+
+export const CustomerUpcomingAppointmentsResponseSchema = z.object({
+  success: z.boolean(),
+  data: z.array(z.object({
+    id: z.number(),
+    address: z.string(),
+    date: z.string(),
+    time: z.string(),
+    appointmentType: z.string(),
+    status: z.string(),
+    numberOfUnits: z.number(),
+    planType: z.string(),
+    insuranceCoverage: z.string().optional(),
+    description: z.string().optional(),
+    additionalInformation: z.object({
+      itemsOver100lbs: z.boolean(),
+      moveDescription: z.string().optional(),
+      conditionsDescription: z.string().optional(),
+    }).optional(),
+    requestedStorageUnits: z.array(z.object({
+      storageUnitId: z.number(),
+      storageUnit: z.object({
+        storageUnitNumber: z.string(),
+      }),
+    })),
+    user: z.object({
+      firstName: z.string(),
+      lastName: z.string(),
+    }).optional(),
+    driver: z.object({
+      firstName: z.string(),
+      lastName: z.string(),
+      phoneNumber: z.string().optional(),
+      profilePicture: z.string().optional(),
+    }).optional(),
+  })),
+});
+
+// ===== CUSTOMER PROFILE SCHEMAS =====
+
+export const CustomerProfileRequestSchema = z.object({
+  id: z.string().or(positiveIntSchema),
+});
+
+export const CustomerProfileResponseSchema = z.object({
+  id: z.number(),
+  firstName: z.string(),
+  lastName: z.string(),
+  email: z.string(),
+  phoneNumber: z.string(),
+  stripeCustomerId: z.string().nullable(),
+  savedCards: z.array(z.object({
+    id: z.string(),
+    stripePaymentMethodId: z.string(),
+    last4: z.string(),
+    brand: z.string(),
+    expiryMonth: z.number(),
+    expiryYear: z.number(),
+    isDefault: z.boolean(),
+  })),
+});
+
+// ===== CUSTOMER CONTACT INFO SCHEMAS =====
+
+export const CustomerContactInfoRequestSchema = z.object({
+  id: z.string().or(positiveIntSchema),
+});
+
+export const CustomerContactInfoResponseSchema = z.object({
+  firstName: z.string(),
+  lastName: z.string(),
+  email: z.string(),
+  phoneNumber: z.string(),
+  verifiedPhoneNumber: z.boolean(),
+  storageUnits: z.array(z.object({
+    storageUnitNumber: z.string(),
+    padlockCombo: z.string().nullable(),
+  })),
+});
+
+export const CustomerContactInfoUpdateRequestSchema = z.object({
+  id: z.string().or(positiveIntSchema),
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
+  email: emailSchema.optional(),
+  phoneNumber: phoneSchema.optional(),
+  storageUnits: z.array(z.object({
+    storageUnitNumber: z.string(),
+    padlockCombo: z.string(),
+  })).optional(),
+});
+
+export const CustomerContactInfoUpdateResponseSchema = z.object({
+  id: z.number(),
+  firstName: z.string(),
+  lastName: z.string(),
+  email: z.string(),
+  phoneNumber: z.string(),
+  verifiedPhoneNumber: z.boolean(),
+});
+
+// Type exports for customer routes
+export type CustomerUpcomingAppointmentsRequest = z.infer<typeof CustomerUpcomingAppointmentsRequestSchema>;
+export type CustomerUpcomingAppointmentsResponse = z.infer<typeof CustomerUpcomingAppointmentsResponseSchema>;
+export type CustomerProfileRequest = z.infer<typeof CustomerProfileRequestSchema>;
+export type CustomerProfileResponse = z.infer<typeof CustomerProfileResponseSchema>;
+export type CustomerContactInfoRequest = z.infer<typeof CustomerContactInfoRequestSchema>;
+export type CustomerContactInfoResponse = z.infer<typeof CustomerContactInfoResponseSchema>;
+export type CustomerContactInfoUpdateRequest = z.infer<typeof CustomerContactInfoUpdateRequestSchema>;
+export type CustomerContactInfoUpdateResponse = z.infer<typeof CustomerContactInfoUpdateResponseSchema>;
+
+// Cron job type exports
+export type PackingSupplyRouteAssignmentCronRequest = z.infer<typeof PackingSupplyRouteAssignmentCronRequestSchema>;
+export type PackingSupplyRouteAssignmentCronResponse = z.infer<typeof PackingSupplyRouteAssignmentCronResponseSchema>;
+export type DailyDispatchCronRequest = z.infer<typeof DailyDispatchCronRequestSchema>;
+export type DailyDispatchCronResponse = z.infer<typeof DailyDispatchCronResponseSchema>;
+export type DriverAssignCronRequest = z.infer<typeof DriverAssignCronRequestSchema>;
+export type DriverAssignCronResponse = z.infer<typeof DriverAssignCronResponseSchema>;
+
+// ===== STRIPE CONNECT SCHEMAS =====
+
+const stripeUserTypeSchema = z.enum(['driver', 'mover']);
+
+export const StripeConnectUserRequestSchema = z.object({
+  userId: z.string().or(positiveIntSchema),
+  userType: stripeUserTypeSchema,
+});
+
+export const StripeConnectDriverRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema),
+});
+
+// Account Details Schemas
+export const StripeConnectAccountDetailsResponseSchema = z.object({
+  accountName: z.string(),
+  balance: z.number(),
+  availableBalance: z.number(),
+  pendingBalance: z.number(),
+  connectedDate: z.string(),
+  detailsSubmitted: z.boolean(),
+  payoutsEnabled: z.boolean(),
+  chargesEnabled: z.boolean(),
+});
+
+// Account Status Schemas
+export const StripeConnectAccountStatusResponseSchema = z.object({
+  hasAccount: z.boolean(),
+  accountId: z.string().optional(),
+  detailsSubmitted: z.boolean().optional(),
+  payoutsEnabled: z.boolean().optional(),
+  chargesEnabled: z.boolean().optional(),
+  requirements: z.any().optional(),
+  message: z.string().optional(),
+});
+
+// Balance Schemas
+export const StripeConnectBalanceResponseSchema = z.object({
+  available: z.number(),
+  pending: z.number(),
+  inTransit: z.number(),
+  total: z.number(),
+});
+
+// Create Account Schemas
+export const StripeConnectCreateAccountResponseSchema = z.object({
+  success: z.boolean(),
+  accountId: z.string(),
+  message: z.string().optional(),
+});
+
+// Account Link Schemas
+export const StripeConnectAccountLinkResponseSchema = z.object({
+  url: z.string(),
+});
+
+// Account Session Schemas
+export const StripeConnectAccountSessionResponseSchema = z.object({
+  clientSecret: z.string(),
+});
+
+// Dashboard Link Schemas
+export const StripeConnectDashboardLinkResponseSchema = z.object({
+  url: z.string(),
+});
+
+// Payment History Schemas
+export const StripeConnectPaymentHistoryResponseSchema = z.object({
+  payments: z.array(z.object({
+    id: z.string(),
+    amount: z.number(),
+    status: z.string(),
+    created: z.number(),
+    description: z.string(),
+  })),
+});
+
+// Payouts Schemas
+export const StripeConnectPayoutsResponseSchema = z.object({
+  payouts: z.array(z.object({
+    id: z.string(),
+    amount: z.number(),
+    status: z.string(),
+    date: z.string(),
+    destination: z.string(),
+  })),
+});
+
+// Stripe Status Schemas
+export const StripeConnectStatusResponseSchema = z.object({
+  hasStripeAccount: z.boolean(),
+  stripeConnectAccountId: z.string().nullable(),
+  onboardingComplete: z.boolean().nullable(),
+  payoutsEnabled: z.boolean().nullable(),
+  detailsSubmitted: z.boolean().nullable(),
+});
+
+// Test Data Schemas
+export const StripeConnectTestDataRequestSchema = z.object({
+  driverId: z.string().or(positiveIntSchema),
+});
+
+export const StripeConnectTestDataResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string(),
+});
+
+// Type exports for Stripe Connect routes
+export type StripeConnectUserRequest = z.infer<typeof StripeConnectUserRequestSchema>;
+export type StripeConnectDriverRequest = z.infer<typeof StripeConnectDriverRequestSchema>;
+export type StripeConnectAccountDetailsResponse = z.infer<typeof StripeConnectAccountDetailsResponseSchema>;
+export type StripeConnectAccountStatusResponse = z.infer<typeof StripeConnectAccountStatusResponseSchema>;
+export type StripeConnectBalanceResponse = z.infer<typeof StripeConnectBalanceResponseSchema>;
+export type StripeConnectCreateAccountResponse = z.infer<typeof StripeConnectCreateAccountResponseSchema>;
+export type StripeConnectAccountLinkResponse = z.infer<typeof StripeConnectAccountLinkResponseSchema>;
+export type StripeConnectAccountSessionResponse = z.infer<typeof StripeConnectAccountSessionResponseSchema>;
+export type StripeConnectDashboardLinkResponse = z.infer<typeof StripeConnectDashboardLinkResponseSchema>;
+export type StripeConnectPaymentHistoryResponse = z.infer<typeof StripeConnectPaymentHistoryResponseSchema>;
+export type StripeConnectPayoutsResponse = z.infer<typeof StripeConnectPayoutsResponseSchema>;
+export type StripeConnectStatusResponse = z.infer<typeof StripeConnectStatusResponseSchema>;
+export type StripeConnectTestDataRequest = z.infer<typeof StripeConnectTestDataRequestSchema>;
+export type StripeConnectTestDataResponse = z.infer<typeof StripeConnectTestDataResponseSchema>;
+
+// Tracking Verify Schemas
+export const TrackingVerifyRequestSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+});
+
+export const TrackingStepActionSchema = z.object({
+  label: z.string(),
+  trackingUrl: z.string().optional(),
+  url: z.string().optional(),
+  type: z.literal('timer').optional(),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
+  timerData: z.object({
+    type: z.literal('timer'),
+    startTime: z.string(),
+    endTime: z.string().optional(),
+  }).optional(),
+  iconName: z.string().optional(),
+});
+
+export const TrackingStepSchema = z.object({
+  status: z.enum(['pending', 'in_transit', 'complete']),
+  title: z.string(),
+  timestamp: z.string(),
+  action: TrackingStepActionSchema.optional(),
+  secondaryAction: z.object({
+    label: z.string(),
+    url: z.string(),
+  }).optional(),
+});
+
+export const TrackingDeliveryUnitSchema = z.object({
+  id: z.string(),
+  status: z.enum(['pending', 'in_transit', 'complete']),
+  unitNumber: z.number(),
+  totalUnits: z.number(),
+  provider: z.string(),
+  steps: z.array(TrackingStepSchema),
+});
+
+export const TrackingVerifyResponseSchema = z.object({
+  appointmentDate: z.string(),
+  appointmentType: z.string(),
+  deliveryUnits: z.array(TrackingDeliveryUnitSchema),
+  location: z.object({
+    coordinates: z.object({
+      lat: z.number(),
+      lng: z.number(),
+    }),
+  }),
+});
+
+// Export types
+export type TrackingVerifyRequest = z.infer<typeof TrackingVerifyRequestSchema>;
+export type TrackingVerifyResponse = z.infer<typeof TrackingVerifyResponseSchema>;
+
+// Admin Delivery Routes Types
+export type AdminDeliveryRoutesRequest = z.infer<typeof AdminDeliveryRoutesRequestSchema>;
+export type AdminDeliveryRoutesResponse = z.infer<typeof AdminDeliveryRoutesResponseSchema>;
+
+// ===== MESSAGING DOMAIN SCHEMAS =====
+
+/**
+ * Twilio inbound webhook validation schemas
+ * @source boombox-10.0/src/app/api/twilio/inbound/route.ts
+ */
+
+export const TwilioInboundRequestSchema = z.object({
+  From: z.string().min(1, 'From phone number is required'),
+  To: z.string().min(1, 'To phone number is required'),
+  Body: z.string().min(1, 'Message body is required'),
+  MessageSid: z.string().optional(),
+  AccountSid: z.string().optional(),
+  FromCountry: z.string().optional(),
+  FromState: z.string().optional(),
+  FromCity: z.string().optional(),
+  FromZip: z.string().optional(),
+  ToCountry: z.string().optional(),
+  ToState: z.string().optional(),
+  ToCity: z.string().optional(),
+  ToZip: z.string().optional(),
+});
+
+export const TwilioInboundResponseSchema = z.object({
+  success: z.boolean(),
+  action: z.enum(['accept', 'decline', 'decline_reconfirm']).optional(),
+  type: z.enum(['packing_supply_route', 'driver_task', 'mover_change', 'customer_general']).optional(),
+  appointmentId: z.string().optional(),
+  routeId: z.string().optional(),
+  error: z.string().optional(),
+});
+
+// ===== ADMIN INVITATION DOMAIN SCHEMAS =====
+
+export const CreateAdminInviteRequestSchema = z.object({
+  email: emailSchema,
+  role: z.enum(['ADMIN', 'SUPERADMIN'], {
+    errorMap: () => ({ message: 'Role must be either ADMIN or SUPERADMIN' })
+  })
+});
+
+export const CreateAdminInviteResponseSchema = z.object({
+  message: z.string()
+});
+
+// ===== CRON ROUTE VALIDATIONS =====
+
+export const ProcessExpiredMoverChangesRequestSchema = z.object({
+  // POST request with auth header verification only
+});
+
+export const ProcessExpiredMoverChangesResponseSchema = z.object({
+  success: z.boolean(),
+  summary: z.object({
+    totalProcessed: z.number(),
+    autoAssigned: z.number(),
+    thirdPartyEscalated: z.number(),
+    errors: z.number()
+  })
+});
+
+// Export types
+export type TwilioInboundRequest = z.infer<typeof TwilioInboundRequestSchema>;
+export type TwilioInboundResponse = z.infer<typeof TwilioInboundResponseSchema>;
+export type CreateAdminInviteRequest = z.infer<typeof CreateAdminInviteRequestSchema>;
+export type CreateAdminInviteResponse = z.infer<typeof CreateAdminInviteResponseSchema>;
+export type ProcessExpiredMoverChangesRequest = z.infer<typeof ProcessExpiredMoverChangesRequestSchema>;
+export type ProcessExpiredMoverChangesResponse = z.infer<typeof ProcessExpiredMoverChangesResponseSchema>;

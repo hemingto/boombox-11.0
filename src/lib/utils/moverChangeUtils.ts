@@ -217,4 +217,82 @@ export async function processDiyPlanConversion(appointment: any) {
       console.error(`Error processing DIY task ${task.taskId}:`, error);
     }
   }
+}
+
+/**
+ * Process expired mover change requests
+ * @source boombox-10.0/src/app/api/cron/process-expired-mover-changes/route.ts (lines 130-306)
+ * @refactor Extracted the business logic for processing expired mover change requests
+ */
+export async function processExpiredMoverChange(appointment: any, moverChangeRequest: any) {
+  // Get the suggested moving partner
+  const suggestedMover = await prisma.movingPartner.findUnique({
+    where: { id: moverChangeRequest.suggestedMovingPartnerId }
+  });
+
+  if (!suggestedMover) {
+    throw new Error(`Suggested mover ${moverChangeRequest.suggestedMovingPartnerId} not found for appointment ${appointment.id}`);
+  }
+
+  // Check if the suggested mover is still available
+  const appointmentDate = new Date(appointment.date);
+  const appointmentTime = new Date(appointment.time);
+  const dayOfWeek = appointmentDate.toLocaleDateString("en-US", { weekday: "long" });
+  const formattedTime = formatTime24Hour(appointmentTime);
+
+  const isStillAvailable = await prisma.movingPartnerAvailability.findFirst({
+    where: {
+      movingPartnerId: suggestedMover.id,
+      dayOfWeek,
+      startTime: { lte: formattedTime },
+      endTime: { gte: formattedTime },
+      isBlocked: false
+    },
+    include: {
+      timeSlotBookings: {
+        where: {
+          bookingDate: appointmentDate,
+          endDate: { gte: appointmentTime }
+        }
+      }
+    }
+  });
+
+  return {
+    suggestedMover,
+    isStillAvailable: isStillAvailable && isStillAvailable.timeSlotBookings.length < isStillAvailable.maxCapacity,
+    availabilityRecord: isStillAvailable,
+    appointmentDate,
+    appointmentTime
+  };
+}
+
+/**
+ * Process expired third-party mover requests
+ * @source boombox-10.0/src/app/api/cron/process-expired-mover-changes/route.ts (lines 310-381)
+ * @refactor Extracted the business logic for processing expired third-party mover requests
+ */
+export async function processExpiredThirdPartyMover(appointment: any, thirdPartyMoverRequest: any) {
+  // Mark the request as escalated
+  const appointmentDescription = appointment.description ? JSON.parse(appointment.description) : {};
+  
+  await prisma.appointment.update({
+    where: { id: appointment.id },
+    data: {
+      description: JSON.stringify({
+        ...appointmentDescription,
+        thirdPartyMoverRequest: {
+          ...thirdPartyMoverRequest,
+          status: 'escalated_to_admin',
+          escalatedAt: new Date().toISOString(),
+          reason: 'customer_no_response_timeout'
+        }
+      })
+    }
+  });
+
+  return {
+    appointmentDescription,
+    escalated: true
+  };
 } 

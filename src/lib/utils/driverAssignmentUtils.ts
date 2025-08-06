@@ -431,4 +431,131 @@ export async function notifyMovingPartner(appointment: any, driverName?: string)
   console.log(`Moving Partner notification: ${baseMessage}`);
   
   return true;
+}
+
+/**
+ * Handle retrying driver assignment for expired notifications
+ * Based on the retry logic from boombox-10.0 driver-assign route
+ */
+export async function handleRetryAssignment(appointment: any): Promise<{
+  message: string;
+  appointmentId: number;
+  unitResults: DriverAssignmentResult[];
+}> {
+  const tasksByUnit: { [unitNumberKey: string]: any[] } = {};
+  
+  // Group tasks by unit
+  for (const task of appointment.onfleetTasks) {
+    const unitNumStr = (task.unitNumber || 0).toString();
+    if (!tasksByUnit[unitNumStr]) {
+      tasksByUnit[unitNumStr] = [];
+    }
+    tasksByUnit[unitNumStr].push(task);
+  }
+  
+  const unitResults: DriverAssignmentResult[] = [];
+  
+  for (const [unitNumberKey, unitTasks] of Object.entries(tasksByUnit)) {
+    const numericUnitNumber = parseInt(unitNumberKey);
+    
+    // Check if retry is needed for this unit
+    const needsRetry = unitTasks.some((task: any) => {
+      return task.driverNotificationStatus === 'sent' && 
+             task.driverNotificationSentAt && 
+             (new Date().getTime() - new Date(task.driverNotificationSentAt).getTime() > DRIVER_ACCEPTANCE_WINDOW);
+    });
+    
+    if (!needsRetry) {
+      unitResults.push({
+        unitNumber: numericUnitNumber,
+        status: 'no_retry_needed',
+        message: 'No tasks to retry for this unit'
+      });
+      continue;
+    }
+    
+    const unassignedTasks = unitTasks.filter((task: any) => !task.driverId);
+    
+    if (unassignedTasks.length === 0) {
+      unitResults.push({
+        unitNumber: numericUnitNumber,
+        status: 'all_assigned',
+        message: 'All tasks are already assigned for this unit'
+      });
+      continue;
+    }
+    
+    // Build exclude list from declined drivers and previously notified
+    const excludeDriverIds: number[] = [];
+    for (const task of unassignedTasks) {
+      if (task.declinedDriverIds && task.declinedDriverIds.length > 0) {
+        excludeDriverIds.push(...task.declinedDriverIds);
+      }
+      if (task.lastNotifiedDriverId && task.driverNotificationStatus === 'sent') {
+        excludeDriverIds.push(task.lastNotifiedDriverId);
+      }
+    }
+    
+    // Find next available driver
+    const movingPartnerId = appointment.planType === 'Full Service Plan' ? appointment.movingPartnerId : undefined;
+    const availableDrivers = await findAvailableDrivers(appointment, unassignedTasks[0], excludeDriverIds, movingPartnerId);
+    
+    if (availableDrivers.length === 0) {
+      await notifyAdminNoDrivers(appointment, unassignedTasks[0]);
+      unitResults.push({
+        unitNumber: numericUnitNumber,
+        status: 'no_drivers',
+        message: 'No more available drivers for this unit, admin notified'
+      });
+      continue;
+    }
+    
+    const nextDriver = availableDrivers[0];
+    
+    if (!nextDriver.phoneNumber) {
+      console.error(`Cannot notify driver ${nextDriver.id}: no phone number`);
+      unitResults.push({
+        unitNumber: numericUnitNumber,
+        status: 'error',
+        message: 'Selected driver has no phone number'
+      });
+      continue;
+    }
+
+    // Send notification to the next driver
+    const notificationSuccess = await notifyDriverAboutJob(nextDriver, appointment, unassignedTasks[0]);
+    
+    if (notificationSuccess) {
+      // Update all unassigned tasks for this unit
+      for (const task of unassignedTasks) {
+        await prisma.onfleetTask.update({
+          where: { id: task.id },
+          data: { 
+            driverNotificationSentAt: new Date(), 
+            driverNotificationStatus: 'sent', 
+            lastNotifiedDriverId: nextDriver.id, 
+            declinedDriverIds: excludeDriverIds 
+          }
+        });
+      }
+      
+      unitResults.push({
+        unitNumber: numericUnitNumber,
+        status: 'retry_sent',
+        driverId: nextDriver.id
+      });
+    } else {
+      unitResults.push({
+        unitNumber: numericUnitNumber,
+        status: 'error',
+        message: 'Failed to send notification to next driver'
+      });
+    }
+  }
+  
+  return { 
+    message: 'Retry process completed for appointment units',
+    appointmentId: appointment.id,
+    unitResults
+  };
 } 

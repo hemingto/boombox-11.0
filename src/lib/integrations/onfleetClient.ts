@@ -367,5 +367,29 @@ export async function testOnfleetConnection(): Promise<{
   }
 }
 
+/**
+ * Fetch task details by shortId from Onfleet API
+ * @source boombox-10.0/src/app/api/tracking/verify/route.ts (fetchTask function)
+ */
+export async function fetchTaskByShortId(taskId: string) {
+  if (!taskId) return null;
+  
+  try {
+    const response = await fetch(
+      `https://onfleet.com/api/v2/tasks/shortId/${taskId}`,
+      {
+        headers: {
+          Authorization: `Basic ${Buffer.from(process.env.ONFLEET_API_KEY + ':').toString('base64')}`
+        }
+      }
+    );
+    
+    return response.ok ? await response.json() : null;
+  } catch (error) {
+    console.error('Error fetching Onfleet task by shortId:', error);
+    return null;
+  }
+}
+
 // Export the error class for use in other files
 export { OnfleetApiError };

@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
 /**
  * Handle initial assignment of tasks to appropriate drivers/teams
  */
-async function handleInitialAssignment(appointment: any) {
+export async function handleInitialAssignment(appointment: any) {
   const onfleetClient = await getOnfleetClient();
   const unitResults: DriverAssignmentResult[] = [];
   let notifiedDriverIdsForThisAppointment: number[] = [];

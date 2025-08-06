@@ -21,7 +21,7 @@
 
 import { NextResponse } from 'next/server';
 import { stripe } from '@/lib/integrations/stripeClient';
-import { getStripeCustomerId } from '@/lib/integrations/stripeUtils';
+import { getStripeCustomerId } from '@/lib/utils/stripeUtils';
 
 export async function POST(request: Request) {
   try {

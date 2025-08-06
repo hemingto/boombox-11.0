@@ -2,11 +2,13 @@
  * @fileoverview Packing supply order utility functions
  * @source boombox-10.0/src/app/api/packing-supplies/create-order/route.ts (inline utility functions)
  * @source boombox-10.0/src/app/api/packing-supplies/orders/[orderId]/cancel/route.ts (cancellation logic)
+ * @source boombox-10.0/src/app/api/drivers/[driverId]/packing-supply-routes/route.ts (driver route fetching)
  * @refactor Extracted utility functions from API routes to centralized utils
  */
 
 import { PackingSupplyCartItem } from '@/types/packingSupply.types';
 import { formatCurrency } from '@/lib/utils/currencyUtils';
+import { prisma } from '@/lib/database/prismaClient';
 import crypto from 'crypto';
 
 export interface DeliveryTimeWindow {
@@ -236,4 +238,248 @@ export function createTrackingUrl(trackingToken: string): string {
 export function formatOrderItemsForNotes(cartItems: PackingSupplyCartItem[], totalPrice: number): string {
   const itemsText = cartItems.map(item => `- ${item.quantity}x ${item.name}`).join('\n');
   return `Items:\n${itemsText}\n\nTotal: ${formatCurrency(totalPrice)}`;
+}
+
+/**
+ * Fetch packing supply routes for a driver with detailed metrics and formatting
+ * @source boombox-10.0/src/app/api/drivers/[driverId]/packing-supply-routes/route.ts
+ * @param driverId - The ID of the driver
+ * @returns Array of formatted packing supply routes with metrics and order details
+ */
+export async function getDriverPackingSupplyRoutes(driverId: number) {
+  // Get current date for filtering
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000)); // 30 days ago
+
+  // Fetch packing supply routes assigned to this driver
+  const routes = await prisma.packingSupplyRoute.findMany({
+    where: {
+      driverId: driverId,
+      deliveryDate: {
+        gte: thirtyDaysAgo, // Get routes from last 30 days to include recent history
+      },
+      routeStatus: {
+        in: ['in_progress', 'completed'], // Include both in progress and completed routes
+      },
+    },
+    include: {
+      orders: {
+        select: {
+          id: true,
+          deliveryAddress: true,
+          contactName: true,
+          contactEmail: true,
+          contactPhone: true,
+          deliveryDate: true,
+          totalPrice: true,
+          status: true,
+          routeStopNumber: true,
+          actualDeliveryTime: true,
+          trackingUrl: true,
+          orderDetails: {
+            include: {
+              product: {
+                select: {
+                  title: true,
+                  description: true,
+                  imageSrc: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { routeStopNumber: 'asc' },
+      },
+      driver: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          phoneNumber: true,
+          email: true,
+        },
+      },
+    },
+    orderBy: {
+      deliveryDate: 'asc',
+    },
+  });
+
+  // Transform the data to match the expected format for the components
+  const formattedRoutes = routes.map((route) => {
+    // Calculate route metrics
+    const totalStops = route.orders.length;
+    const completedStops = route.orders.filter(order => 
+      order.status === 'Delivered' || order.actualDeliveryTime
+    ).length;
+    
+    const estimatedMiles = route.totalDistance ? parseFloat(route.totalDistance.toString()) : 0;
+    const estimatedDurationMinutes = route.totalTime ? Math.ceil(route.totalTime / 60) : (totalStops * 15);
+    
+    // Calculate payout estimate ($15 per stop + $0.50 per mile)
+    const basePayPerStop = 15;
+    const mileageRate = 0.50;
+    const estimatedPayout = Math.round((totalStops * basePayPerStop) + (estimatedMiles * mileageRate));
+
+    return {
+      id: route.id,
+      routeId: route.routeId,
+      appointmentType: 'Packing Supply Delivery',
+      address: `${totalStops} stops - ${route.orders[0]?.deliveryAddress || 'Multiple locations'}`,
+      date: route.deliveryDate,
+      time: route.deliveryDate, // Use delivery date as time for consistency
+      numberOfUnits: totalStops,
+      planType: 'Packing Supply Route',
+      insuranceCoverage: null,
+      description: `Route with ${totalStops} deliveries`,
+      user: null, // Routes don't have a single user
+      driver: route.driver,
+      routeStatus: route.routeStatus,
+      totalStops,
+      completedStops,
+      estimatedMiles,
+      estimatedDurationMinutes,
+      estimatedPayout: route.payoutAmount ? parseFloat(route.payoutAmount.toString()) : estimatedPayout,
+      payoutStatus: route.payoutStatus,
+      orders: route.orders,
+      // Additional route-specific fields
+      routeMetrics: {
+        totalDistance: estimatedMiles,
+        totalTime: estimatedDurationMinutes,
+        startTime: route.startTime,
+        endTime: route.endTime,
+      },
+      coordinates: null, // Will be handled by geocoding in the component
+    };
+  });
+
+  return formattedRoutes;
+}
+
+/**
+ * Fetch live tracking URL from Onfleet API
+ * @source boombox-10.0/src/app/api/packing-supplies/tracking/verify/route.ts (lines 6-28)
+ */
+export async function fetchOnfleetTrackingUrl(shortId: string): Promise<string | null> {
+  try {
+    const response = await fetch(
+      `https://onfleet.com/api/v2/tasks/shortId/${shortId}`,
+      {
+        headers: {
+          Authorization: `Basic ${Buffer.from(process.env.ONFLEET_API_KEY + ':').toString('base64')}`
+        }
+      }
+    );
+
+    if (!response.ok) {
+      console.error(`Onfleet API error for task ${shortId}:`, response.status, response.statusText);
+      return null;
+    }
+
+    const taskData = await response.json();
+    return taskData.trackingURL || null;
+  } catch (error) {
+    console.error(`Error fetching Onfleet tracking URL for task ${shortId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Format delivery progress steps for packing supply order tracking
+ * @source boombox-10.0/src/app/api/packing-supplies/tracking/verify/route.ts (lines 79-125)
+ */
+export function formatPackingSupplyDeliveryProgress(order: any) {
+  return {
+    steps: [
+      {
+        title: 'Order received and confirmed',
+        description: 'Your packing supply order has been received and confirmed',
+        status: 'complete' as const,
+        timestamp: order.orderDate.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+        }).toLowerCase(),
+      },
+      {
+        title: 'Your delivery driver has been assigned',
+        description: order.assignedDriver 
+          ? `${order.assignedDriver.firstName} ${order.assignedDriver.lastName} will deliver your order`
+          : 'Driver will be assigned shortly',
+        status: order.assignedDriver ? 'complete' as const : 'pending' as const,
+        timestamp: order.assignedDriver ? '' : '',
+      },
+      {
+        title: 'Your order is out for delivery',
+        description: 'Your packing supplies are on the way',
+        status: order.status === 'Delivered' ? 'complete' as const :
+                order.status === 'In Transit' ? 'in_transit' as const :
+                order.status === 'Driver Arrived' ? 'in_transit' as const :
+                'pending' as const,
+        timestamp: order.status === 'In Transit' ? 
+          new Date().toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+          }).toLowerCase() : '',
+      },
+      {
+        title: 'Your order has been delivered',
+        description: 'Your packing supplies have been delivered',
+        status: order.status === 'Delivered' ? 'complete' as const : 'pending' as const,
+        timestamp: order.actualDeliveryTime ? 
+          order.actualDeliveryTime.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+          }).toLowerCase() : '',
+      },
+    ],
+    currentStep: order.status === 'Delivered' ? 3 : 
+                 ['In Transit', 'Driver Arrived'].includes(order.status) ? 2 : 1,
+  };
+}
+
+/**
+ * Calculate delivery window information
+ * @source boombox-10.0/src/app/api/packing-supplies/tracking/verify/route.ts (lines 127-133)
+ */
+export function calculatePackingSupplyDeliveryWindow(order: any) {
+  return {
+    start: order.deliveryWindowStart,
+    end: order.deliveryWindowEnd,
+    isSameDay: order.deliveryWindowStart ? 
+      new Date(order.deliveryWindowStart).toDateString() === new Date().toDateString() : false,
+  };
+}
+
+/**
+ * Format packing supply tracking response data
+ * @source boombox-10.0/src/app/api/packing-supplies/tracking/verify/route.ts (lines 145-172)
+ */
+export function formatPackingSupplyTrackingResponse(order: any, liveTrackingUrl?: string, feedbackToken?: string) {
+  return {
+    orderId: order.id,
+    orderDate: order.orderDate,
+    deliveryDate: order.deliveryWindowStart || new Date(),
+    customerName: order.contactName,
+    deliveryAddress: order.deliveryAddress,
+    totalPrice: parseFloat(order.totalPrice.toString()),
+    status: order.status,
+    driverName: order.assignedDriver 
+      ? `${order.assignedDriver.firstName} ${order.assignedDriver.lastName}`
+      : 'TBD',
+    driverProfilePicture: order.assignedDriver?.profilePicture || undefined,
+    deliveryPhotoUrl: order.deliveryPhotoUrl || undefined,
+    items: order.orderDetails.map((detail: any) => ({
+      name: detail.product.title,
+      quantity: detail.quantity,
+      price: parseFloat(detail.price.toString()),
+    })),
+    deliveryProgress: formatPackingSupplyDeliveryProgress(order),
+    deliveryWindow: calculatePackingSupplyDeliveryWindow(order),
+    taskId: order.onfleetTaskShortId,
+    trackingUrl: liveTrackingUrl,
+    estimatedArrival: order.deliveryWindowStart ? 
+      new Date(order.deliveryWindowStart).toISOString() : undefined,
+    feedbackToken: feedbackToken,
+    canLeaveFeedback: order.status === 'Delivered',
+  };
 } 
