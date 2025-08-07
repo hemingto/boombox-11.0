@@ -12,7 +12,7 @@ import {
 } from '@/lib/messaging/templates/email/admin';
 import {
   validateApiRequest,
-  // PackingSupplyRouteAssignmentCronRequestSchema - not exported from route files
+  PackingSupplyRouteAssignmentCronRequestSchema,
 } from '@/lib/validations/api.validations';
 
 // ===== ROUTE HANDLER =====

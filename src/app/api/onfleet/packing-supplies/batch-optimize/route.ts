@@ -33,10 +33,7 @@ import { prisma } from '@/lib/database/prismaClient';
 import { routeOptimizer } from '@/lib/services/simple-route-optimization';
 import { createRoutePlan } from '@/lib/services/onfleet-route-plan';
 import { createPackingSupplyTask } from '@/lib/integrations/onfleetClient';
-import {
-  BatchOptimizeRequestSchema,
-  BatchOptimizeGetRequestSchema,
-} from '@/lib/validations/api.validations';
+import { BatchOptimizeRequestSchema } from '@/lib/validations/api.validations';
 import { ApiResponse } from '@/types/api.types';
 
 export async function POST(request: NextRequest) {
@@ -45,14 +42,11 @@ export async function POST(request: NextRequest) {
 
     // Validate request body with Zod
     const validatedData = BatchOptimizeRequestSchema.parse(body);
-    const { targetDate, date, source } = validatedData;
+    const { deliveryDate } = validatedData;
+    const source = 'batch_optimization'; // Default source since not in schema
 
-    // Use provided date or default to today (support both targetDate and date for compatibility)
-    const optimizationDate = targetDate
-      ? new Date(targetDate)
-      : date
-        ? new Date(date)
-        : new Date();
+    // Use provided delivery date or default to today
+    const optimizationDate = deliveryDate ? new Date(deliveryDate) : new Date();
     const startOfDay = new Date(optimizationDate.toDateString());
     const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
 
@@ -592,10 +586,12 @@ export async function GET(request: NextRequest) {
     };
 
     // Validate query parameters
-    const validatedParams = BatchOptimizeGetRequestSchema.parse(queryParams);
-    const { targetDate, status } = validatedParams;
+    const validatedParams = BatchOptimizeRequestSchema.parse(queryParams);
+    const { deliveryDate } = validatedParams;
+    // Note: status parameter not in schema, get from query params directly
+    const status = queryParams.status; // Get status from query params since not in schema
 
-    const today = targetDate ? new Date(targetDate) : new Date();
+    const today = deliveryDate ? new Date(deliveryDate) : new Date();
     const startOfDay = new Date(today.toDateString());
     const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
 

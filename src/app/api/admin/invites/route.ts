@@ -2,18 +2,18 @@
  * @fileoverview Admin invitation creation endpoint
  * @source boombox-10.0/src/app/api/admin/invites/route.ts
  * @refactor PHASE 4 - Admin Management Domain
- * 
+ *
  * ROUTE FUNCTIONALITY:
  * POST endpoint that creates and sends admin invitations with token validation.
  * Validates SUPERADMIN permissions, checks for duplicate admins/invites, generates
  * secure tokens, and sends invitation emails with proper error handling.
- * 
+ *
  * USED BY (boombox-10.0 files):
  * - Admin dashboard invitation management interface
  * - SUPERADMIN user management workflows
  * - Admin onboarding and team expansion processes
  * - Admin role assignment and permission management
- * 
+ *
  * INTEGRATION NOTES:
  * - Requires SUPERADMIN authentication (NextAuth session validation)
  * - Generates cryptographically secure 256-bit invitation tokens
@@ -21,7 +21,7 @@
  * - Sends invitation emails via SendGrid with template system
  * - Implements proper database transaction rollback on email failures
  * - Validates against duplicate admins and active invitations
- * 
+ *
  * BUSINESS LOGIC:
  * - Only SUPERADMIN users can send admin invitations
  * - Supports both ADMIN and SUPERADMIN role invitations
@@ -29,12 +29,12 @@
  * - Prevents multiple active invitations to same email
  * - Automatically cleans up failed invitations (database consistency)
  * - Uses centralized email templates and utility functions
- * 
+ *
  * ERROR HANDLING:
  * - 401: Unauthorized (not SUPERADMIN or no session)
  * - 400: Validation errors (missing fields, invalid role, duplicates)
  * - 500: Internal server errors (database, email service failures)
- * 
+ *
  * @refactor Migrated with centralized utilities, email templates, and validation schemas
  */
 
@@ -44,11 +44,11 @@ import { prisma } from '@/lib/database/prismaClient';
 import { authOptions } from '@/lib/auth/nextAuthConfig';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { adminInvitationEmail } from '@/lib/messaging/templates/email/auth';
-import { 
+import {
   CreateAdminInviteRequestSchema,
   CreateAdminInviteResponseSchema,
   type CreateAdminInviteRequest,
-  type CreateAdminInviteResponse
+  type CreateAdminInviteResponse,
 } from '@/lib/validations/api.validations';
 import {
   isValidAdminRole,
@@ -59,7 +59,7 @@ import {
   createAdminInvitation,
   deleteAdminInvitation,
   formatRoleForDisplay,
-  generateInvitationLink
+  generateInvitationLink,
 } from '@/lib/utils/adminInviteUtils';
 
 const messageService = new MessageService();
@@ -68,11 +68,13 @@ const messageService = new MessageService();
  * POST endpoint: Create and send admin invitation
  * @source boombox-10.0/src/app/api/admin/invites/route.ts (entire endpoint)
  */
-export async function POST(request: Request): Promise<NextResponse<CreateAdminInviteResponse>> {
+export async function POST(
+  request: Request
+): Promise<NextResponse<CreateAdminInviteResponse>> {
   try {
     // Validate admin session and SUPERADMIN role
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user || session.user.role !== 'SUPERADMIN') {
       return NextResponse.json(
         { message: 'Unauthorized - Only SUPERADMIN can send invites' },
@@ -83,7 +85,7 @@ export async function POST(request: Request): Promise<NextResponse<CreateAdminIn
     // Parse and validate request body
     const body = await request.json();
     const validationResult = CreateAdminInviteRequestSchema.safeParse(body);
-    
+
     if (!validationResult.success) {
       const firstError = validationResult.error.errors[0];
       return NextResponse.json(
@@ -135,24 +137,20 @@ export async function POST(request: Request): Promise<NextResponse<CreateAdminIn
 
     // Send invitation email using centralized template system
     try {
-      await messageService.sendEmail(
-        email,
-        adminInvitationEmail,
-        {
-          roleDisplay,
-          inviteLink,
-        }
-      );
+      await MessageService.sendEmail(email, adminInvitationEmail, {
+        roleDisplay,
+        inviteLink,
+      });
     } catch (error) {
       console.error('Error sending invitation email:', error);
-      
+
       // Clean up invite record if email fails (maintain data consistency)
       try {
         await deleteAdminInvitation(invite.id);
       } catch (cleanupError) {
         console.error('Failed to clean up invite record:', cleanupError);
       }
-      
+
       return NextResponse.json(
         { message: 'Failed to send invitation email' },
         { status: 500 }
@@ -164,7 +162,8 @@ export async function POST(request: Request): Promise<NextResponse<CreateAdminIn
       message: 'Invitation sent successfully',
     };
 
-    const responseValidation = CreateAdminInviteResponseSchema.safeParse(response);
+    const responseValidation =
+      CreateAdminInviteResponseSchema.safeParse(response);
     if (!responseValidation.success) {
       console.error('Response validation failed:', responseValidation.error);
       return NextResponse.json(

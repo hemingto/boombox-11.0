@@ -21,3 +21,5 @@ export { storageServiceArrivalTemplate } from './storage-service-arrival';
 export { storageLoadingCompletedTemplate } from './storage-loading-completed';
 export { storageTermEndedTemplate } from './storage-term-ended';
 export { storageAccessCompletedTemplate } from './storage-access-completed';
+export { accessStorageConfirmationSms } from './accessStorageConfirmation';
+export { additionalStorageConfirmationSms } from './additionalStorageConfirmation';

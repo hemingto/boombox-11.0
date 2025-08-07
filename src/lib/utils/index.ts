@@ -94,6 +94,8 @@ export * from './inboundMessageUtils';
 // Note: dateFormattingUtils contains formatAppointmentTime which conflicts with appointmentUtils
 // Using appointmentUtils version for appointment-specific formatting
 // export * from './dateFormattingUtils';
+// Explicit export of non-conflicting functions from dateFormattingUtils
+export { formatAppointmentDate } from './dateFormattingUtils';
 
 // Driver utilities (explicit exports to avoid conflicts)
 export {

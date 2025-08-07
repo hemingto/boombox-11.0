@@ -614,3 +614,65 @@ export async function getAppointmentForTracking(appointmentId: number) {
     },
   });
 }
+
+/**
+ * Create storage access appointment
+ * @source boombox-10.0 (legacy storage access logic)
+ * @refactor Added function for creating storage access appointments
+ */
+export async function createStorageAccessAppointment(data: any) {
+  const { prisma } = await import('@/lib/database/prismaClient');
+
+  // @REFACTOR-P9-TEMP: Mock implementation
+  console.log('PLACEHOLDER: createStorageAccessAppointment called', { data });
+
+  return await prisma.appointment.create({
+    data: {
+      appointmentType: 'STORAGE_ACCESS',
+      ...data,
+    },
+  });
+}
+
+/**
+ * Create additional storage appointment
+ * @source boombox-10.0 (legacy additional storage logic)
+ * @refactor Added function for creating additional storage appointments
+ */
+export async function createAdditionalStorageAppointment(data: any) {
+  const { prisma } = await import('@/lib/database/prismaClient');
+
+  // @REFACTOR-P9-TEMP: Mock implementation
+  console.log('PLACEHOLDER: createAdditionalStorageAppointment called', {
+    data,
+  });
+
+  return await prisma.appointment.create({
+    data: {
+      appointmentType: 'ADDITIONAL_STORAGE',
+      ...data,
+    },
+  });
+}
+
+/**
+ * Process Onfleet tasks and assign driver
+ * @source boombox-10.0 (legacy onfleet processing logic)
+ * @refactor Added function for onfleet processing and driver assignment
+ */
+export async function processOnfleetAndAssignDriver(
+  appointmentId: number,
+  data: any
+) {
+  // @REFACTOR-P9-TEMP: Mock implementation
+  console.log('PLACEHOLDER: processOnfleetAndAssignDriver called', {
+    appointmentId,
+    data,
+  });
+
+  return {
+    success: true,
+    taskIds: [`task-${appointmentId}`],
+    driverId: null, // Will be assigned later
+  };
+}

@@ -11,7 +11,7 @@ import { systemFailureTemplate } from '@/lib/messaging/templates/email/admin';
 import { isValidDispatchTime, getPSTTime } from '@/lib/utils/dateUtils';
 import {
   validateApiRequest,
-  // DailyDispatchCronRequestSchema - removed, not exported from routes
+  DailyDispatchCronRequestSchema,
 } from '@/lib/validations/api.validations';
 
 // ===== CONSTANTS =====

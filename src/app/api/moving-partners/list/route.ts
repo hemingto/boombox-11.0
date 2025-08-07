@@ -2,24 +2,24 @@
  * @fileoverview Moving Partners List API Route - Create new moving partners/movers
  * @source boombox-10.0/src/app/api/movers/route.ts
  * @refactor Migrated to domain-based API structure with centralized utilities
- * 
+ *
  * ROUTE: POST /api/moving-partners/list
  * PURPOSE: Create new moving partner companies with optional default availability
- * 
+ *
  * BUSINESS LOGIC:
  * - Validates company registration data (name, email, phone, website, employee count)
  * - Checks for duplicate email/phone number conflicts
  * - Creates moving partner record with approval required by default
  * - Optionally creates default availability (9am-5pm, all days blocked for admin setup)
- * 
+ *
  * INTEGRATIONS:
  * - Prisma Database: MovingPartner model, MovingPartnerAvailability model
- * 
+ *
  * VALIDATION:
  * - Uses CreateMoverRequestSchema for request validation
  * - Phone number normalized to E.164 format for consistency
  * - Website URL validation required
- * 
+ *
  * ERROR HANDLING:
  * - 400: Missing required fields
  * - 409: Duplicate email or phone number
@@ -27,34 +27,45 @@
  */
 
 import { NextResponse } from 'next/server';
-import { 
-  CreateMoverRequestSchema, 
+import {
+  CreateMoverRequestSchema,
   type CreateMoverRequest,
-  type CreateMoverResponse 
+  type CreateMoverResponse,
 } from '@/lib/validations/api.validations';
-import { 
-  checkMoverExists, 
-  createMover, 
-  createDefaultMoverAvailability 
+import {
+  checkMoverExists,
+  createMover,
+  createDefaultMoverAvailability,
 } from '@/lib/utils/movingPartnerUtils';
 
-export async function POST(request: Request): Promise<NextResponse<CreateMoverResponse>> {
+export async function POST(
+  request: Request
+): Promise<NextResponse<CreateMoverResponse>> {
   try {
     const body = await request.json();
-    
+
     // Validate request data using centralized schema
     const validationResult = CreateMoverRequestSchema.safeParse(body);
     if (!validationResult.success) {
       return NextResponse.json(
-        { 
-          success: false, 
-          error: validationResult.error.issues.map(issue => issue.message).join(', ')
+        {
+          success: false,
+          error: validationResult.error.issues
+            .map(issue => issue.message)
+            .join(', '),
         },
         { status: 400 }
       );
     }
 
-    const { companyName, email, phoneNumber, website, employeeCount, createDefaultAvailability } = validationResult.data;
+    const {
+      companyName,
+      email,
+      phoneNumber,
+      website,
+      employeeCount,
+      createDefaultAvailability,
+    } = validationResult.data;
 
     // Check if email or phone number already exists using centralized utility
     const existingMover = await checkMoverExists(email, phoneNumber);
@@ -68,7 +79,10 @@ export async function POST(request: Request): Promise<NextResponse<CreateMoverRe
       }
       if (existingMover.phoneNumber === phoneNumber) {
         return NextResponse.json(
-          { success: false, error: 'A mover with this phone number already exists' },
+          {
+            success: false,
+            error: 'A mover with this phone number already exists',
+          },
           { status: 409 }
         );
       }
@@ -80,7 +94,7 @@ export async function POST(request: Request): Promise<NextResponse<CreateMoverRe
       email,
       phoneNumber,
       website,
-      employeeCount
+      employeeCount,
     });
 
     // Create default availability if requested using centralized utility
@@ -89,13 +103,22 @@ export async function POST(request: Request): Promise<NextResponse<CreateMoverRe
     }
 
     return NextResponse.json(
-      { 
-        success: true, 
-        mover
+      {
+        success: true,
+        mover: {
+          id: mover.id,
+          name: mover.name,
+          email: mover.email || '', // Convert null to empty string
+          phoneNumber: mover.phoneNumber || '', // Convert null to empty string
+          website: mover.website || '', // Convert null to empty string
+          isApproved: mover.status === ('APPROVED' as any), // Type cast for enum comparison
+          numberOfEmployees: Number(mover.numberOfEmployees) || 0, // Convert to number and default to 0 if null
+          createdAt: new Date(), // Default to current date since not available in mover object
+          updatedAt: new Date(), // Default to current date since not available in mover object
+        },
       },
       { status: 201 }
     );
-
   } catch (error) {
     console.error('[API/moving-partners/list] Error creating mover:', error);
     return NextResponse.json(

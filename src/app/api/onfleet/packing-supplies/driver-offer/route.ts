@@ -34,7 +34,7 @@ import { driverOfferTemplate } from '@/lib/messaging/templates/sms/packing-suppl
 import {
   calculateRoutePayoutEstimate,
   calculateEstimatedDuration,
-  formatRouteSummary,
+  // formatRouteSummary, // Not exported from packingSupplyUtils
   getDeliveryArea,
 } from '@/lib/utils/packingSupplyUtils';
 import {
@@ -317,7 +317,10 @@ export async function POST(request: NextRequest) {
     const offerUrl = `${baseUrl}/driver/packing-supply-offer/${offerToken}`;
 
     // Format route summary and delivery area using extracted utilities
-    const deliveryArea = getDeliveryArea(route.orders);
+    // Extract delivery area from route data - use a fallback since address structure varies
+    const firstOrderAddress =
+      route.orders?.[0]?.deliveryAddress || 'Unknown Area';
+    const deliveryArea = getDeliveryArea(firstOrderAddress);
     const estimatedDuration = calculateEstimatedDuration(route);
     const formattedDate = deliveryDate.toLocaleDateString('en-US', {
       weekday: 'short',
@@ -397,7 +400,7 @@ export async function POST(request: NextRequest) {
         routeId,
         driverId: selectedDriver.id,
         driverName: `${selectedDriver.firstName} ${selectedDriver.lastName}`,
-        payoutEstimate,
+        payoutEstimate: payoutEstimate.toString(),
         expiresAt: expiresAt.toISOString(),
         totalStops: route.totalStops,
         deliveryArea,

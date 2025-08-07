@@ -74,15 +74,13 @@ export async function POST(
       feedbackData;
 
     // Send email using centralized MessageService
-    const emailResult = await MessageService.sendEmail({
-      to: userEmail,
-      from: session.user.email,
-      subject: emailSubject,
-      template: adminFeedbackResponseTemplate,
-      variables: {
+    const emailResult = await MessageService.sendEmail(
+      userEmail,
+      adminFeedbackResponseTemplate,
+      {
         emailBody,
-      },
-    });
+      }
+    );
 
     if (!emailResult.success) {
       console.error(
