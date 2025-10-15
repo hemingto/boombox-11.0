@@ -6,6 +6,7 @@
  * @source boombox-10.0/src/app/api/driver-assign/route.ts (getUnitSpecificStartTime)
  * @source boombox-10.0/src/app/components/edit-appointment/* (getAppointmentDateTime)
  * @source boombox-10.0/src/lib/utils/timeWindows.ts (calculateDeliveryWindow)
+ * @source boombox-10.0/src/app/components/notifications/notification-dropdown.tsx (formatRelativeTime)
  * @refactor Consolidated all date/time formatting and calculation utilities
  */
 
@@ -37,6 +38,17 @@ export function formatDateForInput(date: Date): string {
 export function formatDateForDisplay(date: Date | string): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
   return format(dateObj, 'EEEE, MMMM d, yyyy');
+}
+
+/**
+ * Format date in verbose format for quote displays (e.g., "Thursday, September 19")
+ * @source boombox-10.0/src/app/components/getquote/myquote.tsx (formatVerboseDate)
+ * @source boombox-10.0/src/app/components/getquote/mobilemyquote.tsx (formatVerboseDate)
+ */
+export function formatVerboseDate(date: Date | null): string {
+  if (!date) return '---';
+  const options: Intl.DateTimeFormatOptions = { weekday: 'long', month: 'long', day: 'numeric' };
+  return date.toLocaleDateString('en-US', options);
 }
 
 /**
@@ -129,7 +141,7 @@ export function parseAppointmentTime(
   const [timeSlotStartDirty] = timeSlot.split('-');
   const timeSlotStart = timeSlotStartDirty ? timeSlotStartDirty.trim() : '';
 
-  const timeRegex = /(\d{1,2})(?::(\d{2}))?(am|pm)/i;
+  const timeRegex = /(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i;
   const timeMatch = timeSlotStart.match(timeRegex);
 
   if (timeMatch) {
@@ -262,4 +274,108 @@ export function getNextDispatchTime(): Date {
   }
 
   return nextDispatch;
+}
+
+/**
+ * Calculate service duration between two timestamps with 2-hour minimum
+ * @source boombox-10.0/src/app/components/mover-account/job-history-popup.tsx
+ * @param startTime Unix timestamp in milliseconds as string
+ * @param endTime Unix timestamp in milliseconds as string
+ * @returns Formatted duration string (e.g., "2h 30m" or "1h 45m (2 hr min)")
+ */
+export function calculateServiceDuration(startTime?: string, endTime?: string): string | null {
+  if (!startTime || !endTime) return null;
+
+  const start = new Date(parseInt(startTime));
+  const end = new Date(parseInt(endTime));
+  
+  // Calculate difference using date-fns
+  const durationInMinutes = Math.floor((end.getTime() - start.getTime()) / (1000 * 60));
+  const hours = Math.floor(durationInMinutes / 60);
+  const minutes = durationInMinutes % 60;
+
+  let durationText = '';
+  if (hours > 0) durationText += `${hours}h `;
+  if (minutes > 0) durationText += `${minutes}m`;
+
+  return durationInMinutes < 120 ? `${durationText.trim()} (2 hr min)` : durationText.trim();
+}
+
+/**
+ * Format date as relative time for notifications and activity feeds
+ * @source boombox-10.0/src/app/components/notifications/notification-dropdown.tsx (formatRelativeTime)
+ * @param dateString ISO date string or Date object
+ * @returns Relative time string (e.g., "Just now", "5m ago", "2h ago", "3d ago", "Jan 15")
+ * 
+ * @example
+ * ```tsx
+ * formatRelativeTime('2024-01-15T10:30:00Z') // "5m ago"
+ * formatRelativeTime('2024-01-01T10:30:00Z') // "Jan 1"
+ * ```
+ */
+export function formatRelativeTime(dateString: string | Date): string {
+  const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+  const now = new Date();
+  const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+  
+  if (diffInMinutes < 1) return 'Just now';
+  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+  if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
+  if (diffInMinutes < 10080) return `${Math.floor(diffInMinutes / 1440)}d ago`;
+  return format(date, 'MMM d');
+}
+
+/**
+ * Check if an appointment date is within 24 hours from now
+ * @source boombox-10.0/src/app/components/user-page/appointmentcard.tsx (isWithin24Hours logic)
+ * @param appointmentDate - The appointment date/time to check
+ * @returns True if appointment is within 24 hours and in the future
+ * 
+ * @example
+ * ```tsx
+ * const appointment = new Date('2024-01-15T14:00:00Z');
+ * if (isAppointmentWithin24Hours(appointment)) {
+ *   // Show cancellation fee warning
+ * }
+ * ```
+ */
+export function isAppointmentWithin24Hours(appointmentDate: Date | string): boolean {
+  const currentTime = new Date();
+  const appointmentDateTime = typeof appointmentDate === 'string' 
+    ? new Date(appointmentDate) 
+    : appointmentDate;
+  
+  const timeDiff = appointmentDateTime.getTime() - currentTime.getTime();
+  const hours24InMs = 24 * 60 * 60 * 1000;
+  
+  return timeDiff <= hours24InMs && timeDiff > 0;
+}
+
+/**
+ * Add ordinal suffix to day number (1st, 2nd, 3rd, 4th, etc.)
+ * @source boombox-10.0/src/app/components/user-page/upcomingappointment.tsx (addDateSuffix)
+ * @param day - Day of the month (1-31)
+ * @returns Day with ordinal suffix (e.g., "1st", "2nd", "3rd", "21st")
+ * 
+ * @example
+ * ```tsx
+ * addDateSuffix(1)  // "1st"
+ * addDateSuffix(2)  // "2nd"
+ * addDateSuffix(3)  // "3rd"
+ * addDateSuffix(11) // "11th"
+ * addDateSuffix(21) // "21st"
+ * ```
+ */
+export function addDateSuffix(day: number): string {
+  if (day >= 11 && day <= 13) return `${day}th`; // Special case for 11th, 12th, 13th
+  switch (day % 10) {
+    case 1:
+      return `${day}st`;
+    case 2:
+      return `${day}nd`;
+    case 3:
+      return `${day}rd`;
+    default:
+      return `${day}th`;
+  }
 }

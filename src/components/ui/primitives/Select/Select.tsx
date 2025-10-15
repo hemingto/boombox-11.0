@@ -5,18 +5,24 @@
  * @refactor Created unified Select component with consistent styling and accessibility
  */
 
-import { forwardRef, useState } from 'react';
+import { forwardRef, useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils/cn';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
+import { useClickOutside } from '@/hooks/useClickOutside';
 
 export interface SelectOption {
   value: string;
   label: string;
   disabled?: boolean;
+  // Rich content support
+  description?: string;
+  price?: string;
+  icon?: React.ElementType;
+  metadata?: Record<string, any>; // For extensibility
 }
 
 export interface SelectProps
-  extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'size'> {
+  extends Omit<React.HTMLAttributes<HTMLDivElement>, 'size' | 'onChange'> {
   /**
    * Select variant for different visual styles
    */
@@ -71,9 +77,49 @@ export interface SelectProps
    * Callback when error state should be cleared
    */
   onClearError?: () => void;
+
+  /**
+   * Current selected value
+   */
+  value?: string;
+
+  /**
+   * Callback when selection changes
+   */
+  onChange?: (value: string) => void;
+
+  /**
+   * Whether the select is disabled
+   */
+  disabled?: boolean;
+
+  /**
+   * Input name attribute
+   */
+  name?: string;
+
+  /**
+   * Input id attribute
+   */
+  id?: string;
+
+  /**
+   * Display mode for different option layouts
+   */
+  displayMode?: 'simple' | 'rich' | 'compact';
+
+  /**
+   * Custom option renderer for maximum flexibility
+   */
+  renderOption?: (option: SelectOption) => React.ReactNode;
+
+  /**
+   * Custom trigger renderer for selected value display
+   */
+  renderSelected?: (option: SelectOption) => React.ReactNode;
 }
 
-const Select = forwardRef<HTMLSelectElement, SelectProps>(
+const Select = forwardRef<HTMLDivElement, SelectProps>(
   (
     {
       variant = 'default', // eslint-disable-line @typescript-eslint/no-unused-vars
@@ -86,46 +132,171 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
       placeholder,
       options = [],
       className,
-      onFocus,
       onClearError,
-      children,
+      value,
+      onChange,
+      disabled = false,
+      name,
+      id,
+      displayMode = 'simple',
+      renderOption,
+      renderSelected,
       ...props
     },
     ref
   ) => {
-    const [isFocused, setIsFocused] = useState(false);
+    const [selectedValue, setSelectedValue] = useState<string>(value || '');
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
     const hasError = Boolean(error);
 
-    const handleFocus = (e: React.FocusEvent<HTMLSelectElement>) => {
-      setIsFocused(true);
+    // Update internal state when value prop changes
+    useEffect(() => {
+      setSelectedValue(value || '');
+    }, [value]);
+
+    // Handle click outside to close dropdown
+    useClickOutside(dropdownRef, () => setIsOpen(false));
+
+    const handleOptionSelect = (optionValue: string) => {
+      setSelectedValue(optionValue);
+      setIsOpen(false);
+      onChange?.(optionValue);
+    };
+
+    const handleDropdownToggle = () => {
+      if (disabled) return;
+      setIsOpen(!isOpen);
       if (onClearError && hasError) {
         onClearError();
       }
-      onFocus?.(e);
     };
 
-    const handleBlur = () => {
-      setIsFocused(false);
+    // Get the selected option for display
+    const selectedOption = options.find(option => option.value === selectedValue);
+    
+    // Render functions for different display modes
+    const renderSelectedContent = (option: SelectOption | undefined) => {
+      // Custom render function takes precedence
+      if (renderSelected && option) {
+        return renderSelected(option);
+      }
+      
+      // Display mode-based rendering
+      if (displayMode === 'rich' && option) {
+        return (
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center space-x-3">
+              {option.icon && (
+                <option.icon className={cn(
+                  'flex-shrink-0',
+                  {
+                    'w-4 h-4': size === 'sm',
+                    'w-5 h-5': size === 'md', 
+                    'w-6 h-6': size === 'lg',
+                  }
+                )} />
+              )}
+              <span className="text-left">{option.label}</span>
+            </div>
+            {option.price && (
+              <span className="font-medium text-sm text-text-primary ml-2">
+                {option.price}
+              </span>
+            )}
+          </div>
+        );
+      }
+      
+      if (displayMode === 'compact' && option) {
+        return (
+          <div className="flex items-center space-x-2">
+            {option.icon && (
+              <option.icon className={cn(
+                'flex-shrink-0',
+                {
+                  'w-4 h-4': size === 'sm',
+                  'w-5 h-5': size === 'md',
+                  'w-6 h-6': size === 'lg',
+                }
+              )} />
+            )}
+            <span>{option.label}</span>
+          </div>
+        );
+      }
+      
+      // Simple mode (default) - just return label
+      return option?.label || placeholder || 'Select an option';
+    };
+
+    const renderOptionContent = (option: SelectOption) => {
+      // Custom render function takes precedence
+      if (renderOption) {
+        return renderOption(option);
+      }
+      
+      // Display mode-based rendering
+      if (displayMode === 'rich') {
+        return (
+          <div className="flex justify-between items-center w-full">
+            <div className="flex items-center space-x-3">
+              {option.icon && (
+                <option.icon className="w-6 h-6 text-text-primary flex-shrink-0" />
+              )}
+              <div className="flex flex-col">
+                <span className="text-sm text-text-primary">{option.label}</span>
+                {option.description && (
+                  <span className="text-xs text-text-secondary">{option.description}</span>
+                )}
+              </div>
+            </div>
+            {option.price && (
+              <span className="font-medium text-sm text-text-primary ml-2">
+                {option.price}
+              </span>
+            )}
+          </div>
+        );
+      }
+      
+      if (displayMode === 'compact') {
+        return (
+          <div className="flex items-center space-x-3">
+            {option.icon && (
+              <option.icon className="w-5 h-5 text-text-primary flex-shrink-0" />
+            )}
+            <span className="text-sm text-text-primary">{option.label}</span>
+          </div>
+        );
+      }
+      
+      // Simple mode (default)
+      return <span className="text-sm text-text-primary">{option.label}</span>;
     };
 
     const selectClasses = cn(
-      // Base styles using design system classes
-      'input-field',
-
-      // Select-specific styles
-      'appearance-none cursor-pointer',
-      'pr-10', // Space for chevron icon
+      // Base styling matching input-field pattern
+      'relative rounded-md cursor-pointer',
+      'flex justify-between items-center',
 
       // Size variants
       {
         'py-2 px-2.5 text-sm': size === 'sm',
-        'py-2.5 px-3 text-md': size === 'md',
+        'py-2.5 px-3 text-base': size === 'md',
         'py-3 px-4 text-lg': size === 'lg',
       },
 
-      // Error state
+      // State-based styling matching input-field
       {
-        'input-field--error': hasError,
+        // Error state
+        'border-border-error ring-2 ring-border-error bg-red-50 text-status-error': hasError && !disabled,
+        // Open state (focused) - matching input focus state
+        'border-transparent ring-2 ring-border-focus bg-surface-primary': isOpen && !hasError && !disabled,
+        // Default state - matching input default state
+        'border-border bg-surface-tertiary': !isOpen && !hasError && !disabled,
+        // Disabled state - matching input-field disabled styling
+        'bg-surface-disabled cursor-not-allowed border-border text-text-secondary': disabled,
       },
 
       // Full width
@@ -137,20 +308,25 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
     );
 
     const chevronClasses = cn(
-      'absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none transition-colors',
+      'transition-colors',
       {
         'w-4 h-4': size === 'sm',
         'w-5 h-5': size === 'md',
         'w-6 h-6': size === 'lg',
-        // Icon color states
-        'text-red-500': hasError,
-        'text-zinc-950': isFocused && !hasError,
-        'text-zinc-400': !isFocused && !hasError,
+        // Icon color states matching text states
+        'text-status-error': hasError && !disabled,
+        'text-text-secondary': disabled || (!hasError && !disabled && !selectedValue), // disabled or placeholder state
+        'text-text-primary': !hasError && !disabled && selectedValue, // selected state
       }
     );
 
+    const dropdownClasses = cn(
+      'absolute z-50 w-full mt-2 rounded-md bg-white shadow-lg max-h-60 overflow-auto',
+      'border border-gray-200'
+    );
+
     return (
-      <div className={cn('form-group', fullWidth && 'w-full')}>
+      <div className={cn('form-group', fullWidth && 'w-full')} ref={ref} {...props}>
         {/* Label */}
         {label && (
           <label className="form-label">
@@ -159,60 +335,121 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           </label>
         )}
 
-        {/* Select container */}
-        <div className="relative">
-          {/* Select field */}
+        {/* Custom Select container */}
+        <div className="relative" ref={dropdownRef}>
+          {/* Hidden select for form submission and accessibility */}
           <select
-            ref={ref}
-            className={selectClasses}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
+            value={selectedValue}
+            onChange={() => {}} // Controlled by custom dropdown
+            name={name}
+            disabled={disabled}
             aria-invalid={hasError ? 'true' : 'false'}
             aria-describedby={
               error
-                ? `${props.id}-error`
+                ? `${name}-error`
                 : helperText
-                  ? `${props.id}-helper`
+                  ? `${name}-helper`
                   : undefined
             }
-            {...props}
+            className="sr-only"
+            tabIndex={-1}
+            aria-hidden="true"
           >
-            {/* Placeholder option */}
-            {placeholder && (
-              <option value="" disabled>
-                {placeholder}
-              </option>
-            )}
-
-            {/* Options from props */}
             {options.map(option => (
-              <option
-                key={option.value}
-                value={option.value}
-                disabled={option.disabled}
-              >
+              <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
-
-            {/* Children options (for flexibility) */}
-            {children}
           </select>
 
-          {/* Chevron icon */}
-          <ChevronDownIcon className={chevronClasses} />
+          {/* Custom dropdown trigger */}
+          <div
+            className={selectClasses}
+            onClick={handleDropdownToggle}
+            role="combobox"
+            aria-expanded={isOpen}
+            aria-haspopup="listbox"
+            aria-invalid={hasError ? 'true' : 'false'}
+            tabIndex={disabled ? -1 : 0}
+            id={id}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleDropdownToggle();
+              } else if (e.key === 'Escape') {
+                setIsOpen(false);
+              }
+            }}
+          >
+            <div
+              className={cn(
+                'flex-1 min-w-0', // Allow content to shrink and handle overflow
+                {
+                  'text-status-error': hasError && !disabled,
+                  'text-text-secondary': disabled || (!selectedValue && !hasError), // disabled or placeholder
+                  'text-text-primary': selectedValue && !hasError && !disabled, // selected state
+                }
+              )}
+            >
+              {renderSelectedContent(selectedOption)}
+            </div>
+            <ChevronDownIcon className={cn(chevronClasses, 'flex-shrink-0 ml-2')} />
+          </div>
+
+          {/* Custom dropdown menu */}
+          {isOpen && (
+            <div className={dropdownClasses} role="listbox">
+              {options.map((option) => (
+                <div
+                  key={option.value}
+                  className={cn(
+                    'cursor-pointer hover:bg-slate-100 transition-colors',
+                    {
+                      // Dynamic padding based on display mode
+                      'px-4 py-2': displayMode === 'simple',
+                      'px-4 py-3': displayMode === 'rich',
+                      'px-4 py-2.5': displayMode === 'compact',
+                      // Selection state
+                      'bg-slate-200': selectedValue === option.value,
+                      'bg-white': selectedValue !== option.value,
+                      // Disabled state
+                      'opacity-50 cursor-not-allowed': option.disabled,
+                    }
+                  )}
+                  onClick={() => {
+                    if (!option.disabled) {
+                      handleOptionSelect(option.value);
+                    }
+                  }}
+                  role="option"
+                  aria-selected={selectedValue === option.value}
+                  tabIndex={option.disabled ? -1 : 0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (!option.disabled) {
+                        handleOptionSelect(option.value);
+                      }
+                    }
+                  }}
+                >
+                  {renderOptionContent(option)}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Error message */}
         {error && (
-          <p id={`${props.id}-error`} className="form-error">
+          <p id={`${name}-error`} className="form-error">
             {error}
           </p>
         )}
 
         {/* Helper text */}
         {helperText && !error && (
-          <p id={`${props.id}-helper`} className="form-helper">
+          <p id={`${name}-helper`} className="form-helper">
             {helperText}
           </p>
         )}

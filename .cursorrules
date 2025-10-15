@@ -1,0 +1,40 @@
+# Cursor Rules for Boombox 11.0 Migration
+
+## Transition Guidelines
+
+When migrating components from boombox-10.0 to boombox-11.0:
+
+1. **DO NOT add transitions that were not in the original component**
+   - Only preserve transitions that existed in the original boombox-10.0 component
+   - Common original transitions: `transition-colors`, `transition-transform`, `transition-all` (rare)
+   - AVOID adding `duration-200`, `duration-300`, or any duration classes unless they existed in the original
+
+2. **Preserve original transition patterns**:
+   - **RadioCard**: Originally had NO transitions → Keep minimal (only `transition-colors` if needed for hover states)
+   - **RadioList**: Originally had `transition-colors` → Keep `transition-colors` only
+   - **Input components**: Originally had NO transitions → Keep NO transitions
+   - **Buttons/Cards**: Check original for `transition-transform` or `transition-colors`
+
+3. **When in doubt, check the original**:
+   - Always reference the original component in `boombox-10.0/src/app/components/reusablecomponents/`
+   - Match the exact transition behavior, don't enhance unless explicitly requested
+
+## Examples of what NOT to do:
+```tsx
+// ❌ WRONG - Adding transitions that weren't in original
+className="transition-all duration-200 hover:scale-105"
+
+// ❌ WRONG - Adding duration when original only had transition-colors  
+className="transition-colors duration-200"
+```
+
+## Examples of what TO do:
+```tsx
+// ✅ CORRECT - Matching original transition-colors only
+className="transition-colors"
+
+// ✅ CORRECT - No transitions if original had none
+className="bg-white hover:bg-gray-50"
+```
+
+This preserves the original performance characteristics and user experience.

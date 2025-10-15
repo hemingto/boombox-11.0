@@ -7,7 +7,7 @@ import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { OptimizedImage } from './OptimizedImage';
 
 const meta = {
-  title: 'Components/UI/OptimizedImage',
+  title: 'Components/UI/Primitives/OptimizedImage',
   component: OptimizedImage,
   parameters: {
     layout: 'centered',

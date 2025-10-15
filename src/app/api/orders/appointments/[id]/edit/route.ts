@@ -394,6 +394,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
 
     // 11. Update Onfleet tasks with new appointment data
     await onfleetService.updateAppointmentTasks(appointmentId, {
+      id: appointmentId,
       appointmentType: validatedData.appointmentType,
       address: validatedData.address,
       zipcode: validatedData.zipCode,

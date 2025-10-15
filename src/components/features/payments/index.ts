@@ -7,4 +7,5 @@
 // Note: Payment feature components will be added here as they are migrated
 // Examples: StripePaymentForm, InvoiceDisplay, PaymentStatus, etc.
 
-export {}; // Temporary export to prevent empty module error
+// Placeholder export to make this a valid module
+export {};

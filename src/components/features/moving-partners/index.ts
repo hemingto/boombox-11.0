@@ -4,7 +4,9 @@
  * @refactor Moving partner management component exports
  */
 
-// Note: Moving partner feature components will be added here as they are migrated
-// Examples: MovingPartnerProfile, PartnerAssignment, ThirdPartyIntegration, etc.
+// Signup components
+export { MoverSignUpForm } from './MoverSignUpForm';
+export { MoverSignUpHero } from './MoverSignUpHero';
 
-export {}; // Temporary export to prevent empty module error
+// Note: Additional moving partner feature components will be added here as they are migrated
+// Examples: MovingPartnerProfile, PartnerAssignment, ThirdPartyIntegration, etc.

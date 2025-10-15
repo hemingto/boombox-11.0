@@ -222,9 +222,7 @@ spacing-18           /* 4.5rem (72px) - common in Boombox layouts */
 ## Shadow System
 
 ```css
-shadow-card          /* Standard card shadow */
-shadow-elevated      /* Elevated content shadow */
-shadow-custom-shadow /* Legacy custom shadow (being phased out) */
+shadow-custom-shadow /* Custom shadow for all components */
 ```
 
 ## Best Practices

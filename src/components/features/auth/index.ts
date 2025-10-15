@@ -1,10 +1,16 @@
 /**
- * @fileoverview Authentication Feature Components
- * @source Created for boombox-11.0 auth features
- * @refactor Authentication-related component exports
+ * @fileoverview Authentication feature components exports
+ * @source boombox-10.0/src/app/components/login/
+ * @refactor Organized authentication components in features/auth structure
  */
 
-// Note: Auth feature components will be added here as they are migrated
-// Examples: UserAuthForm, PasswordResetForm, AuthProvider, etc.
+export { LoginForm } from './LoginForm';
+export { AdminLoginForm } from './AdminLoginForm';
+export { LoginStep1 } from './LoginStep1';
+export { LoginStep2, getAccountIcon } from './LoginStep2';
+export { VerificationCode } from './VerificationCodeInput';
+export { default as VerifyPhone } from './VerifyPhoneNumberPopup';
 
-export {}; // Temporary export to prevent empty module error
+export type { LoginStep1Props } from './LoginStep1';
+export type { LoginStep2Props, AccountType } from './LoginStep2';
+export type { VerificationCodeProps } from './VerificationCodeInput';

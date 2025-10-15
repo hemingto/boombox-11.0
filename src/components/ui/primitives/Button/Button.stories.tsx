@@ -7,7 +7,7 @@ import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { Button } from './Button';
 
 const meta = {
-  title: 'Components/UI/Button',
+  title: 'Components/UI/Primitives/Button',
   component: Button,
   parameters: {
     layout: 'centered',
@@ -29,6 +29,11 @@ const meta = {
       control: 'select',
       options: ['sm', 'md', 'lg', 'xl'],
       description: 'Size of the button',
+    },
+    borderRadius: {
+      control: 'select',
+      options: ['md', 'lg', 'full'],
+      description: 'Border radius of the button',
     },
     disabled: {
       control: 'boolean',
@@ -107,6 +112,8 @@ export const Outline: Story = {
   },
 };
 
+
+
 // Size stories
 export const Sizes: Story = {
   render: () => (
@@ -173,6 +180,37 @@ export const AllVariants: Story = {
       <Button variant="destructive">Destructive</Button>
       <Button variant="ghost">Ghost</Button>
       <Button variant="outline">Outline</Button>
+    </div>
+  ),
+  parameters: {
+    layout: 'padded',
+  },
+};
+
+// Border radius stories
+export const BorderRadius: Story = {
+  render: () => (
+    <div className="flex flex-col gap-4 items-start">
+      <Button variant="primary" borderRadius="md">
+        Medium Radius
+      </Button>
+      <Button variant="primary" borderRadius="lg">
+        Large Radius
+      </Button>
+      <Button variant="primary" borderRadius="full">
+        Full Radius
+      </Button>
+    </div>
+  ),
+};
+
+// All border radius variants showcase
+export const AllBorderRadius: Story = {
+  render: () => (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <Button variant="primary" borderRadius="md">MD Radius</Button>
+      <Button variant="primary" borderRadius="lg">LG Radius</Button>
+      <Button variant="primary" borderRadius="full">Full Radius</Button>
     </div>
   ),
   parameters: {

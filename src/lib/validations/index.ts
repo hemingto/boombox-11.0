@@ -6,4 +6,7 @@ export * from './api.validations';
 // Availability validation schemas
 export * from './availability.validations';
 
+// Access Storage validation schemas
+export * from './accessStorage.validations';
+
 // Note: Additional domain-specific validation files will be exported here as they are created

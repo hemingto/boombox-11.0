@@ -4,12 +4,13 @@
  * @source boombox-10.0/src/app/components/access-storage/accessstorageform.tsx (loading overlay)
  * @source boombox-10.0/src/app/components/driver-signup/driversignupform.tsx (loading overlay)
  * @refactor Consolidated full-screen loading patterns into reusable component
+ * @design Uses design system overlay colors for consistent theming
  */
 
 import { cn } from '@/lib/utils/cn';
-import { Spinner } from './Spinner';
+import { Spinner } from '../Spinner';
 
-export interface LoadingOverlayProps {
+export interface LoadingOverlayProps extends React.HTMLAttributes<HTMLDivElement> {
   /**
    * Whether the overlay is visible
    */
@@ -38,23 +39,32 @@ export interface LoadingOverlayProps {
 
 const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
   visible,
-  message = 'Loading...',
+  message,
   spinnerSize = 'xl',
   className,
   contentClassName,
+  ...props
 }) => {
   if (!visible) return null;
 
+  // Use default message only if message prop is not provided
+  const displayMessage = message !== undefined ? message : 'Loading...';
+
   return (
     <div
+      role="status"
+      aria-live="polite"
+      aria-label="Loading"
       className={cn(
-        'fixed inset-0 bg-zinc-950 bg-opacity-50 flex flex-col items-center justify-center z-50',
+        'fixed inset-0 flex flex-col items-center justify-center z-[9999]',
+        'bg-overlay-primary', // Uses design system overlay color
         className
       )}
+      {...props}
     >
       <div className={cn('flex flex-col items-center', contentClassName)}>
-        <Spinner size={spinnerSize} variant="white" className="mb-4" />
-        {message && <p className="text-white text-sm font-medium">{message}</p>}
+        <Spinner size={spinnerSize} variant="white" className="mb-4" label="Loading content" />
+        {displayMessage && <p className="text-white text-sm font-medium">{displayMessage}</p>}
       </div>
     </div>
   );

@@ -53,33 +53,15 @@ export const poppins = Poppins({
 });
 
 /**
- * Monospace font for code blocks (if needed)
+ * Monospace font for code blocks (using system fonts)
  */
-export const mono = localFont({
-  src: [
-    {
-      path: '../../../public/fonts/mono-regular.woff2',
-      weight: '400',
-      style: 'normal',
-    },
-    {
-      path: '../../../public/fonts/mono-medium.woff2', 
-      weight: '500',
-      style: 'normal',
-    },
-  ],
+export const mono = {
+  className: 'font-mono',
   variable: '--font-mono',
-  display: 'swap',
-  fallback: [
-    'ui-monospace',
-    'SFMono-Regular',
-    'Monaco',
-    'Consolas',
-    'Liberation Mono',
-    'Courier New',
-    'monospace',
-  ],
-});
+  style: {
+    fontFamily: 'ui-monospace, SFMono-Regular, Monaco, Consolas, Liberation Mono, Courier New, monospace',
+  },
+};
 
 /**
  * Font class names for use in components

@@ -30,12 +30,12 @@ const config: Config = {
 
         // Status colors (semantic system)
         status: {
-          success: 'rgb(34 197 94)', // green-500
+          success: 'rgb(16 185 129)', // emerald-500
           warning: 'rgb(245 158 11)', // amber-500
           error: 'rgb(239 68 68)', // red-500
-          info: 'rgb(59 130 246)', // blue-500
+          info: 'rgb(6 182 212)', // cyan-500
           pending: 'rgb(245 158 11)', // amber-500
-          processing: 'rgb(59 130 246)', // blue-500
+          processing: 'rgb(6 182 212)', // cyan-500
         },
 
         // Status background colors (light variants for badges)
@@ -43,19 +43,19 @@ const config: Config = {
           success: 'rgb(220 252 231)', // emerald-100
           warning: 'rgb(254 243 199)', // amber-100
           error: 'rgb(254 226 226)', // red-100
-          info: 'rgb(219 234 254)', // blue-100
+          info: 'rgb(207 250 254)', // cyan-100
           pending: 'rgb(254 243 199)', // amber-100
-          processing: 'rgb(219 234 254)', // blue-100
+          processing: 'rgb(207 250 254)', // cyan-100
         },
 
         // Status text colors (dark variants for badges)
         'status-text': {
-          success: 'rgb(6 95 70)', // emerald-800
-          warning: 'rgb(146 64 14)', // amber-800
-          error: 'rgb(153 27 27)', // red-800
-          info: 'rgb(30 64 175)', // blue-800
-          pending: 'rgb(146 64 14)', // amber-800
-          processing: 'rgb(30 64 175)', // blue-800
+          success: 'rgb(5 150 105)', // emerald-600
+          warning: 'rgb(217 119 6)', // amber-600
+          error: 'rgb(239 68 68)', // red-500
+          info: 'rgb(8 145 178)', // cyan-600
+          pending: 'rgb(217 119 6)', // amber-600
+          processing: 'rgb(8 145 178)', // cyan-600
         },
 
         // Surface colors
@@ -70,7 +70,7 @@ const config: Config = {
         text: {
           primary: 'rgb(24 24 27)', // zinc-950
           secondary: 'rgb(161 161 170)', // zinc-400
-          tertiary: 'rgb(113 113 122)', // zinc-500
+          tertiary: 'rgb(82, 82, 91)', // zinc-600
           inverse: 'rgb(255 255 255)', // white
         },
 
@@ -80,13 +80,31 @@ const config: Config = {
           focus: 'rgb(24 24 27)', // zinc-950
           error: 'rgb(239 68 68)', // red-500
         },
+
+        // Overlay colors
+        overlay: {
+          primary: 'rgba(24, 24, 27, 0.5)', // text-primary with 50% opacity
+          secondary: 'rgba(24, 24, 27, 0.75)', // text-primary with 75% opacity for stronger overlays
+        },
+
+        // Explicit zinc color palette to ensure availability
+        zinc: {
+          50: '#fafafa',
+          100: '#f4f4f5',
+          200: '#e4e4e7',
+          300: '#d4d4d8',
+          400: '#a1a1aa',
+          500: '#71717a',
+          600: '#52525b',
+          700: '#3f3f46',
+          800: '#27272a',
+          900: '#18181b',
+          950: '#09090b',
+        },
       },
 
       boxShadow: {
         'custom-shadow': '0px 6px 20px 0px rgba(0,0,0,0.2)',
-        card: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)', // shadow-md
-        elevated:
-          '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)', // shadow-lg
       },
 
       // Animation system for loading states

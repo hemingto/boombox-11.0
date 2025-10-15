@@ -45,4 +45,30 @@ export * from './onfleet-driver-service';
 // Messaging services for SMS/email processing
 export * from './messaging/InboundMessageRouter';
 export * from './messaging/MoverChangeHandler';
-export * from './messaging/DriverResponseHandler'; 
+export * from './messaging/DriverResponseHandler';
+
+// Profile picture management service
+export * from './profilePictureService';
+
+// Quote management services
+export * from './quoteService';
+
+// Third-party moving partner services
+export { default as ThirdPartyMovingPartnerService } from './thirdPartyMovingPartnerService';
+export type { ThirdPartyMovingPartner, ThirdPartyMovingPartnerServiceResult } from './thirdPartyMovingPartnerService';
+
+// Access Storage services
+export * from './accessStorageService';
+export * from './storageUnitsService';
+
+// Add Storage services
+export * from './addStorageService';
+
+// Content services
+export { BlogService } from './blogService';
+export { ContentService } from './contentService';
+
+// Service provider data services
+export * from './serviceProviderDataService';
+export * from './accountSetupChecklistService';
+export * from './contactInfoService'; 

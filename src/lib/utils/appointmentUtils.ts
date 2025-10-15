@@ -28,6 +28,42 @@ export interface AppointmentComparisonData {
   updateData: any;
 }
 
+export interface StorageAccessAppointmentData {
+  userId: number;
+  address: string;
+  zipCode: string;
+  planType: string;
+  appointmentDateTime: Date;
+  deliveryReason: string;
+  selectedStorageUnits: number[];
+  description?: string;
+  appointmentType: string;
+  parsedLoadingHelpPrice: number;
+  monthlyStorageRate: number;
+  monthlyInsuranceRate: number;
+  calculatedTotal: number;
+  movingPartnerId?: number;
+  thirdPartyMovingPartnerId?: number;
+}
+
+export interface AdditionalStorageAppointmentData {
+  userId: number;
+  address: string;
+  zipCode: string;
+  storageUnitCount: number;
+  selectedInsurance: string;
+  appointmentDateTime: Date;
+  planType: string;
+  parsedLoadingHelpPrice: number;
+  monthlyStorageRate: number;
+  monthlyInsuranceRate: number;
+  calculatedTotal: number;
+  appointmentType: string;
+  movingPartnerId?: number;
+  description?: string;
+  thirdPartyMovingPartnerId?: number;
+}
+
 /**
  * Generate a token for driver reconfirmation (same format as driver-assign route)
  * @source boombox-10.0/src/app/api/appointments/[appointmentId]/edit/route.ts (line 60)
@@ -620,7 +656,7 @@ export async function getAppointmentForTracking(appointmentId: number) {
  * @source boombox-10.0 (legacy storage access logic)
  * @refactor Added function for creating storage access appointments
  */
-export async function createStorageAccessAppointment(data: any) {
+export async function createStorageAccessAppointment(data: StorageAccessAppointmentData) {
   const { prisma } = await import('@/lib/database/prismaClient');
 
   // @REFACTOR-P9-TEMP: Mock implementation
@@ -639,7 +675,7 @@ export async function createStorageAccessAppointment(data: any) {
  * @source boombox-10.0 (legacy additional storage logic)
  * @refactor Added function for creating additional storage appointments
  */
-export async function createAdditionalStorageAppointment(data: any) {
+export async function createAdditionalStorageAppointment(data: AdditionalStorageAppointmentData) {
   const { prisma } = await import('@/lib/database/prismaClient');
 
   // @REFACTOR-P9-TEMP: Mock implementation

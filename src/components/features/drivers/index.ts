@@ -4,7 +4,12 @@
  * @refactor Driver management component exports
  */
 
-// Note: Driver feature components will be added here as they are migrated
-// Examples: DriverProfile, AvailabilityScheduler, DriverAssignment, etc.
+// Driver signup and qualification components
+export { DriverMoreInfoSection } from './DriverMoreInfoSection';
+export { DriverQualifySection } from './DriverQualifySection';
+export { DriverSignupHero } from './DriverSignupHero';
+export { DriverSignUpForm } from './DriverSignUpForm';
+export { LocationSelect } from './LocationSelect';
 
-export {}; // Temporary export to prevent empty module error
+// Vehicle management components
+export { AddVehicleForm } from './AddVehicleForm';

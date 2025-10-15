@@ -17,6 +17,10 @@ export * from './stripe.types';
 export * from './driver.types';
 export * from './movingPartner.types';
 export * from './notification.types';
+export * from './insurance';
+
+// GetQuote flow types (TASK_004 completed)
+export * from './getQuote.types';
 
 // Note: With domain prefixing implemented, all types can be safely exported
 // - API types: Prefixed with "Api" (e.g., ApiCreateAppointmentRequest)

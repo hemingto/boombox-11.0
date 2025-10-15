@@ -1,0 +1,22 @@
+<link
+  href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap"
+  rel="stylesheet"
+/>
+<style>
+  :root {
+    --font-inter: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-poppins: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+  }
+  
+  /* Force Poppins font for input fields in Storybook */
+  .font-poppins,
+  .input-field {
+    font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif !important;
+  }
+  
+  /* Ensure CSS variables are available */
+  html, body, #root, #storybook-root {
+    --font-inter: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-poppins: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+  }
+</style>

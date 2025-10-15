@@ -57,10 +57,21 @@ export async function POST(
     const additionalInfo = validationResult.data;
 
     // Update appointment additional details using centralized utility
-    const result = await updateAppointmentAdditionalDetails(
+    const updatedAppointment = await updateAppointmentAdditionalDetails(
       appointmentId,
       additionalInfo
     );
+
+    // Transform result to match expected AppointmentDomainAdditionalInfo interface
+    const result: AppointmentDomainAdditionalInfo = {
+      id: updatedAppointment.id,
+      appointmentId: updatedAppointment.id,
+      itemsOver100lbs: additionalInfo.itemsOver100lbs || false,
+      storageTerm: additionalInfo.storageTerm || null,
+      storageAccessFrequency: additionalInfo.storageAccessFrequency || null,
+      moveDescription: additionalInfo.moveDescription || null,
+      conditionsDescription: additionalInfo.conditionsDescription || null,
+    };
 
     return NextResponse.json(result, { status: 200 });
   } catch (error) {

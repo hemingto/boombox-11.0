@@ -17,6 +17,18 @@ const eslintConfig = [
       '@typescript-eslint/no-unused-vars': 'warn',
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-require-imports': 'warn',
+      // Enforce centralized utils imports
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@/lib/utils/*', '!@/lib/utils', '!@/lib/utils/index'],
+              message: 'Import utilities from \'@/lib/utils\' (central index) instead of deep paths.',
+            },
+          ],
+        },
+      ],
     },
   },
 ];

@@ -3,6 +3,7 @@ export {
   SkeletonText,
   SkeletonTitle,
   SkeletonAvatar,
+  SkeletonButton,
   SkeletonCard,
   SkeletonTable,
   SkeletonList,

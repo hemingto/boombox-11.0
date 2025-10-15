@@ -8,7 +8,7 @@
 
 import { cn } from '@/lib/utils/cn';
 
-export interface SpinnerProps {
+export interface SpinnerProps extends React.HTMLAttributes<HTMLDivElement> {
   /**
    * Size variant
    */
@@ -35,6 +35,7 @@ const Spinner: React.FC<SpinnerProps> = ({
   variant = 'primary',
   className,
   label = 'Loading...',
+  ...props
 }) => {
   const sizeClasses = {
     xs: 'w-3 h-3',
@@ -70,6 +71,7 @@ const Spinner: React.FC<SpinnerProps> = ({
       )}
       role="status"
       aria-label={label}
+      {...props}
     >
       <span className="sr-only">{label}</span>
     </div>

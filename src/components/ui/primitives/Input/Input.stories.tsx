@@ -5,9 +5,10 @@
 
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { Input } from './Input';
+import { EnvelopeIcon, LockClosedIcon, PhoneIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
 const meta = {
-  title: 'Components/UI/Input',
+  title: 'Components/UI/Primitives/Input',
   component: Input,
   parameters: {
     layout: 'centered',
@@ -50,6 +51,10 @@ const meta = {
     error: {
       control: 'text',
       description: 'Error message to display',
+    },
+    helperText: {
+      control: 'text',
+      description: 'Helper text to display below input',
     },
     className: {
       control: 'text',
@@ -121,6 +126,8 @@ export const Disabled: Story = {
 
 export const ErrorState: Story = {
   args: {
+    id: 'error-email-input',
+    label: 'Email Address',
     variant: 'error',
     placeholder: 'Enter valid email',
     defaultValue: 'invalid-email',
@@ -135,6 +142,65 @@ export const WithLabel: Story = {
   },
 };
 
+export const WithHelperText: Story = {
+  args: {
+    id: 'helper-email-input',
+    label: 'Email Address',
+    placeholder: 'Enter your email',
+    helperText: 'We will never share your email with anyone else.',
+  },
+};
+
+// Icon examples
+export const WithEmailIcon: Story = {
+  args: {
+    label: 'Email Address',
+    type: 'email',
+    placeholder: 'Enter your email',
+    icon: <EnvelopeIcon />,
+    iconPosition: 'left',
+  },
+};
+
+export const WithPasswordIcon: Story = {
+  args: {
+    label: 'Password',
+    type: 'password',
+    placeholder: 'Enter your password',
+    icon: <LockClosedIcon />,
+    iconPosition: 'left',
+  },
+};
+
+export const WithPhoneIcon: Story = {
+  args: {
+    label: 'Phone Number',
+    type: 'tel',
+    placeholder: '(555) 123-4567',
+    icon: <PhoneIcon />,
+    iconPosition: 'left',
+  },
+};
+
+export const WithSearchIcon: Story = {
+  args: {
+    type: 'search',
+    placeholder: 'Search...',
+    icon: <MagnifyingGlassIcon />,
+    iconPosition: 'left',
+  },
+};
+
+export const WithRightIcon: Story = {
+  args: {
+    label: 'Email Address',
+    type: 'email',
+    placeholder: 'Enter your email',
+    icon: <EnvelopeIcon />,
+    iconPosition: 'right',
+  },
+};
+
 // All variants showcase
 export const AllVariants: Story = {
   render: () => (
@@ -143,7 +209,13 @@ export const AllVariants: Story = {
         <Input label="Normal Input" placeholder="Enter text..." />
       </div>
       <div>
-        <Input label="Email Input" type="email" placeholder="Enter email..." />
+        <Input 
+          label="Email Input" 
+          type="email" 
+          placeholder="Enter email..." 
+          icon={<EnvelopeIcon />}
+          iconPosition="left"
+        />
       </div>
       <div>
         <Input
@@ -160,6 +232,24 @@ export const AllVariants: Story = {
           variant="success"
           placeholder="Valid input"
           defaultValue="success@example.com"
+        />
+      </div>
+      <div>
+        <Input
+          label="With Helper Text"
+          placeholder="Enter your email"
+          helperText="We'll use this to send you important updates"
+          icon={<EnvelopeIcon />}
+          iconPosition="left"
+        />
+      </div>
+      <div>
+        <Input
+          label="Search Input"
+          type="search"
+          placeholder="Search..."
+          icon={<MagnifyingGlassIcon />}
+          iconPosition="left"
         />
       </div>
       <div>

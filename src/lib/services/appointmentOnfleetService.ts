@@ -29,6 +29,8 @@ export interface AppointmentUpdateData {
   selectedLabor?: {
     onfleetTeamId?: string;
   } | null;
+  loadingHelpPrice?: number | null;
+  storageUnitCount?: number | null;
 }
 
 export interface OnfleetTaskData {
@@ -350,5 +352,76 @@ export class AppointmentOnfleetService {
       { appointmentId, taskData }
     );
     return { success: true, taskIds: [`task-${appointmentId}`] };
+  }
+
+  /**
+   * Handle transition from DIY to Full Service plan
+   */
+  async handleDiyToFullServiceTransition(appointmentId: number) {
+    // @REFACTOR-P9-TEMP: Mock implementation
+    console.log(
+      'PLACEHOLDER: AppointmentOnfleetService.handleDiyToFullServiceTransition called',
+      { appointmentId }
+    );
+    return { success: true, message: 'DIY to Full Service transition completed' };
+  }
+
+  /**
+   * Handle transition from Full Service to DIY plan
+   */
+  async handleFullServiceToDiyTransition(appointmentId: number) {
+    // @REFACTOR-P9-TEMP: Mock implementation
+    console.log(
+      'PLACEHOLDER: AppointmentOnfleetService.handleFullServiceToDiyTransition called',
+      { appointmentId }
+    );
+    return { success: true, message: 'Full Service to DIY transition completed' };
+  }
+
+  /**
+   * Notify moving partner of time change
+   */
+  async notifyMovingPartnerTimeChange(
+    appointmentId: number,
+    oldDate: Date,
+    newDate: Date
+  ) {
+    // @REFACTOR-P9-TEMP: Mock implementation
+    console.log(
+      'PLACEHOLDER: AppointmentOnfleetService.notifyMovingPartnerTimeChange called',
+      { appointmentId, oldDate, newDate }
+    );
+    return { success: true, message: 'Moving partner notified of time change' };
+  }
+
+  /**
+   * Delete Onfleet tasks for removed storage units
+   */
+  async deleteTasksForRemovedUnits(
+    appointmentId: number,
+    unitNumbers: number[]
+  ) {
+    // @REFACTOR-P9-TEMP: Mock implementation
+    console.log(
+      'PLACEHOLDER: AppointmentOnfleetService.deleteTasksForRemovedUnits called',
+      { appointmentId, unitNumbers }
+    );
+    return { success: true, message: 'Tasks deleted for removed units' };
+  }
+
+  /**
+   * Create additional Onfleet tasks for new storage units
+   */
+  async createAdditionalTasks(
+    appointmentId: number,
+    unitNumbers: number[],
+    appointmentData: any
+  ) {
+    // @REFACTOR-P9-TEMP: Mock implementation
+    console.log(
+      'PLACEHOLDER: AppointmentOnfleetService.createAdditionalTasks called',
+      { appointmentId, unitNumbers, appointmentData }
+    );
+    return { success: true, message: 'Additional tasks created for new units' };
   }
 }

@@ -1,0 +1,17 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`SiteMapHero Snapshot matches snapshot 1`] = `
+<div>
+  <div
+    class="w-full my-10 sm:my-20 lg:px-16 px-6"
+  >
+    <div>
+      <h1
+        class="mb-4"
+      >
+        Site map
+      </h1>
+    </div>
+  </div>
+</div>
+`;

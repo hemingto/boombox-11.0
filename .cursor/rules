@@ -188,6 +188,126 @@ Every refactored file must include source mapping:
 - Include `className?: string` prop for Tailwind customization
 - Use consistent prop patterns with variants and sizes
 
+### Design System Integration (CRITICAL)
+**MANDATORY**: During component migration, ALWAYS leverage the centralized design system:
+
+#### Tailwind Config Color Variables (REQUIRED)
+**NEVER use hardcoded colors** - Always use semantic color tokens from `tailwind.config.ts`:
+
+**✅ CORRECT - Use semantic colors:**
+```typescript
+// Error states
+'text-status-error'        // Instead of 'text-red-500'
+'bg-status-bg-error'       // Instead of 'bg-red-100'
+'border-border-error'      // Instead of 'border-red-500'
+
+// Text hierarchy
+'text-text-primary'        // Instead of 'text-zinc-950'
+'text-text-secondary'      // Instead of 'text-zinc-400'
+'text-text-tertiary'       // Instead of 'text-zinc-600'
+
+// Surface colors
+'bg-surface-primary'       // Instead of 'bg-white'
+'bg-surface-tertiary'      // Instead of 'bg-slate-100'
+'bg-surface-disabled'      // Instead of 'bg-slate-200'
+
+// Brand colors
+'bg-primary'               // Instead of 'bg-zinc-950'
+'hover:bg-primary-hover'   // Instead of 'hover:bg-zinc-800'
+```
+
+**❌ WRONG - Hardcoded colors:**
+```typescript
+'text-red-500'             // Use 'text-status-error'
+'text-zinc-950'            // Use 'text-text-primary'
+'bg-slate-100'             // Use 'bg-surface-tertiary'
+'border-red-500'           // Use 'border-border-error'
+```
+
+#### Global CSS Classes (REQUIRED)
+**ALWAYS use existing CSS classes** from `globals.css` instead of recreating styles:
+
+**✅ CORRECT - Use global classes:**
+```typescript
+// Form components
+'form-group'               // Container spacing
+'form-label'               // Label styling
+'form-error'               // Error message styling
+'form-helper'              // Helper text styling
+'input-field'              // Base input styling
+'input-field--error'       // Error state styling
+
+// Buttons
+'btn-primary'              // Primary button
+'btn-secondary'            // Secondary button
+'btn-destructive'          // Destructive action button
+
+// Cards and layout
+'card'                     // Standard card styling
+'page-container'           // Page width container
+'section-spacing'          // Consistent section padding
+
+// Status indicators
+'badge-success'            // Success badge
+'badge-error'              // Error badge
+'badge-warning'            // Warning badge
+```
+
+**❌ WRONG - Recreating existing styles:**
+```typescript
+// Don't recreate form styling
+'block text-lg font-normal text-primary mb-4'  // Use 'form-label'
+'text-sm text-red-500 mt-1'                    // Use 'form-error'
+'px-6 py-2.5 bg-zinc-950 text-white rounded'   // Use 'btn-primary'
+```
+
+#### Migration Checklist (MANDATORY)
+**Before completing ANY component migration:**
+
+1. **Color Audit**: Search component for ALL hardcoded colors:
+   - `text-red-*`, `text-zinc-*`, `text-gray-*` → Use semantic tokens
+   - `bg-red-*`, `bg-slate-*`, `bg-gray-*` → Use surface/status colors
+   - `border-red-*`, `border-gray-*` → Use border tokens
+
+2. **Class Consolidation**: Replace custom Tailwind combinations:
+   - Form styling → Use `form-*` classes
+   - Button styling → Use `btn-*` classes
+   - Card styling → Use `card` classes
+   - Badge styling → Use `badge-*` classes
+
+3. **Design System Verification**: Ensure component uses:
+   - ✅ Semantic color names (not specific color values)
+   - ✅ Global CSS classes where applicable
+   - ✅ Consistent spacing from design system
+   - ✅ Typography scale from config
+
+4. **Documentation**: Add comment explaining design system usage:
+   ```typescript
+   /**
+    * @design-system Uses semantic colors and global form classes
+    * @colors text-status-error, bg-surface-tertiary, border-border-error
+    * @classes form-group, form-label, input-field, input-field--error
+    */
+   ```
+
+#### Common Migration Patterns
+```typescript
+// ❌ BEFORE: boombox-10.0 style
+<input className="w-full px-3 py-2 border border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-blue-500" />
+<span className="text-red-500 text-sm mt-1">{error}</span>
+
+// ✅ AFTER: boombox-11.0 with design system
+<input className="input-field" />
+<span className="form-error">{error}</span>
+```
+
+#### Design System Benefits
+- **Consistency**: All components use the same color palette
+- **Maintainability**: Color changes happen in one place (tailwind.config.ts)
+- **Accessibility**: Centralized contrast ratio management
+- **Performance**: Reduced CSS bundle size from class reuse
+- **Developer Experience**: Semantic naming makes code self-documenting
+
 ### SEO, Accessibility & Performance (CRITICAL)
 **All refactored code must be optimized for:**
 
@@ -217,6 +337,86 @@ Every refactored file must include source mapping:
 - Optimize fonts with `next/font` for better CLS scores
 - Minimize layout shifts with proper size reservations
 - Target metrics: LCP < 2.5s, FID < 100ms, CLS < 0.1
+
+#### Image Optimization Pattern (MANDATORY)
+**ALWAYS replace `bg-slate-*` placeholder divs with OptimizedImage component**
+
+**❌ BAD - Placeholder div (boombox-10.0 pattern):**
+```tsx
+<div className="bg-slate-100 aspect-square w-full rounded-md"></div>
+```
+
+**✅ GOOD - OptimizedImage component (boombox-11.0 pattern):**
+```tsx
+import { OptimizedImage } from '@/components/ui/primitives/OptimizedImage/OptimizedImage';
+
+<OptimizedImage
+  src="/img/feature-image.jpg"
+  alt="Descriptive alt text for SEO and accessibility"
+  width={500}
+  height={500}
+  aspectRatio="square"
+  containerClassName="w-full rounded-md"
+  className="object-cover rounded-md"
+  loading="lazy"
+  sizes="(max-width: 768px) 100vw, 50vw"
+/>
+```
+
+**OptimizedImage Benefits:**
+- ✅ Automatic Next.js image optimization
+- ✅ Lazy loading with skeleton state
+- ✅ Proper SEO with alt text and img tags
+- ✅ Responsive sizing
+- ✅ Error handling with fallback support
+- ✅ Better accessibility than div with role="img"
+
+**Common Patterns:**
+```tsx
+// Hero images - eager loading, high priority
+<OptimizedImage
+  src="/img/hero.jpg"
+  alt="Hero description"
+  width={1200}
+  height={600}
+  aspectRatio="wide"
+  loading="eager"
+  priority
+  quality={90}
+/>
+
+// Content images - lazy loading, standard quality
+<OptimizedImage
+  src="/img/content.jpg"
+  alt="Content description"
+  width={800}
+  height={600}
+  aspectRatio="landscape"
+  loading="lazy"
+  quality={85}
+/>
+
+// Thumbnail/Card images - lazy, optimized for small size
+<OptimizedImage
+  src="/img/thumbnail.jpg"
+  alt="Thumbnail description"
+  width={400}
+  height={400}
+  aspectRatio="square"
+  loading="lazy"
+  quality={80}
+  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+/>
+```
+
+**Migration Checklist:**
+- [ ] Identify all `bg-slate-*` or `bg-gray-*` divs that are image placeholders
+- [ ] Replace with OptimizedImage component
+- [ ] Add descriptive alt text (not just "image" or "placeholder")
+- [ ] Set appropriate aspect ratio
+- [ ] Configure lazy/eager loading based on position (above/below fold)
+- [ ] Update tests to verify image rendering instead of div
+- [ ] Remove old TODO comments about replacing placeholders
 
 ### API Route Patterns
 - Use Zod for input validation
@@ -520,6 +720,496 @@ If files are created in wrong location:
 - Run `pnpm run lint` for code standards
 - Test critical workflows manually
 - Preserve existing functionality during refactor
+
+### Jest Testing Strategy & Standards (CRITICAL - Learned from 97→0 test failures)
+
+#### **Testing Philosophy: Resilient, Maintainable, Fast**
+Our testing approach prioritizes **test stability during refactoring** while maintaining comprehensive coverage. Based on fixing 97 failing tests, we've identified patterns that prevent test breakage during component migrations.
+
+---
+
+### **1. Test Architecture Principles (MANDATORY)**
+
+#### **A. Test What Users See, Not Implementation Details**
+```typescript
+// ❌ BAD: Testing implementation details (breaks during refactoring)
+expect(component.state.isLoading).toBe(true);
+expect(mockFunction).toHaveBeenCalledTimes(3);
+
+// ✅ GOOD: Testing user-visible behavior (survives refactoring)
+expect(screen.getByRole('status')).toHaveTextContent('Loading...');
+expect(screen.getByRole('button')).toBeDisabled();
+```
+
+#### **B. Accessibility-First Testing (Prevents 40% of failures)**
+```typescript
+// REQUIRED: Add to EVERY component test file
+import { axe, toHaveNoViolations } from 'jest-axe';
+import { testAccessibility } from '@/tests/utils/accessibility';
+expect.extend(toHaveNoViolations);
+
+// MANDATORY: Test accessibility in multiple states
+describe('Accessibility', () => {
+  it('has no accessibility violations', async () => {
+    const renderResult = render(<Component />);
+    await testAccessibility(renderResult);
+  });
+
+  it('maintains accessibility with error state', async () => {
+    const renderResult = render(<Component error="Test error" />);
+    await testAccessibility(renderResult);
+    expect(screen.getByRole('alert')).toHaveTextContent('Test error');
+  });
+});
+```
+
+#### **C. Component Architecture Alignment (Prevents 30% of failures)**
+```typescript
+// CRITICAL: Test actual component behavior, not assumptions
+// ❌ BAD: Assuming native HTML behavior
+expect(select).toHaveValue('option1'); // Fails if custom dropdown
+
+// ✅ GOOD: Test actual implementation
+expect(screen.getByRole('combobox')).toHaveTextContent('Option 1');
+expect(screen.getByDisplayValue('option1')).toBeInTheDocument(); // For form submission
+```
+
+---
+
+### **2. Mock Strategy (CRITICAL - Prevents "Element type is invalid" errors)**
+
+#### **A. Import/Export Pattern Detection (MANDATORY before mocking)**
+```bash
+# ALWAYS verify export pattern before creating mocks
+grep -n "export" src/components/path/ComponentName.tsx
+
+# Common patterns:
+# Named export: "export { ComponentName }" or "export function ComponentName"
+# Default export: "export default ComponentName" or "export default function"
+# Mixed exports: Both named and default in same file
+```
+
+#### **B. Correct Mock Patterns (CRITICAL)**
+```typescript
+// ✅ CORRECT: Named export mocking
+// For: export { ComponentName } from './ComponentName'
+jest.mock('@/components/path/ComponentName', () => ({
+  ComponentName: function MockComponentName(props: any) {
+    return <div data-testid="mock-component-name">{props.children}</div>;
+  }
+}));
+
+// ✅ CORRECT: Default export mocking  
+// For: export default ComponentName
+jest.mock('@/components/path/ComponentName', () => {
+  const MockComponentName = (props: any) => (
+    <div data-testid="mock-component-name">{props.children}</div>
+  );
+  MockComponentName.displayName = 'MockComponentName';
+  return {
+    __esModule: true,
+    default: MockComponentName
+  };
+});
+
+// ✅ CORRECT: Next.js Router mocking (CRITICAL for hooks)
+jest.mock('next/navigation', () => ({
+  useRouter: jest.fn(() => ({
+    push: jest.fn(),
+    refresh: jest.fn(),
+    back: jest.fn(),
+    forward: jest.fn()
+  })),
+  useSearchParams: jest.fn(() => ({
+    get: jest.fn(),
+    toString: jest.fn(() => '')
+  }))
+}));
+
+jest.mock('next-auth/react', () => ({
+  useSession: jest.fn(() => ({
+    data: { user: { id: 'test-user-id' } },
+    status: 'authenticated'
+  }))
+}));
+```
+
+#### **C. Mock Validation Checklist (REQUIRED)**
+**Before completing component tests with mocks:**
+- [ ] Verified actual import statement in component under test
+- [ ] Checked actual export pattern in mocked component file  
+- [ ] Mock pattern matches export pattern exactly
+- [ ] Added `displayName` for default export mocks (debugging)
+- [ ] Used `__esModule: true` for default exports
+- [ ] Tested that component renders without "Element type is invalid" error
+- [ ] Mock provides all props that real component expects
+
+---
+
+### **3. Test Isolation & Setup (Prevents test interference)**
+
+#### **A. Proper Test Cleanup (MANDATORY)**
+```typescript
+// REQUIRED: Add to every test file with mocks
+beforeEach(() => {
+  jest.clearAllMocks();
+  // Reset any global state
+  mockRouter.push.mockClear();
+  mockFetch.mockReset();
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+  // Clean up any side effects
+});
+```
+
+#### **B. Test Environment Setup**
+```typescript
+// CRITICAL: Mock browser APIs that components use
+// Already configured in jest.setup.js:
+// - ResizeObserver, IntersectionObserver
+// - window.matchMedia, window.scrollTo
+// - localStorage, sessionStorage
+// - Console method filtering
+
+// ADD component-specific mocks as needed:
+Object.defineProperty(window, 'HTMLElement', {
+  value: class MockHTMLElement {
+    scrollIntoView = jest.fn();
+    focus = jest.fn();
+  }
+});
+```
+
+---
+
+### **4. User Interaction Testing (Prevents 25% of failures)**
+
+#### **A. Efficient User Events**
+```typescript
+// CRITICAL: Use appropriate interaction methods
+// ❌ SLOW: Character-by-character typing for large content
+await user.type(input, longText); // 4000ms+
+
+// ✅ FAST: Direct value setting for large content
+fireEvent.change(input, { target: { value: longText } }); // 18ms
+
+// ✅ GOOD: Use userEvent for realistic interactions
+await user.click(button);
+await user.selectOptions(select, 'option1');
+await user.upload(fileInput, file);
+```
+
+#### **B. Async State Testing**
+```typescript
+// CRITICAL: Test async state transitions properly
+await user.click(submitButton);
+expect(screen.getByRole('status')).toHaveTextContent('Loading...');
+
+await waitFor(() => {
+  expect(screen.queryByRole('status')).not.toBeInTheDocument();
+});
+expect(screen.getByText('Success!')).toBeInTheDocument();
+```
+
+---
+
+### **5. CSS & Styling Testing (Prevents 20% of failures)**
+
+#### **A. CSS Class Validation**
+```typescript
+// CRITICAL: Validate cn() utility usage
+// ❌ BAD: Object syntax in cn() causes [object Object]
+cn('base-class', { 'conditional-class': condition })
+
+// ✅ GOOD: Use logical operators
+cn('base-class', condition && 'conditional-class')
+
+// REQUIRED: Test actual CSS classes, not assumptions
+expect(button).toHaveClass('btn-primary'); // Use design system classes
+expect(button).not.toHaveClass('[object Object]'); // Prevent cn() bugs
+```
+
+#### **B. Design System Integration Testing**
+```typescript
+// REQUIRED: Test semantic color usage
+expect(errorElement).toHaveClass('text-status-error'); // Not 'text-red-500'
+expect(button).toHaveClass('btn-primary'); // Not custom Tailwind combinations
+```
+
+---
+
+### **6. Form & Input Testing Patterns**
+
+#### **A. Controlled Component Testing**
+```typescript
+// REQUIRED: Test controlled component behavior
+const ControlledWrapper = () => {
+  const [value, setValue] = useState('');
+  return <Component value={value} onChange={setValue} />;
+};
+
+it('handles controlled input changes', async () => {
+  render(<ControlledWrapper />);
+  const input = screen.getByRole('textbox');
+  
+  await user.type(input, 'test value');
+  expect(input).toHaveValue('test value');
+});
+```
+
+#### **B. Form Validation Testing**
+```typescript
+// CRITICAL: Test validation states
+it('shows validation errors', async () => {
+  render(<FormComponent />);
+  const input = screen.getByRole('textbox');
+  const submitButton = screen.getByRole('button', { name: /submit/i });
+  
+  await user.click(submitButton);
+  expect(screen.getByRole('alert')).toHaveTextContent('Field is required');
+  expect(input).toHaveAttribute('aria-invalid', 'true');
+});
+```
+
+---
+
+### **7. Performance-Conscious Testing (Prevents 10% of failures)**
+
+#### **A. Efficient Test Patterns**
+```typescript
+// CRITICAL: Use efficient assertions
+// ❌ SLOW: Exact string matching for dynamic content
+expect(timer).toBe('00:01.23'); // Breaks with timing variations
+
+// ✅ FAST: Flexible pattern matching
+expect(timer).toMatch(/00:01\.[2-3]\d/); // Allows for timing variations
+
+// ✅ GOOD: Test presence, not exact content
+expect(screen.getByText(/loading/i)).toBeInTheDocument();
+```
+
+#### **B. Skip Complex Integration Tests**
+```typescript
+// CRITICAL: Skip complex external API tests in unit tests
+it.skip('complex Google Places integration', () => {
+  // REASON: Works in production, requires extensive mocking
+  // TEST IN: E2E tests or integration test suite
+});
+
+// ✅ GOOD: Mock external dependencies
+jest.mock('@/lib/external-api', () => ({
+  fetchData: jest.fn(() => Promise.resolve(mockData))
+}));
+```
+
+---
+
+### **8. Test File Structure & Organization**
+
+#### **A. Standard Test File Template (REQUIRED for new components)**
+```typescript
+/**
+ * @fileoverview Tests for ComponentName
+ * Following boombox-11.0 testing standards (97→0 failure learnings)
+ */
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { axe, toHaveNoViolations } from 'jest-axe';
+import { testAccessibility } from '@/tests/utils/accessibility';
+import ComponentName from '@/components/path/ComponentName';
+
+expect.extend(toHaveNoViolations);
+
+// CRITICAL: Verify import/export patterns before mocking
+// Check: grep -n "export" src/components/path/DependencyComponent.tsx
+
+// Mock dependencies with correct patterns
+jest.mock('@/components/dependency/Component', () => ({
+  Component: function MockComponent(props: any) {
+    return <div data-testid="mock-component" {...props} />;
+  }
+}));
+
+// Mock Next.js dependencies if used
+jest.mock('next/navigation', () => ({
+  useRouter: jest.fn(() => ({
+    push: jest.fn(),
+    refresh: jest.fn()
+  }))
+}));
+
+describe('ComponentName', () => {
+  // REQUIRED: Test cleanup
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  // REQUIRED: Basic rendering
+  describe('Rendering', () => {
+    it('renders without crashing', () => {
+      render(<ComponentName />);
+      expect(screen.getByRole('...')).toBeInTheDocument();
+    });
+  });
+
+  // MANDATORY: Accessibility testing
+  describe('Accessibility', () => {
+    it('has no accessibility violations', async () => {
+      const renderResult = render(<ComponentName />);
+      await testAccessibility(renderResult);
+    });
+
+    it('maintains accessibility with error state', async () => {
+      const renderResult = render(<ComponentName error="Test error" />);
+      await testAccessibility(renderResult);
+    });
+  });
+
+  // REQUIRED: User interaction testing
+  describe('User Interactions', () => {
+    it('handles user input correctly', async () => {
+      const user = userEvent.setup();
+      const mockOnChange = jest.fn();
+      
+      render(<ComponentName onChange={mockOnChange} />);
+      const input = screen.getByRole('textbox');
+      
+      await user.type(input, 'test');
+      expect(mockOnChange).toHaveBeenLastCalledWith('test');
+    });
+  });
+
+  // Add component-specific test groups...
+});
+```
+
+#### **B. Test Organization Patterns**
+```typescript
+// REQUIRED: Group tests logically
+describe('ComponentName', () => {
+  describe('Rendering', () => {
+    // Basic rendering tests
+  });
+
+  describe('Accessibility', () => {
+    // Accessibility tests (MANDATORY)
+  });
+
+  describe('User Interactions', () => {
+    // Click, type, form submission tests
+  });
+
+  describe('State Management', () => {
+    // Props, state changes, controlled components
+  });
+
+  describe('Error Handling', () => {
+    // Error states, validation, edge cases
+  });
+
+  describe('Integration', () => {
+    // Tests with other components, API calls
+  });
+});
+```
+
+---
+
+### **9. Pre-Component-Completion Checklist (MANDATORY)**
+
+**Before marking ANY component complete:**
+- [ ] All tests pass locally (`npm test ComponentName`)
+- [ ] Accessibility tests included and passing (MANDATORY)
+- [ ] CSS classes tested match actual implementation  
+- [ ] Async operations properly clear loading states
+- [ ] Complex integrations either properly mocked or skipped
+- [ ] Performance-conscious test patterns used
+- [ ] Component architecture matches test expectations
+- [ ] Import/export patterns verified and mocked correctly
+- [ ] Test isolation and cleanup implemented
+- [ ] User interactions tested with appropriate methods
+- [ ] Error states and edge cases covered
+
+---
+
+### **10. Common Anti-Patterns to Avoid**
+
+#### **A. Testing Implementation Details**
+```typescript
+// ❌ BAD: Testing internal state
+expect(wrapper.state('isLoading')).toBe(true);
+
+// ✅ GOOD: Testing user-visible behavior
+expect(screen.getByRole('status')).toBeInTheDocument();
+```
+
+#### **B. Brittle Selectors**
+```typescript
+// ❌ BAD: Fragile CSS selectors
+expect(container.querySelector('.btn-primary-large')).toBeInTheDocument();
+
+// ✅ GOOD: Semantic queries
+expect(screen.getByRole('button', { name: /submit/i })).toBeInTheDocument();
+```
+
+#### **C. Over-Mocking**
+```typescript
+// ❌ BAD: Mocking everything
+jest.mock('@/lib/utils/formatDate');
+jest.mock('@/lib/utils/formatCurrency');
+
+// ✅ GOOD: Mock only external dependencies
+jest.mock('@/lib/api/external-service');
+// Let utility functions run (they're pure and fast)
+```
+
+---
+
+### **11. Testing Utilities & Helpers**
+
+#### **A. Use Centralized Test Utilities**
+```typescript
+// REQUIRED: Use existing test utilities
+import { testAccessibility } from '@/tests/utils/accessibility';
+import { render } from '@/tests/utils/AddStorageTestWrapper'; // For complex components
+```
+
+#### **B. Create Reusable Test Helpers**
+```typescript
+// GOOD: Create helpers for common patterns
+const renderWithUser = (component: React.ReactElement) => {
+  const user = userEvent.setup();
+  const renderResult = render(component);
+  return { user, ...renderResult };
+};
+
+const expectAccessibleButton = async (button: HTMLElement) => {
+  expect(button).toHaveAttribute('type');
+  expect(button).not.toHaveAttribute('aria-disabled', 'true');
+  // Add more accessibility checks
+};
+```
+
+---
+
+### **12. Test Performance & Maintenance**
+
+#### **A. Test Execution Speed**
+- Use `fireEvent` for large text input instead of `userEvent.type()`
+- Mock heavy external dependencies
+- Use `it.skip()` for complex integration tests that belong in E2E
+- Prefer `screen.getByRole()` over complex DOM queries
+
+#### **B. Test Maintainability**
+- Test user behavior, not implementation details
+- Use semantic queries (`getByRole`, `getByLabelText`)
+- Group related tests in `describe` blocks
+- Add descriptive test names that explain the expected behavior
+- Use test utilities for common patterns
+
+This comprehensive testing strategy ensures that our tests are **resilient to refactoring**, **fast to execute**, and **maintainable long-term**. Following these patterns prevents the cascade of test failures we experienced and creates a robust testing foundation for the entire application.
 
 ### Error Prevention
 - Don't break existing import paths without updating references

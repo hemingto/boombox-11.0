@@ -1,0 +1,35 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`StorageCalculatorHero Snapshot matches snapshot 1`] = `
+<div>
+  <section
+    aria-labelledby="storage-calculator-heading"
+    class="flex mt-12 sm:mt-24 lg:px-16 px-6"
+  >
+    <div
+      class="place-content-center mb-8"
+    >
+      <svg
+        aria-hidden="true"
+        class="mb-4 w-12 h-12 text-text-primary"
+        data-testid="ruler-icon"
+      >
+        <title>
+          Ruler Icon
+        </title>
+      </svg>
+      <h1
+        class="mb-4 text-text-primary"
+        id="storage-calculator-heading"
+      >
+        Storage Calculator
+      </h1>
+      <p
+        class="text-text-secondary"
+      >
+        know exactly how much storage space you'll need
+      </p>
+    </div>
+  </section>
+</div>
+`;

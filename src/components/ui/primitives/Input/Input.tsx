@@ -103,6 +103,9 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     };
 
     const inputClasses = cn(
+      // Reset all default browser input styling
+      'input-reset',
+      
       // Base styles using design system classes
       'input-field',
 
@@ -137,7 +140,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     );
 
     const iconClasses = cn(
-      'absolute top-1/2 transform -translate-y-1/2 pointer-events-none transition-colors',
+      'absolute top-1/2 transform -translate-y-1/2 pointer-events-none',
       {
         'left-3': iconPosition === 'left',
         'right-3': iconPosition === 'right',
@@ -145,19 +148,19 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         'w-5 h-5': size === 'md',
         'w-6 h-6': size === 'lg',
         // Icon color states
-        'text-red-500': hasError,
-        'text-zinc-950': isFocused && !hasError,
-        'text-zinc-400': !isFocused && !hasError,
+        'text-status-error': hasError,
+        'text-text-primary': isFocused && !hasError,
+        'text-text-secondary': !isFocused && !hasError,
       }
     );
 
     return (
       <div className={cn('form-group', fullWidth && 'w-full')}>
-        {/* Label */}
+        {/* Label - visible by default when provided */}
         {label && (
-          <label className="form-label">
+          <label htmlFor={props.id} className="form-label">
             {label}
-            {required && <span className="text-red-500 ml-1">*</span>}
+            {required && <span className="text-status-error ml-1">*</span>}
           </label>
         )}
 

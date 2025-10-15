@@ -133,8 +133,8 @@ export async function POST(req: NextRequest) {
     // Process Onfleet tasks and driver assignment asynchronously
     processOnfleetAndAssignDriver(
       appointment.id,
-      user.id,
       {
+        userId: user.id,
         selectedInsurance,
         stripeCustomerId: user.stripeCustomerId,
         deliveryReason: 'Additional Storage'

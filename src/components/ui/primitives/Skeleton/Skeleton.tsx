@@ -8,7 +8,7 @@
 
 import { cn } from '@/lib/utils/cn';
 
-export interface SkeletonProps {
+export interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
   /**
    * Additional CSS classes
    */
@@ -20,34 +20,47 @@ export interface SkeletonProps {
   children?: React.ReactNode;
 }
 
-const Skeleton: React.FC<SkeletonProps> = ({ className, children }) => {
-  return <div className={cn('skeleton', className)}>{children}</div>;
+const Skeleton: React.FC<SkeletonProps> = ({ className, children, ...props }) => {
+  return (
+    <div 
+      className={cn(
+        'bg-surface-tertiary rounded animate-pulse',
+        'bg-shimmer bg-cover bg-no-repeat animate-shimmer',
+        className
+      )} 
+      {...props}
+    >
+      {children}
+    </div>
+  );
 };
 
 // Specific skeleton variants for common use cases
-const SkeletonText: React.FC<SkeletonProps> = ({ className }) => (
-  <Skeleton className={cn('skeleton-text h-4', className)} />
+const SkeletonText: React.FC<SkeletonProps> = ({ className, ...props }) => (
+  <Skeleton className={cn('skeleton-text h-4', className)} {...props} />
 );
 
-const SkeletonTitle: React.FC<SkeletonProps> = ({ className }) => (
-  <Skeleton className={cn('skeleton-title h-6', className)} />
+const SkeletonTitle: React.FC<SkeletonProps> = ({ className, ...props }) => (
+  <Skeleton className={cn('skeleton-title h-6', className)} {...props} />
 );
 
-const SkeletonAvatar: React.FC<SkeletonProps> = ({ className }) => (
+const SkeletonAvatar: React.FC<SkeletonProps> = ({ className, ...props }) => (
   <Skeleton
     className={cn('skeleton-avatar w-10 h-10 rounded-full', className)}
+    {...props}
   />
 );
 
-const SkeletonButton: React.FC<SkeletonProps> = ({ className }) => (
-  <Skeleton className={cn('h-10 w-24 rounded-md', className)} />
+const SkeletonButton: React.FC<SkeletonProps> = ({ className, ...props }) => (
+  <Skeleton className={cn('h-10 w-24 rounded-md', className)} {...props} />
 );
 
 const SkeletonCard: React.FC<SkeletonProps & { lines?: number }> = ({
   className,
   lines = 3,
+  ...props
 }) => (
-  <Skeleton className={cn('card p-6', className)}>
+  <Skeleton className={cn('card p-6', className)} {...props}>
     <SkeletonTitle className="mb-4 w-3/4" />
     {Array.from({ length: lines }).map((_, i) => (
       <SkeletonText
@@ -63,8 +76,8 @@ const SkeletonTable: React.FC<
     rows?: number;
     columns?: number;
   }
-> = ({ className, rows = 5, columns = 4 }) => (
-  <div className={cn('space-y-4', className)}>
+> = ({ className, rows = 5, columns = 4, ...props }) => (
+  <div className={cn('space-y-4', className)} {...props}>
     {/* Table header */}
     <div className="flex space-x-4">
       {Array.from({ length: columns }).map((_, i) => (
@@ -89,8 +102,9 @@ const SkeletonTable: React.FC<
 const SkeletonList: React.FC<SkeletonProps & { items?: number }> = ({
   className,
   items = 3,
+  ...props
 }) => (
-  <div className={cn('space-y-4', className)}>
+  <div className={cn('space-y-4', className)} {...props}>
     {Array.from({ length: items }).map((_, i) => (
       <div key={i} className="flex items-center space-x-4">
         <SkeletonAvatar />

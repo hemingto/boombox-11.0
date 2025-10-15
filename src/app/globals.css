@@ -37,7 +37,7 @@ body {
   background: rgb(var(--color-surface-primary));
   color: rgb(var(--color-text-primary));
   font-family:
-    var(--font-inter),
+    var(--font-poppins),
     -apple-system,
     BlinkMacSystemFont,
     'Segoe UI',
@@ -50,46 +50,54 @@ body {
   .btn-primary {
     @apply inline-flex items-center justify-center px-6 py-2.5 text-white font-semibold rounded-md transition-colors duration-200;
     @apply bg-primary hover:bg-primary-hover active:bg-primary-active;
-    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
     @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary;
+    @apply font-inter;
   }
 
   .btn-secondary {
     @apply inline-flex items-center justify-center px-6 py-2.5 font-semibold rounded-md transition-colors duration-200;
-    @apply bg-surface-tertiary text-text-primary border border-border;
-    @apply hover:bg-surface-disabled focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
+    @apply bg-surface-tertiary text-text-primary;
+    @apply hover:bg-surface-disabled focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
     @apply disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply font-inter;
   }
 
   .btn-destructive {
     @apply inline-flex items-center justify-center px-6 py-2.5 text-white font-semibold rounded-md transition-colors duration-200;
     @apply bg-status-error hover:bg-red-600 active:bg-red-700;
-    @apply focus:outline-none focus:ring-2 focus:ring-status-error focus:ring-offset-2;
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-status-error focus-visible:ring-offset-2;
     @apply disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply font-inter;
   }
+
+
 
   /* Input field pattern from boombox-10.0 */
   .input-field {
-    @apply w-full px-3 py-2.5 text-sm rounded-md transition-colors duration-200;
+    @apply w-full px-3 py-2.5 text-sm rounded-md;
     @apply bg-surface-tertiary border border-border;
     @apply placeholder:text-text-secondary;
     @apply focus:bg-surface-primary focus:outline-none focus:ring-2 focus:ring-border-focus focus:border-transparent;
     @apply focus:placeholder:text-text-primary;
     @apply disabled:bg-surface-disabled disabled:cursor-not-allowed;
+    @apply disabled:text-text-secondary disabled:placeholder:text-text-secondary;
   }
 
   .input-field--error {
-    @apply border-border-error focus:ring-border-error;
+    @apply border-border-error ring-2 ring-border-error;
     @apply bg-red-50 focus:bg-red-50;
+    @apply placeholder:text-status-error focus:placeholder:text-status-error;
+    @apply text-status-error;
   }
 
   /* Card patterns */
   .card {
-    @apply bg-surface-primary rounded-lg shadow-card border border-gray-200;
+    @apply bg-surface-primary rounded-lg shadow-custom-shadow border border-gray-200;
   }
 
   .card-elevated {
-    @apply bg-surface-primary rounded-lg shadow-elevated border border-gray-200;
+    @apply bg-surface-primary rounded-lg shadow-custom-shadow border border-gray-200;
   }
 
   /* Status badge patterns - directly from statusUtils.ts */
@@ -141,11 +149,11 @@ body {
 
   /* Modal/overlay patterns */
   .modal-overlay {
-    @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
+    @apply fixed inset-0 bg-overlay-primary z-10;
   }
 
   .modal-content {
-    @apply bg-surface-primary rounded-lg shadow-elevated p-6 mx-4 max-w-md w-full;
+    @apply bg-surface-primary rounded-lg shadow-custom-shadow p-6 mx-4 relative z-20;
   }
 
   /* Form patterns */
@@ -154,7 +162,7 @@ body {
   }
 
   .form-label {
-    @apply block text-sm font-medium text-text-primary;
+    @apply block text-lg font-normal text-primary mb-4;
   }
 
   .form-error {
@@ -162,7 +170,192 @@ body {
   }
 
   .form-helper {
-    @apply text-sm text-text-secondary mt-1;
+    @apply text-sm text-text-tertiary mt-1;
+  }
+
+  /* Input reset utility - removes all default browser styling */
+  .input-reset {
+    @apply border-none focus:outline-none appearance-none;
+  }
+
+  /* DatePicker component styles - High specificity to override react-datepicker defaults */
+  .datepicker-calendar .react-datepicker__month-container {
+    @apply p-4 rounded-md w-full;
+    box-shadow: 0px 6px 20px 0px rgba(0, 0, 0, 0.2) !important;
+    padding: 1rem !important;
+    border-radius: 0.5rem !important;
+    width: 100% !important;
+  }
+
+  .datepicker-calendar .react-datepicker {
+    @apply font-inter border-0 rounded-lg text-sm;
+    font-family: var(--font-inter), 'Inter', ui-sans-serif, system-ui, sans-serif !important;
+    border: none !important;
+    border-radius: 0.5rem !important;
+    font-size: 0.875rem !important;
+  }
+
+  .datepicker-calendar .react-datepicker__header {
+    @apply bg-surface-primary border-b-0 p-0;
+    background-color: rgb(255 255 255) !important;
+    border-bottom: none !important;
+    padding: 0px !important;
+  }
+
+  .datepicker-calendar .react-datepicker__header button {
+    @apply text-xl font-poppins;
+    font-size: 1.25rem !important;
+    font-family: var(--font-poppins), 'Poppins', ui-sans-serif, system-ui, sans-serif !important;
+  }
+
+  .datepicker-calendar .react-datepicker__month {
+    @apply m-0;
+    margin: 0 !important;
+  }
+
+  .datepicker-calendar .react-datepicker__day-names {
+    @apply flex justify-around -mb-1;
+    display: flex !important;
+    justify-content: space-around !important;
+    margin-bottom: -0.25rem !important;
+  }
+
+  .datepicker-calendar .react-datepicker__day-name {
+    @apply w-10 leading-10 mx-1 flex-1 aspect-square text-center;
+    @apply text-text-secondary font-semibold uppercase;
+    width: 2.5rem !important;
+    line-height: 2.5rem !important;
+    margin: 0.2rem !important;
+    flex: 1 !important;
+    aspect-ratio: 1 / 1 !important;
+    text-align: center !important;
+    color: rgb(161 161 170) !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+  }
+
+  .datepicker-calendar .react-datepicker__day {
+    @apply flex justify-center items-center leading-none mx-1 flex-1 aspect-square text-center rounded-full;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    line-height: unset !important;
+    margin: 0.2rem !important;
+    flex: 1 !important;
+    aspect-ratio: 1 / 1 !important;
+    text-align: center !important;
+    border-radius: 50% !important;
+  }
+
+  .datepicker-calendar .react-datepicker__day--selected,
+  .datepicker-calendar .react-datepicker__day--selected:hover {
+    @apply bg-primary text-text-inverse font-bold rounded-full;
+    background-color: rgb(24 24 27) !important;
+    border-radius: 50% !important;
+    color: white !important;
+    font-weight: bold !important;
+  }
+
+  .datepicker-calendar .react-datepicker__day:not(.react-datepicker__day--selected):hover {
+    @apply bg-surface-tertiary rounded-full text-primary;
+    background-color: rgb(241 245 249) !important;
+    border-radius: 9999px !important;
+    color: rgb(24 24 27) !important;
+  }
+
+  .datepicker-calendar .react-datepicker__day:active {
+    @apply bg-surface-disabled rounded-full text-primary;
+    background-color: rgb(226 232 240) !important;
+    border-radius: 9999px !important;
+    color: rgb(24 24 27) !important;
+  }
+
+  .datepicker-calendar .react-datepicker__day--keyboard-selected:not(.react-datepicker__day--selected) {
+    @apply bg-transparent rounded-full;
+    background-color: transparent !important;
+    border-radius: 9999px !important;
+  }
+
+  .datepicker-calendar .react-datepicker__day--keyboard-selected:not(.react-datepicker__day--selected):hover {
+    @apply bg-surface-tertiary;
+    background-color: rgb(241 245 249) !important;
+  }
+
+  .datepicker-calendar .react-datepicker__current-month {
+    @apply text-primary font-semibold text-base mb-2 font-poppins;
+    color: rgb(24 24 27) !important;
+    font-weight: 600 !important;
+    font-size: 1rem !important;
+    margin-bottom: 0.5rem !important;
+    font-family: var(--font-poppins), 'Poppins', ui-sans-serif, system-ui, sans-serif !important;
+  }
+
+  .datepicker-calendar .react-datepicker__navigation {
+    @apply top-4;
+    top: 1rem !important;
+  }
+
+  .datepicker-calendar .react-datepicker__navigation--previous {
+    @apply left-4;
+    left: 1rem !important;
+  }
+
+  .datepicker-calendar .react-datepicker__navigation--next {
+    @apply right-4;
+    right: 1rem !important;
+  }
+
+  .datepicker-calendar .react-datepicker__day--disabled {
+    @apply text-text-secondary line-through cursor-not-allowed;
+    color: rgb(228 228 231) !important;
+    text-decoration: line-through !important;
+    cursor: not-allowed !important;
+  }
+
+  .datepicker-calendar .react-datepicker__day--disabled:hover {
+    @apply bg-transparent text-text-secondary cursor-not-allowed;
+    background-color: transparent !important;
+    color: rgb(228 228 231) !important;
+    cursor: not-allowed !important;
+  }
+
+  .datepicker-calendar .react-datepicker__current-month,
+  .datepicker-calendar .react-datepicker__day-name,
+  .datepicker-calendar .react-datepicker__day,
+  .datepicker-calendar .react-datepicker__time-name {
+    @apply font-poppins;
+    font-family: var(--font-poppins), 'Poppins', ui-sans-serif, system-ui, sans-serif !important;
+  }
+
+  /* Hide dates from next/previous months */
+  .datepicker-calendar .react-datepicker__day--outside-month {
+    @apply invisible;
+    visibility: hidden !important;
+  }
+
+  /* Ensure proper layout */
+  .datepicker-calendar .react-datepicker__month {
+    @apply flex flex-col;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .datepicker-calendar .react-datepicker__week {
+    @apply flex justify-between items-center;
+    display: flex !important;
+    justify-content: space-between !important;
+    justify-content: center !important;
+    align-items: center !important;
+  }
+
+  /* DatePicker calendar container with design system integration */
+  .datepicker-calendar {
+    @apply bg-surface-primary rounded-md;
+    background-color: rgb(255 255 255) !important;
+    border-radius: 0.375rem !important;
+    border: none !important;
+    width: 100% !important;
+    max-width: none !important;
   }
 
   /* Layout utilities */

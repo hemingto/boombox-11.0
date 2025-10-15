@@ -330,7 +330,7 @@ This document tracks the migration of 594 files from boombox-10.0 to boombox-11.
 | Source File                                        | Target File                                                   | Status     | Notes               |
 | -------------------------------------------------- | ------------------------------------------------------------- | ---------- | ------------------- |
 | `src/app/user-page/[id]/page.tsx`                  | `src/app/(dashboard)/customer/[id]/page.tsx`                  | ⏳ Pending | Move to route group |
-| `src/app/user-page/[id]/edit-appointment/page.tsx` | `src/app/(dashboard)/customer/[id]/edit-appointment/page.tsx` | ⏳ Pending | Move to route group |
+| `src/app/user-page/[id]/edit-appointment/page.tsx` | `src/app/(dashboard)/customer/[id]/edit-appointment/page.tsx` | ✅ Completed | Moved to route group |
 | `src/app/user-page/[id]/packing-supplies/page.tsx` | `src/app/(dashboard)/customer/[id]/packing-supplies/page.tsx` | ⏳ Pending | Move to route group |
 | `src/app/user-page/[id]/access-storage/page.tsx`   | `src/app/(dashboard)/customer/[id]/access-storage/page.tsx`   | ⏳ Pending | Move to route group |
 | `src/app/user-page/[id]/add-storage/page.tsx`      | `src/app/(dashboard)/customer/[id]/add-storage/page.tsx`      | ⏳ Pending | Move to route group |

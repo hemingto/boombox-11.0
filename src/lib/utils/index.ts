@@ -4,14 +4,20 @@
  */
 
 // Core utility functions
+export * from './cn';
 export * from './phoneUtils';
 export * from './currencyUtils';
+export * from './navigationUtils';
+export * from './emailUtils';
 
 // Notification utilities
 export * from './notificationUtils';
 export * from './validationUtils';
 export * from './formatUtils';
 export * from './statusUtils';
+
+// Blog utilities
+export * from './blogUtils';
 
 // Explicit exports to resolve conflicts
 export {
@@ -31,6 +37,7 @@ export {
   parseAppointmentTime,
   calculateDeliveryWindow,
   getUnitSpecificStartTime,
+  formatVerboseDate,
 } from './dateUtils';
 
 export {
@@ -46,9 +53,24 @@ export {
 } from './cancellationUtils';
 
 // Domain-specific utilities (avoiding conflicts)
-// Note: appointmentUtils contains formatAppointmentTime which conflicts with dateFormattingUtils
-// Using appointmentUtils version for appointment-specific formatting
-export * from './appointmentUtils';
+// Note: appointmentUtils contains parseLoadingHelpPrice which conflicts with pricingUtils
+// Using pricingUtils version for parseLoadingHelpPrice
+export {
+  formatAppointmentTime,
+  formatAppointmentDateForSms,
+  formatTimeMinusOneHour,
+  validateAppointmentDateTime,
+  calculateAppointmentChanges,
+  calculateFinalUnitCount,
+  getUnitNumbersToRemove,
+  getDayOfWeekForAvailability,
+  validateMovingPartnerAvailability,
+  generateDriverReconfirmToken,
+  generateDriverWebViewUrl,
+  formatDriverInfo,
+  verifyTrackingToken,
+  // parseLoadingHelpPrice - using pricingUtils version
+} from './appointmentUtils';
 
 // Explicit exports from availabilityUtils to avoid conflicts
 export {
@@ -88,7 +110,7 @@ export {
 } from './movingPartnerUtils';
 
 // Messaging and communication utilities
-export * from './twilioUtils';
+// Note: twilioUtils contains server-side code (headers) - import directly in API routes only
 export * from './messageClassificationUtils';
 export * from './inboundMessageUtils';
 // Note: dateFormattingUtils contains formatAppointmentTime which conflicts with appointmentUtils
@@ -115,3 +137,22 @@ export {
   type OnfleetWorkerPayload,
   type DriverApprovalResult,
 } from './driverUtils';
+
+// Pricing utilities (explicit exports to avoid conflicts)
+export {
+  getBoomboxPriceByZipCode,
+  formatStorageUnitPrice,
+  formatInsurancePrice,
+  parseLoadingHelpPrice, // Using pricingUtils version as canonical
+} from './pricingUtils';
+
+// Storage utilities (explicit exports)
+export {
+  getStorageUnitText,
+} from './storageUtils';
+
+// Sorting and pagination utilities
+export * from './sortingUtils';
+
+// Tracking utilities
+export * from './trackingStatusUtils';

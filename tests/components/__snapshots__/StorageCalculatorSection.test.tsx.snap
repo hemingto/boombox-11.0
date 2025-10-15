@@ -1,0 +1,32 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`StorageCalculatorSection Snapshot matches snapshot 1`] = `
+<div>
+  <section
+    aria-label="Storage calculator interactive section"
+    class="md:flex lg:px-16 px-6 sm:mb-48 mb-24"
+  >
+    <div
+      class="rounded-md w-full flex flex-col items-center text-center p-24 bg-surface-tertiary"
+    >
+      <div
+        class="w-full max-w-2xl"
+        data-testid="optimized-image-container"
+      >
+        <img
+          alt="Storage calculator interactive interface - calculate your storage needs with Boombox units"
+          aspectratio="landscape"
+          class="object-cover rounded-md"
+          data-testid="optimized-image"
+          height="500"
+          loading="lazy"
+          quality="85"
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 800px"
+          src="/placeholder.jpg"
+          width="800"
+        />
+      </div>
+    </div>
+  </section>
+</div>
+`;

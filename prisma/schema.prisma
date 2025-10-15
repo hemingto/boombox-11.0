@@ -645,6 +645,7 @@ model Admin {
   damageReports   StorageUnitDamageReport[] // Add reverse relation for damage reports
   unitCleanings   StorageUnitCleaning[] // Add reverse relation for unit cleanings
   preppedPackingSupplyOrders PackingSupplyOrder[] // Add reverse relation for prepped orders
+  blogPosts       BlogPost[]    // Add reverse relation for blog posts
 }
 
 model AdminInvite {
@@ -848,6 +849,122 @@ model NotificationSettings {
   updatedAt             DateTime @updatedAt
   
   @@index([userId, userType])
+}
+
+// Blog System Models
+enum BlogStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model BlogPost {
+  id                Int           @id @default(autoincrement())
+  title             String        // Blog post title
+  slug              String        @unique // URL-friendly slug (e.g., "best-neighborhoods-san-francisco")
+  excerpt           String?       // Short description/summary (blogDescription from components)
+  content           String        // Full blog post content (rich text/markdown)
+  
+  // Images
+  featuredImage     String?       // Main blog post image (thumbnail from components)
+  featuredImageAlt  String?       // Alt text for featured image
+  
+  // SEO & Metadata
+  metaTitle         String?       // Custom meta title for SEO
+  metaDescription   String?       // Custom meta description for SEO
+  
+  // Organization & Categorization
+  categoryId        Int?
+  category          BlogCategory? @relation(fields: [categoryId], references: [id])
+  tags              BlogPostTag[] // Many-to-many relation with tags
+  
+  // Publishing & Status
+  status            BlogStatus    @default(DRAFT)
+  publishedAt       DateTime?     // When the post was published (datePublished from components)
+  
+  // Content Metadata
+  readTime          Int?          // Estimated read time in minutes (extracted from "15 min read")
+  viewCount         Int           @default(0) // Track page views
+  
+  // Author Information
+  authorId          Int
+  author            Admin         @relation(fields: [authorId], references: [id])
+  authorName        String?       // Display name override (author from components)
+  authorImage       String?       // Author profile image (authorImage from components)
+  
+  // Content Structure (for rich content like BlogContent component)
+  contentBlocks     BlogContentBlock[]
+  
+  // Timestamps
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  @@index([slug])
+  @@index([status, publishedAt])
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([publishedAt])
+}
+
+model BlogCategory {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique // "Tips and Tricks", "Press", "Most Recent"
+  slug        String     @unique // URL-friendly slug
+  description String?    // Category description
+  posts       BlogPost[] // Reverse relation to blog posts
+  
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  
+  @@index([slug])
+}
+
+model BlogTag {
+  id    Int           @id @default(autoincrement())
+  name  String        @unique // Tag name
+  slug  String        @unique // URL-friendly slug
+  posts BlogPostTag[] // Many-to-many relation with blog posts
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([slug])
+}
+
+// Junction table for many-to-many relationship between BlogPost and BlogTag
+model BlogPostTag {
+  id         Int     @id @default(autoincrement())
+  blogPostId Int
+  blogTagId  Int
+  blogPost   BlogPost @relation(fields: [blogPostId], references: [id], onDelete: Cascade)
+  blogTag    BlogTag  @relation(fields: [blogTagId], references: [id], onDelete: Cascade)
+  
+  @@unique([blogPostId, blogTagId])
+  @@index([blogPostId])
+  @@index([blogTagId])
+}
+
+// Content blocks for structured blog content (like BlogContent component)
+enum BlogContentBlockType {
+  PARAGRAPH
+  HEADING
+  IMAGE
+  QUOTE
+  LIST
+  CODE
+}
+
+model BlogContentBlock {
+  id         Int                   @id @default(autoincrement())
+  blogPostId Int
+  type       BlogContentBlockType
+  content    String                // Text content, image URL, etc.
+  metadata   Json?                 // Additional metadata (alt text, heading level, etc.)
+  order      Int                   // Order of the block in the post
+  
+  blogPost   BlogPost @relation(fields: [blogPostId], references: [id], onDelete: Cascade)
+  
+  @@index([blogPostId, order])
 }
 
 

@@ -96,7 +96,7 @@ const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
 
     const textareaClasses = cn(
       // Base styles using design system classes
-      'input-field',
+      'input-field', 'input-reset',
 
       // Size variants
       {
@@ -130,7 +130,7 @@ const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
       <div className={cn('form-group', fullWidth && 'w-full')}>
         {/* Label */}
         {label && (
-          <label className="form-label">
+          <label htmlFor={props.id} className="form-label">
             {label}
             {required && <span className="text-red-500 ml-1">*</span>}
           </label>

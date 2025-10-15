@@ -35,6 +35,12 @@ const URL_REGEX = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;
 const YEAR_REGEX = /^\d{4}$/;
 
 /**
+ * License plate validation regex
+ * Supports various US license plate formats (alphanumeric, 2-8 characters)
+ */
+const LICENSE_PLATE_REGEX = /^[A-Z0-9\s-]{2,8}$/i;
+
+/**
  * Validate email address using standard pattern
  */
 export function isValidEmail(email: string): boolean {
@@ -64,6 +70,22 @@ export function isValidURL(url: string): boolean {
 export function isValidYear(year: string): boolean {
   if (!year?.trim()) return false;
   return YEAR_REGEX.test(year.trim());
+}
+
+/**
+ * Validate license plate number
+ * @source boombox-10.0/src/app/components/driver-signup/addvehicleform.tsx (validateLicensePlate function)
+ */
+export function isValidLicensePlate(plate: string): boolean {
+  if (!plate?.trim()) return false;
+  
+  const trimmedPlate = plate.trim();
+  
+  // Basic validation - non-empty and reasonable length (2-8 characters)
+  if (trimmedPlate.length < 2 || trimmedPlate.length > 8) return false;
+  
+  // Must contain only alphanumeric characters, spaces, and hyphens
+  return LICENSE_PLATE_REGEX.test(trimmedPlate);
 }
 
 /**
@@ -104,6 +126,28 @@ export function hasMaxLength(value: string, maxLength: number): boolean {
 }
 
 /**
+ * Name validation regex pattern
+ * Allows letters, spaces, hyphens, and apostrophes
+ */
+const NAME_REGEX = /^[a-zA-Z\s'-]+$/;
+
+/**
+ * Validate name format (allows letters, spaces, hyphens, apostrophes)
+ */
+export function isValidName(name: string): boolean {
+  if (!name?.trim()) return false;
+  const trimmedName = name.trim();
+  return NAME_REGEX.test(trimmedName) && trimmedName.length >= 1;
+}
+
+/**
+ * Validate first name specifically
+ */
+export function isValidFirstName(firstName: string): boolean {
+  return isValidName(firstName);
+}
+
+/**
  * Validation error messages
  */
 export const ValidationMessages = {
@@ -113,6 +157,8 @@ export const ValidationMessages = {
   INVALID_URL: 'Please enter a valid website URL',
   INVALID_YEAR: 'Year must be a 4-digit number',
   INVALID_ROUTING_NUMBER: 'Routing number must be 9 digits',
+  INVALID_NAME: 'Please enter a valid name (letters, spaces, hyphens, and apostrophes only)',
+  INVALID_LICENSE_PLATE: 'Please enter a valid license plate number (2-8 characters, letters and numbers only)',
   VALUES_DONT_MATCH: 'Values do not match',
   MIN_LENGTH: (min: number) => `Must be at least ${min} characters`,
   MAX_LENGTH: (max: number) => `Must be no more than ${max} characters`,
@@ -139,6 +185,9 @@ export function validateField(
     url?: boolean;
     year?: boolean;
     routingNumber?: boolean;
+    name?: boolean;
+    firstName?: boolean;
+    licensePlate?: boolean;
     minLength?: number;
     maxLength?: number;
     custom?: (value: string) => boolean;
@@ -185,6 +234,21 @@ export function validateField(
   // Routing number validation
   if (rules.routingNumber && !isValidRoutingNumber(value)) {
     return { isValid: false, error: ValidationMessages.INVALID_ROUTING_NUMBER };
+  }
+
+  // Name validation
+  if (rules.name && !isValidName(value)) {
+    return { isValid: false, error: ValidationMessages.INVALID_NAME };
+  }
+
+  // First name validation
+  if (rules.firstName && !isValidFirstName(value)) {
+    return { isValid: false, error: ValidationMessages.INVALID_NAME };
+  }
+
+  // License plate validation
+  if (rules.licensePlate && !isValidLicensePlate(value)) {
+    return { isValid: false, error: ValidationMessages.INVALID_LICENSE_PLATE };
   }
 
   // Length validations

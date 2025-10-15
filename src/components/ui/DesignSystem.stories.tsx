@@ -4,6 +4,7 @@
  */
 
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
+import { Badge } from './primitives/Badge';
 
 // Mock component for design system showcase
 const DesignSystemShowcase = () => <div>Design System</div>;
@@ -198,12 +199,12 @@ export const StatusBadges: Story = {
       <section className="space-y-4">
         <h2 className="text-2xl font-semibold mb-4">Badge Variants</h2>
         <div className="flex flex-wrap gap-4">
-          <span className="badge-success">Completed</span>
-          <span className="badge-warning">Pending</span>
-          <span className="badge-error">Failed</span>
-          <span className="badge-info">Processing</span>
-          <span className="badge-pending">Pending Approval</span>
-          <span className="badge-processing">In Progress</span>
+          <Badge label="Completed" variant="success" />
+          <Badge label="Pending" variant="pending" />
+          <Badge label="Failed" variant="error" />
+          <Badge label="Processing" variant="processing" />
+          <Badge label="Warning" variant="warning" />
+          <Badge label="Info" variant="info" />
         </div>
       </section>
 
@@ -211,20 +212,52 @@ export const StatusBadges: Story = {
         <h2 className="text-2xl font-semibold mb-4">Usage Examples</h2>
         <div className="space-y-3">
           <div className="flex items-center gap-3">
-            <span className="badge-success">Active</span>
+            <Badge label="Active" variant="success" />
             <span>User account is active</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="badge-warning">Busy</span>
+            <Badge label="Busy" variant="warning" />
             <span>Driver is currently busy</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="badge-error">Payment Failed</span>
+            <Badge label="Payment Failed" variant="error" />
             <span>Transaction could not be processed</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="badge-info">Scheduled</span>
+            <Badge label="Scheduled" variant="info" />
             <span>Appointment is scheduled</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-2xl font-semibold mb-4">Real-world Examples</h2>
+        <div className="space-y-4">
+          <div>
+            <h4 className="text-sm font-medium mb-2">Order Status</h4>
+            <div className="flex flex-wrap gap-2">
+              <Badge label="Confirmed" variant="success" />
+              <Badge label="Pending" variant="pending" />
+              <Badge label="Processing" variant="processing" />
+              <Badge label="Cancelled" variant="error" />
+            </div>
+          </div>
+          <div>
+            <h4 className="text-sm font-medium mb-2">Payment Status</h4>
+            <div className="flex flex-wrap gap-2">
+              <Badge label="Paid" variant="success" />
+              <Badge label="Pending Payment" variant="warning" />
+              <Badge label="Failed" variant="error" />
+            </div>
+          </div>
+          <div>
+            <h4 className="text-sm font-medium mb-2">Driver Status</h4>
+            <div className="flex flex-wrap gap-2">
+              <Badge label="Available" variant="success" />
+              <Badge label="Busy" variant="warning" />
+              <Badge label="Offline" variant="error" />
+              <Badge label="En Route" variant="processing" />
+            </div>
           </div>
         </div>
       </section>
@@ -252,14 +285,14 @@ export const ComponentUtilities: Story = {
       <section className="space-y-4">
         <h2 className="text-2xl font-semibold mb-4">Card Components</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="card p-6">
-            <h3 className="text-lg font-semibold mb-2">Standard Card</h3>
-            <p className="text-text-secondary">Uses .card class with shadow</p>
+          <div className="bg-surface-primary rounded-lg border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold mb-2">Flat Card</h3>
+            <p className="text-text-secondary">Card with no shadow, just border</p>
           </div>
-          <div className="card-elevated p-6">
-            <h3 className="text-lg font-semibold mb-2">Elevated Card</h3>
+          <div className="bg-surface-primary rounded-lg shadow-custom-shadow border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold mb-2">Shadow Card</h3>
             <p className="text-text-secondary">
-              Uses .card-elevated class with larger shadow
+              Card with custom shadow (shadow-custom-shadow)
             </p>
           </div>
         </div>

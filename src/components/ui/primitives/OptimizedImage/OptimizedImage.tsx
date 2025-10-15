@@ -6,10 +6,13 @@
 import Image, { type ImageProps } from 'next/image';
 import { forwardRef, useState } from 'react';
 import { cn } from '@/lib/utils/cn';
+import { PhotoIcon } from '@heroicons/react/24/outline';
+import { Skeleton } from '../Skeleton/Skeleton';
 
 export interface OptimizedImageProps extends Omit<ImageProps, 'placeholder'> {
   /**
-   * Fallback image URL if main image fails to load
+   * Fallback image URL to display when main image fails to load
+   * Note: This is a manual fallback - provide a reliable image URL
    */
   fallbackSrc?: string;
 
@@ -68,7 +71,6 @@ export const OptimizedImage = forwardRef<HTMLImageElement, OptimizedImageProps>(
   ) {
     const [isLoading, setIsLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
-    const [currentSrc, setCurrentSrc] = useState(src);
 
     const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
       setIsLoading(false);
@@ -78,15 +80,6 @@ export const OptimizedImage = forwardRef<HTMLImageElement, OptimizedImageProps>(
     const handleError = (e: React.SyntheticEvent<HTMLImageElement>) => {
       setHasError(true);
       setIsLoading(false);
-
-      // Try fallback image if available
-      if (fallbackSrc && currentSrc !== fallbackSrc) {
-        setCurrentSrc(fallbackSrc);
-        setHasError(false);
-        setIsLoading(true);
-        return;
-      }
-
       onError?.(e);
     };
 
@@ -104,28 +97,23 @@ export const OptimizedImage = forwardRef<HTMLImageElement, OptimizedImageProps>(
       className
     );
 
-    // Build skeleton classes
-    const skeletonClasses = cn(
-      'absolute inset-0 bg-surface-tertiary animate-shimmer',
-      'flex items-center justify-center',
-      skeletonClassName
-    );
-
     return (
       <div className={containerClasses}>
-        {/* Loading skeleton */}
+        {/* Loading skeleton - show until we have a final result */}
         {showSkeleton && isLoading && (
-          <div className={skeletonClasses}>
-            <div className="w-8 h-8 bg-surface-disabled rounded animate-pulse" />
-          </div>
+          <Skeleton className="absolute inset-0">
+            <div className={cn('flex items-center justify-center h-full', skeletonClassName)}>
+              <div className="w-8 h-8 bg-surface-disabled rounded animate-pulse" />
+            </div>
+          </Skeleton>
         )}
 
-        {/* Error state */}
-        {hasError && !fallbackSrc && (
+        {/* Error state - only show if no fallback available */}
+        {hasError && !isLoading && !fallbackSrc && (
           <div className="absolute inset-0 bg-surface-secondary flex items-center justify-center">
-            <div className="text-center text-text-tertiary">
-              <div className="w-8 h-8 bg-surface-disabled rounded mx-auto mb-2" />
-              <p className="text-xs">Image not available</p>
+            <div className="text-center">
+              <PhotoIcon className="mx-auto mb-2 w-8 h-8 text-text-secondary" />
+              <p className="text-xs text-text-tertiary">Image not available</p>
             </div>
           </div>
         )}
@@ -133,13 +121,17 @@ export const OptimizedImage = forwardRef<HTMLImageElement, OptimizedImageProps>(
         {/* Optimized Image */}
         <Image
           ref={ref}
-          src={currentSrc}
+          src={fallbackSrc && hasError ? fallbackSrc : src}
           alt={alt}
           onLoad={handleLoad}
           onError={handleError}
           loading={loading}
           quality={quality}
-          className={imageClasses}
+          className={cn(
+            imageClasses,
+            // Hide image when showing error state to prevent alt text flash
+            hasError && !isLoading && !fallbackSrc && 'invisible'
+          )}
           // Performance optimizations
           placeholder="blur"
           blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
