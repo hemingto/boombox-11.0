@@ -35,6 +35,7 @@ import {
 } from '@/lib/database/availability.queries';
 
 import { cacheService, CACHE_TTL } from '@/lib/services/CacheService';
+import { JOB_TIMING } from '@/lib/constants/jobTiming';
 
 export class AvailabilityService {
   /**
@@ -237,6 +238,7 @@ export class AvailabilityService {
     const dayOfWeek = getDayOfWeekString(new Date(params.date + 'T00:00:00Z'));
 
     // Get all availability data in batch
+    // Pass excludeAppointmentId to skip the current appointment's booking in edit mode
     const dbQueryStart = Date.now();
     const {
       resourceData,
@@ -246,7 +248,8 @@ export class AvailabilityService {
     } = await getDateSpecificAvailabilityData(
       params.date,
       dayOfWeek,
-      params.planType
+      params.planType,
+      params.excludeAppointmentId
     );
     const dbQueryTime = Date.now() - dbQueryStart;
 
@@ -284,15 +287,23 @@ export class AvailabilityService {
 
           if (isGenerallyAvailable) {
             // Check for booking conflicts
+            // Note: booking stores serviceStart (bookingDate) and serviceEnd (endDate)
+            // We need to add buffers to get the full blocked window
             const conflicts = partnerBookingConflicts.get(partner.id) || [];
-            const hasConflict = conflicts.some(conflict =>
-              hasTimeConflict(
+            const hasConflict = conflicts.some(conflict => {
+              const blockedStart = new Date(
+                conflict.bookingDate.getTime() - JOB_TIMING.BUFFER_BEFORE_MINUTES * 60 * 1000
+              );
+              const blockedEnd = new Date(
+                conflict.endDate.getTime() + JOB_TIMING.BUFFER_AFTER_MINUTES * 60 * 1000
+              );
+              return hasTimeConflict(
                 slot.slotStart,
                 slot.slotEnd,
-                conflict.bookingDate,
-                conflict.endDate
-              )
-            );
+                blockedStart,
+                blockedEnd
+              );
+            });
 
             if (!hasConflict) {
               moverIsAvailable = true;
@@ -326,16 +337,34 @@ export class AvailabilityService {
 
           if (isGenerallyAvailable) {
             // Check for booking conflicts
+            // We need to check if a NEW job at this slot would conflict with existing bookings
+            // The new job's blocked window = slotStart - buffer BEFORE to slotStart + service + buffer AFTER
+            const potentialJobBlockedStart = new Date(
+              slot.slotStart.getTime() - JOB_TIMING.BUFFER_BEFORE_MINUTES * 60 * 1000
+            );
+            const potentialJobBlockedEnd = new Date(
+              slot.slotStart.getTime() + 
+              (JOB_TIMING.SERVICE_DURATION_MINUTES + JOB_TIMING.BUFFER_AFTER_MINUTES) * 60 * 1000
+            );
+
             const bookingConflicts =
               driverBookingConflicts.get(driver.id) || [];
-            const hasBookingConflict = bookingConflicts.some(conflict =>
-              hasTimeConflict(
-                slot.slotStart,
-                slot.slotEnd,
-                conflict.bookingDate,
-                conflict.endDate
-              )
-            );
+            const hasBookingConflict = bookingConflicts.some(conflict => {
+              // Calculate existing booking's full blocked window with buffers
+              const existingBlockedStart = new Date(
+                conflict.bookingDate.getTime() - JOB_TIMING.BUFFER_BEFORE_MINUTES * 60 * 1000
+              );
+              const existingBlockedEnd = new Date(
+                conflict.endDate.getTime() + JOB_TIMING.BUFFER_AFTER_MINUTES * 60 * 1000
+              );
+              // Check if potential new job's blocked window overlaps with existing
+              return hasTimeConflict(
+                potentialJobBlockedStart,
+                potentialJobBlockedEnd,
+                existingBlockedStart,
+                existingBlockedEnd
+              );
+            });
 
             if (hasBookingConflict) {
               totalConflicts.existingBookings++;

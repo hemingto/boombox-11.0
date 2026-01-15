@@ -20,6 +20,7 @@ import { BoomboxLogo } from "@/components/icons/BoomboxLogo";
 import Link from 'next/link';
 import { MenuPopover } from "./MenuPopover";
 import { MobileMenu } from "./MobileMenu";
+import { Button } from "@/components/ui/primitives/Button/Button";
 
 interface MinimalNavbarProps {
   theme?: 'dark' | 'light';
@@ -53,33 +54,37 @@ export const MinimalNavbar: React.FC<MinimalNavbarProps> = ({ theme = 'dark', sh
             {showLoginButton && (
               <li>
                 <Link href="/login">
-                  <button 
-                    className={`hidden sm:block py-2.5 px-4 rounded-full font-semibold text-sm transition-colors text-nowrap font-inter focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    borderRadius="full"
+                    className={`hidden sm:block font-poppins font-semibold ${
                       isDarkTheme 
-                        ? 'text-text-inverse hover:bg-primary-hover active:bg-primary-active focus-visible:ring-text-inverse' 
-                        : 'text-text-primary hover:bg-surface-tertiary active:bg-surface-disabled focus-visible:ring-primary'
+                        ? 'text-text-inverse hover:bg-primary-hover active:bg-primary-active' 
+                        : 'text-text-primary hover:bg-surface-tertiary active:bg-surface-disabled'
                     }`}
                     aria-label="Log in to your account"
+                    noWrap
                   >
                     Log in
-                  </button>
+                  </Button>
                 </Link>
               </li>
             )}
 
             {showGetQuoteButton && (
               <li>
-                <Link href="/getquote">
-                  <button 
-                    className={`hidden sm:block py-2.5 px-3 rounded-full font-semibold text-sm transition-colors text-nowrap font-inter focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
-                      isDarkTheme 
-                        ? 'text-primary bg-surface-primary hover:bg-surface-tertiary active:bg-surface-disabled focus-visible:ring-text-inverse' 
-                        : 'text-text-inverse bg-primary hover:bg-primary-hover active:bg-primary-active focus-visible:ring-primary'
-                    }`}
+                <Link href="/get-quote">
+                  <Button
+                    variant={isDarkTheme ? 'white' : 'primary'}
+                    size="sm"
+                    borderRadius="full"
+                    className="hidden sm:block"
                     aria-label="Get a storage quote"
+                    noWrap
                   >
                     Get Quote
-                  </button>
+                  </Button>
                 </Link>
               </li>
             )}

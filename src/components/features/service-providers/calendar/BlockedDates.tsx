@@ -58,6 +58,7 @@ const BlockedDates: React.FC<BlockedDatesProps> = ({ userType, userId }) => {
   const [selectedDateObject, setSelectedDateObject] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [removingDateId, setRemovingDateId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Construct API path based on userType
@@ -120,6 +121,7 @@ const BlockedDates: React.FC<BlockedDatesProps> = ({ userType, userId }) => {
   };
 
   const handleRemoveBlockedDate = async (id: number) => {
+    setRemovingDateId(id);
     try {
       setError(null);
       const response = await fetch(getApiPath(`blocked-dates/${id}`), {
@@ -135,6 +137,8 @@ const BlockedDates: React.FC<BlockedDatesProps> = ({ userType, userId }) => {
     } catch (error) {
       console.error('Error removing blocked date:', error);
       setError(error instanceof Error ? error.message : 'Failed to remove blocked date. Please try again.');
+    } finally {
+      setRemovingDateId(null);
     }
   };
 
@@ -148,14 +152,14 @@ const BlockedDates: React.FC<BlockedDatesProps> = ({ userType, userId }) => {
     <div className="mt-12 max-w-5xl w-full mx-auto">
       {/* Section Header */}
       <div className="grid grid-cols-[1fr,auto] gap-8 border-b border-border pb-4">
-        <h3 className="text-xl font-semibold text-text-primary">Block Specific Dates</h3>
+        <h2 className="text-text-primary">Block Specific Dates</h2>
         <div className="w-16" aria-hidden="true"></div>
       </div>
 
       {/* Add Blocked Date Form */}
-      <div className="pt-4 border-b border-border">
+      <div className="pt-4 pb-4 border-b border-border">
         <div className="flex gap-4 items-center flex-wrap">
-          <div className="max-w-xl flex-1 min-w-[250px]">
+          <div className="min-w-[250px]">
             <CustomDatePicker
               value={selectedDateObject}
               onDateChange={handleDateChange}
@@ -169,10 +173,9 @@ const BlockedDates: React.FC<BlockedDatesProps> = ({ userType, userId }) => {
             onClick={handleAddBlockedDate}
             disabled={isSaving || !selectedDate}
             variant="primary"
-            className="sm:mb-4 mb-2"
             aria-label={isSaving ? 'Adding blocked date...' : 'Block selected date'}
           >
-            {isSaving ? 'Adding...' : 'Block Date'}
+            {isSaving ? 'Blocking Date...' : 'Block Date'}
           </Button>
         </div>
         
@@ -197,18 +200,18 @@ const BlockedDates: React.FC<BlockedDatesProps> = ({ userType, userId }) => {
           <Skeleton className="h-14 w-full" />
         </div>
       ) : (
-        <div className="pt-4">
+        <div>
           {blockedDates.length === 0 ? (
             <div 
-              className="text-center min-h-48 flex flex-col items-center justify-center bg-surface-secondary rounded-md"
+              className="text-center min-h-48 flex flex-col items-center justify-center bg-surface-tertiary rounded-md"
               role="status"
               aria-label="No blocked dates"
             >
               <CalendarDateRangeIcon 
-                className="mx-auto w-8 h-8 text-text-tertiary mb-2" 
+                className="mx-auto w-8 h-8 text-text-secondary mb-2" 
                 aria-hidden="true"
               />
-              <p className="text-text-tertiary">No blocked dates</p>
+              <p className="text-text-secondary">No blocked dates</p>
             </div>
           ) : (
             <div 
@@ -219,7 +222,7 @@ const BlockedDates: React.FC<BlockedDatesProps> = ({ userType, userId }) => {
               {blockedDates.map((date) => (
                 <div
                   key={date.id}
-                  className="sm:p-4 p-2 flex justify-between border-b border-border items-center rounded-md hover:bg-surface-secondary transition-colors"
+                  className="sm:p-4 p-2 flex justify-between border-b border-border items-center rounded-md"
                   role="listitem"
                 >
                   <span className="text-text-primary font-medium">
@@ -227,11 +230,12 @@ const BlockedDates: React.FC<BlockedDatesProps> = ({ userType, userId }) => {
                   </span>
                   <Button
                     onClick={() => handleRemoveBlockedDate(date.id)}
+                    disabled={removingDateId === date.id}
                     variant="secondary"
                     size="sm"
-                    aria-label={`Remove blocked date: ${format(new Date(date.blockedDate), 'MMMM d, yyyy')}`}
+                    aria-label={removingDateId === date.id ? 'Removing blocked date...' : `Remove blocked date: ${format(new Date(date.blockedDate), 'MMMM d, yyyy')}`}
                   >
-                    Remove
+                    {removingDateId === date.id ? 'Removing...' : 'Remove'}
                   </Button>
                 </div>
               ))}
@@ -242,8 +246,8 @@ const BlockedDates: React.FC<BlockedDatesProps> = ({ userType, userId }) => {
 
       {/* Informational Note */}
       <div className="mt-6">
-        <p className="text-text-secondary border border-border rounded-md p-3 text-sm bg-surface-secondary">
-          <strong className="text-text-primary">Note:</strong> Blocked dates will prevent any bookings on those specific days, regardless of your weekly availability settings.
+        <p className="text-text-primary border border-border rounded-md p-3 text-sm">
+          <strong>Note:</strong> Blocked dates will prevent any bookings on those specific days, regardless of your weekly availability settings.
         </p>
       </div>
     </div>

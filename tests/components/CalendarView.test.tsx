@@ -10,24 +10,46 @@ import CalendarView from '@/components/features/service-providers/calendar/Calen
 
 expect.extend(toHaveNoViolations);
 
-// Mock react-big-calendar
-jest.mock('react-big-calendar', () => {
-  const actual = jest.requireActual('react-big-calendar');
+// Mock FullCalendar and its plugins
+jest.mock('@fullcalendar/react', () => {
   return {
-    ...actual,
-    Calendar: function MockCalendar(props: any) {
+    __esModule: true,
+    default: function MockFullCalendar(props: any) {
+      // Simulate eventClick callback with FullCalendar's event structure
+      const handleEventClick = () => {
+        if (props.events && props.events.length > 0 && props.eventClick) {
+          const mockEvent = {
+            event: {
+              id: props.events[0].id,
+              title: props.events[0].title,
+              start: props.events[0].start,
+              end: props.events[0].end,
+              extendedProps: props.events[0].extendedProps,
+            },
+            jsEvent: new MouseEvent('click'),
+            view: {},
+          };
+          props.eventClick(mockEvent);
+        }
+      };
+
       return (
         <div data-testid="calendar-mock">
-          <button onClick={() => props.onSelectEvent(props.events[0])}>
+          <button onClick={handleEventClick}>
             Select Event
           </button>
-          <div>{props.events.length} events</div>
+          <div>{props.events?.length ?? 0} events</div>
         </div>
       );
     },
-    dateFnsLocalizer: jest.fn(() => ({})),
   };
 });
+
+// Mock FullCalendar plugins
+jest.mock('@fullcalendar/daygrid', () => ({ __esModule: true, default: {} }));
+jest.mock('@fullcalendar/timegrid', () => ({ __esModule: true, default: {} }));
+jest.mock('@fullcalendar/list', () => ({ __esModule: true, default: {} }));
+jest.mock('@fullcalendar/interaction', () => ({ __esModule: true, default: {} }));
 
 // Mock AppointmentDetailsPopup from shared folder
 jest.mock('@/components/features/service-providers/shared/AppointmentDetailsPopup', () => ({

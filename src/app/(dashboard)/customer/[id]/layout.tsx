@@ -10,6 +10,8 @@ import React from 'react';
 import { UserNavbar } from '@/components/ui/navigation/UserNavbar';
 import { useParams } from 'next/navigation';
 import { UserProvider } from '@/contexts/UserContext';
+import { useSessionMonitor } from '@/hooks/useSessionMonitor';
+import { SessionExpirationModal } from '@/components/ui/session/SessionExpirationModal';
 
 export default function CustomerLayout({
   children,
@@ -19,6 +21,9 @@ export default function CustomerLayout({
   const params = useParams();
   const userId =
     (Array.isArray(params?.id) ? params.id[0] : params?.id) ?? '';
+  
+  // Monitor session expiration
+  const { showWarning, secondsRemaining, isExpired, resetMonitor } = useSessionMonitor();
 
   if (!userId) {
     return <div>Loading user...</div>;
@@ -32,6 +37,14 @@ export default function CustomerLayout({
         showAccessStorageButton={true}
       />
       {children}
+      
+      {/* Session expiration modal */}
+      <SessionExpirationModal
+        open={showWarning}
+        secondsRemaining={secondsRemaining}
+        isExpired={isExpired}
+        onReauthenticated={resetMonitor}
+      />
     </UserProvider>
   );
 }

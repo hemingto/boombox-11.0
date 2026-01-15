@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * @fileoverview Card expiration date input component using Stripe Elements with design system integration
  * @source boombox-10.0/src/app/components/reusablecomponents/cardexpirationdateinput.tsx
@@ -65,6 +67,7 @@ const CardExpirationDateInput: React.FC<CardExpirationDateInputProps> = ({
 
   const handleFocus = () => {
     setIsFocused(true);
+    setHasError(false); // Clear error state when user focuses
     onFocus?.();
   };
 
@@ -83,15 +86,12 @@ const CardExpirationDateInput: React.FC<CardExpirationDateInputProps> = ({
         lineHeight: '24px',
         fontWeight: '400',
         '::placeholder': {
-          color: 'rgb(161 161 170)', // text-secondary from design system
+          color: hasError ? 'rgb(239 68 68)' : (isFocused ? 'rgb(24 24 27)' : 'rgb(161 161 170)'), // Red when error, zinc-950 when focused, text-secondary otherwise
           fontSize: '14px',
         },
       },
       invalid: {
         color: 'rgb(239 68 68)', // status-error from design system
-        '::placeholder': {
-          color: 'rgb(239 68 68)', // status-error for placeholder too
-        },
       },
     },
     placeholder: 'MM / YY',
@@ -100,12 +100,12 @@ const CardExpirationDateInput: React.FC<CardExpirationDateInputProps> = ({
 
   // Dynamic styling based on state using design system classes
   const containerClassName = `
-    py-2.5 px-3 rounded-md transition-all duration-200
+    py-2.5 px-3 rounded-md
     ${hasError 
       ? 'ring-2 ring-border-error bg-red-50 border-border-error' 
       : isFocused
         ? 'ring-2 ring-border-focus bg-surface-primary border-transparent'
-        : 'bg-surface-tertiary border border-border hover:bg-surface-secondary'
+        : 'bg-surface-tertiary'
     }
     ${disabled 
       ? 'bg-surface-disabled cursor-not-allowed opacity-60' 

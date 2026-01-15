@@ -88,7 +88,7 @@ export function HelpCenterHero({
           aria-hidden="true"
         />
         <h1 className="mb-4">{title}</h1>
-        <p className="text-text-secondary">{subtitle}</p>
+        <p className="text-text-primary">{subtitle}</p>
       </header>
 
       {showPlaceholder && (

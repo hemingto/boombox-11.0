@@ -126,25 +126,23 @@ export function QuoteBuilder({
         <h1 className="text-4xl mb-12">Build your quote</h1>
 
         {/* Address Selection */}
-        <p className="mb-4">Where are we delivering your Boombox?</p>
-        <AddressInput
-          value={address}
-          onAddressChange={onAddressChange}
-          hasError={!!addressError}
-          onClearError={clearAddressError}
-        />
-        {addressError && (
-          <div className="flex items-center mb-4 -mt-4 text-red-500">
-            <p className="ml-1 text-sm text-red-500">{addressError}</p>
-          </div>
-        )}
+        <div className="mb-4 sm:mb-8">
+          <AddressInput
+            label="Where are we delivering your Boombox?"
+            value={address}
+            onAddressChange={onAddressChange}
+            hasError={!!addressError}
+            onClearError={clearAddressError}
+          />
+        </div>
 
         {/* Storage Unit Counter */}
+        <div className="mb-4 sm:mb-8">
         <StorageUnitCounter
           onCountChange={onStorageUnitChange}
           initialCount={storageUnitCount}
         />
-
+    
         {/* Storage Calculator Link */}
         <div className="mt-4 p-3 mb-12 border border-slate-100 bg-white rounded-md max-w-fit">
           <p className="text-xs">
@@ -158,6 +156,7 @@ export function QuoteBuilder({
               here
             </Link>
           </p>
+        </div>
         </div>
 
         {/* Plan Selection */}
@@ -215,12 +214,12 @@ export function QuoteBuilder({
           {/* Plan Error Message */}
           {planError && (
             <div className="flex items-center mb-4 mt-1 text-red-500">
-              <p className="ml-1 text-sm text-red-500">{planError}</p>
+              <p className="ml-1 text-sm text-red-500 font-medium">{planError}</p>
             </div>
           )}
 
           {/* Plan Details Toggle */}
-          <div className="mt-4 p-3 sm:mb-4 mb-2 bg-white border border-slate-100 rounded-md max-w-fit">
+          <div className="mt-4 p-3 mb-4 sm:mb-8 bg-white border border-slate-100 rounded-md max-w-fit">
             <p className="text-xs">
               To learn what&apos;s included in each plan click{' '}
               <span
@@ -262,18 +261,12 @@ export function QuoteBuilder({
 
         {/* Insurance Selection */}
         <div className="mb-96 sm:mb-60">
-          <p className="mb-4 mt-4">Do you need additional insurance coverage?</p>
           <InsuranceInput
             value={selectedInsurance?.value ?? null}
             onInsuranceChange={onInsuranceChange}
             hasError={!!insuranceError}
             onClearError={clearInsuranceError}
           />
-          {insuranceError && (
-            <div className="flex items-center mb-4 mt-3 text-red-500">
-              <p className="ml-1 text-sm text-red-500">{insuranceError}</p>
-            </div>
-          )}
         </div>
       </div>
     </div>

@@ -53,10 +53,10 @@ interface OnfleetTasksModalProps {
 export function OnfleetTasksModal({ isOpen, onClose, tasks }: OnfleetTasksModalProps) {
   return (
     <Modal
-      isOpen={isOpen}
+      open={isOpen}
       onClose={onClose}
       title="Onfleet Tasks"
-      size="large"
+      size="lg"
     >
       <div className="mt-4">
         {tasks.length === 0 ? (
@@ -65,12 +65,12 @@ export function OnfleetTasksModal({ isOpen, onClose, tasks }: OnfleetTasksModalP
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-border">
-              <thead className="bg-surface-tertiary">
+            <table className="min-w-full divide-y divide-border bg-surface-tertiary">
+              <thead className="bg-surface-tertiary p-1">
                 <tr>
                   <th 
                     scope="col" 
-                    className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-text-primary sm:pl-0"
+                    className="py-3.5 pr-3 pl-1 text-left text-sm font-semibold text-text-primary"
                   >
                     Step Number
                   </th>
@@ -91,7 +91,7 @@ export function OnfleetTasksModal({ isOpen, onClose, tasks }: OnfleetTasksModalP
               <tbody className="divide-y divide-border bg-surface-primary">
                 {tasks.map((task) => (
                   <tr key={task.taskId}>
-                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-text-primary sm:pl-0">
+                    <td className="whitespace-nowrap pl-1 py-4 pr-3 text-sm text-text-primary">
                       {task.stepNumber}
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-text-secondary font-mono">

@@ -28,9 +28,27 @@ import { prisma } from '@/lib/database/prismaClient';
 export async function GET(req: NextRequest) {
   try {
     const userId = parseInt(req.nextUrl.searchParams.get('userId') || '', 10);
+    // Optional: exclude a specific appointment from pending checks (for edit mode)
+    const excludeAppointmentId = parseInt(req.nextUrl.searchParams.get('excludeAppointmentId') || '', 10) || undefined;
 
     if (!userId) {
-      return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+      return NextResponse.json({ 
+        success: false,
+        message: 'Missing userId parameter',
+        error: 'Missing userId'
+      }, { status: 400 });
+    }
+
+    // Build the appointment filter for access requests
+    const appointmentFilter: any = {
+      userId: userId, // Only consider appointments for this user
+      status: { in: ['Scheduled', 'Pending', 'Confirmed', 'In Progress'] },
+      appointmentType: { in: ['Storage Unit Access', 'End Storage Term'] }
+    };
+
+    // In edit mode, exclude the current appointment from pending checks
+    if (excludeAppointmentId) {
+      appointmentFilter.id = { not: excludeAppointmentId };
     }
 
     const storageUnits = await prisma.storageUnitUsage.findMany({
@@ -42,7 +60,27 @@ export async function GET(req: NextRequest) {
         },
       },
       include: {
-        storageUnit: true, // Include related storage unit data
+        storageUnit: {
+          include: {
+            // Check for any active access storage appointments for this unit by this user
+            // Use explicit list of active statuses to ensure we only match truly pending appointments
+            accessRequests: {
+              where: {
+                appointment: appointmentFilter
+              },
+              include: {
+                appointment: {
+                  select: { 
+                    id: true, 
+                    date: true, 
+                    status: true 
+                  }
+                }
+              },
+              take: 1 // Only need to know if one exists
+            }
+          }
+        },
         startAppointment: {
           select: {
             id: true,
@@ -53,9 +91,19 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.json(storageUnits);
+    return NextResponse.json({
+      success: true,
+      data: storageUnits,
+      message: storageUnits.length === 0 
+        ? 'No active storage units found' 
+        : `Found ${storageUnits.length} storage unit${storageUnits.length > 1 ? 's' : ''}`
+    });
   } catch (error) {
     console.error('Error fetching storage units:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ 
+      success: false,
+      message: 'Failed to fetch storage units',
+      error: 'Internal server error'
+    }, { status: 500 });
   }
 } 

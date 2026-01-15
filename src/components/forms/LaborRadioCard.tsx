@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * @fileoverview Labor Radio Card - Radio card component for selecting labor/moving partners
  * @source boombox-10.0/src/app/components/reusablecomponents/laborradiocard.tsx
@@ -29,15 +31,15 @@
  * - Ensured WCAG 2.1 AA color contrast compliance
  * - Added focus indicators for keyboard navigation
  * 
- * @refactor Migrated to use OptimizedImage primitive, applied design system colors,
+ * @refactor Migrated to use Next.js Image, applied design system colors,
  * enhanced accessibility with ARIA labels, improved error handling UX, and added
  * keyboard navigation support
  */
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { StarIcon } from '@heroicons/react/20/solid';
 import { StarIcon as StarIconOutline } from '@heroicons/react/24/outline';
-import { OptimizedImage } from '@/components/ui/primitives';
 
 interface LaborRadioCardProps {
   id: string;
@@ -89,19 +91,22 @@ export const LaborRadioCard: React.FC<LaborRadioCardProps> = ({
   };
 
   const isNewToBoombox = reviews < 2 || !rating;
+  
+  // Format price display - show placeholder if null/undefined
+  const displayPrice = price && !price.includes('null') ? price : '$--/hr';
 
   return (
     <label
       htmlFor={id}
-      className={`mb-4 p-4 rounded-md flex justify-between cursor-pointer transition-all duration-200 ${
+      className={`mb-4 p-4 rounded-md flex justify-between cursor-pointer ${
         hasError
           ? 'ring-border-error bg-status-bg-error ring-2'
           : checked
           ? 'ring-primary ring-2 bg-surface-primary'
-          : 'ring-border ring-2 bg-surface-tertiary hover:bg-surface-primary hover:ring-border-focus'
+          : 'ring-border ring-2 ring-slate-100 bg-surface-tertiary'
       }`}
       aria-describedby={`${id}-description ${id}-rating`}
-      aria-label={`Select ${title} for ${price}`}
+      aria-label={`Select ${title} for ${displayPrice}`}
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >
@@ -109,10 +114,10 @@ export const LaborRadioCard: React.FC<LaborRadioCardProps> = ({
         {/* Partner Image */}
         <div className="relative w-28 h-28 bg-surface-disabled flex flex-none justify-center items-center rounded-md mr-3">
           {imageSrc && !isImageBroken ? (
-            <OptimizedImage
+            <Image
               src={imageSrc}
               alt={`${title} company logo`}
-              className="object-cover w-28 h-28 rounded-md"
+              className="object-cover rounded-md"
               width={112}
               height={112}
               onError={() => setIsImageBroken(true)}
@@ -131,12 +136,12 @@ export const LaborRadioCard: React.FC<LaborRadioCardProps> = ({
         <div className="flex flex-col w-full">
           <div className="flex items-center justify-between mb-2">
             <div className="text-md font-medium text-text-primary">{title}</div>
-            <p className="text-lg font-semibold text-text-primary">{price}</p>
+            <p className="text-lg font-semibold text-text-primary">{displayPrice}</p>
           </div>
           
           <p 
             id={`${id}-description`}
-            className="text-sm flex-grow text-text-primary mb-2"
+            className="text-sm flex-grow text-text-primary mb-1 line-clamp-2"
           >
             {description}
           </p>
@@ -149,7 +154,7 @@ export const LaborRadioCard: React.FC<LaborRadioCardProps> = ({
             aria-label={isNewToBoombox ? "New to Boombox partner" : `Rating: ${rating.toFixed(1)} out of 5 stars`}
           >
             {isNewToBoombox ? (
-              <span className="px-3 py-2 text-xs text-status-success bg-status-bg-success rounded-md font-medium">
+              <span className="px-3 py-2 text-xs text-status-success bg-status-bg-success rounded-full font-medium">
                 New to Boombox
               </span>
             ) : (
@@ -173,7 +178,7 @@ export const LaborRadioCard: React.FC<LaborRadioCardProps> = ({
                 {/* Reviews Link */}
                 <a 
                   href={link} 
-                  className="text-xs ml-2 text-text-secondary leading-3 underline hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 rounded transition-colors duration-200" 
+                  className="text-xs ml-2 text-text-secondary leading-3 underline hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 rounded" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   aria-label={`Read ${reviews} reviews (opens in new tab)`}
@@ -205,7 +210,7 @@ export const LaborRadioCard: React.FC<LaborRadioCardProps> = ({
       <div className="sr-only">
         {checked && (
           <span aria-live="polite">
-            {title} selected for {price}
+            {title} selected for {displayPrice}
           </span>
         )}
         {hasError && (

@@ -15,9 +15,11 @@
 'use client';
 
 import { SessionProvider as NextAuthSessionProvider } from 'next-auth/react';
+import { Session } from 'next-auth';
 
 interface SessionProviderProps {
   children: React.ReactNode;
+  session?: Session | null;
 }
 
 /**
@@ -27,8 +29,17 @@ interface SessionProviderProps {
  * while allowing the root layout to remain a Server Component.
  * 
  * @param children - Child components that will have access to session context
+ * @param session - Optional session object from server (getServerSession)
  */
-export default function SessionProvider({ children }: SessionProviderProps) {
-  return <NextAuthSessionProvider>{children}</NextAuthSessionProvider>;
+export default function SessionProvider({ children, session }: SessionProviderProps) {
+  return (
+    <NextAuthSessionProvider 
+      session={session} 
+      refetchOnWindowFocus={false}
+      refetchInterval={5 * 60} // Check session every 5 minutes
+    >
+      {children}
+    </NextAuthSessionProvider>
+  );
 }
 

@@ -16,15 +16,17 @@
  * INTEGRATION NOTES:
  * - Requires moverId path parameter validation
  * - Sets applicationComplete flag to true
- * - Simple database update operation
+ * - Automatically updates status from INACTIVE to PENDING when application completes
+ *   (if mover is not yet approved)
  * - Returns updated moving partner record
  * - Part of onboarding completion workflow
  * 
- * @refactor No logic changes - direct port with updated imports
+ * @refactor Added automatic status transition from INACTIVE to PENDING
  */
 
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
+import { MovingPartnerStatus } from '@prisma/client';
 
 export async function PATCH(
   request: NextRequest,
@@ -41,13 +43,40 @@ export async function PATCH(
       );
     }
 
+    // Fetch current mover to check if we should update status
+    const currentMover = await prisma.movingPartner.findUnique({
+      where: { id: moverIdNum },
+      select: {
+        id: true,
+        isApproved: true,
+        status: true,
+        applicationComplete: true,
+      },
+    });
+
+    if (!currentMover) {
+      return NextResponse.json(
+        { error: 'Moving partner not found' },
+        { status: 404 }
+      );
+    }
+
+    // Prepare update data
+    const updateData: any = {
+      applicationComplete: true,
+    };
+
+    // If mover is not yet approved and status is INACTIVE, update to PENDING
+    // This indicates the application is complete and ready for review
+    if (!currentMover.isApproved && currentMover.status === MovingPartnerStatus.INACTIVE) {
+      updateData.status = MovingPartnerStatus.PENDING;
+    }
+
     const updatedMover = await prisma.movingPartner.update({
       where: {
         id: moverIdNum,
       },
-      data: {
-        applicationComplete: true,
-      },
+      data: updateData,
     });
 
     return NextResponse.json(updatedMover);

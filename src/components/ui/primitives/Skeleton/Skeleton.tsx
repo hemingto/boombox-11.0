@@ -24,8 +24,7 @@ const Skeleton: React.FC<SkeletonProps> = ({ className, children, ...props }) =>
   return (
     <div 
       className={cn(
-        'bg-surface-tertiary rounded animate-pulse',
-        'bg-shimmer bg-cover bg-no-repeat animate-shimmer',
+        'bg-slate-200 rounded animate-pulse',
         className
       )} 
       {...props}

@@ -133,7 +133,7 @@ export async function notifyDriverReassignment(
 
   const acceptToken = await generateDriverToken(driver.id, appointment.id, unitNumber, 'accept');
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.boomboxstorage.com';
-  const webViewUrl = `${baseUrl}/driver/offer/${acceptToken}`;
+  const webViewUrl = `${baseUrl}/service-provider/driver/offer/${acceptToken}`;
   
   const appointmentDate = new Date(appointment.date);
   const appointmentTimeOriginal = new Date(appointment.time);

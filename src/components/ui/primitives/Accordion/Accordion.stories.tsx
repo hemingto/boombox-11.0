@@ -165,7 +165,7 @@ export const HelpDoc: Story = {
           <li>Follow the link in the email</li>
           <li>Create a new password</li>
         </ol>
-        <div className="mt-4 p-3 bg-status-bg-info text-status-text-info rounded-md">
+        <div className="mt-4 p-3 bg-status-bg-info text-status-info rounded-md">
           <strong>Tip:</strong> Use a password manager to create and store secure passwords.
         </div>
       </div>

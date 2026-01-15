@@ -54,7 +54,7 @@ export const PackingKits: React.FC<PackingKitsProps> = ({ onAddToCart }) => {
   useEffect(() => {
     const updateItemWidth = () => {
       if (scrollContainerRef.current) {
-        const firstItem = scrollContainerRef.current.querySelector('#item-container > div');
+        const firstItem = scrollContainerRef.current.querySelector('#item-container > article');
         if (firstItem) {
           const width = firstItem.getBoundingClientRect().width;
           setItemWidth(width + 16); // width + gap
@@ -101,7 +101,7 @@ export const PackingKits: React.FC<PackingKitsProps> = ({ onAddToCart }) => {
       description: 'studio or small moving project',
       detailedDescription:
         'This kit is perfect for a studio or small moving project. It includes a variety of boxes, packing materials, and moving supplies to help you pack and move your belongings safely and efficiently.',
-      imageSrc: '/img/golden-gate.png',
+      imageSrc: '/golden-gate.png',
       items: [
         { name: 'Medium Box', quantity: 5, price: 3.15 },
         { name: 'Large Box', quantity: 10, price: 4.15 },
@@ -119,7 +119,7 @@ export const PackingKits: React.FC<PackingKitsProps> = ({ onAddToCart }) => {
       description: 'one to two bedroom house/apt',
       detailedDescription:
         'This kit is perfect for a one to two bedroom house or apartment. It includes a variety of boxes, packing materials, and moving supplies to help you pack and move your belongings safely and efficiently.',
-      imageSrc: '/img/mountain-view.png',
+      imageSrc: '/berkeley.png',
       items: [
         { name: 'Small Box', quantity: 2, price: 2.15 },
         { name: 'Medium Box', quantity: 5, price: 3.15 },
@@ -139,7 +139,7 @@ export const PackingKits: React.FC<PackingKitsProps> = ({ onAddToCart }) => {
       description: 'three to four bedroom household',
       detailedDescription:
         'This kit is perfect for a three to four bedroom household. It includes a variety of boxes, packing materials, and moving supplies to help you pack and move your belongings safely and efficiently.',
-      imageSrc: '/img/palo-alto.png',
+      imageSrc: '/mountain-view.png',
       items: [
         { name: 'Small Box', quantity: 5, price: 2.15 },
         { name: 'Medium Box', quantity: 10, price: 3.15 },
@@ -161,25 +161,27 @@ export const PackingKits: React.FC<PackingKitsProps> = ({ onAddToCart }) => {
         <div className="flex items-center">
           <h2 className="text-left text-4xl font-semibold">Packing Supplies</h2>
           <div
-            className="flex text-status-text-success font-semibold bg-status-bg-success rounded-full px-3 py-2 ml-2 text-nowrap shrink-0"
+            className="flex text-status-success font-semibold bg-status-bg-success rounded-full px-3 py-2 ml-2 text-nowrap shrink-0"
             role="status"
             aria-label="Free delivery available"
           >
-            <p className="text-xs text-status-text-success">Free delivery</p>
+            <p className="text-xs text-status-success">Free delivery</p>
           </div>
         </div>
-        <div className="flex mt-4 sm:mt-0">
+        <div className="flex mt-4 sm:mt-0 gap-1" role="group" aria-label="Scroll navigation">
           <button
             onClick={handleScrollLeft}
-            className="rounded-full bg-surface-tertiary active:bg-surface-disabled cursor-pointer p-2 mr-1"
+            className="rounded-full bg-surface-tertiary active:bg-surface-disabled hover:bg-surface-disabled cursor-pointer p-2"
             aria-label="Scroll left to view previous packing kits"
+            type="button"
           >
             <ArrowLeftIcon className="w-6" aria-hidden="true" />
           </button>
           <button
             onClick={handleScrollRight}
-            className="rounded-full bg-surface-tertiary active:bg-surface-disabled cursor-pointer p-2"
+            className="rounded-full bg-surface-tertiary active:bg-surface-disabled hover:bg-surface-disabled cursor-pointer p-2"
             aria-label="Scroll right to view next packing kits"
+            type="button"
           >
             <ArrowRightIcon className="w-6" aria-hidden="true" />
           </button>
@@ -233,7 +235,7 @@ export const PackingKits: React.FC<PackingKitsProps> = ({ onAddToCart }) => {
                   </button>
                   <button
                     onClick={() => openModal(kit)}
-                    className="text-sm text-white underline decoration-dotted underline-offset-4"
+                    className="text-sm text-white underline decoration-dotted hover:decoration-solid underline-offset-4"
                     aria-label={`View more details about ${kit.title}`}
                   >
                     More Details
@@ -255,7 +257,7 @@ export const PackingKits: React.FC<PackingKitsProps> = ({ onAddToCart }) => {
           open={!!activeModalKit}
           onClose={closeModal}
           title={activeModalKit.title}
-          size="xl"
+          size="lg"
           showCloseButton={true}
           closeOnOverlayClick={true}
         >

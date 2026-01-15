@@ -53,11 +53,18 @@ export class InboundMessageRouter {
     messageText: string
   ): Promise<MessageRouteResult> {
     try {
+      // DEBUG: Log routing start
+      console.log('--- InboundMessageRouter.routeMessage DEBUG ---');
+      console.log('Phone number received:', phoneNumber);
+      console.log('Message text received:', messageText);
+      
       // Classify message intent
       const intent: MessageIntent = classifyMessageIntent(messageText);
+      console.log('DEBUG: Classified intent:', intent);
 
       // Handle mover change responses first (customer domain)
       if (intent === 'mover_accept' || intent === 'mover_diy') {
+        console.log('DEBUG: Routing to MoverChangeHandler');
         return await this.moverChangeHandler.handleResponse(
           phoneNumber,
           intent === 'mover_accept' ? 'accept' : 'diy'
@@ -65,11 +72,15 @@ export class InboundMessageRouter {
       }
 
       // Find driver by phone number for driver responses
+      console.log('DEBUG: Looking up driver by phone:', phoneNumber);
       const driver = await findDriverByPhone(phoneNumber);
+      console.log('DEBUG: Driver lookup result:', driver ? `Found driver ID: ${driver.id}, name: ${driver.firstName} ${driver.lastName}` : 'NO DRIVER FOUND');
 
       if (!driver) {
         // Check if this is a customer
+        console.log('DEBUG: No driver found, checking for customer...');
         const customer = await findCustomerByPhone(phoneNumber);
+        console.log('DEBUG: Customer lookup result:', customer ? `Found customer ID: ${customer.id}` : 'NO CUSTOMER FOUND');
 
         if (customer) {
           // Customer message but not mover change - send general support
@@ -78,12 +89,14 @@ export class InboundMessageRouter {
         }
 
         // Neither driver nor customer found
+        console.log('DEBUG: Neither driver nor customer found for phone:', phoneNumber);
         await MessageService.sendSms(phoneNumber, customerNotFoundTemplate, {});
         return { success: false, error: 'User not found' };
       }
 
       // Handle driver responses (packing supply or regular tasks)
       if (intent === 'positive' || intent === 'negative') {
+        console.log('DEBUG: Routing to DriverResponseHandler.handleResponse with intent:', intent);
         return await this.driverResponseHandler.handleResponse(
           driver,
           phoneNumber,
@@ -94,6 +107,7 @@ export class InboundMessageRouter {
 
       // Handle ambiguous driver responses
       if (intent === 'ambiguous') {
+        console.log('DEBUG: Routing to DriverResponseHandler.handleAmbiguousResponse');
         return await this.driverResponseHandler.handleAmbiguousResponse(
           driver,
           phoneNumber,
@@ -102,6 +116,7 @@ export class InboundMessageRouter {
       }
 
       // Fallback - should not reach here
+      console.log('DEBUG: Fallback - unable to classify message intent');
       await MessageService.sendSms(phoneNumber, generalAmbiguousTemplate, {});
       return { success: false, error: 'Unable to classify message intent' };
     } catch (error) {

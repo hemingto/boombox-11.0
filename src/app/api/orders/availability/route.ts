@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const { planType, year, month, date, type, numberOfUnits } = parseResult.data;
+    const { planType, year, month, date, type, numberOfUnits, excludeAppointmentId } = parseResult.data;
 
     // Handle monthly availability
     if (type === 'month') {
@@ -102,7 +102,8 @@ export async function GET(request: NextRequest) {
       const dailyParams: DailyAvailabilityParams = {
         planType,
         date,
-        numberOfUnits
+        numberOfUnits,
+        excludeAppointmentId // Pass through to exclude current appointment's booking in edit mode
       };
 
       // Validate daily parameters

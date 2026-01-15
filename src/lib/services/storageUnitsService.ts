@@ -131,7 +131,7 @@ async function withRetry<T>(
 function formatStorageUnits(rawUnits: StorageUnitUsage[]): FormattedStorageUnit[] {
   return rawUnits.map((unit) => ({
     id: unit.storageUnit.id.toString(),
-    imageSrc: unit.mainImage || '/img/golden-gate.png',
+    imageSrc: unit.mainImage || '/placeholder.jpg',
     title: `Boombox ${unit.storageUnit.storageUnitNumber}`,
     pickUpDate: new Date(unit.usageStartDate).toLocaleDateString(),
     lastAccessedDate: unit.returnDate

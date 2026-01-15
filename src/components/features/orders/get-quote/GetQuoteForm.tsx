@@ -23,6 +23,7 @@
 'use client';
 
 import React, { useCallback, useMemo, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Elements } from '@stripe/react-stripe-js';
 import { GetQuoteProvider, useGetQuoteContext } from './GetQuoteProvider';
 import { QuoteBuilder } from './QuoteBuilder';
@@ -35,6 +36,7 @@ import { getStripePromise } from '@/lib/integrations/stripeClientSide';
 import { useQuoteSubmission } from '@/hooks/useQuoteSubmission';
 import type { InsuranceOption } from '@/types/insurance';
 import type { QuoteSubmissionData } from '@/types';
+import { LoadingOverlay } from '@/components/ui/primitives/LoadingOverlay';
 
 /**
  * Inner component that consumes both GetQuote context and Stripe hooks
@@ -93,17 +95,11 @@ function GetQuoteFormContent() {
     actions.setInsurance(insurance);
   }, [actions]);
 
-  const handleStep1Next = useCallback(() => {
-    // Validation happens automatically in nextStep()
-    actions.nextStep();
-  }, [actions]);
-
   // ==================== STEP 2 CALLBACKS ====================
   
   const handleDateTimeSelected = useCallback((date: Date, timeSlot: string) => {
     actions.setSchedule(date, timeSlot);
-    // Auto-advance to next step after selecting date and time
-    actions.nextStep();
+    // User must click MyQuote button to advance (no auto-advancement)
   }, [actions]);
 
   const goBackToStep1 = useCallback(() => {
@@ -130,10 +126,45 @@ function GetQuoteFormContent() {
     actions.setUnavailableLaborError(hasError);
   }, [actions]);
 
-  // Memoized date object for ChooseLabor
+  // Memoized date object for ChooseLabor - combines date and time slot
   const combinedDateTimeForLabor = useMemo(() => {
-    return state.scheduledDate || null;
-  }, [state.scheduledDate]);
+    if (!state.scheduledDate || !state.scheduledTimeSlot) {
+      return null;
+    }
+
+    try {
+      const dateObj = new Date(state.scheduledDate);
+      
+      if (isNaN(dateObj.getTime())) {
+        return null;
+      }
+
+      // Parse time slot (format: "9am-10am" or "9:30am-10:30am")
+      const [timeSlotStart] = state.scheduledTimeSlot.split('-');
+      const timeRegex = /(\d{1,2})(?::(\d{2}))?(am|pm)/i;
+      const timeMatch = timeSlotStart.match(timeRegex);
+
+      if (!timeMatch) {
+        return null;
+      }
+
+      let hours = parseInt(timeMatch[1], 10);
+      const minutes = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
+      const period = timeMatch[3].toLowerCase();
+
+      // Convert to 24-hour format
+      if (period === 'pm' && hours < 12) {
+        hours += 12;
+      } else if (period === 'am' && hours === 12) {
+        hours = 0;
+      }
+
+      dateObj.setHours(hours, minutes, 0, 0);
+      return dateObj;
+    } catch {
+      return null;
+    }
+  }, [state.scheduledDate, state.scheduledTimeSlot]);
 
   // ==================== STEP 4 CALLBACKS ====================
   
@@ -148,10 +179,67 @@ function GetQuoteFormContent() {
       return;
     }
 
-    // Combine date and time into ISO string
-    const appointmentDateTime = state.scheduledDate && state.scheduledTimeSlot
-      ? new Date(`${state.scheduledDate.toISOString().split('T')[0]}T${state.scheduledTimeSlot}`).toISOString()
-      : '';
+    // Combine date and time into ISO string with proper validation
+    // Matches boombox-10.0 implementation (lines 270-287)
+    let appointmentDateTime = '';
+    if (state.scheduledDate && state.scheduledTimeSlot) {
+      try {
+        // Create a new Date object from the scheduled date
+        const dateObj = new Date(state.scheduledDate);
+        
+        // Check if the date is valid
+        if (isNaN(dateObj.getTime())) {
+          throw new Error('Invalid date value');
+        }
+        
+        // Parse time slot (format: "9am-10am" or "9:30am-10:30am")
+        // Split by '-' to get the start time from the range
+        const [timeSlotStart] = state.scheduledTimeSlot.split('-');
+        
+        // Regex matches: hours, optional minutes with colon, and am/pm
+        const timeRegex = /(\d{1,2})(?:\:(\d{2}))?(am|pm)/i;
+        const timeMatch = timeSlotStart.match(timeRegex);
+        
+        if (!timeMatch) {
+          throw new Error('Invalid time slot format');
+        }
+        
+        let hours = parseInt(timeMatch[1], 10);
+        const minutes = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
+        const period = timeMatch[3].toLowerCase();
+        
+        // Convert to 24-hour format
+        if (period === 'pm' && hours < 12) {
+          hours += 12;
+        } else if (period === 'am' && hours === 12) {
+          hours = 0;
+        }
+        
+        // Validate parsed values
+        if (isNaN(hours) || isNaN(minutes)) {
+          throw new Error('Invalid time values');
+        }
+        
+        // Set the time on the date object
+        dateObj.setHours(hours, minutes, 0, 0);
+        
+        // Double check the date is still valid after setting time
+        if (isNaN(dateObj.getTime())) {
+          throw new Error('Invalid date after setting time');
+        }
+        
+        // Convert to ISO string
+        appointmentDateTime = dateObj.toISOString();
+      } catch (error) {
+        console.error('Error formatting appointment date/time:', error);
+        console.error('State values:', {
+          scheduledDate: state.scheduledDate,
+          scheduledTimeSlot: state.scheduledTimeSlot,
+        });
+        actions.setSubmitError('Invalid date or time selected. Please try again.');
+        return;
+      }
+    }
 
     // Build submission data matching QuoteSubmissionData interface
     // Note: stripeCustomerId will be added by submitQuote hook
@@ -214,6 +302,33 @@ function GetQuoteFormContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [submissionError]); // actions.setSubmitError is stable, safe to omit
 
+  // ==================== UNIFIED SUBMIT HANDLER ====================
+  // MyQuote button triggers this for all step progressions (matching boombox-10.0 behavior)
+  
+  const handleSubmit = useCallback(async () => {
+    if (currentStep === 1) {
+      // Validate Step 1 via actions.nextStep() (has built-in validation)
+      actions.nextStep();
+    } else if (currentStep === 2) {
+      // Validate Step 2 and advance
+      actions.nextStep();
+    } else if (currentStep === 3) {
+      // Validate Step 3 (labor) and advance
+      actions.nextStep();
+    } else if (currentStep === 4) {
+      // Special handling: validate, create Stripe customer, submit quote, then advance
+      await handleSubmitQuote();
+    }
+  }, [currentStep, actions, handleSubmitQuote]);
+
+  // Button text mapping (matching boombox-10.0)
+  const myQuoteButtonTexts: { [step: number]: string } = useMemo(() => ({
+    1: "Schedule Appointment",
+    2: "Reserve Appointment", 
+    3: "Select Movers",
+    4: "Confirm Appointment",
+  }), []);
+
   // Announce step changes to screen readers
   const stepAnnouncement = useMemo(() => {
     const stepNames = ['Address and Storage Selection', 'Schedule Selection', 'Labor Selection', 'Payment and Confirmation', 'Phone Verification'];
@@ -229,9 +344,15 @@ function GetQuoteFormContent() {
   }, [currentStep]);
 
   return (
-    <div className="min-h-screen bg-surface-primary">
-      {/* Page Container */}
-      <div className="page-container section-spacing">
+    <>
+      {/* Loading Overlay - Show during final submission */}
+      <LoadingOverlay 
+        visible={isSubmitting} 
+        message="Processing your appointment..."
+        spinnerSize="xl"
+      />
+
+      <div className="md:flex gap-x-8 lg:gap-x-16 mt-12 sm:mt-24 lg:px-16 px-4 justify-center mb-10 sm:mb-64 items-start">
         {/* Accessibility: Announce step changes */}
         <div 
           role="status" 
@@ -242,254 +363,204 @@ function GetQuoteFormContent() {
           {stepAnnouncement}
         </div>
 
-        {/* Two-Column Layout: Form + Sidebar */}
-        <div className="flex flex-col md:flex-row gap-8">
-          {/* Left Column: Form Steps */}
-          <div className="flex-1">
-            <div 
-              className="bg-white rounded-lg shadow-sm p-6 md:p-8"
-              role="form"
-              aria-label="Get Quote Form"
-              aria-describedby="step-progress"
-            >
-              {/* Step Rendering */}
-              {currentStep === 1 && (
-                <>
-                  <QuoteBuilder
-                    // Address fields
-                    address={state.address}
-                    addressError={state.addressError}
-                    onAddressChange={handleAddressChange}
-                    clearAddressError={actions.clearAddressError}
-                    
-                    // Storage unit fields
-                    storageUnitCount={state.storageUnitCount}
-                    initialStorageUnitCount={1}
-                    onStorageUnitChange={handleStorageUnitChange}
-                    
-                    // Plan fields
-                    selectedPlan={state.selectedPlan}
-                    planError={state.planError}
-                    onPlanChange={handlePlanChange}
-                    clearPlanError={actions.clearPlanError}
-                    onPlanTypeChange={handlePlanTypeChange}
-                    
-                    // Plan details expansion
-                    isPlanDetailsVisible={state.isPlanDetailsVisible}
-                    togglePlanDetails={actions.togglePlanDetails}
-                    contentHeight={contentHeight}
-                    contentRef={contentRef}
-                    
-                    // Insurance fields
-                    selectedInsurance={state.selectedInsurance}
-                    insuranceError={state.insuranceError}
-                    onInsuranceChange={handleInsuranceChange}
-                    clearInsuranceError={actions.clearInsuranceError}
-                  />
-                  
-                  {/* Step 1 Navigation Button */}
-                  <div className="mt-8 flex justify-end">
-                    <button
-                      onClick={handleStep1Next}
-                      className="btn-primary px-8 py-3"
-                      type="button"
-                      aria-label="Continue to step 2: Scheduling"
-                    >
-                      Continue to Scheduling
-                    </button>
-                  </div>
-                </>
-              )}
+      {/* Left Column: Form Steps */}
+      <div className="w-full basis-1/2">
+        <div 
+          role="form"
+          aria-label="Get Quote Form"
+        >
+          {/* Step Rendering */}
+          {currentStep === 1 && (
+            <QuoteBuilder
+              // Address fields
+              address={state.address}
+              addressError={state.addressError}
+              onAddressChange={handleAddressChange}
+              clearAddressError={actions.clearAddressError}
+              
+              // Storage unit fields
+              storageUnitCount={state.storageUnitCount}
+              initialStorageUnitCount={1}
+              onStorageUnitChange={handleStorageUnitChange}
+              
+              // Plan fields
+              selectedPlan={state.selectedPlan}
+              planError={state.planError}
+              onPlanChange={handlePlanChange}
+              clearPlanError={actions.clearPlanError}
+              onPlanTypeChange={handlePlanTypeChange}
+              
+              // Plan details expansion
+              isPlanDetailsVisible={state.isPlanDetailsVisible}
+              togglePlanDetails={actions.togglePlanDetails}
+              contentHeight={contentHeight}
+              contentRef={contentRef}
+              
+              // Insurance fields
+              selectedInsurance={state.selectedInsurance}
+              insuranceError={state.insuranceError}
+              onInsuranceChange={handleInsuranceChange}
+              clearInsuranceError={actions.clearInsuranceError}
+            />
+          )}
 
-              {currentStep === 2 && (
-                <Scheduler
-                  planType={state.selectedPlanName === 'Do It Yourself Plan' ? 'DIY' : 'FULL_SERVICE'}
-                  numberOfUnits={state.storageUnitCount}
-                  onDateTimeSelected={handleDateTimeSelected}
-                  initialSelectedDate={state.scheduledDate || undefined}
-                  goBackToStep1={goBackToStep1}
-                  hasError={!!state.scheduleError}
-                  errorMessage={state.scheduleError}
-                />
-              )}
+          {currentStep === 2 && (
+            <Scheduler
+              planType={state.selectedPlanName === 'Do It Yourself Plan' ? 'DIY' : 'FULL_SERVICE'}
+              numberOfUnits={state.storageUnitCount}
+              onDateTimeSelected={handleDateTimeSelected}
+              initialSelectedDate={state.scheduledDate || undefined}
+              goBackToStep1={goBackToStep1}
+              hasError={!!state.scheduleError}
+              errorMessage={state.scheduleError}
+            />
+          )}
 
-              {currentStep === 3 && (
-                <ChooseLabor
-                  // Navigation
-                  goBackToStep1={goBackToStep1}
-                  
-                  // Labor selection
-                  onLaborSelect={handleLaborSelect}
-                  onMovingPartnerSelect={handleMovingPartnerSelect}
-                  selectedLabor={state.selectedLabor}
-                  
-                  // Error handling
-                  laborError={state.laborError}
-                  clearLaborError={actions.clearLaborError}
-                  onUnavailableLaborChange={handleUnavailableLaborChange}
-                  
-                  // Context data
-                  planType={state.planType}
-                  cityName={state.cityName}
-                  selectedDateObject={combinedDateTimeForLabor}
-                  
-                  // Plan type change handler
-                  onPlanTypeChange={handlePlanTypeChange}
-                />
-              )}
+          {currentStep === 3 && (
+            <ChooseLabor
+              // Navigation
+              goBackToStep1={goBackToStep1}
+              
+              // Labor selection
+              onLaborSelect={handleLaborSelect}
+              onMovingPartnerSelect={handleMovingPartnerSelect}
+              selectedLabor={state.selectedLabor}
+              
+              // Error handling
+              laborError={state.laborError}
+              clearLaborError={actions.clearLaborError}
+              onUnavailableLaborChange={handleUnavailableLaborChange}
+              
+              // Context data
+              planType={state.planType}
+              cityName={state.cityName}
+              selectedDateObject={combinedDateTimeForLabor}
+              
+              // Plan type change handler
+              onPlanTypeChange={handlePlanTypeChange}
+            />
+          )}
 
-              {currentStep === 4 && (
-                <>
-                  <ConfirmAppointment
-                    // Navigation
-                    goBackToStep1={goBackToStep1}
-                    goBackToStep2={goBackToStep2}
-                    
-                    // Plan information
-                    selectedPlanName={state.selectedPlanName}
-                    
-                    // Email
-                    email={state.email}
-                    setEmail={actions.setEmail}
-                    emailError={state.emailError}
-                    setEmailError={(error) => {
-                      // Update via dispatch
-                      actions.setEmail(state.email); // triggers re-render
-                    }}
-                    
-                    // Phone
-                    phoneNumber={state.phoneNumber}
-                    setPhoneNumber={actions.setPhoneNumber}
-                    phoneError={state.phoneError}
-                    setPhoneError={(error) => {
-                      // Update via dispatch
-                      actions.setPhoneNumber(state.phoneNumber); // triggers re-render
-                    }}
-                    
-                    // First Name
-                    firstName={state.firstName}
-                    setFirstName={actions.setFirstName}
-                    firstNameError={state.firstNameError}
-                    setFirstNameError={(error) => {
-                      // Update via dispatch
-                      actions.setFirstName(state.firstName); // triggers re-render
-                    }}
-                    
-                    // Last Name
-                    lastName={state.lastName}
-                    setLastName={actions.setLastName}
-                    lastNameError={state.lastNameError}
-                    setLastNameError={(error) => {
-                      // Update via dispatch
-                      actions.setLastName(state.lastName); // triggers re-render
-                    }}
-                    
-                    // Loading and errors
-                    isLoading={isSubmitting}
-                    submitError={state.submitError}
-                  />
-                  
-                  {/* Submit Button */}
-                  <div className="mt-8 flex justify-end max-w-lg mx-auto md:mx-0 md:ml-auto">
-                    <button
-                      onClick={handleSubmitQuote}
-                      disabled={isSubmitting}
-                      className="btn-primary px-8 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                      type="button"
-                      aria-busy={isSubmitting}
-                      aria-disabled={isSubmitting}
-                      aria-label={isSubmitting ? 'Submitting quote, please wait' : 'Continue to step 5: Phone Verification'}
-                    >
-                      {isSubmitting ? 'Submitting...' : 'Continue to Verification'}
-                    </button>
-                  </div>
-                </>
-              )}
+          {currentStep === 4 && (
+            <ConfirmAppointment
+              // Navigation
+              goBackToStep1={goBackToStep1}
+              goBackToStep2={goBackToStep2}
+              
+              // Plan information
+              selectedPlanName={state.selectedPlanName}
+              
+              // Email
+              email={state.email}
+              setEmail={actions.setEmail}
+              emailError={state.emailError}
+              setEmailError={actions.setEmailError}
+              
+              // Phone
+              phoneNumber={state.phoneNumber}
+              setPhoneNumber={actions.setPhoneNumber}
+              phoneError={state.phoneError}
+              setPhoneError={actions.setPhoneError}
+              
+              // First Name
+              firstName={state.firstName}
+              setFirstName={actions.setFirstName}
+              firstNameError={state.firstNameError}
+              setFirstNameError={actions.setFirstNameError}
+              
+              // Last Name
+              lastName={state.lastName}
+              setLastName={actions.setLastName}
+              lastNameError={state.lastNameError}
+              setLastNameError={actions.setLastNameError}
+              
+              // Loading and errors
+              isLoading={isSubmitting}
+              submitError={state.submitError}
+            />
+          )}
 
-              {currentStep === 5 && (
-                <VerifyPhoneNumber
-                  initialPhoneNumber={state.phoneNumber}
-                  userId={state.userId}
-                />
-              )}
-
-              {/* Step Indicator */}
-              <nav 
-                id="step-progress"
-                className="mt-8 pt-6 border-t border-border"
-                aria-label="Form progress"
-              >
-                <div className="flex items-center justify-between text-sm">
-                  <p className="text-text-secondary">
-                    <span className="sr-only">Form progress:</span>
-                    Current Step: <span className="font-semibold text-text-primary" aria-current="step">{currentStep} of 5</span>
-                  </p>
-                  <p className="text-text-secondary">
-                    <span className="sr-only">Selected plan:</span>
-                    Plan: <span className="font-semibold text-text-primary">{state.selectedPlanName || 'Not selected'}</span>
-                  </p>
-                </div>
-              </nav>
-            </div>
-          </div>
-
-          {/* Right Column: MyQuote Sidebar */}
-          <aside 
-            className="w-full md:w-96 lg:w-[400px]"
-            aria-label="Quote summary"
-          >
-            <div className="sticky top-4">
-              <MyQuote
-                // Address and location
-                address={state.address}
-                zipCode={state.zipCode}
-                coordinates={state.coordinates}
-                
-                // Storage and plan
-                storageUnitCount={state.storageUnitCount}
-                storageUnitText={state.storageUnitText}
-                selectedPlanName={state.selectedPlanName}
-                loadingHelpPrice={state.loadingHelpPrice}
-                loadingHelpDescription={state.loadingHelpDescription}
-                
-                // Insurance
-                selectedInsurance={state.selectedInsurance}
-                
-                // Scheduling
-                scheduledDate={state.scheduledDate}
-                scheduledTimeSlot={state.scheduledTimeSlot}
-                
-                // Pricing
-                monthlyStorageRate={state.monthlyStorageRate}
-                monthlyInsuranceRate={state.monthlyInsuranceRate}
-                setMonthlyStorageRate={actions.setMonthlyStorageRate}
-                setMonthlyInsuranceRate={actions.setMonthlyInsuranceRate}
-                onCalculateTotal={actions.setCalculatedTotal}
-                
-                // Navigation and state
-                currentStep={state.currentStep}
-                handleSubmit={() => {}} // No-op for GetQuote flow (submission handled in ConfirmAppointment)
-                
-                // Mode flags
-                isAccessStorage={false}
-              />
-            </div>
-          </aside>
+          {currentStep === 5 && (
+            <VerifyPhoneNumber
+              initialPhoneNumber={state.phoneNumber}
+              userId={state.userId}
+            />
+          )}
         </div>
       </div>
-    </div>
+
+      {/* Right Column: MyQuote Sidebar */}
+      {currentStep !== 5 && (
+        <aside 
+          className="basis-1/2 md:mr-auto sticky top-5 max-w-md sm:h-[500px]"
+          aria-label="Quote summary"
+        >
+          <MyQuote
+            // Address and location
+            address={state.address}
+            zipCode={state.zipCode}
+            coordinates={state.coordinates}
+            
+            // Storage and plan
+            storageUnitCount={state.storageUnitCount}
+            storageUnitText={state.storageUnitText}
+            selectedPlanName={state.selectedPlanName}
+            loadingHelpPrice={state.loadingHelpPrice}
+            loadingHelpDescription={state.loadingHelpDescription}
+            
+            // Insurance
+            selectedInsurance={state.selectedInsurance}
+            
+            // Scheduling
+            scheduledDate={state.scheduledDate}
+            scheduledTimeSlot={state.scheduledTimeSlot}
+            
+            // Pricing
+            monthlyStorageRate={state.monthlyStorageRate}
+            monthlyInsuranceRate={state.monthlyInsuranceRate}
+            setMonthlyStorageRate={actions.setMonthlyStorageRate}
+            setMonthlyInsuranceRate={actions.setMonthlyInsuranceRate}
+            onCalculateTotal={actions.setCalculatedTotal}
+            
+            // Navigation and state
+            currentStep={state.currentStep}
+            handleSubmit={handleSubmit}
+            buttonTexts={myQuoteButtonTexts}
+            
+            // Mode flags
+            isAccessStorage={false}
+          />
+        </aside>
+      )}
+      </div>
+    </>
   );
 }
 
 /**
  * Main GetQuoteForm component
  * Wraps the form content with GetQuoteProvider and Stripe Elements
+ * Reads URL parameters to initialize form state
  */
 export function GetQuoteForm() {
   const [stripePromise] = useState(() => getStripePromise());
+  const searchParams = useSearchParams();
+  
+  // Read and validate URL parameters
+  const storageUnitCountParam = searchParams.get('storageUnitCount');
+  const zipCodeParam = searchParams.get('zipCode') || '';
+  
+  // Parse and validate storage unit count (1-5)
+  const parsedStorageUnitCount = useMemo(() => {
+    const count = parseInt(storageUnitCountParam || '1', 10);
+    return isNaN(count) ? 1 : Math.max(1, Math.min(5, count));
+  }, [storageUnitCountParam]);
   
   return (
-    <GetQuoteProvider>
+    <GetQuoteProvider 
+      initialStorageUnitCount={parsedStorageUnitCount}
+      initialZipCode={zipCodeParam}
+    >
       <Elements stripe={stripePromise}>
         <GetQuoteFormContent />
       </Elements>

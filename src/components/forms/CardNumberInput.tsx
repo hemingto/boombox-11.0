@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * @fileoverview Card number input component using Stripe Elements with design system integration
  * @source boombox-10.0/src/app/components/reusablecomponents/cardnumberinput.tsx
@@ -16,7 +18,6 @@
  * - Applied consistent error styling using status-error colors
  * - Used design system utility classes for consistent spacing and borders
  * - Integrated proper accessibility colors meeting WCAG standards
- * - Enhanced icon color transitions with design system states
  * 
  * @refactor Enhanced component with proper TypeScript interfaces, ARIA accessibility,
  * design system compliance, consistent error handling patterns, and improved icon integration
@@ -67,6 +68,7 @@ const CardNumberInput: React.FC<CardNumberInputProps> = ({
 
   const handleFocus = () => {
     setIsFocused(true);
+    setHasError(false); // Clear error state when user focuses
     onFocus?.();
   };
 
@@ -75,84 +77,53 @@ const CardNumberInput: React.FC<CardNumberInputProps> = ({
     onBlur?.();
   };
 
-  // Stripe element configuration with design system integration
+  // Stripe element configuration
   const cardElementOptions = {
     style: {
       base: {
         fontSize: '16px',
-        color: 'rgb(24 24 27)', // text-primary from design system
-        fontFamily: 'var(--font-poppins), Poppins, ui-sans-serif, system-ui, sans-serif',
+        color: '#1f2937',
+        fontFamily: 'Poppins, sans-serif',
         lineHeight: '24px',
         fontWeight: '400',
         '::placeholder': {
-          color: 'rgb(161 161 170)', // text-secondary from design system
-          fontSize: '14px',
+          color: hasError ? 'rgb(239 68 68)' : (isFocused ? '#18181b' : '#a1a1aa'), // Red when error, zinc-950 when focused, zinc-400 otherwise
+          fontSize: '14px'
         },
       },
       invalid: {
         color: 'rgb(239 68 68)', // status-error from design system
-        '::placeholder': {
-          color: 'rgb(239 68 68)', // status-error for placeholder too
-        },
       },
     },
-    placeholder: 'Card Number',
-    disabled,
+    placeholder: 'Card Number'
   };
 
-  // Dynamic icon color based on state using design system colors
-  const iconClassName = `
-    w-5 h-5 transition-colors duration-200
-    ${hasError
-      ? 'text-status-error'
-      : isFocused
-        ? 'text-primary'
-        : disabled
-          ? 'text-text-secondary opacity-60'
-          : 'text-text-secondary hover:text-text-tertiary'
-    }
-  `.trim().replace(/\s+/g, ' ');
-
-  // Dynamic container styling based on state using design system classes
-  const containerClassName = `
-    relative w-full
-    ${className}
-  `.trim();
-
-  const inputContainerClassName = `
-    relative rounded-md transition-all duration-200
-    ${hasError 
-      ? 'ring-2 ring-border-error bg-red-50 border-border-error' 
-      : isFocused
-        ? 'ring-2 ring-border-focus bg-surface-primary border-transparent'
-        : 'bg-surface-tertiary border border-border hover:bg-surface-secondary'
-    }
-    ${disabled 
-      ? 'bg-surface-disabled cursor-not-allowed opacity-60' 
-      : 'focus-within:outline-none'
-    }
-  `.trim().replace(/\s+/g, ' ');
+  // Dynamic icon color based on state
+  const iconColor = hasError
+    ? 'text-red-500'
+    : isFocused
+      ? 'text-zinc-950'
+      : 'text-zinc-400';
 
   return (
-    <div className={containerClassName}>
+    <div className="relative w-full">
       {/* Credit card icon with accessible label */}
       <span 
-        className="absolute top-3 left-3 z-10"
+        className="absolute top-3 left-2 z-10"
         aria-hidden="true"
       >
-        <CreditCardIcon className={iconClassName} />
+        <CreditCardIcon className={`w-5 h-5 ${iconColor}`} />
       </span>
       
       {/* Stripe element container with proper spacing for icon */}
-      <div 
-        className={inputContainerClassName}
-        role="textbox"
-        aria-label={ariaLabel}
-        aria-describedby={ariaDescribedBy}
-        aria-invalid={hasError}
-        tabIndex={-1} // Stripe element handles its own focus
-      >
-        <div className="pl-10 py-2.5 px-3">
+      <div className={`relative ${
+        hasError 
+          ? 'ring-2 ring-border-error bg-red-50 border-border-error rounded-md' 
+          : isFocused
+            ? 'ring-2 ring-zinc-950 bg-white focus:placeholder:text-zinc-950 rounded-md'
+            : 'bg-slate-100 rounded-md'
+      }`}>
+        <div className="pl-8 py-2.5 px-3">
           <CardNumberElement
             options={cardElementOptions}
             onChange={handleChange}

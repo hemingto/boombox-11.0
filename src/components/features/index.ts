@@ -31,9 +31,6 @@ export * from './moving-partners';
 // Service Provider Features (Shared Driver & Moving Partner Account Components)
 export * from './service-providers';
 
-// Vehicle Management Features
-export * from './vehicles';
-
 // Vehicle Requirements Features
 export * from './vehicle-requirements';
 

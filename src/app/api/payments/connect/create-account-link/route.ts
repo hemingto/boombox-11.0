@@ -16,11 +16,14 @@
  * INTEGRATION NOTES:
  * - Critical Stripe Connect onboarding integration
  * - Dynamic URL generation based on user type (driver vs mover)
- * - Environment-aware URL configuration
+ * - Origin-aware URL configuration (detects ngrok/proxy scenarios)
  * - Account link expiration and refresh handling
  * - Eventually due collection for comprehensive onboarding
+ * - Return URLs use boombox-11.0 structure: /service-provider/{userType}/{userId}/payment
+ * - Uses request origin header to ensure users return to the same domain they came from
  *
  * @refactor Migrated from /api/stripe/connect/ to /api/payments/connect/ structure
+ * @refactor Updated return URLs from old pattern /{userType}-account-page/{id} to /service-provider/{userType}/{id}
  * @refactor Added comprehensive validation using centralized schemas
  * @refactor Enhanced error handling and user type validation
  */
@@ -80,11 +83,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Use the request origin for return URLs to handle ngrok/proxy scenarios
+    // This ensures users return to the same domain they came from
+    const origin = request.headers.get('origin') || request.headers.get('referer')?.replace(/\/$/, '').split('/').slice(0, 3).join('/') || process.env.NEXT_PUBLIC_APP_URL;
+    const baseUrl = origin || process.env.NEXT_PUBLIC_APP_URL;
+
     // Create an account link for onboarding
     const accountLink = await stripe.accountLinks.create({
       account: user.stripeConnectAccountId,
-      refresh_url: `${process.env.NEXT_PUBLIC_APP_URL}/${userType === 'driver' ? 'driver' : 'mover'}-account-page/${parsedUserId}/payment?refresh=true`,
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/${userType === 'driver' ? 'driver' : 'mover'}-account-page/${parsedUserId}/payment?success=true`,
+      refresh_url: `${baseUrl}/service-provider/${userType}/${parsedUserId}/payment?refresh=true`,
+      return_url: `${baseUrl}/service-provider/${userType}/${parsedUserId}/payment?success=true`,
       type: 'account_onboarding',
       collect: 'eventually_due',
     });

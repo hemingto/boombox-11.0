@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * @fileoverview Unified MyCart component for packing supplies with responsive design
  * @source boombox-10.0/src/app/components/packing-supplies/mycart.tsx
@@ -30,10 +32,12 @@ import { HelpIcon } from '@/components/icons';
 import { TrashIcon } from '@heroicons/react/24/outline';
 import React, { useState, useRef, useEffect } from 'react';
 import { Tooltip } from '@/components/ui/primitives/Tooltip/Tooltip';
+import { Button } from '@/components/ui/primitives/Button/Button';
 import { useStripe, useElements } from '@stripe/react-stripe-js';
 import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
 import { isValidEmail } from '@/lib/utils/validationUtils';
 import { formatCurrency } from '@/lib/utils/currencyUtils';
+import { LoadingOverlay } from '@/components/ui/primitives/LoadingOverlay';
 
 interface CartItem {
   name: string;
@@ -166,10 +170,45 @@ export function MyCart({
         hasErrors = true;
       }
 
-      // Validate payment method - only for users with saved cards
-      if (savedCards.length > 0 && !selectedPaymentMethod) {
-        setSubmitError("Please select a payment method");
+      // Determine payment method details
+      let paymentMethodId = null;
+      let isUsingSavedCard = false;
+      let needsNewCardInfo = false;
+      
+      // Check if user has selected a saved card
+      if (selectedPaymentMethod && savedCards.length > 0) {
+        const selectedCard = savedCards.find(card => 
+          card.stripePaymentMethodId === selectedPaymentMethod
+        );
+        if (selectedCard) {
+          paymentMethodId = selectedCard.stripePaymentMethodId;
+          isUsingSavedCard = true;
+        } else if (selectedPaymentMethod === "Add new card") {
+          needsNewCardInfo = true;
+        }
+      } else if (savedCards.length === 0) {
+        // No saved cards - must use new card
+        needsNewCardInfo = true;
+      }
+
+      // Validate payment method selection
+      if (!isUsingSavedCard && !needsNewCardInfo) {
+        setSubmitError("Please select a payment method to continue");
         hasErrors = true;
+      }
+
+      // Validate card details for new card entry
+      if (needsNewCardInfo && !hasErrors) {
+        if (!stripe || !elements) {
+          setSubmitError("Payment system not ready. Please try again.");
+          hasErrors = true;
+        } else {
+          const cardElement = elements.getElement('cardNumber');
+          if (!cardElement) {
+            setSubmitError("Please enter your card information to continue");
+            hasErrors = true;
+          }
+        }
       }
 
       if (hasErrors) {
@@ -177,36 +216,11 @@ export function MyCart({
         return;
       }
 
-      // Determine payment method details
-      let paymentMethodId = null;
-      let isUsingSavedCard = false;
-      
-      if (selectedPaymentMethod && selectedPaymentMethod !== "Add new card") {
-        // Find the saved card
-        const selectedCard = savedCards.find(card => 
-          `${card.brand.toUpperCase()} •••• ${card.last4}` === selectedPaymentMethod
-        );
-        if (selectedCard) {
-          paymentMethodId = selectedCard.stripePaymentMethodId;
-          isUsingSavedCard = true;
-        }
-      } else if (selectedPaymentMethod === "Add new card" || savedCards.length === 0) {
-        // Handle new card payment method creation
-        if (!stripe || !elements) {
-          setSubmitError("Payment system not ready. Please try again.");
-          setIsSubmitting(false);
-          return;
-        }
+      // Create payment method for new card
+      if (needsNewCardInfo) {
+        const cardElement = elements!.getElement('cardNumber')!;
 
-        // Create payment method from card elements
-        const cardElement = elements.getElement('cardNumber');
-        if (!cardElement) {
-          setSubmitError("Please enter your card information.");
-          setIsSubmitting(false);
-          return;
-        }
-
-        const { error: stripeError, paymentMethod } = await stripe.createPaymentMethod({
+        const { error: stripeError, paymentMethod } = await stripe!.createPaymentMethod({
           type: 'card',
           card: cardElement,
           billing_details: {
@@ -221,7 +235,7 @@ export function MyCart({
         });
 
         if (stripeError) {
-          setSubmitError(stripeError.message || 'Failed to process card information');
+          setSubmitError(stripeError.message || 'Failed to process card information. Please check your card details and try again.');
           setIsSubmitting(false);
           return;
         }
@@ -254,6 +268,10 @@ export function MyCart({
       const result = await response.json();
 
       if (!response.ok) {
+        console.error('❌ API validation error:', result);
+        if (result.details) {
+          console.error('Validation details:', result.details);
+        }
         throw new Error(result.error || 'Failed to create order');
       }
 
@@ -278,6 +296,13 @@ export function MyCart({
 
   return (
     <>
+      {/* Loading Overlay - Show during order submission */}
+      <LoadingOverlay 
+        visible={isSubmitting} 
+        message="Processing Order..."
+        spinnerSize="xl"
+      />
+
       {/* Desktop Layout */}
       <div className="hidden md:block w-full max-w-md mx-auto md:mx-0 md:ml-auto">
         <div className="p-6 bg-surface-primary rounded-md shadow-custom-shadow">
@@ -286,7 +311,7 @@ export function MyCart({
             <button
               onClick={cartItems.length > 0 ? clearCart : undefined}
               disabled={cartItems.length === 0}
-              className={cartItems.length === 0 ? 'cursor-not-allowed' : 'cursor-pointer'}
+              className={cartItems.length === 0 ? 'cursor-not-allowed' : 'p-2 cursor-pointer hover:bg-surface-tertiary active:bg-surface-disabled rounded-full'}
               aria-label="Clear cart"
             >
               <TrashIcon
@@ -310,7 +335,7 @@ export function MyCart({
                     <p className="text-text-primary">{formatCurrency(item.price * item.quantity)}</p>
                     <button
                       onClick={() => removeItem(item.name)}
-                      className="text-xs text-zinc-400 underline underline-offset-2 decoration-dotted"
+                      className="text-xs text-text-tertiary underline underline-offset-2 decoration-dotted"
                       aria-label={`Remove ${item.name} from cart`}
                     >
                       Delete
@@ -342,18 +367,15 @@ export function MyCart({
             </div>
           )}
 
-          <button
-            className={`btn-primary w-full ${
-              cartItems.length === 0 || isSubmitting
-                ? 'disabled:bg-surface-disabled disabled:cursor-not-allowed disabled:text-text-tertiary'
-                : ''
-            }`}
-            disabled={cartItems.length === 0 || isSubmitting}
+          <Button
+            variant="primary"
+            fullWidth
+            disabled={cartItems.length === 0}
             onClick={handleButtonClick}
             aria-label={isCheckout ? 'Place order' : 'Proceed to checkout'}
           >
-            {isSubmitting ? 'Creating Order...' : isCheckout ? 'Place Order' : 'Checkout'}
-          </button>
+            {isCheckout ? 'Place Order' : 'Checkout'}
+          </Button>
         </div>
         
         <div className="flex items-center space-x-2 mt-6">
@@ -393,7 +415,7 @@ export function MyCart({
           <div ref={contentRef} className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
             <div className="pt-4 px-4">
               <div className="flex justify-between items-center mb-4 pb-4 border-b border-zinc-700">
-                <h3 className="text-2xl font-semibold">My Cart</h3>
+                <h3 className="text-2xl font-semibold text-text-inverse">My Cart</h3>
                 <button
                   onClick={cartItems.length > 0 ? clearCart : undefined}
                   disabled={cartItems.length === 0}
@@ -406,7 +428,7 @@ export function MyCart({
                   />
                 </button>
               </div>
-              <h3 className="text-xl font-semibold mb-4">Price details</h3>
+              <h3 className="text-xl font-semibold mb-4 text-text-inverse">Price details</h3>
               <div className="pb-4">
                 {cartItems.length > 0 ? (
                   cartItems.map((item, index) => (
@@ -418,7 +440,7 @@ export function MyCart({
                         <p className="text-text-inverse">{formatCurrency(item.price * item.quantity)}</p>
                         <button
                           onClick={() => removeItem(item.name)}
-                          className="text-xs text-zinc-400 underline underline-offset-2 decoration-dotted"
+                          className="text-xs text-text-inverse underline underline-offset-2 decoration-dotted"
                           aria-label={`Remove ${item.name} from cart`}
                         >
                           Delete
@@ -452,18 +474,16 @@ export function MyCart({
             <div>
               <div className="flex items-center">
                 <p className="text-xl font-semibold text-text-inverse mr-4">{formatCurrency(totalPrice)}</p>
-                <button
-                  className={`block rounded-md py-2.5 px-6 font-semibold w-full text-md font-inter ${
-                    cartItems.length === 0 || isSubmitting
-                      ? 'bg-zinc-700 text-zinc-900 cursor-not-allowed'
-                      : 'bg-surface-primary text-primary hover:bg-slate-100'
-                  }`}
-                  disabled={cartItems.length === 0 || isSubmitting}
+                <Button
+                  variant="white"
+                  size="md"
+                  fullWidth
+                  disabled={cartItems.length === 0}
                   onClick={handleButtonClick}
                   aria-label={isCheckout ? 'Place order' : 'Proceed to checkout'}
                 >
-                  {isSubmitting ? 'Creating Order...' : isCheckout ? 'Place Order' : 'Checkout'}
-                </button>
+                  {isCheckout ? 'Place Order' : 'Checkout'}
+                </Button>
               </div>
             </div>
           </div>

@@ -5,6 +5,7 @@
  */
 
 // Core navigation components
+export { ConditionalNavbar } from './ConditionalNavbar';
 export { LocationsPopover } from './LocationsPopover';
 export { LocationZipInput } from './LocationZipInput';
 export { MenuPopover } from './MenuPopover';
@@ -13,6 +14,7 @@ export { MobileMenu } from './MobileMenu';
 
 // Site-wide navigation components  
 export { Footer } from './Footer';
+export { ConditionalFooter } from './ConditionalFooter';
 
 // Mover-specific navigation components
 export { MoverMenuPopover } from './MoverMenuPopover';

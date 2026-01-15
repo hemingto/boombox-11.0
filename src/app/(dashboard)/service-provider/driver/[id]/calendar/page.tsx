@@ -33,15 +33,11 @@ export default function DriverCalendarPage({
         userType="driver"
         userId={driverId}
       />
-      <div className="lg:px-16 px-6 max-w-7xl mx-auto">
+      <div className="lg:px-16 px-6 max-w-5xl mx-auto mb-96 sm:mb-60">
         <CalendarWeeklyAvailability userType="driver" userId={driverId} />
         <div className="mt-12">
           <h2 className="text-2xl font-semibold mb-6">Blocked Dates</h2>
           <BlockedDates userType="driver" userId={driverId} />
-        </div>
-        <div className="mt-12">
-          <h2 className="text-2xl font-semibold mb-6">Calendar View</h2>
-          <CalendarView userType="driver" userId={driverId} />
         </div>
       </div>
     </>

@@ -27,7 +27,6 @@ import { ChevronLeftIcon } from '@heroicons/react/20/solid';
 
 // UI Components
 import { Modal } from '@/components/ui/primitives/Modal';
-import { Button } from '@/components/ui/primitives/Button';
 import { TextArea } from '@/components/ui/primitives/TextArea';
 
 // Types
@@ -58,13 +57,10 @@ export default function AddStorageConfirmAppointment({
           <button
             type="button"
             onClick={onGoBack}
-            className="flex items-center justify-center w-8 h-8 cursor-pointer shrink-0 text-primary hover:text-primary-hover bg-transparent border-none p-0"
+            className="p-1 rounded-full hover:bg-surface-tertiary text-text-secondary hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2"
             aria-label="Go back to previous step"
           >
-            <ChevronLeftIcon 
-              className="w-8 h-8"
-              aria-hidden="true"
-            />
+            <ChevronLeftIcon className="w-8" />
           </button>
           <h1 
             className="text-4xl text-text-primary"
@@ -75,9 +71,9 @@ export default function AddStorageConfirmAppointment({
         </header>
 
         {/* Description Input Section */}
-        <fieldset className="mb-8">
+        <fieldset className="mb-4">
           <legend className="mb-4 mt-10 text-text-primary">Provide relevant information about your location</legend>
-          <div className="mt-4">
+          <div>
             <TextArea
               value={formState.description}
               onChange={handleDescriptionChange}
@@ -111,28 +107,21 @@ export default function AddStorageConfirmAppointment({
             Payment Information
           </h2>
           <div className="mt-4 p-3 sm:mb-4 mb-2 border border-border bg-surface-primary rounded-md max-w-fit">
-            <p className="text-xs text-text-secondary">
+            <p className="text-xs text-text-primary">
               You won&apos;t be charged anything today. Your payment will be processed on the default card on file.
               <br />
               <br />
             </p>
             
             {/* Payment Timeline Modal */}
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="p-0 h-auto text-xs underline text-primary hover:text-primary-hover"
+            <button
+              type="button"
               onClick={() => setIsModalOpen(true)}
-              aria-describedby="payment-modal-description"
+              className="text-xs underline cursor-pointer text-primary font-semibold bg-transparent border-none p-0 underline-offset-2 decoration-dotted hover:decoration-solid"
+              aria-label="Learn more about when you will be charged"
             >
               When will I be charged?
-            </Button>
-            <div 
-              id="payment-modal-description" 
-              className="sr-only"
-            >
-              Click to open detailed information about payment timing and policies
-            </div>
+            </button>
             
             <Modal
               open={isModalOpen}
@@ -146,19 +135,19 @@ export default function AddStorageConfirmAppointment({
                 className="space-y-4"
                 id="payment-modal-content"
               >
-                <p className="text-sm text-text-secondary leading-5">
+                <p className="text-sm text-text-primary leading-5">
                   Reserving is free! You&apos;ll only be charged for your first month of storage and the pickup fee after your appointment is completed. We&apos;ll run a pre-authorization check 7 days before your appointment to ensure there are enough funds. If your appointment is in less than 7 days, we&apos;ll do the check right after booking. This hold will be released once the check is done.
                 </p>
                 
-                <div className="border-t border-border pt-4">
+                <div className="border-t border-border pt-4 pb-6">
                   <h4 
-                    className="font-medium text-text-primary mb-2"
+                    className="font-semibold text-text-primary mb-2"
                     id="reschedule-heading"
                   >
                     What if I need to reschedule?
                   </h4>
                   <p 
-                    className="text-sm text-text-secondary leading-5"
+                    className="text-sm text-text-primary leading-5"
                     aria-labelledby="reschedule-heading"
                   >
                     Please reschedule or cancel at least 48 hours in advance to avoid a $100 fee. If you cancel on the day of your appointment, the fee increases to $200. It&apos;s easy to make changes online!

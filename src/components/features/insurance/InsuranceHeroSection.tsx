@@ -22,7 +22,7 @@ export function InsuranceHeroSection() {
     <section className="w-full my-10 sm:my-20 lg:px-16 px-6">
       <div>
         <h1 className="mb-4">Insurance Coverage</h1>
-        <p className="text-text-secondary">Make sure your items are protected</p>
+        <p className="text-text-primary">Make sure your items are protected</p>
       </div>
     </section>
   );

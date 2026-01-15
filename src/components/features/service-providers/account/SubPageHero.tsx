@@ -47,13 +47,13 @@ interface SubPageHeroProps {
  */
 function getBackLink(userType: 'mover' | 'driver', userId: string): string {
   if (userType === 'driver' && userId) {
-    return `/driver-account-page/${userId}`;
+    return `/service-provider/driver/${userId}`;
   } else if (userType === 'mover' && userId) {
-    return `/mover-account-page/${userId}`;
+    return `/service-provider/mover/${userId}`;
   } else if (userType === 'driver') {
-    return '/driver-account-page';
+    return '/service-provider/driver';
   } else {
-    return '/mover-account-page';
+    return '/service-provider/mover';
   }
 }
 
@@ -94,10 +94,10 @@ export function SubPageHero({
         <Link 
           href={backLink}
           aria-label={backLabel}
-          className="flex items-center hover:opacity-70 transition-opacity focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
+          className="p-1 -mr-1 rounded-full hover:bg-surface-tertiary text-text-secondary hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2"
         >
           <ChevronLeftIcon 
-            className="w-8 h-8 cursor-pointer shrink-0 text-text-primary" 
+            className="w-8 h-8" 
             aria-hidden="true"
           />
           <span className="sr-only">{backLabel}</span>

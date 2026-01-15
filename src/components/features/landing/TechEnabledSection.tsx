@@ -17,10 +17,8 @@
  * - Used semantic layout patterns
  *
  * IMAGE OPTIMIZATION:
- * - ✅ CRITICAL: Replaced bg-slate/gray/zinc placeholder divs with OptimizedImage component
- * - Uses lazy loading for better performance
+ * - Uses Next.js Image with lazy loading for better performance
  * - Proper aspect ratios and responsive sizing
- * - Fallback support for failed image loads
  * - Descriptive alt text for accessibility
  *
  * ACCESSIBILITY IMPROVEMENTS:
@@ -36,14 +34,14 @@
  * - Same image switching based on accordion selection
  * - Same two-column responsive layout
  *
- * @refactor Refactored to use design system, OptimizedImage component, improve accessibility, and align with boombox-11.0 structure.
+ * @refactor Refactored to use design system, improve accessibility, and align with boombox-11.0 structure.
  */
 
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { AccordionContainer, type AccordionData } from '@/components/ui/primitives/Accordion/AccordionContainer';
-import { OptimizedImage } from '@/components/ui/primitives/OptimizedImage/OptimizedImage';
 import { cn } from '@/lib/utils';
 
 /**
@@ -159,19 +157,15 @@ export function TechEnabledSection({
       {/* Right column: Image display */}
       {showImages && currentFeature && (
         <div className="hidden sm:flex place-content-end h-[480px] basis-1/2">
-          <div className="w-full md:ml-8">
-            <OptimizedImage
+          <div className="relative w-full h-full md:ml-8 rounded-md overflow-hidden">
+            <Image
               src={currentFeature.image}
               alt={`${currentFeature.question} - ${currentFeature.answer}`}
-              width={600}
-              height={480}
-              aspectRatio="landscape"
-              containerClassName="w-full h-full rounded-md"
+              fill
               className="rounded-md object-cover"
               loading="lazy"
               quality={85}
               sizes="(max-width: 768px) 100vw, 50vw"
-              fallbackSrc="/placeholder.jpg"
             />
           </div>
         </div>

@@ -20,7 +20,10 @@ export default function EditAppointment() {
   const userId = useUser();
 
   // Determine which form to show based on appointment type
-  if (appointmentType === 'Access Storage') {
+  // Handle both 'Access Storage' and 'Storage Unit Access' for backwards compatibility
+  if (appointmentType === 'Access Storage' || 
+      appointmentType === 'Storage Unit Access' || 
+      appointmentType === 'End Storage Term') {
     return (
       <AccessStorageProvider
         mode="edit"
@@ -31,9 +34,13 @@ export default function EditAppointment() {
     );
   }
 
-  if (appointmentType === 'Additional Storage') {
+  // Handle both 'Additional Storage' and 'Initial Pickup' appointments
+  if (appointmentType === 'Additional Storage' || appointmentType === 'Initial Pickup') {
     return (
-      <AddStorageProvider>
+      <AddStorageProvider
+        mode="edit"
+        appointmentId={appointmentId || undefined}
+      >
         <AddStorageForm />
       </AddStorageProvider>
     );
@@ -42,15 +49,15 @@ export default function EditAppointment() {
   // Default: Show error for unsupported appointment types
   return (
     <div className="min-h-[1200px] lg:px-16 px-6 max-w-7xl mx-auto py-12">
-      <div className="bg-amber-50 border border-amber-200 rounded-md p-6">
-        <h1 className="text-2xl font-semibold text-amber-900 mb-2">
+      <div className="bg-amber-100 rounded-md p-6">
+        <h1 className="text-2xl font-semibold text-amber-500 mb-4">
           Edit Appointment
         </h1>
-        <p className="text-amber-800">
+        <p className="text-amber-500 mb-2">
           Appointment Type: <strong>{appointmentType || 'Not specified'}</strong>
         </p>
-        <p className="text-amber-700 mt-4">
-          Editing is currently only supported for Access Storage and Additional
+        <p className="text-amber-500">
+          Editing is currently only supported for Access Storage, Initial Pickup, and Additional
           Storage appointments. Please contact support for other appointment types.
         </p>
       </div>

@@ -459,7 +459,7 @@ describe('EditAppointmentPage', () => {
       });
     });
 
-    it('shows not available message for Initial Pickup appointments', async () => {
+    it('renders AddStorageForm for Initial Pickup appointments', async () => {
       mockSearchParams.get.mockImplementation((key: string) => {
         if (key === 'appointmentType') return 'Initial Pickup';
         if (key === 'appointmentId') return '456';
@@ -469,12 +469,12 @@ describe('EditAppointmentPage', () => {
       render(<EditAppointmentPage />);
       
       await waitFor(() => {
-        expect(screen.getByText('Edit Not Available')).toBeInTheDocument();
-        expect(screen.getByText('Editing for "Initial Pickup" appointments is not yet available. This feature will be implemented in a future update.')).toBeInTheDocument();
+        expect(screen.getByTestId('add-storage-form')).toBeInTheDocument();
+        expect(screen.getByText('Mode: edit')).toBeInTheDocument();
       });
     });
 
-    it('shows not available message for Additional Storage appointments', async () => {
+    it('renders AddStorageForm for Additional Storage appointments', async () => {
       mockSearchParams.get.mockImplementation((key: string) => {
         if (key === 'appointmentType') return 'Additional Storage';
         if (key === 'appointmentId') return '456';
@@ -484,8 +484,8 @@ describe('EditAppointmentPage', () => {
       render(<EditAppointmentPage />);
       
       await waitFor(() => {
-        expect(screen.getByText('Edit Not Available')).toBeInTheDocument();
-        expect(screen.getByText('Editing for "Additional Storage" appointments is not yet available. This feature will be implemented in a future update.')).toBeInTheDocument();
+        expect(screen.getByTestId('add-storage-form')).toBeInTheDocument();
+        expect(screen.getByText('Mode: edit')).toBeInTheDocument();
       });
     });
 
@@ -499,8 +499,8 @@ describe('EditAppointmentPage', () => {
       render(<EditAppointmentPage />);
       
       await waitFor(() => {
-        expect(screen.getByText('Unsupported Appointment Type')).toBeInTheDocument();
-        expect(screen.getByText('The appointment type "Unknown Type" is not supported for editing.')).toBeInTheDocument();
+        expect(screen.getByText('Edit Appointment')).toBeInTheDocument();
+        expect(screen.getByText(/Editing is currently only supported for Access Storage, Initial Pickup, and Additional Storage appointments/)).toBeInTheDocument();
       });
     });
   });

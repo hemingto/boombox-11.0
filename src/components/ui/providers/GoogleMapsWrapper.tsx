@@ -5,34 +5,32 @@
  * COMPONENT FUNCTIONALITY:
  * This component uses `@react-google-maps/api` to load the Google Maps script.
  * It ensures that the Google Maps API is available to its children components.
+ * The component renders children immediately without blocking, allowing Google Maps
+ * to load in the background without showing a loading spinner.
  *
  * API ROUTES UPDATED:
  * - Old: N/A -> New: N/A
  *
  * DESIGN SYSTEM UPDATES:
- * - N/A
+ * - Removed loading spinner to prevent blocking UI on page load
+ * - Children now render immediately while Maps API loads in background
  *
- * @refactor The component is refactored to be a client component and to handle the API key more robustly.
- * The state management for loading is kept as it is part of the component's core logic.
- * Replaced the empty div for the loading element with the `Spinner` primitive.
+ * @refactor Removed loading spinners to improve UX - pages load immediately
+ * while Google Maps API loads asynchronously in the background.
  */
 
 'use client'
 
-import { ReactNode, useState } from 'react';
+import { ReactNode } from 'react';
 import { LoadScript } from '@react-google-maps/api';
-import { Spinner } from '@/components/ui/primitives';
 
 interface GoogleMapsWrapperProps {
   children: ReactNode;
 }
 
 export default function GoogleMapsWrapper({ children }: GoogleMapsWrapperProps) {
-  const [isLoaded, setIsLoaded] = useState(false);
-
   const handleOnLoad = () => {
     console.log('Google Maps API loaded');
-    setIsLoaded(true);
   };
 
   const handleError = () => {
@@ -45,9 +43,9 @@ export default function GoogleMapsWrapper({ children }: GoogleMapsWrapperProps) 
       libraries={['places']}
       onLoad={handleOnLoad}
       onError={handleError}
-      loadingElement={<Spinner />}
+      loadingElement={<div />}
     >
-      {isLoaded ? children : <Spinner />}
+      {children}
     </LoadScript>
   );
 }

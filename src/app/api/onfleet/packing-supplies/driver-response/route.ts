@@ -25,6 +25,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
 import jwt from 'jsonwebtoken';
 import { assignRoutePlanToWorker } from '@/lib/services/onfleet-route-plan';
+import { DriverOfferService } from '@/lib/services/DriverOfferService';
 import { 
   findAndNotifyNextDriverForRoute, 
   verifyDriverOfferToken,
@@ -177,6 +178,7 @@ export async function POST(request: NextRequest) {
 
 /**
  * Handle driver accepting the route offer
+ * Uses atomic transaction to prevent race conditions
  */
 async function handleDriverAccept(route: any, driver: any) {
   try {
@@ -184,7 +186,35 @@ async function handleDriverAccept(route: any, driver: any) {
     console.log(`Driver onfleetWorkerId: ${driver.onfleetWorkerId}`);
     console.log(`Route onfleetOptimizationId: ${route.onfleetOptimizationId}`);
 
+    // Use atomic acceptance to prevent race conditions
+    const acceptResult = await DriverOfferService.acceptOfferAtomic(
+      route.routeId,
+      driver.id
+    );
+
+    if (!acceptResult.success) {
+      console.log(`Atomic acceptance failed with error: ${acceptResult.error}`);
+      
+      // Map error codes to user-friendly messages
+      const errorMessages: Record<string, { message: string; status: number }> = {
+        EXPIRED: { message: 'This offer has expired', status: 410 },
+        ALREADY_ACCEPTED: { message: 'This route has already been accepted by another driver', status: 409 },
+        NOT_FOUND: { message: 'Route not found', status: 404 },
+        NOT_SENT: { message: 'Route offer is not in a valid state for acceptance', status: 400 },
+        WRONG_DRIVER: { message: 'Unable to accept this offer', status: 400 },
+      };
+
+      const errorInfo = errorMessages[acceptResult.error || 'WRONG_DRIVER'];
+      return NextResponse.json(
+        { error: errorInfo.message, code: acceptResult.error },
+        { status: errorInfo.status }
+      );
+    }
+
+    console.log(`Atomic acceptance succeeded for route ${route.routeId}`);
+
     // Assign Route Plan to driver in Onfleet (keeps route intact)
+    // This is done after the atomic DB update so we don't have inconsistent state
     if (driver.onfleetWorkerId && route.onfleetOptimizationId) {
       try {
         console.log(`Attempting to assign Route Plan ${route.onfleetOptimizationId} to driver ${driver.onfleetWorkerId}`);
@@ -199,9 +229,8 @@ async function handleDriverAccept(route: any, driver: any) {
           workerId: driver.onfleetWorkerId
         });
         
-        // For now, let's continue with database updates even if Onfleet assignment fails
-        // This allows us to test the rest of the flow
-        console.log(`Continuing with database updates despite Onfleet error...`);
+        // Note: Database is already updated, Onfleet assignment can be retried
+        console.log(`Database updated successfully, Onfleet assignment failed but can be retried`);
       }
     } else {
       console.warn(`Missing required IDs:`, {
@@ -209,41 +238,6 @@ async function handleDriverAccept(route: any, driver: any) {
         onfleetOptimizationId: route.onfleetOptimizationId
       });
     }
-
-    console.log(`Updating database for route ${route.routeId} with driver ${driver.id}`);
-
-    // Update route with driver assignment
-    await prisma.packingSupplyRoute.update({
-      where: { routeId: route.routeId },
-      data: {
-        driverId: driver.id,
-        routeStatus: 'assigned',
-        driverOfferStatus: 'accepted',
-        updatedAt: new Date(),
-      },
-    });
-
-    // Update orders with driver assignment
-    await prisma.$transaction([
-      prisma.packingSupplyOrder.updateMany({
-        where: { routeId: route.routeId },
-        data: {
-          assignedDriverId: driver.id,
-          status: 'Assigned',
-        },
-      }),
-    ]);
-
-    // Update driver's completed jobs counter (for future sorting)
-    await prisma.driver.update({
-      where: { id: driver.id },
-      data: {
-        completedPackingSupplyJobs: {
-          increment: 1,
-        },
-        updatedAt: new Date(),
-      },
-    });
 
     console.log(`Successfully completed driver accept process for route ${route.routeId}`);
 
@@ -273,37 +267,54 @@ async function handleDriverAccept(route: any, driver: any) {
 
 /**
  * Handle driver declining the route offer
+ * Uses DriverOfferService to find and notify next driver
  */
 async function handleDriverDecline(route: any, driver: any) {
   try {
-    // Update route status to declined with tracking
-    await prisma.packingSupplyRoute.update({
-      where: { routeId: route.routeId },
-      data: {
-        driverOfferStatus: 'declined',
-        // Note: In a more complex system, you might want to track who declined
-        // This could be done with a separate table or JSON field
-      },
-    });
+    // Mark the offer as declined
+    await DriverOfferService.markOfferDeclined(route.routeId);
 
     console.log(`Driver ${driver.id} (${driver.firstName} ${driver.lastName}) declined route ${route.routeId}`);
 
-    // Find next available driver for this route using centralized utility
-    const nextDriverResult = await findAndNotifyNextDriverForRoute({
-      deliveryDate: route.deliveryDate,
-      routeId: route.routeId,
-      context: 'decline',
+    // Find next available driver using DriverOfferService
+    // First, get the updated route with offeredDriverIds
+    const updatedRoute = await prisma.packingSupplyRoute.findUnique({
+      where: { routeId: route.routeId },
     });
 
+    if (updatedRoute) {
+      const nextDriver = await DriverOfferService.findNextCandidateDriver(updatedRoute);
+      
+      if (nextDriver) {
+        const offerResult = await DriverOfferService.sendDriverOffer(
+          route.routeId,
+          nextDriver.id
+        );
+
+        return NextResponse.json({
+          success: true,
+          message: 'Route declined, next driver notified',
+          details: {
+            routeId: route.routeId,
+            declinedBy: `${driver.firstName} ${driver.lastName}`,
+            nextDriverStatus: offerResult.success ? 'notified' : 'failed',
+            nextDriverNotified: offerResult.success,
+            nextDriverName: offerResult.driverName,
+          },
+        });
+      }
+    }
+
+    // No more candidates available
     return NextResponse.json({
       success: true,
-      message: 'Route declined, searching for next driver',
+      message: 'Route declined, no more drivers available',
       details: {
         routeId: route.routeId,
         declinedBy: `${driver.firstName} ${driver.lastName}`,
-        nextDriverStatus: nextDriverResult.success ? 'notified' : 'none_available',
-        nextDriverNotified: nextDriverResult.success,
-        nextDriverMessage: nextDriverResult.message,
+        nextDriverStatus: 'none_available',
+        nextDriverNotified: false,
+        nextDriverMessage: 'No available drivers found',
       },
     });
 

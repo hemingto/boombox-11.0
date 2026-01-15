@@ -26,5 +26,14 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
+  
+  // Always return a valid JSON response, even when session is null
+  // This prevents "Cannot convert undefined or null to object" errors in NextAuth client
+  if (!session) {
+    console.log('[session route] No session found, returning empty object');
+    return NextResponse.json({});
+  }
+  
+  console.log('[session route] Returning session');
   return NextResponse.json(session);
 } 

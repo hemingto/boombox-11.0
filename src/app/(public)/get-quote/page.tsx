@@ -119,7 +119,7 @@ export const metadata: Metadata = {
  */
 export default function GetQuotePage() {
   return (
-    <main className="min-h-screen bg-surface-secondary">
+    <main>
       {/* 
         GetQuoteForm component handles:
         - Stripe Elements integration (wrapper included)

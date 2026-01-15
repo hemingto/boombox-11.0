@@ -23,3 +23,7 @@ export { storageTermEndedTemplate } from './storage-term-ended';
 export { storageAccessCompletedTemplate } from './storage-access-completed';
 export { accessStorageConfirmationSms } from './accessStorageConfirmation';
 export { additionalStorageConfirmationSms } from './additionalStorageConfirmation';
+export { driverJobAcceptedSms } from './driverJobAccepted';
+export { driverJobDeclinedSms } from './driverJobDeclined';
+export { driverAssignedByMoverSms } from './driverAssignedByMover';
+export { movingPartnerNewJobManualAssignSms } from './movingPartnerNewJobManualAssign';

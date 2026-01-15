@@ -23,16 +23,12 @@
 
 'use client';
 
-import React, { useEffect, useMemo } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import React, { useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 
-// Custom hooks
-import { useAddStorageForm } from '@/hooks/useAddStorageForm';
-import { useAddStorageNavigation } from '@/hooks/useAddStorageNavigation';
-import { useAddStorageSubmission } from '@/hooks/useAddStorageSubmission';
-import { useAddStorageFormPersistence } from '@/hooks/useAddStorageFormPersistence';
+// Context
+import { useAddStorageContext } from './AddStorageProvider';
 
 // Components
 import { MyQuote, ChooseLabor } from '@/components/features/orders';
@@ -57,16 +53,22 @@ function AddStorageForm({
   initialStorageUnitCount = 1, 
   initialZipCode = '' 
 }: AddStorageFormProps) {
-  const searchParams = useSearchParams();
   const router = useRouter();
   const { data: session } = useSession();
   const userId = session?.user?.id as string | undefined;
+  
+  // Access all hooks from context (provider manages all state)
+  const { 
+    isEditMode,
+    appointmentId,
+    appointmentDataHook,
+    formHook,
+    navigationHook,
+    submissionHook,
+    persistenceHook,
+  } = useAddStorageContext();
 
-  // Get initial values from URL parameters
-  const urlStorageUnitCount = parseInt(searchParams.get('storageUnitCount') || initialStorageUnitCount.toString(), 10);
-  const urlZipCode = searchParams.get('zipCode') || initialZipCode;
-
-  // Custom hooks for form management
+  // Destructure for easier access
   const {
     formState,
     errors,
@@ -79,13 +81,11 @@ function AddStorageForm({
     updateScheduling,
     updatePricing,
     validateStep,
+    setError,
     clearError,
     togglePlanDetails,
     contentRef,
-  } = useAddStorageForm({
-    initialStorageUnitCount: urlStorageUnitCount,
-    initialZipCode: urlZipCode,
-  });
+  } = formHook;
 
   const {
     currentStep,
@@ -93,41 +93,13 @@ function AddStorageForm({
     goToNextStep,
     goToPreviousStep,
     canProceed,
-  } = useAddStorageNavigation({
-    planType: formState.planType,
-    validateStep: (step: AddStorageStep) => validateStep(step).isValid,
-  });
+  } = navigationHook;
 
   const {
     submissionState,
     submitForm,
     clearSubmissionError,
-  } = useAddStorageSubmission();
-
-  const { persistFormState } = useAddStorageFormPersistence({
-    formState,
-    onFormStateRestore: updateFormState,
-    enableLocalStorage: true,
-    enableUrlSync: true,
-  });
-
-  // Persist form state to URL when key values change
-  useEffect(() => {
-    persistFormState({
-      step: currentStep,
-      storageUnitCount: formState.storageUnit.count,
-      zipCode: formState.addressInfo.zipCode,
-      selectedPlan: formState.selectedPlan,
-      planType: formState.planType,
-    });
-  }, [
-    currentStep,
-    formState.storageUnit.count,
-    formState.addressInfo.zipCode,
-    formState.selectedPlan,
-    formState.planType,
-    persistFormState,
-  ]);
+  } = submissionHook;
 
   // Handle form submission or step progression
   const handleSubmitOrProceed = async () => {
@@ -137,6 +109,8 @@ function AddStorageForm({
       // Final submission
       if (!userId) {
         console.error('User not authenticated');
+        // Show user-friendly error message
+        submissionHook.submissionState.submitError = 'Your session has expired. Please refresh the page to continue.';
         return;
       }
 
@@ -155,9 +129,9 @@ function AddStorageForm({
 
       try {
         await submitForm(formState, userId);
-        // On success, redirect to user page
+        // On success, redirect to customer page
         await router.refresh();
-        router.push(`/user-page/${userId}`);
+        router.push(`/customer/${userId}`);
       } catch (error) {
         console.error('Form submission failed:', error);
         // Error is handled by the submission hook
@@ -171,7 +145,7 @@ function AddStorageForm({
         // Set errors from validation
         Object.entries(validation.errors).forEach(([key, value]) => {
           if (value) {
-            // Handle error setting through form state
+            setError(key as keyof typeof errors, value as string);
           }
         });
       }
@@ -193,15 +167,15 @@ function AddStorageForm({
     updateScheduling(date, timeSlot);
   };
 
-  // Handle unavailable labor error
-  const handleUnavailableLabor = (hasError: boolean, message?: string) => {
+  // Handle unavailable labor error (memoized to prevent infinite loops)
+  const handleUnavailableLabor = useCallback((hasError: boolean, message?: string) => {
     if (hasError) {
       // Handle unavailable labor error
       console.warn('Labor unavailable:', message);
     } else {
       clearError('unavailableLaborError');
     }
-  };
+  }, [clearError]);
 
   // Scheduler plan type mapping
   const schedulerPlanType = useMemo(() => {
@@ -222,23 +196,46 @@ function AddStorageForm({
   }, [formState.scheduling.scheduledDate, formState.scheduling.scheduledTimeSlot]);
 
   // MyQuote button texts by step
-  const myQuoteButtonTexts: { [step: number]: string } = {
+  const myQuoteButtonTexts: { [step: number]: string } = isEditMode ? {
+    1: "Continue",
+    2: "Schedule Appointment", 
+    3: "Select Movers",
+    4: "Edit Appointment",
+  } : {
     1: "Schedule Appointment",
     2: "Reserve Appointment", 
     3: "Select Movers",
     4: "Confirm Appointment",
   };
 
-  const mobileMyQuoteButtonTexts: { [step: number]: string } = {
+  const mobileMyQuoteButtonTexts: { [step: number]: string } = isEditMode ? {
+    1: "Continue",
+    2: "Schedule",
+    3: "Add Movers", 
+    4: "Edit",
+  } : {
     1: "Schedule",
     2: "Reserve",
     3: "Add Movers", 
     4: "Confirm",
   };
 
+  // Stable callback references to prevent infinite loops
+  const handleCalculateTotal = useCallback((total: number) => {
+    updatePricing({ calculatedTotal: total });
+  }, [updatePricing]);
+
+  const handleSetMonthlyStorageRate = useCallback((rate: number) => {
+    updatePricing({ monthlyStorageRate: rate });
+  }, [updatePricing]);
+
+  const handleSetMonthlyInsuranceRate = useCallback((rate: number) => {
+    updatePricing({ monthlyInsuranceRate: rate });
+  }, [updatePricing]);
+
   // MyQuote props configuration
   const myQuoteProps = {
-    title: "New storage quote",
+    title: isEditMode ? "Edit storage quote" : "New storage quote",
     showSendQuoteEmail: false,
     address: formState.addressInfo.address,
     scheduledDate: formState.scheduling.scheduledDate,
@@ -253,9 +250,9 @@ function AddStorageForm({
     coordinates: formState.addressInfo.coordinates,
     handleSubmit: handleSubmitOrProceed,
     currentStep,
-    onCalculateTotal: (total: number) => updatePricing({ calculatedTotal: total }),
-    setMonthlyStorageRate: (rate: number) => updatePricing({ monthlyStorageRate: rate }),
-    setMonthlyInsuranceRate: (rate: number) => updatePricing({ monthlyInsuranceRate: rate }),
+    onCalculateTotal: handleCalculateTotal,
+    setMonthlyStorageRate: handleSetMonthlyStorageRate,
+    setMonthlyInsuranceRate: handleSetMonthlyInsuranceRate,
     isAccessStorage: false,
     buttonTexts: myQuoteButtonTexts,
   };
@@ -290,6 +287,8 @@ function AddStorageForm({
             numberOfUnits={formState.storageUnit.count}
             onDateTimeSelected={handleDateTimeSelected}
             initialSelectedDate={formState.scheduling.scheduledDate ?? undefined}
+            initialSelectedTimeSlot={formState.scheduling.scheduledTimeSlot ?? undefined}
+            excludeAppointmentId={isEditMode ? appointmentId : undefined}
             goBackToStep1={() => goToStep(AddStorageStep.ADDRESS_AND_PLAN)}
             hasError={!!errors.scheduleError}
             errorMessage={errors.scheduleError}
@@ -314,10 +313,10 @@ function AddStorageForm({
             cityName={formState.addressInfo.cityName}
             selectedDateObject={combinedDateTimeForLabor}
             onMovingPartnerSelect={(id: number | null) => {
-              // Update moving partner ID through form state
+              updateFormState({ movingPartnerId: id });
             }}
             onPlanTypeChange={(planType: string) => {
-              // Handle plan type change
+              updateFormState({ planType: planType as any });
             }}
             onUnavailableLaborChange={handleUnavailableLabor}
             appointmentId={undefined}
@@ -329,7 +328,7 @@ function AddStorageForm({
           <AddStorageConfirmAppointment
             formState={formState}
             onDescriptionChange={(description: string) => {
-              // Update description through form state
+              updateFormState({ description });
             }}
             onGoBack={goToPreviousStep}
           />
@@ -356,12 +355,21 @@ function AddStorageForm({
     <main 
       className="md:flex gap-x-8 lg:gap-x-16 mt-12 sm:mt-24 lg:px-16 px-6 justify-center mb-10 sm:mb-64 items-start"
       role="main"
-      aria-label="Add storage form"
+      aria-label={isEditMode ? "Edit storage form" : "Add storage form"}
     >
+      {/* Loading overlay for edit mode data fetch */}
+      {isEditMode && appointmentDataHook?.isLoading && (
+        <LoadingOverlay 
+          visible={true}
+          message="Loading appointment details..."
+          spinnerSize="xl"
+        />
+      )}
+      
       {/* Loading overlay for form submission */}
       <LoadingOverlay 
         visible={submissionState.isSubmitting && currentStep === AddStorageStep.CONFIRMATION}
-        message="Processing your request..."
+        message={isEditMode ? "Updating your appointment..." : "Processing your request..."}
         spinnerSize="xl"
       />
       
@@ -373,6 +381,42 @@ function AddStorageForm({
         aria-live="polite"
       >
         {renderStepContent()}
+      
+      {/* Error messages */}
+      {(errors.laborError && currentStep === AddStorageStep.LABOR_SELECTION && formState.planType !== PlanType.DIY) && (
+          <div className="bg-status-bg-error p-4 rounded-md max-w-lg mx-auto md:mx-0 md:ml-auto">
+            <p 
+              className="text-status-error text-sm text-center md:text-left"
+              role="alert"
+              aria-live="assertive"
+            >
+              {errors.laborError}
+            </p>
+          </div>
+        )}
+        {(errors.unavailableLaborError && currentStep === AddStorageStep.LABOR_SELECTION && formState.planType !== PlanType.DIY) && (
+          <div className="bg-status-bg-error p-4 rounded-md max-w-lg mx-auto md:mx-0 md:ml-auto">
+            <p 
+              className="text-status-error text-sm text-center md:text-left"
+              role="alert"
+              aria-live="assertive"
+            >
+              {errors.unavailableLaborError}
+            </p>
+          </div>
+        )}
+        {submissionState.submitError && currentStep === AddStorageStep.CONFIRMATION && (
+          
+          <div className="bg-status-bg-error p-4 rounded-md max-w-lg mx-auto md:mx-0 md:ml-auto">
+            <p 
+              className="text-status-error text-sm text-center md:text-left"
+              role="alert"
+              aria-live="assertive"
+            >
+              {submissionState.submitError}
+            </p>
+          </div>
+        )}
       </section>
       
       {/* Quote sidebar */}
@@ -381,65 +425,13 @@ function AddStorageForm({
         role="complementary"
         aria-label="Quote summary and help information"
       >
-        {/* Error messages */}
-        {(errors.laborError && currentStep === AddStorageStep.LABOR_SELECTION && formState.planType !== PlanType.DIY) && (
-          <p 
-            className="text-status-error text-sm mb-2 text-center md:text-left"
-            role="alert"
-            aria-live="assertive"
-          >
-            {errors.laborError}
-          </p>
-        )}
-        {(errors.unavailableLaborError && currentStep === AddStorageStep.LABOR_SELECTION && formState.planType !== PlanType.DIY) && (
-          <p 
-            className="text-status-error text-sm mb-2 text-center md:text-left"
-            role="alert"
-            aria-live="assertive"
-          >
-            {errors.unavailableLaborError}
-          </p>
-        )}
-        {submissionState.submitError && currentStep === AddStorageStep.CONFIRMATION && (
-          <p 
-            className="text-status-error text-sm mb-2 text-center md:text-left"
-            role="alert"
-            aria-live="assertive"
-          >
-            {submissionState.submitError}
-          </p>
-        )}
+        
         
         {/* Quote components */}
         <MyQuote {...myQuoteProps} />
         <div className="md:hidden">
           <MyQuote {...mobileMyQuoteProps} />
         </div>
-        
-        {/* Help section */}
-        <section 
-          className="hidden px-4 pt-6 md:flex items-center"
-          role="region"
-          aria-label="Help and support information"
-        >
-          <HelpIcon 
-            className="w-8 h-8 text-primary mr-4 shrink-0"
-            aria-hidden="true"
-          />
-          <div>
-            <p className="text-xs text-text-secondary">
-              Need help? Send us an email at{' '}
-              <a 
-                href="mailto:help@boomboxstorage.com"
-                className="text-primary hover:text-primary-hover underline"
-                aria-label="Send email to help@boomboxstorage.com for support"
-              >
-                help@boomboxstorage.com
-              </a>
-              {' '}if you have any questions
-            </p>
-          </div>
-        </section>
       </aside>
     </main>
   );

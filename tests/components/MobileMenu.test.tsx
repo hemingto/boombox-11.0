@@ -29,7 +29,7 @@ jest.mock('next/link', () => {
 
 // Mock navigation utils
 jest.mock('@/lib/utils/navigationUtils', () => ({
-  getAccountPageUrl: jest.fn((user) => user ? `/user-page/${user.id}` : '/login'),
+  getAccountPageUrl: jest.fn((user) => user ? `/customer/${user.id}` : '/login'),
   getAccountPageText: jest.fn((user) => user ? 'My Account' : 'Log In'),
 }));
 

@@ -46,124 +46,118 @@ import { useResponsiveGridPagination, DEFAULT_CITY_GRID_BREAKPOINTS } from '@/ho
 import { cn } from '@/lib/utils/cn';
 
 export interface ZipCodeSectionProps {
-  /**
-   * Section heading text
-   * @default 'Complete zip code list'
-   */
-  heading?: string;
-  
-  /**
-   * Additional CSS classes for the container
-   */
-  className?: string;
-  
-  /**
-   * Additional CSS classes for the heading container
-   */
-  headingContainerClassName?: string;
-  
-  /**
-   * Additional CSS classes for the grid container
-   */
-  gridClassName?: string;
+ /**
+  * Section heading text
+  * @default 'Complete zip code list'
+  */
+ heading?: string;
+ 
+ /**
+  * Additional CSS classes for the container
+  */
+ className?: string;
+ 
+ /**
+  * Additional CSS classes for the heading container
+  */
+ headingContainerClassName?: string;
+ 
+ /**
+  * Additional CSS classes for the grid container
+  */
+ gridClassName?: string;
 }
 
 export function ZipCodeSection({
-  heading = 'Complete zip code list',
-  className,
-  headingContainerClassName,
-  gridClassName,
+ heading = 'Complete zip code list',
+ className,
+ headingContainerClassName,
+ gridClassName,
 }: ZipCodeSectionProps) {
-  // Extract zip codes from pricing data
-  const zipCodes = Object.keys(zipCodePrices);
-  
-  // Use responsive grid pagination hook (same as CitiesSection)
-  const {
-    currentPage,
-    totalPages,
-    currentItems: currentZipCodes,
-    handlePrevPage,
-    handleNextPage,
-    gridColsClass,
-    hasPrevPage,
-    hasNextPage,
-  } = useResponsiveGridPagination({
-    items: zipCodes,
-    breakpoints: DEFAULT_CITY_GRID_BREAKPOINTS,
-  });
-  
-  return (
-    <section
-      className={cn('mt-12 sm:mt-24 lg:px-12 px-6 sm:mb-48 mb-24', className)}
-      aria-labelledby="zip-code-section-title"
-    >
-      {/* Header with pagination controls */}
-      <div
-        className={cn(
-          'flex flex-col sm:flex-row w-full justify-between items-left sm:items-center mb-10',
-          headingContainerClassName
-        )}
-      >
-        <h1 id="zip-code-section-title" className="mr-2">
-          {heading}
-        </h1>
-        
-        <nav aria-label="Zip codes pagination" className="flex mt-4 sm:mt-0 gap-1">
-          <button
-            onClick={handlePrevPage}
-            disabled={!hasPrevPage}
-            className={cn(
-              'rounded-full p-2 transition-colors bg-surface-tertiary active:bg-surface-disabled focus-visible',
-              {
-                'opacity-50 cursor-not-allowed': !hasPrevPage,
-                'cursor-pointer hover:bg-surface-disabled': hasPrevPage,
-              }
-            )}
-            aria-label="Previous page of zip codes"
-          >
-            <ArrowLeftIcon className="w-6 h-6" aria-hidden="true" />
-          </button>
-          
-          <button
-            onClick={handleNextPage}
-            disabled={!hasNextPage}
-            className={cn(
-              'rounded-full p-2 transition-colors bg-surface-tertiary active:bg-surface-disabled focus-visible',
-              {
-                'opacity-50 cursor-not-allowed': !hasNextPage,
-                'cursor-pointer hover:bg-surface-disabled': hasNextPage,
-              }
-            )}
-            aria-label="Next page of zip codes"
-          >
-            <ArrowRightIcon className="w-6 h-6" aria-hidden="true" />
-          </button>
-          
-          <div role="status" aria-live="polite" className="sr-only">
-            Page {currentPage} of {totalPages}
-          </div>
-        </nav>
-      </div>
-      
-      {/* Zip codes grid */}
-      <div
-        className={cn('grid gap-4 lg:gap-6 text-nowrap', gridColsClass, gridClassName)}
-        role="list"
-        aria-label="Available service area zip codes"
-      >
-        {currentZipCodes.map((zip, index) => (
-          <div key={index} role="listitem">
-            <Link 
-              href={`/locations?zipCode=${zip}`} 
-              className="focus-visible"
-              aria-label={`Check availability for zip code ${zip}`}
-            >
-              <Chip label={zip} className="w-full" />
-            </Link>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
+ // Extract zip codes from pricing data
+ const zipCodes = Object.keys(zipCodePrices);
+ 
+ // Use responsive grid pagination hook (same as CitiesSection)
+ const {
+  currentPage,
+  totalPages,
+  currentItems: currentZipCodes,
+  handlePrevPage,
+  handleNextPage,
+  gridColsClass,
+  hasPrevPage,
+  hasNextPage,
+ } = useResponsiveGridPagination({
+  items: zipCodes,
+  breakpoints: DEFAULT_CITY_GRID_BREAKPOINTS,
+ });
+ 
+ return (
+  <section
+   className={cn('mt-12 sm:mt-24 lg:px-12 px-6 sm:mb-48 mb-24', className)}
+   aria-labelledby="zip-code-section-title"
+  >
+   {/* Header with pagination controls */}
+   <div
+    className={cn(
+     'flex flex-col sm:flex-row w-full justify-between items-left sm:items-center mb-10',
+     headingContainerClassName
+    )}
+   >
+    <h1 id="zip-code-section-title" className="mr-2">
+     {heading}
+    </h1>
+    
+    <nav aria-label="Zip codes pagination" className="flex mt-4 sm:mt-0 gap-1">
+     <button
+      onClick={handlePrevPage}
+      disabled={!hasPrevPage}
+      className={cn(
+       'rounded-full p-2 bg-surface-tertiary active:bg-surface-disabled focus-visible',
+       {
+        'opacity-50 cursor-not-allowed': !hasPrevPage,
+        'cursor-pointer hover:bg-surface-disabled': hasPrevPage,
+       }
+      )}
+      aria-label="Previous page of zip codes"
+     >
+      <ArrowLeftIcon className="w-6 h-6" aria-hidden="true" />
+     </button>
+     
+     <button
+      onClick={handleNextPage}
+      disabled={!hasNextPage}
+      className={cn(
+       'rounded-full p-2 bg-surface-tertiary active:bg-surface-disabled focus-visible',
+       {
+        'opacity-50 cursor-not-allowed': !hasNextPage,
+        'cursor-pointer hover:bg-surface-disabled': hasNextPage,
+       }
+      )}
+      aria-label="Next page of zip codes"
+     >
+      <ArrowRightIcon className="w-6 h-6" aria-hidden="true" />
+     </button>
+     
+     <div role="status" aria-live="polite" className="sr-only">
+      Page {currentPage} of {totalPages}
+     </div>
+    </nav>
+   </div>
+   
+   {/* Zip codes grid */}
+   <div
+    className={cn('grid gap-4 lg:gap-6 text-nowrap', gridColsClass, gridClassName)}
+    role="list"
+    aria-label="Available service area zip codes"
+   >
+    {currentZipCodes.map((zip, index) => (
+     <div key={index} role="listitem">
+       <Chip label={zip} className="w-full hover:bg-surface-tertiary" />
+     </div>
+    ))}
+   </div>
+  </section>
+ );
 }
 

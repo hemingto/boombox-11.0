@@ -153,8 +153,7 @@ export function FaqFilter({
               aria-controls={`faq-panel-${category.toLowerCase().replace(/\s+/g, '-')}`}
               tabIndex={isSelected ? 0 : -1}
               className={cn(
-                'py-2 px-4 border-b-2 transition-all duration-300',
-                'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
+                'py-2 px-4 border-b-2',
                 'hover:text-text-primary',
                 isSelected
                   ? 'border-primary text-text-primary font-medium'

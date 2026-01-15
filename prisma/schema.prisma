@@ -8,81 +8,78 @@ datasource db {
 }
 
 model User {
-  id                  Int                  @id @default(autoincrement())
-  firstName           String
-  lastName            String
-  email               String               @unique
-  phoneNumber         String               @unique
-  verifiedPhoneNumber Boolean              @default(false) // false means not verified; true means verified
-  stripeCustomerId    String?              // Add this field to store the Stripe Customer ID
-  appointments        Appointment[] // Reverse relation to Appointment
-  storageUnitUsages   StorageUnitUsage[] // Relation to StorageUnitUsage
-  packingSupplyOrders PackingSupplyOrder[] // Relation to packing supply orders
-  packingSupplyOrderCancellations PackingSupplyOrderCancellation[] // Relation to cancellations
+  id                              Int                              @id @default(autoincrement())
+  firstName                       String
+  lastName                        String
+  email                           String                           @unique
+  phoneNumber                     String                           @unique
+  verifiedPhoneNumber             Boolean                          @default(false)
+  stripeCustomerId                String?
+  appointments                    Appointment[]
+  packingSupplyOrders             PackingSupplyOrder[]
+  packingSupplyOrderCancellations PackingSupplyOrderCancellation[]
+  storageUnitUsages               StorageUnitUsage[]
 }
 
 model Appointment {
-  id                        Int                        @id @default(autoincrement())
-  jobCode                   String?                    @unique // Random noun identifier for the job
+  id                        Int                          @id @default(autoincrement())
+  jobCode                   String?                      @unique
   userId                    Int
   movingPartnerId           Int?
-  thirdPartyMovingPartnerId Int? // New field
-  appointmentType           String // e.g., 'Initial Pickup', 'Storage Unit Access', 'Additional Storage', 'End Storage Term'
-  address                   String // Delivery or pickup address
-  zipcode                   String // Zip code for the appointment
+  thirdPartyMovingPartnerId Int?
+  appointmentType           String
+  address                   String
+  zipcode                   String
   date                      DateTime
   time                      DateTime
-  numberOfUnits             Int? // Optional for 'Access Storage'
-  planType                  String? // e.g., 'Full Service Plan'
+  numberOfUnits             Int?
+  planType                  String?
   insuranceCoverage         String?
   loadingHelpPrice          Float?
-  monthlyStorageRate        Float? // Price for storage per month per unit
-  monthlyInsuranceRate      Float? // Price for insurance per month per unit
-  quotedPrice               Float // Price quote for the appointment
+  monthlyStorageRate        Float?
+  monthlyInsuranceRate      Float?
+  quotedPrice               Float
   invoiceTotal              Float?
-  status                    String // e.g., 'Scheduled', 'Completed', 'Canceled'
+  status                    String
   description               String?
-  deliveryReason            String? // 'Access items' or 'End Storage Plan'
-  
-  // Cost tracking fields
-  totalEstimatedCost        Float? // Sum of all task estimated costs
-  totalActualCost           Float? // Sum of all task actual costs
-  costLastUpdatedAt         DateTime? // When costs were last recalculated
-  
-  timeSlotBooking           TimeSlotBooking?           // Existing relation
-  driverTimeSlotBooking     DriverTimeSlotBooking?     // Add this line for the new relation
-  user                      User                       @relation(fields: [userId], references: [id])
-  movingPartner             MovingPartner?             @relation(fields: [movingPartnerId], references: [id])
-  thirdPartyMovingPartner   ThirdPartyMovingPartner?   @relation(fields: [thirdPartyMovingPartnerId], references: [id])
-  additionalInfo            AdditionalAppointmentInfo? // Linked to AdditionalAppointmentInfo
-  appointmentCancellations  AppointmentCancellation[]
-  driverCancellations       DriverCancellation[]       // Add this line for the new relation
-  moverCancellations        MoverCancellation[]        // Add this line for the new relation
-  trackingToken             String? @unique
+  deliveryReason            String?
+  totalEstimatedCost        Float?
+  totalActualCost           Float?
+  costLastUpdatedAt         DateTime?
+  trackingToken             String?                      @unique
   trackingUrl               String?
   invoiceUrl                String?
-  onfleetTasks              OnfleetTask[]
   serviceStartTime          String?
   serviceEndTime            String?
-  feedback                  Feedback?                  // Add this line for reverse relation
+  calledMovingPartner       Boolean                      @default(false)
+  gotHoldOfMovingPartner    Boolean?
+  additionalInfo            AdditionalAppointmentInfo?
+  movingPartner             MovingPartner?               @relation(fields: [movingPartnerId], references: [id])
+  thirdPartyMovingPartner   ThirdPartyMovingPartner?     @relation(fields: [thirdPartyMovingPartnerId], references: [id])
+  user                      User                         @relation(fields: [userId], references: [id])
+  appointmentCancellations  AppointmentCancellation[]
+  driverCancellations       DriverCancellation[]
+  driverTimeSlotBooking     DriverTimeSlotBooking?
+  feedback                  Feedback?
+  moverCancellations        MoverCancellation[]
+  notifications             Notification[]
+  onfleetTasks              OnfleetTask[]
   requestedStorageUnits     RequestedAccessStorageUnit[]
-  storageStartUsages        StorageUnitUsage[] @relation("StorageStart")
-  storageEndUsages          StorageUnitUsage[] @relation("StorageEnd")
-  calledMovingPartner        Boolean                    @default(false) // Track if admin called moving partner
-  gotHoldOfMovingPartner     Boolean?                   // Track if admin got hold of moving partner
-  damageReports             StorageUnitDamageReport[]  // Add relation to damage reports
-  notifications             Notification[]             // Add relation to notifications
+  damageReports             StorageUnitDamageReport[]
+  storageEndUsages          StorageUnitUsage[]           @relation("StorageEnd")
+  storageStartUsages        StorageUnitUsage[]           @relation("StorageStart")
+  timeSlotBooking           TimeSlotBooking?
 }
 
 model AdditionalAppointmentInfo {
   id                     Int         @id @default(autoincrement())
   appointmentId          Int         @unique
-  itemsOver100lbs        Boolean // Whether items over 100lbs are being moved
-  storageTerm            String? // How long items will be stored
-  storageAccessFrequency String? // Frequency of storage access
-  moveDescription        String? // Description of items being moved
-  conditionsDescription  String? // Description of moving conditions
-  appointment            Appointment @relation(fields: [appointmentId], references: [id]) // Define relation fields here
+  itemsOver100lbs        Boolean
+  storageTerm            String?
+  storageAccessFrequency String?
+  moveDescription        String?
+  conditionsDescription  String?
+  appointment            Appointment @relation(fields: [appointmentId], references: [id])
 }
 
 model AppointmentCancellation {
@@ -94,105 +91,101 @@ model AppointmentCancellation {
   appointment        Appointment @relation(fields: [appointmentId], references: [id])
 }
 
-enum MovingPartnerStatus {
-  ACTIVE
-  INACTIVE
-}
-
 model MovingPartner {
-  id              Int                         @id @default(autoincrement())
-  name            String
-  description     String?
-  phoneNumber       String?             @unique
-  verifiedPhoneNumber Boolean?              @default(false) // false means not verified; true means verified
-  email           String?             @unique
-  hourlyRate      Float?
-  website         String?             // Add this field for the company website
-  featured        String?
-  imageSrc        String?
-  onfleetTeamId   String?
-  isApproved      Boolean?      @default(false)
-  numberOfEmployees String?
-  applicationComplete Boolean?   @default(false) // New field to track if all checklist items are complete
-  status          MovingPartnerStatus @default(INACTIVE) // New status field
-  appointments    Appointment[]
-  availability    MovingPartnerAvailability[]
-  feedback        Feedback[]                  // Add this line for reverse relation
-  approvedDrivers MovingPartnerDriver[]      // Add this line for the new relation
-  driverInvitations DriverInvitation[]       // Add this line for the new relation
-  vehicles        Vehicle[]                  // Add this line for the new relation
-  moverCancellations MoverCancellation[]     // Add this line for the new relation
-
-  stripeConnectAccountId        String?
-  stripeConnectOnboardingComplete Boolean @default(false)
-  stripeConnectPayoutsEnabled   Boolean @default(false)
-  stripeConnectDetailsSubmitted Boolean @default(false)
-  agreedToTerms    Boolean   @default(false)
-  agreedToTermsAt  DateTime?
+  id                              Int                         @id @default(autoincrement())
+  name                            String
+  description                     String?
+  phoneNumber                     String?                     @unique
+  verifiedPhoneNumber             Boolean?                    @default(false)
+  email                           String?                     @unique
+  hourlyRate                      Float?
+  website                         String?
+  featured                        String?
+  imageSrc                        String?
+  onfleetTeamId                   String?
+  isApproved                      Boolean?                    @default(false)
+  numberOfEmployees               String?
+  applicationComplete             Boolean?                    @default(false)
+  status                          MovingPartnerStatus         @default(INACTIVE)
+  stripeConnectAccountId          String?
+  stripeConnectOnboardingComplete Boolean                     @default(false)
+  stripeConnectPayoutsEnabled     Boolean                     @default(false)
+  stripeConnectDetailsSubmitted   Boolean                     @default(false)
+  agreedToTerms                   Boolean                     @default(false)
+  agreedToTermsAt                 DateTime?
+  activeMessageShown              Boolean                     @default(false)
+  driverAssignmentMode            DriverAssignmentMode        @default(MANUAL)
+  appointments                    Appointment[]
+  driverInvitations               DriverInvitation[]
+  feedback                        Feedback[]
+  moverCancellations              MoverCancellation[]
+  availability                    MovingPartnerAvailability[]
+  approvedDrivers                 MovingPartnerDriver[]
+  vehicles                        Vehicle[]
 }
 
 model MovingPartnerAvailability {
-  id                Int                @id @default(autoincrement())
-  movingPartnerId   Int
-  dayOfWeek         String
-  startTime         String
-  endTime           String
-  maxCapacity       Int                @default(1)
-  isBlocked         Boolean            @default(false)
-  createdAt         DateTime?          // Make nullable initially
-  updatedAt         DateTime?          // Make nullable initially
-  movingPartner     MovingPartner      @relation(fields: [movingPartnerId], references: [id])
-  timeSlotBookings  TimeSlotBooking[]
-  
+  id               Int               @id @default(autoincrement())
+  movingPartnerId  Int
+  dayOfWeek        String
+  startTime        String
+  endTime          String
+  maxCapacity      Int               @default(1)
+  isBlocked        Boolean           @default(false)
+  createdAt        DateTime?
+  updatedAt        DateTime?
+  movingPartner    MovingPartner     @relation(fields: [movingPartnerId], references: [id])
+  timeSlotBookings TimeSlotBooking[]
+
   @@index([movingPartnerId, dayOfWeek])
 }
 
 model TimeSlotBooking {
-  id                        Int                      @id @default(autoincrement())
+  id                          Int                       @id @default(autoincrement())
   movingPartnerAvailabilityId Int
-  appointmentId             Int                      @unique
-  bookingDate               DateTime                 // The actual date of the booking
-  endDate                  DateTime
-  movingPartnerAvailability MovingPartnerAvailability @relation(fields: [movingPartnerAvailabilityId], references: [id])
-  appointment              Appointment              @relation(fields: [appointmentId], references: [id])
+  appointmentId               Int                       @unique
+  bookingDate                 DateTime
+  endDate                     DateTime
+  appointment                 Appointment               @relation(fields: [appointmentId], references: [id])
+  movingPartnerAvailability   MovingPartnerAvailability @relation(fields: [movingPartnerAvailabilityId], references: [id])
 
   @@index([bookingDate, movingPartnerAvailabilityId])
 }
 
 model StorageUnit {
-  id                Int                @id @default(autoincrement())
-  storageUnitNumber String             @unique
-  barcode           String?            @unique // Unique barcode for the storage unit 
-  status            String // e.g., Empty, Occupied, Pending Cleaning
-  lastUpdated       DateTime           @updatedAt
-  cleaningPhotos    String[]           // Add photos of cleaned unit
-  lastCleanedAt     DateTime?          // Track when the unit was last cleaned
-  cleaningHistory   StorageUnitCleaning[] // Track cleaning history
-  storageUnitUsages StorageUnitUsage[] // Tracks usage history
+  id                Int                          @id @default(autoincrement())
+  storageUnitNumber String                       @unique
+  barcode           String?                      @unique
+  status            String
+  lastUpdated       DateTime                     @updatedAt
+  cleaningPhotos    String[]
+  lastCleanedAt     DateTime?
+  onfleetTasks      OnfleetTask[]
   accessRequests    RequestedAccessStorageUnit[]
-  damageReports     StorageUnitDamageReport[] // Add relation to damage reports
-  onfleetTasks      OnfleetTask[]      // Add reverse relation to OnfleetTask
+  cleaningHistory   StorageUnitCleaning[]
+  damageReports     StorageUnitDamageReport[]
+  storageUnitUsages StorageUnitUsage[]
 }
 
 model StorageUnitUsage {
-  id                Int          @id @default(autoincrement())
-  storageUnitId     Int
-  userId            Int
-  startAppointmentId Int?        // Initial appointment that started the storage
-  endAppointmentId  Int?         // Appointment that ended the storage
-  warehouseLocation String?
-  warehouseName     String?
-  usageStartDate    DateTime
-  usageEndDate      DateTime?
-  mainImage         String? // Specific main image for this user's usage
-  uploadedImages    String[] // Specific uploaded images for this usage
-  unitPickupPhotos  String[] // Photos of trailer on vehicle during pickup
-  description       String? // Specific description for this user's usage
-  padlockCombo      String? // Add this field
-  startAppointment  Appointment? @relation("StorageStart", fields: [startAppointmentId], references: [id])
-  endAppointment    Appointment? @relation("StorageEnd", fields: [endAppointmentId], references: [id])
-  storageUnit       StorageUnit  @relation(fields: [storageUnitId], references: [id])
-  user              User         @relation(fields: [userId], references: [id])
+  id                 Int          @id @default(autoincrement())
+  storageUnitId      Int
+  userId             Int
+  startAppointmentId Int?
+  endAppointmentId   Int?
+  warehouseLocation  String?
+  warehouseName      String?
+  usageStartDate     DateTime
+  usageEndDate       DateTime?
+  mainImage          String?
+  uploadedImages     String[]
+  unitPickupPhotos   String[]
+  description        String?
+  padlockCombo       String?
+  endAppointment     Appointment? @relation("StorageEnd", fields: [endAppointmentId], references: [id])
+  startAppointment   Appointment? @relation("StorageStart", fields: [startAppointmentId], references: [id])
+  storageUnit        StorageUnit  @relation(fields: [storageUnitId], references: [id])
+  user               User         @relation(fields: [userId], references: [id])
 }
 
 model PackingKit {
@@ -215,66 +208,62 @@ model Product {
   imageAlt            String
   category            String
   packingKitId        Int?
-  quantity            Int
-  stockCount          Int
-  isOutOfStock        Boolean
+  quantity            Int                         @default(0)
+  stockCount          Int?
+  isOutOfStock        Boolean                     @default(false)
   restockDate         DateTime?
-  packingKit          PackingKit?                 @relation(fields: [packingKitId], references: [id])
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
   orderDetails        PackingSupplyOrderDetails[]
+  packingKit          PackingKit?                 @relation(fields: [packingKitId], references: [id])
+
+  @@index([category])
+  @@index([isOutOfStock])
 }
 
 model PackingSupplyOrder {
-  id              Int                         @id @default(autoincrement())
-  userId          Int?
-  deliveryAddress String
-  contactName     String
-  contactEmail    String
-  contactPhone    String
-  orderDate       DateTime                    @default(now())
-  deliveryDate    DateTime
-  totalPrice      Float
-  status          String                      @default("Pending")
-  paymentMethod   String
-  paymentStatus   String?                     @default("pending") // Stripe payment status
-  stripePaymentIntentId String?               // Stripe Payment Intent ID for tracking
-  
-  // Onfleet integration fields
-  onfleetTaskId         String?    // Onfleet task ID
-  onfleetTaskShortId    String?    // Onfleet short ID for easier reference
-  assignedDriverId      Int?       // Driver assigned to this delivery
-  deliveryWindowStart   DateTime?  // Calculated delivery window start (12 PM or next day)
-  deliveryWindowEnd     DateTime?  // Calculated delivery window end (7 PM)
-  actualDeliveryTime    DateTime?  // When the delivery was actually completed
-  deliveryPhotoUrl      String?    // CloudFront URL for delivery completion photo
-  driverPayoutAmount    Decimal?   // Amount paid to driver for this delivery
-  driverPayoutStatus    String?    @default("pending") // 'pending', 'processing', 'completed', 'failed'
-  routeMetrics          Json?      // Store mileage, drive time, stops count from Onfleet webhook
-  
-  // Route-based payout fields
-  routeId               String?    // Links orders together in the same route
-  routePayoutTotal      Decimal?   // Total payout for the entire route (distributed across orders)
-  routeStopNumber       Int?       // Order of this delivery in the route (1, 2, 3, etc.)
-  trackingToken         String?    @unique // Secure token for customer tracking URL
-  trackingUrl           String?    // Full URL for customer tracking
-  
-  // Batch optimization fields
-  batchProcessedAt      DateTime?  // Track when order was included in batch
-  optimizationJobId     String?    // Link to Onfleet optimization job
-  
-  // Order preparation tracking
-  isPrepped             Boolean                 @default(false) // Track if order has been prepped for delivery
-  preppedAt             DateTime?               // When the order was prepped
-  preppedBy             Int?                    // Admin ID who prepped the order
-  
-  user            User?                       @relation(fields: [userId], references: [id])
-  assignedDriver  Driver?                     @relation(fields: [assignedDriverId], references: [id])
-  route           PackingSupplyRoute?         @relation(fields: [routeId], references: [routeId])
-  preppedByAdmin  Admin?                      @relation(fields: [preppedBy], references: [id])
-  orderDetails    PackingSupplyOrderDetails[]
-  cancellations   PackingSupplyOrderCancellation[] // Relation to cancellations
-  feedback        PackingSupplyFeedback?
-  notifications   Notification[]                   // Relation to notifications
-  
+  id                    Int                              @id @default(autoincrement())
+  userId                Int?
+  deliveryAddress       String
+  contactName           String
+  contactEmail          String
+  contactPhone          String
+  orderDate             DateTime                         @default(now())
+  deliveryDate          DateTime
+  totalPrice            Float
+  status                String                           @default("Pending")
+  paymentMethod         String
+  paymentStatus         String?                          @default("pending")
+  stripePaymentIntentId String?
+  onfleetTaskId         String?
+  onfleetTaskShortId    String?
+  assignedDriverId      Int?
+  deliveryWindowStart   DateTime?
+  deliveryWindowEnd     DateTime?
+  actualDeliveryTime    DateTime?
+  deliveryPhotoUrl      String?
+  driverPayoutAmount    Decimal?
+  driverPayoutStatus    String?                          @default("pending")
+  routeMetrics          Json?
+  routeId               String?
+  routePayoutTotal      Decimal?
+  routeStopNumber       Int?
+  trackingToken         String?                          @unique
+  trackingUrl           String?
+  batchProcessedAt      DateTime?
+  optimizationJobId     String?
+  isPrepped             Boolean                          @default(false)
+  preppedAt             DateTime?
+  preppedBy             Int?
+  notifications         Notification[]
+  feedback              PackingSupplyFeedback?
+  assignedDriver        Driver?                          @relation(fields: [assignedDriverId], references: [id])
+  preppedByAdmin        Admin?                           @relation(fields: [preppedBy], references: [id])
+  route                 PackingSupplyRoute?              @relation(fields: [routeId], references: [routeId])
+  user                  User?                            @relation(fields: [userId], references: [id])
+  cancellations         PackingSupplyOrderCancellation[]
+  orderDetails          PackingSupplyOrderDetails[]
+
   @@index([onfleetTaskId])
   @@index([onfleetTaskShortId])
   @@index([assignedDriverId])
@@ -283,41 +272,32 @@ model PackingSupplyOrder {
 }
 
 model PackingSupplyRoute {
-  id                String                  @id @default(cuid()) // Use cuid for route ID
-  routeId           String                  @unique // Human-readable route ID (e.g., "ROUTE_2024_01_15_001")
-  driverId          Int?                    // Make nullable - no driver assigned until offer is accepted
-  deliveryDate      DateTime                // Date of delivery
-  totalStops        Int                     // Total number of stops planned
-  completedStops    Int                     @default(0) // Number of completed stops
-  routeStatus       String                  @default("in_progress") // 'in_progress', 'completed', 'failed'
-  
-  // Route metrics (calculated when route completes)
-  totalDistance     Decimal?                // Total route distance in miles
-  totalTime         Int?                    // Total route time in seconds
-  startTime         DateTime?               // When first task started
-  endTime           DateTime?               // When last task completed
-  
-  // Payout information
-  payoutAmount      Decimal?                // Total payout for entire route
-  payoutStatus      String                  @default("pending") // 'pending', 'processing', 'completed', 'failed'
-  payoutTransferId  String?                 // Stripe transfer ID
-  payoutProcessedAt DateTime?               // When payout was processed
-  payoutFailureReason String?               // Reason if payout failed
-  
-  // Driver offer management fields
-  onfleetOptimizationId String?             // Store Onfleet optimization ID
-  driverOfferSentAt     DateTime?           // When SMS offer was sent
-  driverOfferExpiresAt  DateTime?           // When offer expires
-  driverOfferStatus     String?             // 'pending', 'accepted', 'declined', 'expired'
-  
-  // Metadata
-  createdAt         DateTime                @default(now())
-  updatedAt         DateTime                @updatedAt
-  
-  // Relations
-  driver            Driver?                 @relation(fields: [driverId], references: [id])
-  orders            PackingSupplyOrder[]    // All orders in this route
-  
+  id                    String               @id @default(cuid())
+  routeId               String               @unique
+  driverId              Int?
+  deliveryDate          DateTime
+  totalStops            Int
+  completedStops        Int                  @default(0)
+  routeStatus           String               @default("in_progress")
+  totalDistance         Decimal?
+  totalTime             Int?
+  startTime             DateTime?
+  endTime               DateTime?
+  payoutAmount          Decimal?
+  payoutStatus          String               @default("pending")
+  payoutTransferId      String?
+  payoutProcessedAt     DateTime?
+  payoutFailureReason   String?
+  onfleetOptimizationId String?
+  driverOfferSentAt     DateTime?
+  driverOfferExpiresAt  DateTime?
+  driverOfferStatus     String?
+  offeredDriverIds      Int[]                @default([])
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  orders                PackingSupplyOrder[]
+  driver                Driver?              @relation(fields: [driverId], references: [id])
+
   @@index([driverId])
   @@index([deliveryDate])
   @@index([routeStatus])
@@ -335,121 +315,117 @@ model PackingSupplyOrderDetails {
 }
 
 model ThirdPartyMovingPartner {
-  id           Int           @id @default(autoincrement()) // Unique identifier
-  title        String // Name of the moving partner
-  description  String // Description of the moving partner
-  imageSrc     String? // URL of the image (nullable in case the image is not available)
-  rating       Float // Rating of the moving partner (out of 5)
-  reviews      String // Reviews text (e.g., "7 Google Reviews")
-  weblink      String? // Link to the moving partner's website or profile
-  gmblink      String? // Link to the moving partner's gmb profile
-  createdAt    DateTime      @default(now()) // When the record was created
-  updatedAt    DateTime      @updatedAt // When the record was last updated
-  appointments Appointment[] // Relation to Appointment (inverse side)
+  id           Int           @id @default(autoincrement())
+  title        String
+  description  String
+  imageSrc     String?
+  rating       Float
+  reviews      String
+  weblink      String?
+  gmblink      String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  appointments Appointment[]
 }
 
 model OnfleetTask {
-  id            Int         @id @default(autoincrement())
-  appointmentId Int
-  taskId        String
-  shortId       String     @unique  // Add @unique here
-  stepNumber    Int
-  unitNumber    Int
-  webhookTime   String?
-  driverId      Int?        // Add this field to link to a specific driver for this task
-  storageUnitId Int?        // Link to the storage unit being handled in this task
-  driverVerified Boolean    @default(false) // Track if the driver at start of job is same as assigned driver
-  driverFeedback String?    // Add this field to capture thumbs up/down feedback: 'thumbs_up', 'thumbs_down', or null
-  completionPhotoUrl String? // Store the first photo URL from task completion
-  needsPhotoProcessing Boolean @default(false) // Track if task needs photo processing
-  photoProcessingAttempts Int @default(0) // Track retry attempts
-  completedAt DateTime? // When the task was completed
-  
-  // Driver notification fields
-  lastNotifiedDriverId Int?   // The ID of the driver who was last notified
-  driverNotificationSentAt DateTime? // When the notification was sent
-  driverNotificationStatus String? // 'sent', 'accepted', 'declined', 'cancelled'
-  driverAcceptedAt DateTime? // When the driver accepted the task
-  driverDeclinedAt DateTime? // When the driver declined the task
-  declinedDriverIds Int[] @default([]) // List of driver IDs who declined the task
-  
-  // Cost tracking fields
-  estimatedCost Float? // Estimated cost when task is created
-  actualCost    Float? // Actual cost based on real service time (calculated in webhook)
-  costCalculatedAt DateTime? // When the cost was last calculated
-  workerType    String? // 'boombox_driver' or 'moving_partner' - determines cost structure
-  estimatedServiceHours Float? // Estimated service time for this specific task
-  actualServiceHours   Float? // Actual service time from webhook
-  estimatedDistanceMiles Float? // Distance in miles from Google Routes API (for Steps 1 & 3)
-  
-  // Payout tracking fields
-  payoutAmount         Float? // Amount paid out to worker
-  payoutStatus         String? // 'pending', 'processing', 'completed', 'failed', 'cancelled'
-  payoutTransferId     String? // Stripe transfer ID for the payout
-  payoutProcessedAt    DateTime? // When the payout was processed
-  payoutFailureReason  String? // Reason if payout failed
-  payoutRetryCount     Int @default(0) // Number of retry attempts
-  payoutLastAttemptAt  DateTime? // Last payout attempt timestamp
-  
-  appointment   Appointment @relation(fields: [appointmentId], references: [id])
-  driver        Driver?     @relation(fields: [driverId], references: [id]) // Add relation to Driver
-  storageUnit   StorageUnit? @relation(fields: [storageUnitId], references: [id]) // Add relation to StorageUnit
+  id                       Int          @id @default(autoincrement())
+  appointmentId            Int
+  taskId                   String
+  shortId                  String       @unique
+  stepNumber               Int
+  unitNumber               Int
+  webhookTime              String?
+  driverId                 Int?
+  storageUnitId            Int?
+  driverVerified           Boolean      @default(false)
+  driverFeedback           String?
+  completionPhotoUrl       String?
+  completedAt              DateTime?
+  lastNotifiedDriverId     Int?
+  driverNotificationSentAt DateTime?
+  driverNotificationStatus String?
+  driverAcceptedAt         DateTime?
+  driverDeclinedAt         DateTime?
+  declinedDriverIds        Int[]        @default([])
+  estimatedCost            Float?
+  actualCost               Float?
+  costCalculatedAt         DateTime?
+  workerType               String?
+  estimatedServiceHours    Float?
+  actualServiceHours       Float?
+  estimatedDistanceMiles   Float?
+  estimatedDriveTimeMinutes Float?
+  actualDistanceMiles      Float?
+  actualDriveTimeMinutes   Float?
+  fixedFeePay              Float?
+  mileagePay               Float?
+  driveTimePay             Float?
+  serviceTimePay           Float?
+  payoutAmount             Float?
+  payoutStatus             String?
+  payoutTransferId         String?
+  payoutProcessedAt        DateTime?
+  payoutFailureReason      String?
+  payoutRetryCount         Int          @default(0)
+  payoutLastAttemptAt      DateTime?
+  lastProcessedWebhookTime BigInt?
+  appointment              Appointment  @relation(fields: [appointmentId], references: [id])
+  driver                   Driver?      @relation(fields: [driverId], references: [id])
+  storageUnit              StorageUnit? @relation(fields: [storageUnitId], references: [id])
 
   @@index([taskId])
   @@index([appointmentId])
   @@index([driverId])
   @@index([storageUnitId])
-  @@index([needsPhotoProcessing])
 }
 
 model Feedback {
-  id               Int       @id @default(autoincrement())
-  appointmentId    Int       @unique
-  appointment      Appointment @relation(fields: [appointmentId], references: [id])
-  movingPartnerId  Int?
-  movingPartner    MovingPartner? @relation(fields: [movingPartnerId], references: [id])
-  rating           Int
-  comment          String    @default("")
-  tipAmount        Float     @default(0)
-  tipPaymentIntentId String?  // Add this field to store the Stripe Payment Intent ID
-  tipPaymentStatus    String?  // Add this field to store the payment status
-  responded        Boolean   @default(false) // New field to track if feedback has been responded to
-  response         String?   // New field to store the admin's response
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id                 Int            @id @default(autoincrement())
+  appointmentId      Int            @unique
+  movingPartnerId    Int?
+  rating             Int
+  comment            String         @default("")
+  tipAmount          Float          @default(0)
+  tipPaymentIntentId String?
+  tipPaymentStatus   String?
+  responded          Boolean        @default(false)
+  response           String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  appointment        Appointment    @relation(fields: [appointmentId], references: [id])
+  movingPartner      MovingPartner? @relation(fields: [movingPartnerId], references: [id])
 
   @@index([movingPartnerId])
 }
 
 model PackingSupplyFeedback {
-  id                    Int       @id @default(autoincrement())
-  packingSupplyOrderId  Int       @unique
-  rating                Int       // 1-5 stars
-  comment               String    @default("")
-  tipAmount             Float     @default(0)
-  tipPaymentIntentId    String?   // Stripe Payment Intent ID
-  tipPaymentStatus      String?   // Payment status
-  driverRating          String?   // 'thumbs_up', 'thumbs_down', or null
-  responded             Boolean   @default(false)
-  response              String?   // Admin response
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-  
-  // Relations
-  packingSupplyOrder    PackingSupplyOrder @relation(fields: [packingSupplyOrderId], references: [id])
-  
+  id                   Int                @id @default(autoincrement())
+  packingSupplyOrderId Int                @unique
+  rating               Int
+  comment              String             @default("")
+  tipAmount            Float              @default(0)
+  tipPaymentIntentId   String?
+  tipPaymentStatus     String?
+  driverRating         String?
+  responded            Boolean            @default(false)
+  response             String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  packingSupplyOrder   PackingSupplyOrder @relation(fields: [packingSupplyOrderId], references: [id])
+
   @@index([packingSupplyOrderId])
 }
 
 model RequestedAccessStorageUnit {
-  id                      Int         @id @default(autoincrement())
-  appointmentId           Int
-  storageUnitId           Int
-  unitsReady              Boolean     @default(false)  // Track if this unit is ready for delivery/access
-  requestedUnitPickupPhotos String[]  // Store photos of trailer on vehicle
-  appointment             Appointment @relation(fields: [appointmentId], references: [id])
-  storageUnit             StorageUnit @relation(fields: [storageUnitId], references: [id])
-  createdAt               DateTime    @default(now())
+  id                        Int         @id @default(autoincrement())
+  appointmentId             Int
+  storageUnitId             Int
+  unitsReady                Boolean     @default(false)
+  requestedUnitPickupPhotos String[]
+  createdAt                 DateTime    @default(now())
+  appointment               Appointment @relation(fields: [appointmentId], references: [id])
+  storageUnit               StorageUnit @relation(fields: [storageUnitId], references: [id])
 
   @@unique([appointmentId, storageUnitId])
   @@index([appointmentId])
@@ -457,120 +433,117 @@ model RequestedAccessStorageUnit {
 }
 
 model Driver {
-  id                  Int                 @id @default(autoincrement())
-  firstName         String
-  lastName          String
-  email             String              @unique
-  phoneNumber       String?              @unique
-  verifiedPhoneNumber Boolean?              @default(false) // false means not verified; true means verified
-  phoneProvider     String
-  location          String
-  services          String[]  // Array of services they can offer
-  vehicleType       String    // Add this field to specify the type of vehicle(s) a driver can operate
-  hasTrailerHitch   Boolean
-  isApproved        Boolean             @default(false) // New field for admin approval
-  applicationComplete Boolean?   @default(false) // New field to track if all checklist items are complete
-  onfleetWorkerId   String?   // Store the Onfleet worker ID after creation
-  onfleetTeamIds    String[]  // Store the Onfleet team IDs
-  status            String              @default("Pending") // e.g., "Pending", "Approved", "Active", "Inactive"
-  driverLicenseFrontPhoto String? // Add this field for the driver's license photo
-  driverLicenseBackPhoto String? // Add this field for the driver's license photo
-  profilePicture    String? // Add this field for the driver's profile picture
-  consentToBackgroundCheck Boolean @default(false) // This field is already present
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  availability      DriverAvailability[] // Add relation to DriverAvailability
-  cancellations     DriverCancellation[] // Add relation to track cancellations
-  vehicles          Vehicle[]           // Add this line for the new relation
-  movingPartnerAssociations MovingPartnerDriver[] // Add this line for the new relation
-  assignedTasks     OnfleetTask[]       // Add this new relation to OnfleetTask
-  packingSupplyDeliveries PackingSupplyOrder[] // Relation to packing supply deliveries
-  packingSupplyRoutes PackingSupplyRoute[] // Relation to packing supply routes
-  
-  // Stripe Connect fields
-  stripeConnectAccountId        String?
-  stripeConnectOnboardingComplete Boolean @default(false)
-  stripeConnectPayoutsEnabled   Boolean @default(false)
-  stripeConnectDetailsSubmitted Boolean @default(false)
-  agreedToTerms    Boolean   @default(false)
-  agreedToTermsAt  DateTime?
-  
-  // Driver performance tracking fields
-  completedPackingSupplyJobs    Int      @default(0) // Count of completed packing supply deliveries
-  averageRating                 Float?   // Cached average rating
-  lastRatingUpdate              DateTime? // When rating was last calculated
+  id                              Int                   @id @default(autoincrement())
+  firstName                       String
+  lastName                        String
+  email                           String                @unique
+  phoneNumber                     String?               @unique
+  verifiedPhoneNumber             Boolean?              @default(false)
+  phoneProvider                   String
+  location                        String
+  services                        String[]
+  vehicleType                     String
+  hasTrailerHitch                 Boolean
+  isApproved                      Boolean               @default(false)
+  applicationComplete             Boolean?              @default(false)
+  onfleetWorkerId                 String?
+  onfleetTeamIds                  String[]
+  status                          String                @default("Pending")
+  driverLicenseFrontPhoto         String?
+  driverLicenseBackPhoto          String?
+  profilePicture                  String?
+  consentToBackgroundCheck        Boolean               @default(false)
+  createdAt                       DateTime              @default(now())
+  updatedAt                       DateTime              @updatedAt
+  stripeConnectAccountId          String?
+  stripeConnectOnboardingComplete Boolean               @default(false)
+  stripeConnectPayoutsEnabled     Boolean               @default(false)
+  stripeConnectDetailsSubmitted   Boolean               @default(false)
+  agreedToTerms                   Boolean               @default(false)
+  agreedToTermsAt                 DateTime?
+  activeMessageShown              Boolean               @default(false)
+  completedPackingSupplyJobs      Int                   @default(0)
+  averageRating                   Float?
+  lastRatingUpdate                DateTime?
+  availability                    DriverAvailability[]
+  cancellations                   DriverCancellation[]
+  movingPartnerAssociations       MovingPartnerDriver[]
+  assignedTasks                   OnfleetTask[]
+  packingSupplyDeliveries         PackingSupplyOrder[]
+  packingSupplyRoutes             PackingSupplyRoute[]
+  vehicles                        Vehicle[]
 }
 
 model Vehicle {
-  id                  Int     @id @default(autoincrement())
-  driverId            Int?    // Make driverId optional
-  make                String  // e.g., Ford, Toyota
-  model               String  // e.g., F-150, Camry
-  year                String  // e.g., 2020
-  licensePlate        String // License plate number
-  isApproved          Boolean @default(false) // Add this field to indicate if the vehicle is approved
-  autoInsurancePhoto  String? // Add this field for the auto insurance picture
-  hasTrailerHitch     Boolean @default(false) // Whether the vehicle has a trailer hitch
-  frontVehiclePhoto   String? // Photo of the front of the vehicle
-  backVehiclePhoto    String? // Photo of the back of the vehicle
-  driver              Driver?  @relation(fields: [driverId], references: [id]) // Make relation optional
-  movingPartnerId     Int?    // Add this field for the moving partner relationship
-  movingPartner       MovingPartner? @relation(fields: [movingPartnerId], references: [id]) // Add this relation
+  id                 Int            @id @default(autoincrement())
+  driverId           Int?
+  make               String
+  model              String
+  year               String
+  licensePlate       String
+  isApproved         Boolean        @default(false)
+  autoInsurancePhoto String?
+  hasTrailerHitch    Boolean        @default(false)
+  frontVehiclePhoto  String?
+  backVehiclePhoto   String?
+  movingPartnerId    Int?
+  driver             Driver?        @relation(fields: [driverId], references: [id])
+  movingPartner      MovingPartner? @relation(fields: [movingPartnerId], references: [id])
 
   @@index([driverId])
   @@index([movingPartnerId])
 }
 
 model DriverAvailability {
-  id                   Int                    @id @default(autoincrement())
-  driver               Driver                 @relation(fields: [driverId], references: [id], onDelete: Cascade)
-  driverId             Int
-  dayOfWeek            String
-  startTime            String
-  endTime              String
-  maxCapacity          Int                    @default(1)
-  isBlocked            Boolean                @default(false)
-  createdAt            DateTime               @default(now())
-  updatedAt            DateTime               @updatedAt
+  id                     Int                     @id @default(autoincrement())
+  driverId               Int
+  dayOfWeek              String
+  startTime              String
+  endTime                String
+  maxCapacity            Int                     @default(1)
+  isBlocked              Boolean                 @default(false)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  driver                 Driver                  @relation(fields: [driverId], references: [id], onDelete: Cascade)
   driverTimeSlotBookings DriverTimeSlotBooking[]
 
   @@index([driverId])
 }
 
 model DriverTimeSlotBooking {
-  id                    Int                @id @default(autoincrement())
-  driverAvailabilityId  Int
-  appointmentId         Int                @unique
-  bookingDate           DateTime           // The actual date of the booking
-  endDate               DateTime
-  driverAvailability    DriverAvailability @relation(fields: [driverAvailabilityId], references: [id])
-  appointment           Appointment        @relation(fields: [appointmentId], references: [id])
+  id                   Int                @id @default(autoincrement())
+  driverAvailabilityId Int
+  appointmentId        Int                @unique
+  bookingDate          DateTime
+  endDate              DateTime
+  appointment          Appointment        @relation(fields: [appointmentId], references: [id])
+  driverAvailability   DriverAvailability @relation(fields: [driverAvailabilityId], references: [id])
 
   @@index([bookingDate, driverAvailabilityId])
 }
 
 model DriverCancellation {
-  id                Int       @id @default(autoincrement())
-  driverId          Int
-  appointmentId     Int
+  id                 Int         @id @default(autoincrement())
+  driverId           Int
+  appointmentId      Int
   cancellationReason String
-  cancellationDate   DateTime @default(now())
-  driver            Driver    @relation(fields: [driverId], references: [id])
-  appointment       Appointment @relation(fields: [appointmentId], references: [id])
-  
+  cancellationDate   DateTime    @default(now())
+  appointment        Appointment @relation(fields: [appointmentId], references: [id])
+  driver             Driver      @relation(fields: [driverId], references: [id])
+
   @@index([driverId])
   @@index([appointmentId])
 }
 
 model MoverCancellation {
-  id                Int       @id @default(autoincrement())
-  movingPartnerId   Int
-  appointmentId     Int
+  id                 Int           @id @default(autoincrement())
+  movingPartnerId    Int
+  appointmentId      Int
   cancellationReason String
-  cancellationDate   DateTime @default(now())
-  movingPartner     MovingPartner @relation(fields: [movingPartnerId], references: [id])
-  appointment       Appointment @relation(fields: [appointmentId], references: [id])
-  
+  cancellationDate   DateTime      @default(now())
+  appointment        Appointment   @relation(fields: [appointmentId], references: [id])
+  movingPartner      MovingPartner @relation(fields: [movingPartnerId], references: [id])
+
   @@index([movingPartnerId])
   @@index([appointmentId])
 }
@@ -580,8 +553,8 @@ model MovingPartnerDriver {
   movingPartnerId Int
   driverId        Int
   isActive        Boolean       @default(true)
-  movingPartner   MovingPartner @relation(fields: [movingPartnerId], references: [id])
   driver          Driver        @relation(fields: [driverId], references: [id])
+  movingPartner   MovingPartner @relation(fields: [movingPartnerId], references: [id])
 
   @@unique([movingPartnerId, driverId])
   @@index([movingPartnerId])
@@ -593,7 +566,7 @@ model DriverInvitation {
   token           String        @unique
   movingPartnerId Int
   email           String
-  status          String        @default("pending") // pending, accepted, expired
+  status          String        @default("pending")
   expiresAt       DateTime
   createdAt       DateTime      @default(now())
   acceptedAt      DateTime?
@@ -606,7 +579,7 @@ model DriverInvitation {
 
 model VerificationCode {
   id        Int      @id @default(autoincrement())
-  contact   String   @unique // Phone number or email
+  contact   String   @unique
   code      String
   expiresAt DateTime
   createdAt DateTime @default(now())
@@ -616,7 +589,7 @@ model VerificationCode {
 model BlockedDate {
   id          Int      @id @default(autoincrement())
   userId      Int
-  userType    String   // 'driver' or 'mover'
+  userType    String
   blockedDate DateTime
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -625,39 +598,33 @@ model BlockedDate {
   @@index([blockedDate])
 }
 
-enum AdminRole {
-  SUPERADMIN
-  ADMIN
-  VIEWER
-}
-
 model Admin {
-  id              Int           @id @default(autoincrement())
-  email           String        @unique
-  phoneNumber     String?       @unique
-  name            String?
-  role            AdminRole     @default(ADMIN)
-  lastLogin       DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  sentInvites     AdminInvite[]
-  logs            AdminLog[]    // Add reverse relation for AdminLog
-  damageReports   StorageUnitDamageReport[] // Add reverse relation for damage reports
-  unitCleanings   StorageUnitCleaning[] // Add reverse relation for unit cleanings
-  preppedPackingSupplyOrders PackingSupplyOrder[] // Add reverse relation for prepped orders
-  blogPosts       BlogPost[]    // Add reverse relation for blog posts
+  id                         Int                       @id @default(autoincrement())
+  email                      String                    @unique
+  phoneNumber                String?                   @unique
+  name                       String?
+  role                       AdminRole                 @default(ADMIN)
+  lastLogin                  DateTime?
+  createdAt                  DateTime                  @default(now())
+  updatedAt                  DateTime                  @updatedAt
+  sentInvites                AdminInvite[]
+  logs                       AdminLog[]
+  blogPosts                  BlogPost[]
+  preppedPackingSupplyOrders PackingSupplyOrder[]
+  unitCleanings              StorageUnitCleaning[]
+  damageReports              StorageUnitDamageReport[]
 }
 
 model AdminInvite {
-  id              Int           @id @default(autoincrement())
-  email           String
-  token           String        @unique
-  role            AdminRole     @default(ADMIN)
-  expiresAt       DateTime
-  invitedById     Int
-  invitedBy       Admin         @relation(fields: [invitedById], references: [id])
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id          Int       @id @default(autoincrement())
+  email       String
+  token       String    @unique
+  role        AdminRole @default(ADMIN)
+  expiresAt   DateTime
+  invitedById Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  invitedBy   Admin     @relation(fields: [invitedById], references: [id])
 }
 
 model AdminLog {
@@ -677,13 +644,13 @@ model StorageUnitDamageReport {
   adminId           Int
   reportDate        DateTime    @default(now())
   damageDescription String
-  damagePhotos      String[]    // Array of photo URLs documenting the damage
-  actionTaken       String?     // What action was taken to address the damage
-  status            String      @default("Pending") // e.g., "Pending", "In Progress", "Resolved"
-  notes             String?     // Additional notes about the damage report
-  storageUnit       StorageUnit @relation(fields: [storageUnitId], references: [id])
-  appointment       Appointment @relation(fields: [appointmentId], references: [id])
+  damagePhotos      String[]
+  actionTaken       String?
+  status            String      @default("Pending")
+  notes             String?
   admin             Admin       @relation(fields: [adminId], references: [id])
+  appointment       Appointment @relation(fields: [appointmentId], references: [id])
+  storageUnit       StorageUnit @relation(fields: [storageUnitId], references: [id])
 
   @@index([storageUnitId])
   @@index([appointmentId])
@@ -692,49 +659,182 @@ model StorageUnitDamageReport {
 }
 
 model StorageUnitCleaning {
-  id           Int        @id @default(autoincrement())
+  id            Int         @id @default(autoincrement())
   storageUnitId Int
-  adminId      Int
-  cleanedAt    DateTime   @default(now())
-  photos       String[]   // Photos documenting the cleaned unit
-  storageUnit  StorageUnit @relation(fields: [storageUnitId], references: [id])
-  admin        Admin      @relation(fields: [adminId], references: [id])
-  
+  adminId       Int
+  cleanedAt     DateTime    @default(now())
+  photos        String[]
+  admin         Admin       @relation(fields: [adminId], references: [id])
+  storageUnit   StorageUnit @relation(fields: [storageUnitId], references: [id])
+
   @@index([storageUnitId])
   @@index([adminId])
   @@index([cleanedAt])
 }
 
 model PackingSupplyOrderCancellation {
-  id                    Int                 @id @default(autoincrement())
-  packingSupplyOrderId  Int
-  userId                Int
-  cancellationReason    String
-  cancellationFee       Float?              // Optional cancellation fee
-  cancellationDate      DateTime            @default(now())
-  refundAmount          Float?              // Amount refunded to customer
-  refundStatus          String?             @default("pending") // 'pending', 'processing', 'completed', 'failed'
-  adminNotes            String?             // Internal admin notes
-  
-  packingSupplyOrder    PackingSupplyOrder  @relation(fields: [packingSupplyOrderId], references: [id])
-  user                  User                @relation(fields: [userId], references: [id])
-  
+  id                   Int                @id @default(autoincrement())
+  packingSupplyOrderId Int
+  userId               Int
+  cancellationReason   String
+  cancellationFee      Float?
+  cancellationDate     DateTime           @default(now())
+  refundAmount         Float?
+  refundStatus         String?            @default("pending")
+  adminNotes           String?
+  packingSupplyOrder   PackingSupplyOrder @relation(fields: [packingSupplyOrderId], references: [id])
+  user                 User               @relation(fields: [userId], references: [id])
+
   @@index([packingSupplyOrderId])
   @@index([userId])
   @@index([cancellationDate])
 }
 
-// Notification System Models
+model Notification {
+  id                 Int                 @id @default(autoincrement())
+  recipientId        Int
+  recipientType      UserType
+  type               NotificationType
+  title              String
+  message            String
+  status             NotificationStatus  @default(UNREAD)
+  groupKey           String?
+  groupCount         Int?                @default(1)
+  appointmentId      Int?
+  orderId            Int?
+  routeId            String?
+  taskId             String?
+  driverId           Int?
+  movingPartnerId    Int?
+  createdAt          DateTime            @default(now())
+  readAt             DateTime?
+  archivedAt         DateTime?
+  appointment        Appointment?        @relation(fields: [appointmentId], references: [id])
+  packingSupplyOrder PackingSupplyOrder? @relation(fields: [orderId], references: [id])
+
+  @@index([recipientId, recipientType, status])
+  @@index([createdAt])
+  @@index([type])
+  @@index([groupKey])
+  @@index([status])
+}
+
+model NotificationSettings {
+  id                     Int      @id @default(autoincrement())
+  userId                 Int      @unique
+  userType               UserType
+  enableAppNotifications Boolean  @default(true)
+  enableEmailDigest      Boolean  @default(true)
+  digestFrequency        String   @default("weekly")
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([userId, userType])
+}
+
+model BlogPost {
+  id               Int                @id @default(autoincrement())
+  title            String
+  slug             String             @unique
+  excerpt          String?
+  content          String
+  featuredImage    String?
+  featuredImageAlt String?
+  metaTitle        String?
+  metaDescription  String?
+  categoryId       Int?
+  status           BlogStatus         @default(DRAFT)
+  publishedAt      DateTime?
+  readTime         Int?
+  viewCount        Int                @default(0)
+  authorId         Int
+  authorName       String?
+  authorImage      String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  contentBlocks    BlogContentBlock[]
+  author           Admin              @relation(fields: [authorId], references: [id])
+  category         BlogCategory?      @relation(fields: [categoryId], references: [id])
+  tags             BlogPostTag[]
+
+  @@index([slug])
+  @@index([status, publishedAt])
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([publishedAt])
+}
+
+model BlogCategory {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  slug        String     @unique
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  posts       BlogPost[]
+
+  @@index([slug])
+}
+
+model BlogTag {
+  id        Int           @id @default(autoincrement())
+  name      String        @unique
+  slug      String        @unique
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  posts     BlogPostTag[]
+
+  @@index([slug])
+}
+
+model BlogPostTag {
+  id         Int      @id @default(autoincrement())
+  blogPostId Int
+  blogTagId  Int
+  blogPost   BlogPost @relation(fields: [blogPostId], references: [id], onDelete: Cascade)
+  blogTag    BlogTag  @relation(fields: [blogTagId], references: [id], onDelete: Cascade)
+
+  @@unique([blogPostId, blogTagId])
+  @@index([blogPostId])
+  @@index([blogTagId])
+}
+
+model BlogContentBlock {
+  id         Int                  @id @default(autoincrement())
+  blogPostId Int
+  type       BlogContentBlockType
+  content    String
+  metadata   Json?
+  order      Int
+  blogPost   BlogPost             @relation(fields: [blogPostId], references: [id], onDelete: Cascade)
+
+  @@index([blogPostId, order])
+}
+
+enum MovingPartnerStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+}
+
+enum DriverAssignmentMode {
+  MANUAL
+  AUTO
+}
+
+enum AdminRole {
+  SUPERADMIN
+  ADMIN
+  VIEWER
+}
+
 enum NotificationType {
-  // Appointment Lifecycle
   APPOINTMENT_CONFIRMED
   APPOINTMENT_UPDATED
   APPOINTMENT_STARTED
   APPOINTMENT_COMPLETED
   APPOINTMENT_CANCELLED
   APPOINTMENT_REMINDER
-  
-  // Job Management
   JOB_OFFER_RECEIVED
   JOB_ASSIGNED
   JOB_DETAILS_UPDATED
@@ -743,8 +843,6 @@ enum NotificationType {
   NEW_JOB_AVAILABLE
   JOB_COMPLETED
   CUSTOMER_CANCELLATION
-  
-  // Packing Supply Deliveries
   ORDER_CONFIRMED
   ORDER_BEING_PREPARED
   DRIVER_EN_ROUTE
@@ -753,26 +851,22 @@ enum NotificationType {
   ROUTE_OFFER
   ROUTE_ASSIGNED
   ROUTE_CANCELLED
-  
-  // Payments & Payouts
   PAYMENT_FAILED
   REFUND_PROCESSED
   INVOICE_AVAILABLE
   PAYOUT_PROCESSED
   PAYOUT_FAILED
   EARNINGS_SUMMARY
-  
-  // Feedback & Ratings
   FEEDBACK_RECEIVED
   TIP_RECEIVED
-  
-  // Account & System
   ACCOUNT_APPROVED
   ACCOUNT_SUSPENDED
   VEHICLE_APPROVED
   VEHICLE_REJECTED
   NEW_DRIVER_APPLICATION
   DRIVER_APPROVED
+  MOVER_PENDING_DRIVERS
+  MOVER_ACTIVATED
   TEAM_STATUS_UPDATE
   SYSTEM_MAINTENANCE
   NEW_FEATURE_ANNOUNCEMENT
@@ -797,154 +891,12 @@ enum UserType {
   ADMIN
 }
 
-model Notification {
-  id              Int                @id @default(autoincrement())
-  recipientId     Int                // ID of user, driver, or mover receiving notification
-  recipientType   UserType           // 'USER', 'DRIVER', 'MOVER', 'ADMIN'
-  type            NotificationType
-  title           String
-  message         String
-  status          NotificationStatus @default(UNREAD)
-  
-  // Grouping for similar notifications
-  groupKey        String?            // For grouping similar notifications
-  groupCount      Int?               @default(1) // Count of notifications in this group
-  
-  // Optional reference data for deep linking
-  appointmentId   Int?
-  orderId         Int?
-  routeId         String?
-  taskId          String?
-  driverId        Int?
-  movingPartnerId Int?
-  
-  // Metadata
-  createdAt       DateTime           @default(now())
-  readAt          DateTime?
-  archivedAt      DateTime?
-  
-  // Relations (optional - for deep linking)
-  appointment     Appointment?       @relation(fields: [appointmentId], references: [id])
-  packingSupplyOrder PackingSupplyOrder? @relation(fields: [orderId], references: [id])
-  
-  @@index([recipientId, recipientType, status])
-  @@index([createdAt])
-  @@index([type])
-  @@index([groupKey])
-  @@index([status])
-}
-
-// Notification preferences for future use
-model NotificationSettings {
-  id                    Int      @id @default(autoincrement())
-  userId                Int      @unique
-  userType              UserType
-  
-  // In-app notification preferences
-  enableAppNotifications Boolean @default(true)
-  enableEmailDigest     Boolean @default(true)
-  digestFrequency       String  @default("weekly") // 'daily', 'weekly', 'never'
-  
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  
-  @@index([userId, userType])
-}
-
-// Blog System Models
 enum BlogStatus {
   DRAFT
   PUBLISHED
   ARCHIVED
 }
 
-model BlogPost {
-  id                Int           @id @default(autoincrement())
-  title             String        // Blog post title
-  slug              String        @unique // URL-friendly slug (e.g., "best-neighborhoods-san-francisco")
-  excerpt           String?       // Short description/summary (blogDescription from components)
-  content           String        // Full blog post content (rich text/markdown)
-  
-  // Images
-  featuredImage     String?       // Main blog post image (thumbnail from components)
-  featuredImageAlt  String?       // Alt text for featured image
-  
-  // SEO & Metadata
-  metaTitle         String?       // Custom meta title for SEO
-  metaDescription   String?       // Custom meta description for SEO
-  
-  // Organization & Categorization
-  categoryId        Int?
-  category          BlogCategory? @relation(fields: [categoryId], references: [id])
-  tags              BlogPostTag[] // Many-to-many relation with tags
-  
-  // Publishing & Status
-  status            BlogStatus    @default(DRAFT)
-  publishedAt       DateTime?     // When the post was published (datePublished from components)
-  
-  // Content Metadata
-  readTime          Int?          // Estimated read time in minutes (extracted from "15 min read")
-  viewCount         Int           @default(0) // Track page views
-  
-  // Author Information
-  authorId          Int
-  author            Admin         @relation(fields: [authorId], references: [id])
-  authorName        String?       // Display name override (author from components)
-  authorImage       String?       // Author profile image (authorImage from components)
-  
-  // Content Structure (for rich content like BlogContent component)
-  contentBlocks     BlogContentBlock[]
-  
-  // Timestamps
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  
-  @@index([slug])
-  @@index([status, publishedAt])
-  @@index([categoryId])
-  @@index([authorId])
-  @@index([publishedAt])
-}
-
-model BlogCategory {
-  id          Int        @id @default(autoincrement())
-  name        String     @unique // "Tips and Tricks", "Press", "Most Recent"
-  slug        String     @unique // URL-friendly slug
-  description String?    // Category description
-  posts       BlogPost[] // Reverse relation to blog posts
-  
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  
-  @@index([slug])
-}
-
-model BlogTag {
-  id    Int           @id @default(autoincrement())
-  name  String        @unique // Tag name
-  slug  String        @unique // URL-friendly slug
-  posts BlogPostTag[] // Many-to-many relation with blog posts
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  @@index([slug])
-}
-
-// Junction table for many-to-many relationship between BlogPost and BlogTag
-model BlogPostTag {
-  id         Int     @id @default(autoincrement())
-  blogPostId Int
-  blogTagId  Int
-  blogPost   BlogPost @relation(fields: [blogPostId], references: [id], onDelete: Cascade)
-  blogTag    BlogTag  @relation(fields: [blogTagId], references: [id], onDelete: Cascade)
-  
-  @@unique([blogPostId, blogTagId])
-  @@index([blogPostId])
-  @@index([blogTagId])
-}
-
-// Content blocks for structured blog content (like BlogContent component)
 enum BlogContentBlockType {
   PARAGRAPH
   HEADING
@@ -953,18 +905,3 @@ enum BlogContentBlockType {
   LIST
   CODE
 }
-
-model BlogContentBlock {
-  id         Int                   @id @default(autoincrement())
-  blogPostId Int
-  type       BlogContentBlockType
-  content    String                // Text content, image URL, etc.
-  metadata   Json?                 // Additional metadata (alt text, heading level, etc.)
-  order      Int                   // Order of the block in the post
-  
-  blogPost   BlogPost @relation(fields: [blogPostId], references: [id], onDelete: Cascade)
-  
-  @@index([blogPostId, order])
-}
-
-

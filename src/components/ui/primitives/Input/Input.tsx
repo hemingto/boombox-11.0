@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * @fileoverview Input component with design system integration
  * @source boombox-10.0/src/app/components/reusablecomponents/textinput.tsx
@@ -81,6 +83,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
       fullWidth = false,
       className,
       onFocus,
+      onBlur,
       onClearError,
       ...props
     },
@@ -89,6 +92,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     const [isFocused, setIsFocused] = useState(false);
     const hasError = Boolean(error);
     const hasIcon = Boolean(icon);
+    const hasValue = Boolean(props.value);
 
     const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
       setIsFocused(true);
@@ -98,8 +102,9 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
       onFocus?.(e);
     };
 
-    const handleBlur = () => {
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
       setIsFocused(false);
+      onBlur?.(e);
     };
 
     const inputClasses = cn(
@@ -108,19 +113,25 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
       
       // Base styles using design system classes
       'input-field',
+      
+      // Font weight
+      'font-medium',
+      
+      // Placeholder text size
+      'placeholder:text-sm',
 
       // Size variants
       {
         'py-2 px-2.5 text-sm': size === 'sm',
-        'py-2.5 px-3 text-md': size === 'md',
+        'py-2.5 px-3 text-base': size === 'md',
         'py-3 px-4 text-lg': size === 'lg',
       },
 
       // Icon padding
       {
-        'pl-10': hasIcon && iconPosition === 'left' && size === 'md',
+        'pl-8': hasIcon && iconPosition === 'left' && size === 'md',
         'pl-9': hasIcon && iconPosition === 'left' && size === 'sm',
-        'pl-12': hasIcon && iconPosition === 'left' && size === 'lg',
+        'pl-10': hasIcon && iconPosition === 'left' && size === 'lg',
         'pr-10': hasIcon && iconPosition === 'right' && size === 'md',
         'pr-9': hasIcon && iconPosition === 'right' && size === 'sm',
         'pr-12': hasIcon && iconPosition === 'right' && size === 'lg',
@@ -142,15 +153,15 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     const iconClasses = cn(
       'absolute top-1/2 transform -translate-y-1/2 pointer-events-none',
       {
-        'left-3': iconPosition === 'left',
-        'right-3': iconPosition === 'right',
+        'left-2': iconPosition === 'left',
+        'right-2': iconPosition === 'right',
         'w-4 h-4': size === 'sm',
         'w-5 h-5': size === 'md',
         'w-6 h-6': size === 'lg',
         // Icon color states
         'text-status-error': hasError,
-        'text-text-primary': isFocused && !hasError,
-        'text-text-secondary': !isFocused && !hasError,
+        'text-text-primary': (isFocused || hasValue) && !hasError,
+        'text-text-secondary': !isFocused && !hasError && !hasValue,
       }
     );
 
@@ -158,9 +169,8 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
       <div className={cn('form-group', fullWidth && 'w-full')}>
         {/* Label - visible by default when provided */}
         {label && (
-          <label htmlFor={props.id} className="form-label">
+          <label htmlFor={props.id} className="form-label-compact">
             {label}
-            {required && <span className="text-status-error ml-1">*</span>}
           </label>
         )}
 

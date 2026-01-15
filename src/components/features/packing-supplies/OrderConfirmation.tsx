@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * @fileoverview Order confirmation component for packing supplies
  * @source boombox-10.0/src/app/components/packing-supplies/orderconfirmation.tsx
@@ -99,32 +101,32 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
 
       {orderData && (
         <div 
-          className="bg-surface-secondary rounded-lg p-6 mb-8 text-left"
+          className="bg-surface-tertiary rounded-lg p-6 mb-8 text-left"
           role="region"
           aria-label="Order details"
         >
           <h3 className="font-semibold text-lg mb-2">Order Details</h3>
 
-          <hr className="mt-2 mb-4 border-border" />
+          <hr className="mt-2 mb-4 border border-slate-200" />
 
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-text-tertiary">Tracking ID:</span>
+              <span className="text-text-primary">Tracking ID:</span>
               <span className="font-medium">{orderData.onfleetTaskShortId}</span>
             </div>
 
             <div className="flex justify-between">
-              <span className="text-text-tertiary">Items:</span>
+              <span className="text-text-primary">Items:</span>
               <span className="font-medium">
                 {orderData.capacityInfo.itemCount} items
               </span>
             </div>
 
             <div className="flex justify-between items-center max-h-[20px]">
-              <span className="text-text-tertiary">Delivery Date:</span>
+              <span className="text-text-primary">Delivery Date:</span>
               <div className="flex items-center gap-2">
                 {orderData.deliveryWindow.isSameDay && (
-                  <span className="px-2 py-1 bg-status-bg-success rounded-full text-xs text-status-text-success whitespace-nowrap">
+                  <span className="px-2 py-1 bg-status-bg-success rounded-full text-xs text-status-success whitespace-nowrap">
                     Same day!
                   </span>
                 )}
@@ -135,7 +137,7 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
             </div>
 
             <div className="flex justify-between">
-              <span className="text-text-tertiary">Delivery Window:</span>
+              <span className="text-text-primary">Delivery Window:</span>
               <span className="font-medium">
                 {formatTimeWithTimezone(orderData.deliveryWindow.start)} -{' '}
                 {formatTimeWithTimezone(orderData.deliveryWindow.end)}
@@ -143,7 +145,7 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
             </div>
 
             <div className="flex justify-between">
-              <span className="text-text-tertiary">Driver:</span>
+              <span className="text-text-primary">Driver:</span>
               <span className="font-medium">
                 {orderData.assignedDriverName
                   ? orderData.assignedDriverName
@@ -154,8 +156,8 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
         </div>
       )}
 
-      <div className="mx-auto text-center flex p-4 bg-surface-secondary rounded-md justify-between">
-        <Link href={isLoggedIn ? `/user-page/${userId}` : '/getquote'}>
+      <div className="mx-auto text-center flex p-4 bg-surface-tertiary rounded-md justify-between">
+        <Link href={isLoggedIn ? `/customer/${userId}` : '/getquote'}>
           <button
             className="block py-3 ml-3 text-text-primary text-md mx-auto underline decoration-text-tertiary hover:decoration-solid decoration-dotted underline-offset-4"
             aria-label={

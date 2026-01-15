@@ -17,7 +17,7 @@ export const popularLocations: PopularLocation[] = [
     location: 'San Francisco',
     customerCount: '1,032',
     description: 'happy customers',
-    imageSrc: '/img/golden-gate.png',
+    imageSrc: '/placeholder.jpg',
     imageAlt: 'Golden Gate Bridge',
     link: '/locations/san-francisco',
   },

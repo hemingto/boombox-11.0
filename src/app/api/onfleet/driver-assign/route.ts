@@ -36,18 +36,33 @@ import {
   notifyDriverAboutJob,
   notifyAdminNoDrivers,
   notifyMovingPartner,
+  createDriverTimeSlotBooking,
+  deleteDriverTimeSlotBooking,
   DRIVER_ACCEPTANCE_WINDOW,
   type DriverAssignmentResult
 } from '@/lib/utils/driverAssignmentUtils';
-import { calculateDriverPayment, calculateMovingPartnerPayment } from '@/lib/services/payment-calculator';
+import { calculateDriverPayment, calculateMovingPartnerPayment, getShortAddress } from '@/lib/services/payment-calculator';
 import { revalidatePath } from 'next/cache';
+import { NotificationService } from '@/lib/services/NotificationService';
+import { MessageService } from '@/lib/messaging/MessageService';
+import { driverJobAcceptedSms, driverJobDeclinedSms, movingPartnerNewJobManualAssignSms } from '@/lib/messaging/templates/sms/booking';
+import { formatTime, formatDate } from '@/lib/utils/dateUtils';
+import { DriverAssignmentMode } from '@prisma/client';
+import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    
+    // DEBUG: Log incoming request
+    console.log('=== DRIVER-ASSIGN API DEBUG ===');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Request body:', JSON.stringify(body, null, 2));
+    
     const validated = DriverAssignmentRequestSchema.parse(body);
     
-    const { appointmentId, onfleetTaskId, driverId, action } = validated;
+    const { appointmentId, onfleetTaskId, driverId, action, source } = validated;
+    console.log('DEBUG: Validated params - action:', action, 'appointmentId:', appointmentId, 'driverId:', driverId, 'onfleetTaskId:', onfleetTaskId, 'source:', source);
 
     // Get appointment details with related data
     const appointment = await prisma.appointment.findUnique({
@@ -59,30 +74,52 @@ export async function POST(req: NextRequest) {
     });
 
     if (!appointment) {
+      console.log('DEBUG: Appointment not found for ID:', appointmentId);
       return NextResponse.json({ error: 'Appointment not found' }, { status: 404 });
     }
+    
+    console.log('DEBUG: Appointment found:', {
+      id: appointment.id,
+      appointmentType: appointment.appointmentType,
+      planType: appointment.planType,
+      taskCount: appointment.onfleetTasks?.length || 0
+    });
+    console.log('DEBUG: OnfleetTasks:', appointment.onfleetTasks.map((t: any) => ({
+      id: t.id,
+      taskId: t.taskId,
+      unitNumber: t.unitNumber,
+      driverId: t.driverId,
+      lastNotifiedDriverId: t.lastNotifiedDriverId,
+      driverNotificationStatus: t.driverNotificationStatus
+    })));
 
     // Route to appropriate handler based on action
+    console.log('DEBUG: Routing to handler for action:', action);
     switch (action) {
       case 'assign':
         return await handleInitialAssignment(appointment);
       
       case 'accept':
         if (!driverId || !onfleetTaskId) {
+          console.log('DEBUG: Missing required params for accept - driverId:', driverId, 'onfleetTaskId:', onfleetTaskId);
           return NextResponse.json({ error: 'Driver ID and task ID required for acceptance' }, { status: 400 });
         }
-        return await handleDriverAcceptance(appointment, driverId, onfleetTaskId);
+        console.log('DEBUG: Calling handleDriverAcceptance with driverId:', driverId, 'onfleetTaskId:', onfleetTaskId, 'source:', source);
+        return await handleDriverAcceptance(appointment, driverId, onfleetTaskId, source);
       
       case 'reconfirm':
         if (!driverId) {
           return NextResponse.json({ error: 'Driver ID required for reconfirmation' }, { status: 400 });
         }
+        console.log('DEBUG: Calling handleDriverReconfirmation with driverId:', driverId);
         return await handleDriverReconfirmation(appointment, driverId);
       
       case 'decline':
         if (!driverId || !onfleetTaskId) {
+          console.log('DEBUG: Missing required params for decline - driverId:', driverId, 'onfleetTaskId:', onfleetTaskId);
           return NextResponse.json({ error: 'Driver ID and task ID required for decline' }, { status: 400 });
         }
+        console.log('DEBUG: Calling handleDriverDecline with driverId:', driverId, 'onfleetTaskId:', onfleetTaskId);
         return await handleDriverDecline(appointment, driverId, onfleetTaskId);
       
       case 'retry':
@@ -95,10 +132,12 @@ export async function POST(req: NextRequest) {
         return await handleDriverCancellation(appointment, driverId);
       
       default:
+        console.log('DEBUG: Invalid action received:', action);
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
   } catch (error: any) {
     console.error('Error in driver assignment:', error);
+    console.error('DEBUG: Full error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
     return NextResponse.json(
       { error: error.message || 'Failed to process driver assignment' },
       { status: error.status || 500 }
@@ -123,8 +162,10 @@ export async function handleInitialAssignment(appointment: any) {
       if (movingPartnerResult) {
         unitResults.push(movingPartnerResult);
         
-        // Notify moving partner if assignment was successful
+        // Only notify moving partner for AUTO assignment mode (MANUAL mode already sends its own notification)
+        // Skip notification if this was a manual assignment (notification already sent in handleMovingPartnerAssignment)
         const autoAssignmentSuccessful = movingPartnerResult.status === 'assigned_mp_driver_auto';
+        const isManualAssignment = movingPartnerResult.status === 'pending_manual_assignment';
         const assignedDriverName = autoAssignmentSuccessful ? 
           await getDriverNameById(movingPartnerResult.driverId) : undefined;
         
@@ -132,7 +173,8 @@ export async function handleInitialAssignment(appointment: any) {
           task.unitNumber === 1 && task.driverId
         );
         
-        if (!isAdditionalUnitsOnly) {
+        // Don't send duplicate notification for manual assignment - already handled in handleMovingPartnerAssignment
+        if (!isAdditionalUnitsOnly && !isManualAssignment) {
           await notifyMovingPartner(appointment, assignedDriverName);
         }
       }
@@ -176,11 +218,18 @@ export async function handleInitialAssignment(appointment: any) {
 
 /**
  * Handle moving partner assignment for Full Service Plan unit 1
+ * Checks driverAssignmentMode to determine if auto-assignment or manual notification is needed
  */
 async function handleMovingPartnerAssignment(appointment: any, onfleetClient: any): Promise<DriverAssignmentResult | null> {
   const movingPartner = await prisma.movingPartner.findUnique({
     where: { id: appointment.movingPartnerId },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      phoneNumber: true,
+      email: true,
+      onfleetTeamId: true,
+      driverAssignmentMode: true,
       approvedDrivers: {
         where: { isActive: true },
         include: {
@@ -211,12 +260,120 @@ async function handleMovingPartnerAssignment(appointment: any, onfleetClient: an
     };
   }
 
+  const unit1Tasks = appointment.onfleetTasks.filter((task: any) => task.unitNumber === 1 && task.taskId);
+
+  if (unit1Tasks.length === 0) {
+    return {
+      unitNumber: 1,
+      status: 'notified_moving_partner_no_task_found',
+      movingPartnerId: appointment.movingPartnerId
+    };
+  }
+
+  // Check if unit 1 tasks are already assigned to a driver - skip notifications if so
+  // This prevents duplicate "new job" notifications when unit count is reduced
+  const alreadyAssigned = unit1Tasks.every((task: any) => task.driverId !== null);
+  if (alreadyAssigned) {
+    console.log(`Unit 1 tasks already have driver assigned, skipping notification for appointment ${appointment.id}`);
+    return {
+      unitNumber: 1,
+      status: 'already_assigned',
+      movingPartnerId: appointment.movingPartnerId
+    };
+  }
+
+  // Check if moving partner uses MANUAL assignment mode
+  if (movingPartner.driverAssignmentMode === DriverAssignmentMode.MANUAL) {
+    console.log(`Moving partner ${movingPartner.id} uses MANUAL driver assignment mode`);
+    
+    // Assign tasks to moving partner team only (not to a specific driver)
+    try {
+      for (const task of unit1Tasks) {
+        if (movingPartner.onfleetTeamId) {
+          await (onfleetClient as any).tasks.update(task.taskId, {
+            container: { type: "TEAM", team: movingPartner.onfleetTeamId }
+          });
+        }
+        
+        await prisma.onfleetTask.update({
+          where: { id: task.id },
+          data: {
+            driverNotificationStatus: 'pending_manual_assignment',
+          },
+        });
+      }
+
+      // Send SMS to moving partner to assign a driver through their Boombox account
+      if (movingPartner.phoneNumber) {
+        try {
+          const normalizedPhone = normalizePhoneNumberToE164(movingPartner.phoneNumber);
+          const appointmentDateFmt = formatDate(new Date(appointment.date), 'full-date');
+          const originalAppointmentTime = new Date(appointment.time);
+          const notificationAppointmentTime = new Date(originalAppointmentTime.getTime() - (60 * 60 * 1000));
+          const appointmentTimeFmt = formatTime(notificationAppointmentTime, '12-hour-padded');
+          const customerName = `${appointment.user?.firstName || ''} ${appointment.user?.lastName || ''}`.trim() || 'Customer';
+
+          await MessageService.sendSms(normalizedPhone, movingPartnerNewJobManualAssignSms, {
+            appointmentType: appointment.appointmentType,
+            appointmentDate: appointmentDateFmt,
+            appointmentTime: appointmentTimeFmt,
+            customerName,
+            address: appointment.address,
+          });
+          console.log(`Manual assignment SMS sent to moving partner ${movingPartner.id}`);
+        } catch (smsError) {
+          console.error('Error sending manual assignment SMS to moving partner:', smsError);
+        }
+      }
+
+      // Create internal notification for moving partner
+      try {
+        await NotificationService.createNotification({
+          recipientId: movingPartner.id,
+          recipientType: 'MOVER',
+          type: 'NEW_JOB_AVAILABLE',
+          data: {
+            appointmentId: appointment.id,
+            jobType: appointment.appointmentType,
+            date: appointment.date,
+            time: appointment.time,
+            address: appointment.address,
+            customerName: `${appointment.user?.firstName || ''} ${appointment.user?.lastName || ''}`.trim(),
+          },
+          appointmentId: appointment.id,
+          movingPartnerId: movingPartner.id,
+        });
+        console.log(`Internal notification sent to moving partner ${movingPartner.id}`);
+      } catch (notifError) {
+        console.error('Error creating moving partner notification:', notifError);
+      }
+
+      return {
+        unitNumber: 1,
+        status: 'pending_manual_assignment',
+        movingPartnerId: appointment.movingPartnerId,
+        message: 'Moving partner notified to manually assign a driver'
+      };
+    } catch (error: any) {
+      console.error(`Error handling manual assignment mode:`, error);
+      return {
+        unitNumber: 1,
+        status: 'error_manual_assignment_notification',
+        message: error.message,
+        movingPartnerId: appointment.movingPartnerId
+      };
+    }
+  }
+
+  // AUTO assignment mode - continue with existing auto-assignment logic
   // Find available moving partner drivers using utility
+  // Pass appointment.id to excludeAppointmentId to prevent false conflicts during edits
   const availableDrivers = await findAvailableDrivers(
     appointment, 
     { unitNumber: 1 }, 
     [], 
-    appointment.movingPartnerId
+    appointment.movingPartnerId,
+    appointment.id
   );
 
   if (availableDrivers.length === 0) {
@@ -228,15 +385,6 @@ async function handleMovingPartnerAssignment(appointment: any, onfleetClient: an
   }
 
   const selectedDriver = availableDrivers[0];
-  const unit1Tasks = appointment.onfleetTasks.filter((task: any) => task.unitNumber === 1 && task.taskId);
-
-  if (unit1Tasks.length === 0) {
-    return {
-      unitNumber: 1,
-      status: 'notified_moving_partner_no_task_found',
-      movingPartnerId: appointment.movingPartnerId
-    };
-  }
 
   // Assign tasks to moving partner driver
   try {
@@ -259,14 +407,15 @@ async function handleMovingPartnerAssignment(appointment: any, onfleetClient: an
           driverId: selectedDriver.id,
           driverAcceptedAt: new Date(),
           driverNotificationStatus: 'assigned_mp_auto',
+          workerType: 'moving_partner'
         },
       });
     }
 
-    // Send notification to moving partner driver using utility
-    if (selectedDriver.phoneNumber) {
-      await notifyDriverAboutJob(selectedDriver, appointment, unit1Tasks[0]);
-    }
+    // Do NOT send job offer SMS to moving partner drivers.
+    // The job offer SMS (notifyDriverAboutJob) is only for Boombox Delivery Network (DIY appointments).
+    // For Full Service Plan, the moving partner handles coordination with their own drivers.
+    // The moving partner will be notified via notifyMovingPartner (in handleInitialAssignment).
 
     return {
       unitNumber: 1,
@@ -294,8 +443,12 @@ async function handleAdditionalUnits(
   onfleetClient: any, 
   notifiedDriverIds: number[]
 ): Promise<{ results: DriverAssignmentResult[], notifiedDriverIds: number[] }> {
+  // Skip tasks that already have a driver OR are pending reconfirmation
   const additionalUnitsTasks = appointment.onfleetTasks.filter((task: any) => 
-    !task.driverId && task.taskId && task.unitNumber > 1
+    !task.driverId && 
+    task.taskId && 
+    task.unitNumber > 1 &&
+    task.driverNotificationStatus !== 'pending_reconfirmation'
   );
 
   if (additionalUnitsTasks.length === 0) {
@@ -355,8 +508,11 @@ async function handleDIYPlanAssignment(
   onfleetClient: any,
   notifiedDriverIds: number[]
 ): Promise<{ results: DriverAssignmentResult[] }> {
+  // Skip tasks that already have a driver OR are pending reconfirmation
   const tasks = appointment.onfleetTasks.filter((task: any) => 
-    !task.driverId && task.taskId 
+    !task.driverId && 
+    task.taskId &&
+    task.driverNotificationStatus !== 'pending_reconfirmation'
   );
 
   if (tasks.length === 0) {
@@ -409,15 +565,22 @@ async function handleDIYPlanAssignment(
 
 /**
  * Handle driver acceptance of a task
+ * @param source - Optional source of the request. When 'inbound_sms', skips sending SMS confirmation
+ *                 since DriverResponseHandler will send its own confirmation message.
  */
-async function handleDriverAcceptance(appointment: any, driverId: number, onfleetTaskId: string) {
+async function handleDriverAcceptance(appointment: any, driverId: number, onfleetTaskId: string, source?: string) {
+  console.log('--- handleDriverAcceptance DEBUG ---');
+  console.log('Input - appointmentId:', appointment.id, 'driverId:', driverId, 'onfleetTaskId:', onfleetTaskId, 'source:', source);
+  
   const driver = await prisma.driver.findUnique({
     where: { id: driverId }
   });
   
   if (!driver) {
+    console.log('DEBUG: Driver not found for ID:', driverId);
     return NextResponse.json({ error: 'Driver not found' }, { status: 404 });
   }
+  console.log('DEBUG: Driver found:', driver.firstName, driver.lastName, 'onfleetWorkerId:', driver.onfleetWorkerId);
   
   // Determine unit number from task or use fallback
   let unitNumber = 0;
@@ -425,6 +588,10 @@ async function handleDriverAcceptance(appointment: any, driverId: number, onflee
     const task = appointment.onfleetTasks.find((t: any) => t.taskId === onfleetTaskId);
     if (task) {
       unitNumber = task.unitNumber;
+      console.log('DEBUG: Found task for onfleetTaskId, unitNumber:', unitNumber);
+    } else {
+      console.log('DEBUG: No task found matching onfleetTaskId:', onfleetTaskId);
+      console.log('DEBUG: Available task IDs:', appointment.onfleetTasks.map((t: any) => t.taskId));
     }
   }
   
@@ -432,8 +599,16 @@ async function handleDriverAcceptance(appointment: any, driverId: number, onflee
   const tasksToAssign = appointment.onfleetTasks.filter((t: any) => 
     !t.driverId && t.unitNumber === unitNumber
   );
+  console.log('DEBUG: Tasks to assign (unassigned for unit', unitNumber, '):', tasksToAssign.length);
   
   if (tasksToAssign.length === 0) {
+    console.log('DEBUG: No tasks to assign - all already assigned or wrong unit number');
+    console.log('DEBUG: All tasks for reference:', appointment.onfleetTasks.map((t: any) => ({
+      id: t.id,
+      taskId: t.taskId,
+      unitNumber: t.unitNumber,
+      driverId: t.driverId
+    })));
     return NextResponse.json({ 
       message: 'All tasks for this unit are already assigned',
       appointmentId: appointment.id,
@@ -445,27 +620,88 @@ async function handleDriverAcceptance(appointment: any, driverId: number, onflee
   
   try {
     if (!driver.onfleetWorkerId) {
+      console.log('DEBUG: Driver missing onfleetWorkerId');
       return NextResponse.json({ error: 'Driver does not have an Onfleet worker ID' }, { status: 400 });
     }
     
     const assignedTasks = [];
+    console.log('DEBUG: Beginning Onfleet task assignment for', tasksToAssign.length, 'tasks');
     
     // Assign all tasks for this unit to the driver
     for (const task of tasksToAssign) {
+      console.log('DEBUG: Assigning task', task.taskId, 'to worker', driver.onfleetWorkerId);
       await (onfleetClient as any).tasks.update(task.taskId, {
         container: { type: "WORKER", worker: driver.onfleetWorkerId }
       });
+      console.log('DEBUG: Onfleet assignment successful for task', task.taskId);
       
       await prisma.onfleetTask.update({
         where: { id: task.id },
         data: {
           driverId: driverId,
           driverAcceptedAt: new Date(),
-          driverNotificationStatus: 'accepted'
+          driverNotificationStatus: 'accepted',
+          workerType: 'boombox_driver'
         }
       });
+      console.log('DEBUG: Database update successful for task ID', task.id);
       
       assignedTasks.push(task.id);
+    }
+    console.log('DEBUG: All tasks assigned successfully:', assignedTasks);
+    
+    // Create in-app notification for job assignment
+    try {
+      await NotificationService.notifyJobAssigned(
+        driverId,
+        {
+          appointmentId: appointment.id,
+          jobType: appointment.appointmentType,
+          date: appointment.date,
+          time: appointment.time,
+          address: appointment.address || '',
+          customerName: appointment.user ? `${appointment.user.firstName} ${appointment.user.lastName}` : undefined
+        }
+      );
+    } catch (notificationError) {
+      console.error('Error creating in-app job assigned notification:', notificationError);
+      // Don't fail the assignment if notification fails
+    }
+    
+    // Create DriverTimeSlotBooking to formally reserve the time slot and prevent overbooking
+    try {
+      await createDriverTimeSlotBooking(
+        driverId,
+        appointment.id,
+        new Date(appointment.date),
+        new Date(appointment.time),
+        unitNumber
+      );
+    } catch (bookingError) {
+      console.error('Error creating driver time slot booking:', bookingError);
+      // Don't fail the assignment if booking creation fails - OnfleetTask.driverId is the primary record
+    }
+    
+    // Send SMS confirmation to driver
+    // Skip SMS when source is 'inbound_sms' - the DriverResponseHandler will send its own confirmation
+    if (driver.phoneNumber && source !== 'inbound_sms') {
+      try {
+        await MessageService.sendSms(
+          driver.phoneNumber,
+          driverJobAcceptedSms,
+          {
+            appointmentType: appointment.appointmentType,
+            formattedDate: formatDate(new Date(appointment.date), 'full-date'),
+            formattedTime: formatTime(new Date(appointment.time)),
+            address: getShortAddress(appointment.address),
+          }
+        );
+      } catch (smsError) {
+        console.error('Error sending driver acceptance SMS:', smsError);
+        // Don't fail the assignment if SMS fails
+      }
+    } else if (source === 'inbound_sms') {
+      console.log('DEBUG: Skipping SMS confirmation - source is inbound_sms, DriverResponseHandler will send confirmation');
     }
     
     return NextResponse.json({ 
@@ -485,21 +721,48 @@ async function handleDriverAcceptance(appointment: any, driverId: number, onflee
 
 /**
  * Handle driver reconfirmation after appointment changes
+ * 
+ * Reconfirmation scenarios:
+ * 1. Schedule change: Driver is already assigned (driverId = driverId), but appointment 
+ *    date/time changed, so they need to reconfirm their availability.
+ * 2. Unit shift: Driver is shifted from one unit to another. Tasks may have:
+ *    - driverId: null (new tasks not yet assigned)
+ *    - driverId: driverId (existing tasks being reconfirmed)
+ * 
+ * In both cases:
+ * - lastNotifiedDriverId: driverId (the driver who was sent the reconfirmation SMS)
+ * - driverNotificationStatus: 'pending_reconfirmation'
  */
 async function handleDriverReconfirmation(appointment: any, driverId: number) {
+  console.log('--- handleDriverReconfirmation DEBUG ---');
+  console.log('Input - appointmentId:', appointment.id, 'driverId:', driverId);
+  
   const driver = await prisma.driver.findUnique({
     where: { id: driverId }
   });
   
   if (!driver) {
+    console.log('DEBUG: Driver not found for ID:', driverId);
     return NextResponse.json({ error: 'Driver not found' }, { status: 404 });
   }
+  console.log('DEBUG: Driver found:', driver.firstName, driver.lastName);
   
+  // Find tasks where:
+  // 1. lastNotifiedDriverId matches this driver (they were sent the reconfirmation request)
+  // 2. driverNotificationStatus is 'pending_reconfirmation'
+  // 3. driverId is null OR matches this driver (handles both new assignments and existing assignments)
   const tasksToReconfirm = appointment.onfleetTasks.filter((t: any) => {
-    return t.driverId === driverId && t.driverNotificationStatus === 'pending_reconfirmation';
+    const matches = t.lastNotifiedDriverId === driverId && 
+                    t.driverNotificationStatus === 'pending_reconfirmation' &&
+                    (t.driverId === null || t.driverId === driverId);
+    console.log(`DEBUG: Task ${t.id} - lastNotifiedDriverId: ${t.lastNotifiedDriverId}, status: ${t.driverNotificationStatus}, driverId: ${t.driverId}, matches: ${matches}`);
+    return matches;
   });
   
+  console.log('DEBUG: Tasks to reconfirm:', tasksToReconfirm.length);
+  
   if (tasksToReconfirm.length === 0) {
+    console.log('DEBUG: No tasks found pending reconfirmation for driver', driverId);
     return NextResponse.json({ 
       message: 'No tasks pending reconfirmation for this driver',
       appointmentId: appointment.id,
@@ -514,21 +777,65 @@ async function handleDriverReconfirmation(appointment: any, driverId: number) {
   }
   
   try {
+    // Get the unit number from the first task (all tasks in reconfirmation are for the same unit)
+    const unitNumber = tasksToReconfirm[0]?.unitNumber || 1;
+    
     for (const task of tasksToReconfirm) {
+      console.log(`DEBUG: Assigning task ${task.id} (Onfleet: ${task.taskId}) to driver ${driverId}`);
+      
+      // Assign task to driver in Onfleet
       await (onfleetClient as any).tasks.update(task.taskId, {
         container: { type: "WORKER", worker: driver.onfleetWorkerId }
       });
       
+      // Update database with driver assignment and acceptance status
       await prisma.onfleetTask.update({
         where: { id: task.id },
         data: {
+          driverId: driverId,  // CRITICAL: Set the driver ID!
           driverNotificationStatus: 'accepted',
           driverAcceptedAt: new Date()
         }
       });
+      
+      console.log(`DEBUG: Task ${task.id} successfully assigned to driver ${driverId}`);
+    }
+    
+    // Create DriverTimeSlotBooking to formally reserve the time slot
+    try {
+      await createDriverTimeSlotBooking(
+        driverId,
+        appointment.id,
+        new Date(appointment.date),
+        new Date(appointment.time),
+        unitNumber
+      );
+      console.log(`DEBUG: Created time slot booking for driver ${driverId}, unit ${unitNumber}`);
+    } catch (bookingError) {
+      console.error('Error creating driver time slot booking:', bookingError);
+      // Don't fail the reconfirmation if booking creation fails
+    }
+    
+    // Create in-app notification for job assignment
+    try {
+      await NotificationService.notifyJobAssigned(
+        driverId,
+        {
+          appointmentId: appointment.id,
+          jobType: appointment.appointmentType,
+          date: appointment.date,
+          time: appointment.time,
+          address: appointment.address || '',
+          customerName: appointment.user ? `${appointment.user.firstName} ${appointment.user.lastName}` : undefined
+        }
+      );
+      console.log(`DEBUG: Created in-app notification for driver ${driverId}`);
+    } catch (notificationError) {
+      console.error('Error creating in-app job assigned notification:', notificationError);
     }
     
     const taskIds = tasksToReconfirm.map((task: { id: number }) => task.id);
+    console.log(`DEBUG: Reconfirmation complete - ${taskIds.length} tasks assigned to driver ${driverId}`);
     
     return NextResponse.json({ 
       message: 'Driver successfully reconfirmed all tasks',
@@ -548,6 +855,11 @@ async function handleDriverReconfirmation(appointment: any, driverId: number) {
  * Handle driver decline and find next available driver
  */
 async function handleDriverDecline(appointment: any, driverId: number, onfleetTaskId: string) {
+  // Get the driver first to send them a confirmation SMS
+  const driver = await prisma.driver.findUnique({
+    where: { id: driverId }
+  });
+  
   // Determine unit number from task
   let unitNumber = 0;
   if (onfleetTaskId && onfleetTaskId !== "0") {
@@ -581,9 +893,24 @@ async function handleDriverDecline(appointment: any, driverId: number, onfleetTa
     });
   }
   
+  // Send SMS confirmation to driver who declined
+  if (driver?.phoneNumber) {
+    try {
+      await MessageService.sendSms(
+        driver.phoneNumber,
+        driverJobDeclinedSms,
+        {}
+      );
+    } catch (smsError) {
+      console.error('Error sending driver decline SMS:', smsError);
+      // Don't fail the decline if SMS fails
+    }
+  }
+  
   // Find next available driver
+  // Pass appointment.id to excludeAppointmentId to prevent false conflicts during edits
   const movingPartnerId = appointment.planType === 'Full Service Plan' ? appointment.movingPartnerId : undefined;
-  const availableDrivers = await findAvailableDrivers(appointment, unassignedTasks[0], [driverId], movingPartnerId);
+  const availableDrivers = await findAvailableDrivers(appointment, unassignedTasks[0], [driverId], movingPartnerId, appointment.id);
   
   if (availableDrivers.length === 0) {
     await notifyAdminNoDrivers(appointment, unassignedTasks[0]);
@@ -694,8 +1021,9 @@ async function handleRetryAssignment(appointment: any) {
     }
     
     // Find next available driver
+    // Pass appointment.id to excludeAppointmentId to prevent false conflicts during edits
     const movingPartnerId = appointment.planType === 'Full Service Plan' ? appointment.movingPartnerId : undefined;
-    const availableDrivers = await findAvailableDrivers(appointment, unassignedTasks[0], excludeDriverIds, movingPartnerId);
+    const availableDrivers = await findAvailableDrivers(appointment, unassignedTasks[0], excludeDriverIds, movingPartnerId, appointment.id);
     
     if (availableDrivers.length === 0) {
       await notifyAdminNoDrivers(appointment, unassignedTasks[0]);
@@ -782,6 +1110,14 @@ async function handleDriverCancellation(appointment: any, driverId: number) {
     }
   });
   
+  // Delete the DriverTimeSlotBooking to free up the time slot
+  try {
+    await deleteDriverTimeSlotBooking(appointment.id);
+  } catch (bookingError) {
+    console.error('Error deleting driver time slot booking:', bookingError);
+    // Don't fail the cancellation if booking deletion fails
+  }
+  
   // Process each task
   for (const task of driverTasks) {
     try {
@@ -801,9 +1137,10 @@ async function handleDriverCancellation(appointment: any, driverId: number) {
       });
       
       // Find next available driver
+      // Pass appointment.id to excludeAppointmentId to prevent false conflicts during edits
       const excludeDriverIds = [...(task.declinedDriverIds || []), driverId];
       const movingPartnerId = appointment.planType === 'Full Service Plan' ? appointment.movingPartnerId : undefined;
-      const availableDrivers = await findAvailableDrivers(appointment, task, excludeDriverIds, movingPartnerId);
+      const availableDrivers = await findAvailableDrivers(appointment, task, excludeDriverIds, movingPartnerId, appointment.id);
       
       if (availableDrivers.length === 0) {
         await notifyAdminNoDrivers(appointment, task);

@@ -27,7 +27,8 @@
 import { useState, useEffect } from 'react';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/20/solid';
 import { VerifyPhoneNumberPopup } from '@/components/features/customers';
-import { SkeletonCard, SkeletonText } from '@/components/ui/primitives/Skeleton';
+import { Skeleton } from '@/components/ui/primitives/Skeleton';
+import { Button } from '@/components/ui/primitives/Button';
 import { formatPhoneNumberForDisplay } from '@/lib/utils/phoneUtils';
 import { isValidEmail } from '@/lib/utils/validationUtils';
 
@@ -148,7 +149,10 @@ export const ContactInfoTable: React.FC<ContactInfoTableProps> = ({ userId }) =>
       const response = await fetch('/api/auth/send-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber: contactInfo.phoneNumber }),
+        body: JSON.stringify({ 
+          phoneNumber: contactInfo.phoneNumber,
+          skipAccountCheck: true // Skip account lookup for phone verification flow
+        }),
       });
   
       if (!response.ok) {
@@ -355,54 +359,35 @@ export const ContactInfoTable: React.FC<ContactInfoTableProps> = ({ userId }) =>
 
   if (isLoading) {
     return (
-      <div className="flex flex-col lg:px-16 px-6 max-w-5xl w-full mx-auto">
-        <SkeletonCard className="p-6">
-          <div className="space-y-4">
-            {/* Name Section Skeleton */}
-            <div className="flex items-start justify-between border-b border-border pb-4">
-              <div className="w-full space-y-3">
-                <SkeletonText className="w-14" />
-                <SkeletonText className="w-48" />
-              </div>
-              <SkeletonText className="w-8" />
+      <div className="flex flex-col max-w-5xl w-full lg:px-16 px-6 mx-auto">
+        <div className="bg-surface-primary rounded-md shadow-custom-shadow p-6 animate-pulse">
+          <div className="flex items-start justify-between border-b border-border-secondary pb-4">
+            <div className="w-full">
+              <Skeleton className="h-4 w-14 mb-3" />
+              <Skeleton className="h-5 w-48" />
             </div>
-  
-            {/* Email Section Skeleton */}
-            <div className="flex items-start justify-between border-b border-border py-4">
-              <div className="w-full space-y-3">
-                <SkeletonText className="w-12" />
-                <SkeletonText className="w-64" />
-              </div>
-              <SkeletonText className="w-8" />
-            </div>
-  
-            {/* Phone Section Skeleton */}
-            <div className="flex items-start justify-between border-b border-border py-4">
-              <div className="w-full space-y-3">
-                <SkeletonText className="w-28" />
-                <div className="flex items-center gap-2">
-                  <SkeletonText className="w-32" />
-                  <div className="h-6 w-20 bg-surface-tertiary rounded-md animate-pulse" />
-                </div>
-              </div>
-              <SkeletonText className="w-8" />
-            </div>
-  
-            {/* Padlock Combo Skeleton */}
-            <div className="flex items-start justify-between pt-4">
-              <div className="w-full space-y-3">
-                <SkeletonText className="w-28" />
-                {[1, 2].map((i) => (
-                  <div key={i} className="mt-3 space-y-2">
-                    <SkeletonText className="w-24" />
-                    <SkeletonText className="w-32" />
-                  </div>
-                ))}
-              </div>
-              <SkeletonText className="w-8" />
-            </div>
+            <Skeleton className="h-4 w-8" />
           </div>
-        </SkeletonCard>
+
+          <div className="flex items-start justify-between border-b border-border-secondary py-4">
+            <div className="w-full">
+              <Skeleton className="h-4 w-12 mb-3" />
+              <Skeleton className="h-5 w-64" />
+            </div>
+            <Skeleton className="h-4 w-8" />
+          </div>
+
+          <div className="flex items-start justify-between py-4">
+            <div className="w-full">
+              <Skeleton className="h-4 w-28 mb-3" />
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-6 w-20 rounded-md" />
+              </div>
+            </div>
+            <Skeleton className="h-4 w-8" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -418,49 +403,92 @@ export const ContactInfoTable: React.FC<ContactInfoTableProps> = ({ userId }) =>
   }
   
   return (
-    <div className="flex flex-col lg:px-16 px-6 max-w-5xl w-full mx-auto mb-24">
-      <div className="bg-white rounded-md shadow-custom-shadow p-6">
+    <div className="flex flex-col max-w-5xl lg:px-16 px-6 w-full mx-auto mb-12">
+      <div className="bg-surface-primary rounded-md shadow-custom-shadow p-6">
         {/* First Name and Last Name Fields */}
-        <div className="flex items-start justify-between border-b border-border">
-          <div className="w-full pb-4">
-            <label className={`form-label ${isGrayedOut('firstName') ? 'opacity-50' : ''}`}>
+        <div className="flex items-start justify-between border-b border-border-secondary">
+          <div className="flex flex-col w-full pt-4 pb-4">
+            <label
+              className={`${
+                editField && editField !== 'firstName' && editField !== 'lastName'
+                  ? 'opacity-50'
+                  : ''
+              }`}
+            >
               Name
             </label>
             {isEditable('firstName') || isEditable('lastName') ? (
-              <>
+              <div>
                 <div className="mt-2 flex gap-2 max-w-md">
                   <input
                     type="text"
-                    value={editedInfo.firstName}
+                    value={editedInfo.firstName || ''}
                     onFocus={handleFocus}
                     onChange={(e) => handleChange('firstName', e.target.value)}
-                    className={`input-field w-1/2 ${localHasError ? 'input-field--error' : ''}`}
+                    className={`w-1/2 py-2.5 px-3 sm:mb-4 mb-2 rounded-md focus:outline-none focus:ring-primary
+                      ${
+                        localHasError
+                          ? 'ring-status-error ring-2 bg-status-bg-error placeholder:text-status-error text-status-error'
+                          : 'bg-surface-tertiary focus:outline-none placeholder:text-text-secondary focus:placeholder:text-text-primary placeholder:text-sm focus-within:ring-2 focus-within:ring-primary focus:bg-surface-primary'
+                      }`}
                     placeholder="First Name"
                   />
                   <input
                     type="text"
-                    value={editedInfo.lastName}
+                    value={editedInfo.lastName || ''}
                     onFocus={handleFocus}
                     onChange={(e) => handleChange('lastName', e.target.value)}
-                    className={`input-field w-1/2 ${localHasError ? 'input-field--error' : ''}`}
+                    className={`w-1/2 py-2.5 px-3 sm:mb-4 mb-2 rounded-md focus:outline-none focus:ring-primary
+                      ${
+                        localHasError
+                          ? 'ring-status-error ring-2 bg-status-bg-error placeholder:text-status-error text-status-error'
+                          : 'bg-surface-tertiary focus:outline-none placeholder:text-text-secondary focus:placeholder:text-text-primary placeholder:text-sm focus-within:ring-2 focus-within:ring-primary focus:bg-surface-primary'
+                      }`}
                     placeholder="Last Name"
                   />
                 </div>
                 {errorMessage && (
-                  <p className="form-error mt-2">{errorMessage}</p>
+                  <p className="text-status-error text-sm sm:-mt-2 mb-3">
+                    {errorMessage}
+                  </p>
                 )}
-              </>
-            ) : (
-              <div className={`${isGrayedOut('firstName') ? 'opacity-50' : ''}`}>
-                {contactInfo?.firstName} {contactInfo?.lastName}
+                <div className="flex space-x-4">
+                  <Button
+                    onClick={handleSave}
+                    variant="primary"
+                    size="md"
+                  >
+                    Save
+                  </Button>
+                </div>
               </div>
+            ) : (
+              <p
+                className={`mt-2 text-sm text-text-tertiary ${
+                  isGrayedOut('firstName') || isGrayedOut('lastName')
+                    ? 'opacity-50'
+                    : ''
+                }`}
+              >
+                {contactInfo?.firstName} {contactInfo?.lastName}
+              </p>
             )}
           </div>
-          {!isEditable('firstName') && !isEditable('lastName') && (
+          {isEditable('firstName') || isEditable('lastName') ? (
+            <button
+              onClick={handleCancel}
+              className="decoration-dotted hover:decoration-solid underline underline-offset-2 pt-4 text-sm"
+            >
+              Cancel
+            </button>
+          ) : (
             <button
               onClick={() => handleEdit('firstName')}
-              disabled={isGrayedOut('firstName')}
-              className="text-sm text-text-primary hover:text-text-secondary disabled:opacity-50 underline-offset-4 underline"
+              className={`mt-4 decoration-dotted hover:decoration-solid underline underline-offset-2 text-sm ${
+                isGrayedOut('firstName') || isGrayedOut('lastName')
+                  ? 'opacity-50'
+                  : ''
+              }`}
             >
               Edit
             </button>
@@ -468,36 +496,62 @@ export const ContactInfoTable: React.FC<ContactInfoTableProps> = ({ userId }) =>
         </div>
 
         {/* Email Field */}
-        <div className="flex items-start justify-between border-b border-border py-4">
-          <div className="w-full">
-            <label className={`form-label ${isGrayedOut('email') ? 'opacity-50' : ''}`}>
-              Email
-            </label>
+        <div
+          className={`flex items-start justify-between border-b border-border-secondary ${
+            isGrayedOut('email') ? 'opacity-50' : ''
+          }`}
+        >
+          <div className="flex flex-col w-full pt-4 pb-4">
+            <label>Email</label>
             {isEditable('email') ? (
-              <>
+              <div>
                 <input
-                  type="email"
+                  type="text"
                   value={editedInfo.email || ''}
                   onFocus={handleFocus}
                   onChange={(e) => handleChange('email', e.target.value)}
-                  className={`input-field max-w-md mt-2 ${localHasError ? 'input-field--error' : ''}`}
-                  placeholder="Email address"
+                  className={`mt-2 max-w-sm md:max-w-md w-full py-2.5 px-3 sm:mb-4 mb-2 rounded-md focus:outline-none focus:ring-primary
+                    ${
+                      localHasError && editField === 'email'
+                        ? 'ring-status-error ring-2 bg-status-bg-error placeholder:text-status-error text-status-error'
+                        : 'bg-surface-tertiary focus:outline-none placeholder:text-text-secondary focus:placeholder:text-text-primary placeholder:text-sm focus-within:ring-2 focus-within:ring-primary focus:bg-surface-primary'
+                    }`}
+                  placeholder="Enter your email"
                 />
-                {errorMessage && (
-                  <p className="form-error mt-2">{errorMessage}</p>
+                {localHasError && editField === 'email' && (
+                  <p className="text-status-error text-sm sm:-mt-2 mb-3">
+                    {errorMessage}
+                  </p>
                 )}
-              </>
-            ) : (
-              <div className={`${isGrayedOut('email') ? 'opacity-50' : ''}`}>
-                {contactInfo?.email}
+                <div className="flex space-x-4">
+                  <Button
+                    onClick={handleSave}
+                    variant="primary"
+                    size="md"
+                  >
+                    Save
+                  </Button>
+                </div>
               </div>
+            ) : (
+              <p className="mt-2 text-sm text-text-tertiary">
+                {contactInfo?.email}
+              </p>
             )}
           </div>
-          {!isEditable('email') && (
+          {isEditable('email') ? (
+            <button
+              onClick={handleCancel}
+              className="decoration-dotted hover:decoration-solid underline underline-offset-2 pt-4 text-sm"
+            >
+              Cancel
+            </button>
+          ) : (
             <button
               onClick={() => handleEdit('email')}
-              disabled={isGrayedOut('email')}
-              className="text-sm text-text-primary hover:text-text-secondary disabled:opacity-50 underline-offset-4 underline"
+              className={`mt-4 decoration-dotted hover:decoration-solid underline underline-offset-2 text-sm ${
+                isGrayedOut('email') ? 'opacity-50' : ''
+              }`}
             >
               Edit
             </button>
@@ -505,46 +559,78 @@ export const ContactInfoTable: React.FC<ContactInfoTableProps> = ({ userId }) =>
         </div>
 
         {/* Phone Number Field */}
-        <div className="flex items-start justify-between border-b border-border py-4">
-          <div className="w-full">
-            <label className={`form-label ${isGrayedOut('phoneNumber') ? 'opacity-50' : ''}`}>
-              Phone number
-            </label>
+        <div
+          className={`flex items-start justify-between border-b border-border-secondary ${
+            isGrayedOut('phoneNumber') ? 'opacity-50' : ''
+          }`}
+        >
+          <div className="flex flex-col w-full pt-4 pb-4">
+            <label>Phone Number</label>
             {isEditable('phoneNumber') ? (
-              <>
+              <div>
                 <input
-                  type="tel"
-                  value={editedInfo.phoneNumber || ''}
+                  type="text"
+                  value={formatPhoneNumberForDisplay(
+                    editedInfo.phoneNumber || ''
+                  )}
                   onFocus={handleFocus}
                   onChange={(e) => handleChange('phoneNumber', e.target.value)}
-                  className={`input-field max-w-md mt-2 ${localHasError ? 'input-field--error' : ''}`}
-                  placeholder="(555) 555-5555"
+                  className={`mt-2 max-w-xs w-full py-2.5 px-3 sm:mb-4 mb-2 rounded-md focus:outline-none focus:ring-primary
+                    ${
+                      localHasError && editField === 'phoneNumber'
+                        ? 'ring-status-error ring-2 bg-status-bg-error placeholder:text-status-error text-status-error'
+                        : 'bg-surface-tertiary focus:outline-none placeholder:text-text-secondary focus:placeholder:text-text-primary placeholder:text-sm focus-within:ring-2 focus-within:ring-primary focus:bg-surface-primary'
+                    }`}
+                  placeholder="Enter your phone number"
                 />
-                {errorMessage && (
-                  <p className="form-error mt-2">{errorMessage}</p>
+                {localHasError && editField === 'phoneNumber' && (
+                  <p className="text-status-error text-sm sm:-mt-2 mb-3">
+                    {errorMessage}
+                  </p>
                 )}
-              </>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleSave}
+                    variant="primary"
+                    size="md"
+                  >
+                    Save
+                  </Button>
+                </div>
+              </div>
             ) : (
-              <div className={`flex items-center gap-2 ${isGrayedOut('phoneNumber') ? 'opacity-50' : ''}`}>
-                <span>{contactInfo?.phoneNumber}</span>
+              <div className="flex items-center gap-2 mt-2 text-sm text-text-tertiary">
+                {formatPhoneNumberForDisplay(contactInfo?.phoneNumber ?? '')}
                 {contactInfo?.verifiedPhoneNumber ? (
-                  <span className="badge-success">Verified</span>
+                  <span className="px-3 py-2 text-xs text-status-success bg-status-bg-success rounded-md">
+                    Verified
+                  </span>
                 ) : (
                   <button
+                    className={`px-3 py-2 text-xs text-status-warning bg-status-bg-warning rounded-full hover:bg-orange-100 active:bg-status-bg-warning transition ${
+                      isGrayedOut('phoneNumber') ? 'opacity-50' : ''
+                    }`}
                     onClick={handleVerifyClick}
-                    className="text-sm text-text-primary hover:text-text-secondary underline-offset-4 underline"
                   >
-                    Verify
+                    Verify number
                   </button>
                 )}
               </div>
             )}
           </div>
-          {!isEditable('phoneNumber') && (
+          {isEditable('phoneNumber') ? (
+            <button
+              onClick={handleCancel}
+              className="decoration-dotted hover:decoration-solid underline underline-offset-2 pt-4 text-sm"
+            >
+              Cancel
+            </button>
+          ) : (
             <button
               onClick={() => handleEdit('phoneNumber')}
-              disabled={isGrayedOut('phoneNumber')}
-              className="text-sm text-text-primary hover:text-text-secondary disabled:opacity-50 underline-offset-4 underline"
+              className={`mt-4 decoration-dotted hover:decoration-solid underline underline-offset-2 text-sm ${
+                isGrayedOut('phoneNumber') ? 'opacity-50' : ''
+              }`}
             >
               Edit
             </button>
@@ -553,51 +639,69 @@ export const ContactInfoTable: React.FC<ContactInfoTableProps> = ({ userId }) =>
 
         {/* Padlock Combo Fields */}
         {contactInfo?.storageUnits && contactInfo.storageUnits.length > 0 && (
-          <div className="flex items-start justify-between pt-4">
-            <div className="w-full">
-              <label className={`form-label ${isGrayedOut('padlockCombo') ? 'opacity-50' : ''}`}>
-                Padlock combo
-              </label>
+          <div
+            className={`flex items-start justify-between ${
+              isGrayedOut('padlockCombo') ? 'opacity-50' : ''
+            }`}
+          >
+            <div className="flex flex-col w-full pt-4 pb-4">
+              <label>Padlock combo</label>
               {isEditingPadlockCombo ? (
-                <div className="space-y-3 mt-2">
-                  {contactInfo.storageUnits.map((unit) => (
-                    <div key={unit.storageUnitNumber}>
-                      <label className="text-sm font-medium text-text-primary">
-                        Boombox {unit.storageUnitNumber}
-                      </label>
-                      <input
-                        type="text"
-                        value={editedInfo.padlockCombo?.[unit.storageUnitNumber] || ''}
-                        data-unit-number={unit.storageUnitNumber}
-                        onFocus={handlePadlockFocus}
-                        onChange={(e) => {
-                          setEditedInfo((prev) => ({
-                            ...prev,
-                            padlockCombo: {
-                              ...prev.padlockCombo,
-                              [unit.storageUnitNumber]: e.target.value,
-                            },
-                          }));
-                        }}
-                        className={`input-field max-w-md mt-1 ${
-                          padlockComboErrors[unit.storageUnitNumber] ? 'input-field--error' : ''
-                        }`}
-                        placeholder="Enter padlock combo"
-                      />
-                      {padlockComboErrors[unit.storageUnitNumber] && (
-                        <p className="form-error mt-1">{padlockComboErrors[unit.storageUnitNumber]}</p>
-                      )}
-                    </div>
-                  ))}
+                <div>
+                  <div className="space-y-4 mt-2">
+                    {contactInfo.storageUnits.map((unit) => (
+                      <div key={unit.storageUnitNumber} className="flex flex-col">
+                        <label className="text-sm text-text-primary mb-1">
+                          Boombox {unit.storageUnitNumber}
+                        </label>
+                        <input
+                          type="text"
+                          value={editedInfo.padlockCombo?.[unit.storageUnitNumber] || ''}
+                          data-unit-number={unit.storageUnitNumber}
+                          onFocus={handlePadlockFocus}
+                          onChange={(e) => {
+                            setEditedInfo((prev) => ({
+                              ...prev,
+                              padlockCombo: {
+                                ...prev.padlockCombo,
+                                [unit.storageUnitNumber]: e.target.value,
+                              },
+                            }));
+                          }}
+                          className={`max-w-md w-full py-2.5 px-3 rounded-md focus:outline-none focus:ring-primary
+                            ${
+                              padlockComboErrors[unit.storageUnitNumber]
+                                ? 'ring-status-error ring-2 bg-status-bg-error placeholder:text-status-error text-status-error'
+                                : 'bg-surface-tertiary focus:outline-none placeholder:text-text-secondary focus:placeholder:text-text-primary placeholder:text-sm focus-within:ring-2 focus-within:ring-primary focus:bg-surface-primary'
+                            }`}
+                          placeholder="Enter padlock combo"
+                        />
+                        {padlockComboErrors[unit.storageUnitNumber] && (
+                          <p className="text-status-error text-sm mt-1">
+                            {padlockComboErrors[unit.storageUnitNumber]}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex space-x-4 mt-4">
+                    <Button
+                      onClick={handleSavePadlockCombo}
+                      variant="primary"
+                      size="md"
+                    >
+                      Save
+                    </Button>
+                  </div>
                 </div>
               ) : (
-                <div className={`space-y-2 mt-2 ${isGrayedOut('padlockCombo') ? 'opacity-50' : ''}`}>
+                <div className="space-y-2 mt-2">
                   {contactInfo.storageUnits.map((unit) => (
                     <div key={unit.storageUnitNumber} className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-text-primary w-24">
+                      <span className="text-sm text-text-tertiary w-24">
                         Boombox {unit.storageUnitNumber}:
                       </span>
-                      <span className="text-text-secondary">
+                      <span className="text-sm text-text-tertiary">
                         {showPadlock[unit.storageUnitNumber] ? unit.padlockCombo : '••••'}
                       </span>
                       <button
@@ -615,33 +719,23 @@ export const ContactInfoTable: React.FC<ContactInfoTableProps> = ({ userId }) =>
                 </div>
               )}
             </div>
-            {!isEditingPadlockCombo && (
+            {isEditingPadlockCombo ? (
+              <button
+                onClick={handleCancel}
+                className="decoration-dotted hover:decoration-solid underline underline-offset-2 pt-4 text-sm"
+              >
+                Cancel
+              </button>
+            ) : (
               <button
                 onClick={handleEditPadlockCombo}
-                disabled={isGrayedOut('padlockCombo')}
-                className="text-sm text-text-primary hover:text-text-secondary disabled:opacity-50 underline-offset-4 underline"
+                className={`mt-4 decoration-dotted hover:decoration-solid underline underline-offset-2 text-sm ${
+                  isGrayedOut('padlockCombo') ? 'opacity-50' : ''
+                }`}
               >
                 Edit
               </button>
             )}
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        {(editField || isEditingPadlockCombo) && (
-          <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-border">
-            <button
-              onClick={handleCancel}
-              className="px-4 py-2 text-sm text-text-primary underline-offset-4 underline hover:text-text-secondary"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={isEditingPadlockCombo ? handleSavePadlockCombo : handleSave}
-              className="btn-primary"
-            >
-              Save
-            </button>
           </div>
         )}
       </div>

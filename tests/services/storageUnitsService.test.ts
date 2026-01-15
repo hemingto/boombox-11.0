@@ -100,7 +100,7 @@ const mockFormattedStorageUnits: FormattedStorageUnit[] = [
   },
   {
     id: '102',
-    imageSrc: '/img/golden-gate.png',
+    imageSrc: '/placeholder.jpg',
     title: 'Boombox BX002',
     pickUpDate: '1/20/2024',
     lastAccessedDate: '1/20/2024',
@@ -214,7 +214,7 @@ describe('storageUnitsService', () => {
       });
 
       // Check unit without image
-      expect(formatted?.[1].imageSrc).toBe('/img/golden-gate.png');
+      expect(formatted?.[1].imageSrc).toBe('/placeholder.jpg');
 
       // Check unit without return date
       expect(formatted?.[1].lastAccessedDate).toBe('1/20/2024'); // Should use usage start date
@@ -359,7 +359,7 @@ describe('storageUnitsService', () => {
 
       expect(result.success).toBe(true);
       result.data?.formatted.forEach(unit => {
-        expect(unit.imageSrc).toBe('/img/golden-gate.png');
+        expect(unit.imageSrc).toBe('/placeholder.jpg');
       });
     });
 

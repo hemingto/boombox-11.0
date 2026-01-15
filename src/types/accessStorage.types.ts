@@ -46,6 +46,14 @@ export interface StorageUnitUsage {
     id: number;
     storageUnitNumber: string;
     mainImage: string | null;
+    /** Access requests for this storage unit (from API) */
+    accessRequests?: Array<{
+      appointment?: {
+        id: number;
+        date: string;
+        status: string;
+      } | null;
+    }>;
   };
   appointment?: any;
   uploadedImages: string[];
@@ -61,6 +69,12 @@ export interface FormattedStorageUnit {
   lastAccessedDate: string;
   description: string;
   location?: string | null;
+  /** Pending access storage appointment for this unit, if any */
+  pendingAppointment?: {
+    id: number;
+    date: string;
+    status: string;
+  } | null;
 }
 
 export interface SelectedLabor {
@@ -380,14 +394,30 @@ export interface UseAccessStorageFormReturn {
 }
 
 export interface UseAccessStorageNavigationReturn {
+  // Current state
   currentStep: AccessStorageStep;
   canGoBack: boolean;
   canGoForward: boolean;
+  
+  // Navigation actions
   goToStep: (step: AccessStorageStep) => void;
   goToNextStep: () => void;
   goToPreviousStep: () => void;
+  
+  // Specialized navigation
+  goBackFromConfirmation: () => void;
+  goBackToStep1: () => void;
+  goBackToStep2: () => void;
+  
+  // Step information
   getStepTitle: (step: AccessStorageStep) => string;
   getProgressPercentage: () => number;
+  
+  // Step flow helpers
+  getNextStepFromCurrent: () => AccessStorageStep | null;
+  getPreviousStepFromCurrent: () => AccessStorageStep | null;
+  isStepAccessible: (step: AccessStorageStep) => boolean;
+  getVisibleSteps: () => AccessStorageStep[];
 }
 
 export interface UseStorageUnitsReturn {
@@ -429,7 +459,12 @@ export interface UseFormPersistenceReturn {
   saveFormState: (state: Partial<AccessStorageFormState>) => void;
   loadFormState: () => Partial<AccessStorageFormState> | null;
   clearPersistedState: () => void;
-  syncWithUrl: (step: AccessStorageStep, state?: Partial<AccessStorageFormState>) => void;
+  syncWithUrl: (state?: Partial<AccessStorageFormState>) => void;
+  loadStateFromUrl: () => Partial<AccessStorageFormState> | null;
+  getPersistedValue: <K extends keyof AccessStorageFormState>(key: K) => AccessStorageFormState[K] | null;
+  hasPersistedData: () => boolean;
+  getFormStateAge: () => number | null;
+  clearAllPersistedData: () => void;
 }
 
 // ===== UTILITY TYPE HELPERS =====

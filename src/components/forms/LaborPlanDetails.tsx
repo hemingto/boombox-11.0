@@ -33,7 +33,7 @@ const LaborPlanDetails: React.FC<LaborPlanDetailsProps> = ({
     <div className={`flex flex-row justify-around gap-3 ${className}`}>
       {/* Do It Yourself Plan */}
       <div className="basis-1/2 pl-4 pt-4 pb-4">
-        <h3 className="py-2 pl-3 text-text-primary font-semibold">
+        <h3 className="py-2 pl-3 text-text-primary">
           {LABOR_PLAN_TYPES.DO_IT_YOURSELF}
         </h3>
         <ul 
@@ -70,7 +70,7 @@ const LaborPlanDetails: React.FC<LaborPlanDetailsProps> = ({
 
       {/* Full Service Plan */}
       <div className="basis-1/2 pr-4 pt-4 pb-4">
-        <h3 className="py-2 pl-3 text-text-primary font-semibold">
+        <h3 className="py-2 pl-3 text-text-primary">
           {LABOR_PLAN_TYPES.FULL_SERVICE}
         </h3>
         <ul 

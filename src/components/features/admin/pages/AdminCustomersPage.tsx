@@ -10,67 +10,62 @@
  * - View customer appointments, storage units, and packing supply orders
  * - Sortable by all columns
  * 
- * DESIGN SYSTEM UPDATES:
- * - Uses shared AdminDataTable component
- * - Uses shared hooks (useAdminTable, useAdminDataFetch)
- * - Uses AdminDetailModal for nested records
- * - 100% semantic color tokens
- * - Consistent with other management pages
+ * DESIGN:
+ * - Uses gold standard admin components
+ * - AdminPageHeader with search and column manager
+ * - AdminTable with integrated states
+ * - AdminBooleanBadge for verified phone status
+ * - AdminActionButton for view records
  * 
  * API ROUTES:
  * - GET /api/admin/customers - Fetches all customers
  * 
- * CODE REDUCTION:
- * - Original: 384 lines
- * - Refactored: ~180 lines (53% reduction)
- * - Eliminated duplicate state management
- * - Eliminated custom table implementation
- * 
- * @refactor Extracted from inline page implementation, uses shared admin components
+ * @refactor Refactored to use gold standard admin components
  */
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import {
-  AdminDataTable,
-  ColumnManagerMenu,
-  SearchAndFilterBar,
-  AdminDetailModal,
-  type Column,
-} from '@/components/features/admin/shared';
-import { useAdminTable, useAdminDataFetch } from '@/hooks';
+import React, { useState, useEffect } from 'react';
 import { formatPhoneNumberForDisplay } from '@/lib/utils/phoneUtils';
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
+import {
+  AdminPageHeader,
+  ColumnManagerDropdown,
+  AdminTable,
+  AdminBooleanBadge,
+  AdminActionButton,
+} from '@/components/features/admin/shared';
+import { Button } from '@/components/ui/primitives/Button/Button';
 
 interface Customer {
+ id: number;
+ firstName: string;
+ lastName: string;
+ email: string;
+ phoneNumber: string;
+ verifiedPhoneNumber: boolean;
+ stripeCustomerId: string | null;
+ appointments: {
   id: number;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phoneNumber: string;
-  verifiedPhoneNumber: boolean;
-  stripeCustomerId: string | null;
-  appointments: {
-    id: number;
-    date: string;
-    status: string;
-    appointmentType: string;
-    jobCode: string;
-  }[];
-  storageUnitUsages: {
-    id: number;
-    storageUnit: {
-      storageUnitNumber: string;
-    };
-    usageStartDate: string;
-    usageEndDate: string | null;
-  }[];
-  packingSupplyOrders: {
-    id: number;
-    orderDate: string;
-    status: string;
-    totalPrice: number;
-  }[];
+  date: string;
+  status: string;
+  appointmentType: string;
+  jobCode: string;
+ }[];
+ storageUnitUsages: {
+  id: number;
+  storageUnit: {
+   storageUnitNumber: string;
+  };
+  usageStartDate: string;
+  usageEndDate: string | null;
+ }[];
+ packingSupplyOrders: {
+  id: number;
+  orderDate: string;
+  status: string;
+  totalPrice: number;
+ }[];
 }
 
 type ColumnId =
@@ -85,7 +80,18 @@ type ColumnId =
   | 'storageUnitUsages'
   | 'packingSupplyOrders';
 
-const defaultColumns: Column<ColumnId>[] = [
+interface Column {
+  id: ColumnId;
+  label: string;
+  visible: boolean;
+}
+
+type SortConfig = {
+  column: keyof Customer | null;
+  direction: 'asc' | 'desc';
+};
+
+const defaultColumns: Column[] = [
   { id: 'id', label: 'ID', visible: true },
   { id: 'firstName', label: 'First Name', visible: true },
   { id: 'lastName', label: 'Last Name', visible: true },
@@ -108,79 +114,97 @@ const defaultColumns: Column<ColumnId>[] = [
  * ```
  */
 export function AdminCustomersPage() {
-  // Shared hooks for table management
-  const {
-    columns,
-    toggleColumn,
-    sortConfig,
-    handleSort,
-    searchQuery,
-    setSearchQuery,
-    getSortedAndFilteredData,
-  } = useAdminTable<ColumnId, Customer>({
-    initialColumns: defaultColumns,
-    initialSort: { column: 'id', direction: 'asc' },
-  });
-
-  // Data fetching
-  const { data: customers, loading, error, refetch } = useAdminDataFetch<Customer[]>({
-    apiEndpoint: '/api/admin/customers',
-  });
-
-  // Modal states
+  // State management
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [columns, setColumns] = useState<Column[]>(defaultColumns);
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedRecordType, setSelectedRecordType] = useState<
     'appointments' | 'storageUnitUsages' | 'packingSupplyOrders' | null
   >(null);
-  const [showColumnMenu, setShowColumnMenu] = useState(false);
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    column: 'id',
+    direction: 'asc',
+  });
+  const [searchQuery, setSearchQuery] = useState('');
 
-  /**
-   * Custom sort function for customers
-   */
-  const customSortFn = (data: Customer[], config: typeof sortConfig) => {
-    if (!config.column) return data;
+  // Fetch customers
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
 
-    return [...data].sort((a, b) => {
-      const aValue = a[config.column as keyof Customer];
-      const bValue = b[config.column as keyof Customer];
+  const fetchCustomers = async () => {
+    try {
+      const response = await fetch('/api/admin/customers');
+      if (!response.ok) throw new Error('Failed to fetch customers');
+      const data = await response.json();
+      setCustomers(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      if (aValue === null || aValue === undefined) return config.direction === 'asc' ? -1 : 1;
-      if (bValue === null || bValue === undefined) return config.direction === 'asc' ? 1 : -1;
+  // Sorting
+  const handleSort = (column: keyof Customer) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.column === column && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ column, direction });
+  };
 
-      if (aValue < bValue) return config.direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return config.direction === 'asc' ? 1 : -1;
+  const getSortedCustomers = (customers: Customer[]) => {
+    if (!sortConfig.column) return customers;
+
+    return [...customers].sort((a, b) => {
+      const aValue = a[sortConfig.column!];
+      const bValue = b[sortConfig.column!];
+
+      if (aValue === null || bValue === null) {
+        if (aValue === null && bValue === null) return 0;
+        if (aValue === null) return sortConfig.direction === 'asc' ? -1 : 1;
+        return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortConfig.direction === 'asc'
+          ? aValue.toLowerCase().localeCompare(bValue.toLowerCase())
+          : bValue.toLowerCase().localeCompare(aValue.toLowerCase());
+      }
+
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
   };
 
-  /**
-   * Custom filter function for search
-   */
-  const customFilterFn = (data: Customer[], query: string) => {
-    if (!query) return data;
-    
-    const lowerQuery = query.toLowerCase();
-    return data.filter(
-      (customer) =>
-        customer.firstName.toLowerCase().includes(lowerQuery) ||
-        customer.lastName.toLowerCase().includes(lowerQuery) ||
-        customer.email.toLowerCase().includes(lowerQuery) ||
-        (customer.phoneNumber && customer.phoneNumber.includes(query))
+  // Filtering
+  const filteredCustomers = customers.filter((customer) => {
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      customer.firstName.toLowerCase().includes(searchLower) ||
+      customer.lastName.toLowerCase().includes(searchLower) ||
+      customer.email.toLowerCase().includes(searchLower) ||
+      customer.phoneNumber.toLowerCase().includes(searchLower) ||
+      customer.stripeCustomerId?.toLowerCase().includes(searchLower) || false
+    );
+  });
+
+  const sortedCustomers = getSortedCustomers(filteredCustomers);
+
+  // Column management
+  const toggleColumn = (columnId: ColumnId) => {
+    setColumns((prev) =>
+      prev.map((col) => (col.id === columnId ? { ...col, visible: !col.visible } : col))
     );
   };
 
-  /**
-   * Get sorted and filtered customer data
-   */
-  const processedCustomers = useMemo(
-    () => getSortedAndFilteredData(customers || [], customSortFn, customFilterFn),
-    [customers, sortConfig, searchQuery, getSortedAndFilteredData]
-  );
-
-  /**
-   * Handle viewing nested records
-   */
+  // View records
   const handleViewRecord = (
     customer: Customer,
     recordType: 'appointments' | 'storageUnitUsages' | 'packingSupplyOrders'
@@ -190,37 +214,30 @@ export function AdminCustomersPage() {
     setShowViewModal(true);
   };
 
-  /**
-   * Render cell content based on column type
-   */
-  const renderCellContent = (customer: Customer, column: Column<ColumnId>): React.ReactNode => {
+  // Render cell content
+  const renderCellContent = (customer: Customer, column: Column): React.ReactNode => {
     switch (column.id) {
       case 'phoneNumber':
         return customer.phoneNumber ? formatPhoneNumberForDisplay(customer.phoneNumber) : '-';
-      
       case 'verifiedPhoneNumber':
-        return customer.verifiedPhoneNumber ? 'Yes' : 'No';
-      
+        return <AdminBooleanBadge value={customer.verifiedPhoneNumber} />;
       case 'stripeCustomerId':
         return customer.stripeCustomerId || '-';
-      
       case 'appointments':
       case 'storageUnitUsages':
       case 'packingSupplyOrders': {
-        const recordType = column.id;
+        const recordType = column.id as 'appointments' | 'storageUnitUsages' | 'packingSupplyOrders';
         return customer[recordType].length > 0 ? (
-          <button
+          <AdminActionButton
+            variant="indigo"
             onClick={() => handleViewRecord(customer, recordType)}
-            className="inline-flex items-center bg-primary/10 px-2.5 py-1 text-sm font-inter rounded-md font-medium text-primary ring-1 ring-inset ring-primary/20 hover:bg-primary/20 transition-colors"
-            aria-label={`View ${column.label} for ${customer.firstName} ${customer.lastName}`}
           >
-            View Records ({customer[recordType].length})
-          </button>
+            View Records
+          </AdminActionButton>
         ) : (
           '-'
         );
       }
-      
       default: {
         const value = customer[column.id as keyof Customer];
         return typeof value === 'string' || typeof value === 'number' ? value : '-';
@@ -228,172 +245,117 @@ export function AdminCustomersPage() {
     }
   };
 
-  /**
-   * Render modal content based on record type
-   */
-  const renderModalContent = () => {
-    if (!selectedCustomer || !selectedRecordType) return null;
-
-    const records = selectedCustomer[selectedRecordType];
-
-    if (selectedRecordType === 'appointments') {
-      return (
-        <div className="space-y-4">
-          {records.map((apt: any) => (
-            <div key={apt.id} className="border-b border-border pb-4 last:border-0">
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className="text-text-secondary">Job Code:</span>
-                  <span className="ml-2 text-text-primary font-medium">{apt.jobCode}</span>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Status:</span>
-                  <span className="ml-2 text-text-primary">{apt.status}</span>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Type:</span>
-                  <span className="ml-2 text-text-primary">{apt.appointmentType}</span>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Date:</span>
-                  <span className="ml-2 text-text-primary">
-                    {new Date(apt.date).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    if (selectedRecordType === 'storageUnitUsages') {
-      return (
-        <div className="space-y-4">
-          {records.map((usage: any) => (
-            <div key={usage.id} className="border-b border-border pb-4 last:border-0">
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className="text-text-secondary">Unit:</span>
-                  <span className="ml-2 text-text-primary font-medium">
-                    {usage.storageUnit.storageUnitNumber}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Start Date:</span>
-                  <span className="ml-2 text-text-primary">
-                    {new Date(usage.usageStartDate).toLocaleDateString()}
-                  </span>
-                </div>
-                {usage.usageEndDate && (
-                  <div>
-                    <span className="text-text-secondary">End Date:</span>
-                    <span className="ml-2 text-text-primary">
-                      {new Date(usage.usageEndDate).toLocaleDateString()}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    if (selectedRecordType === 'packingSupplyOrders') {
-      return (
-        <div className="space-y-4">
-          {records.map((order: any) => (
-            <div key={order.id} className="border-b border-border pb-4 last:border-0">
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className="text-text-secondary">Order Date:</span>
-                  <span className="ml-2 text-text-primary">
-                    {new Date(order.orderDate).toLocaleDateString()}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Status:</span>
-                  <span className="ml-2 text-text-primary">{order.status}</span>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Total:</span>
-                  <span className="ml-2 text-text-primary font-medium">
-                    ${(order.totalPrice / 100).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    return null;
-  };
+  if (error) return <div className="p-4 text-red-500">Error: {error}</div>;
 
   return (
-    <div className="space-y-6 p-6">
+    <div>
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold text-text-primary">Customers</h1>
-        <div className="flex gap-3">
-          <SearchAndFilterBar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            searchPlaceholder="Search customers..."
-          />
-          <ColumnManagerMenu
-            columns={columns}
-            onToggleColumn={toggleColumn}
-            showMenu={showColumnMenu}
-            onToggleMenu={() => setShowColumnMenu(!showColumnMenu)}
+      <AdminPageHeader title="Customers">
+        {/* Search */}
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search customers..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="block w-full rounded-md border-0 py-2 pl-3 pr-10 text-zinc-950 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 font-semibold"
           />
         </div>
-      </div>
+
+        {/* Column Customize */}
+        <ColumnManagerDropdown
+          columns={columns}
+          isOpen={showColumnMenu}
+          onToggle={() => setShowColumnMenu(!showColumnMenu)}
+          onToggleColumn={toggleColumn}
+        />
+      </AdminPageHeader>
 
       {/* Table */}
-      <AdminDataTable
-        columns={columns}
-        data={processedCustomers}
+      <AdminTable
+        columns={columns.map(col => ({
+          ...col,
+          sortable: ['firstName', 'lastName', 'email'].includes(col.id)
+        }))}
+        data={sortedCustomers}
         sortConfig={sortConfig}
-        onSort={(columnId) => handleSort(columnId as ColumnId)}
+        onSort={handleSort}
         loading={loading}
-        error={error}
+        error={error ? 'Failed to load customers' : null}
         emptyMessage="No customers found"
-        renderRow={(customer) => {
-          const visibleColumns = columns.filter((c) => c.visible);
-          return (
-            <tr key={customer.id} className="hover:bg-surface-tertiary transition-colors">
-              {visibleColumns.map((column) => (
-                <td key={column.id} className="px-3 py-4 text-sm text-text-primary whitespace-nowrap">
-                  {renderCellContent(customer, column)}
-                </td>
-              ))}
-            </tr>
-          );
-        }}
+        onRetry={fetchCustomers}
+        renderRow={(customer) => (
+          <tr key={customer.id} className="hover:bg-slate-50">
+            {columns.map(
+              (column) =>
+                column.visible && (
+                  <td key={column.id} className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
+                    {renderCellContent(customer, column)}
+                  </td>
+                )
+            )}
+          </tr>
+        )}
       />
 
-      {/* Detail Modal */}
-      <AdminDetailModal
-        isOpen={showViewModal}
-        onClose={() => {
-          setShowViewModal(false);
-          setSelectedCustomer(null);
-          setSelectedRecordType(null);
-        }}
-        title={
-          selectedRecordType === 'appointments'
-            ? 'Customer Appointments'
-            : selectedRecordType === 'storageUnitUsages'
-            ? 'Storage Unit Usage'
-            : 'Packing Supply Orders'
-        }
-        data={selectedCustomer && selectedRecordType ? selectedCustomer[selectedRecordType] : null}
-        renderContent={renderModalContent}
-        size="lg"
-      />
+      {/* View Modal */}
+      <Dialog open={showViewModal} onClose={() => setShowViewModal(false)} className="relative z-50">
+        <DialogBackdrop className="fixed inset-0 bg-black bg-opacity-50" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <DialogPanel className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <DialogTitle className="text-xl font-bold mb-4">
+              {selectedRecordType === 'appointments'
+                ? 'Appointments Details'
+                : selectedRecordType === 'storageUnitUsages'
+                ? 'Storage Unit Usage Details'
+                : 'Packing Supply Orders Details'}
+            </DialogTitle>
+            <div className="space-y-4">
+              {selectedCustomer && selectedRecordType === 'appointments' &&
+                selectedCustomer.appointments.map((appointment) => (
+                  <div key={appointment.id} className="border p-4 rounded-lg">
+                    <p className="font-semibold">Date: {new Date(appointment.date).toLocaleDateString()}</p>
+                    <p>Status: {appointment.status}</p>
+                    <p>Type: {appointment.appointmentType}</p>
+                    <p>Job Code: {appointment.jobCode}</p>
+                  </div>
+                ))}
+
+              {selectedCustomer && selectedRecordType === 'storageUnitUsages' &&
+                selectedCustomer.storageUnitUsages.map((usage) => (
+                  <div key={usage.id} className="border p-4 rounded-lg">
+                    <p className="font-semibold">Unit Number: {usage.storageUnit.storageUnitNumber}</p>
+                    <p>Start Date: {new Date(usage.usageStartDate).toLocaleDateString()}</p>
+                    <p>
+                      End Date: {usage.usageEndDate ? new Date(usage.usageEndDate).toLocaleDateString() : 'Active'}
+                    </p>
+                  </div>
+                ))}
+
+              {selectedCustomer && selectedRecordType === 'packingSupplyOrders' &&
+                selectedCustomer.packingSupplyOrders.map((order) => (
+                  <div key={order.id} className="border p-4 rounded-lg">
+                    <p className="font-semibold">Order Date: {new Date(order.orderDate).toLocaleDateString()}</p>
+                    <p>Status: {order.status}</p>
+                    <p>Total Price: ${order.totalPrice.toFixed(2)}</p>
+                  </div>
+                ))}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => {
+                  setShowViewModal(false);
+                  setSelectedRecordType(null);
+                }}
+              >
+                Close
+              </Button>
+            </div>
+          </DialogPanel>
+        </div>
+      </Dialog>
     </div>
   );
 }

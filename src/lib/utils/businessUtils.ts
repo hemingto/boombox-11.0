@@ -187,10 +187,19 @@ export const ServiceAreas = {
 
 /**
  * Check if zip code is in service area
+ * Checks against the zipCodePrices data which contains all serviced zip codes
  */
 export function isInServiceArea(zipCode: string): boolean {
-  const allServiceZips = Object.values(ServiceAreas).flat();
-  return allServiceZips.includes(zipCode);
+  // Import zipCodePrices dynamically to check if zip is serviced
+  // This is the source of truth for service area coverage
+  try {
+    const { zipCodePrices } = require('@/data/zipcodeprices');
+    return zipCode in zipCodePrices;
+  } catch (error) {
+    // Fallback to hardcoded list if import fails
+    const allServiceZips = Object.values(ServiceAreas).flat();
+    return allServiceZips.includes(zipCode);
+  }
 }
 
 /**

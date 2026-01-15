@@ -16,6 +16,7 @@
 
 import { stripe } from '@/lib/integrations/stripeClient';
 import type Stripe from 'stripe';
+import { accessStorageUnitPricing } from '@/data/accessStorageUnitPricing';
 
 // Import types from existing system (matches Prisma schema nullability)
 interface AppointmentWithRelations {
@@ -53,8 +54,6 @@ export interface InvoiceResult {
 import type { InvoiceItemData } from '../billing/AppointmentBillingService';
 
 export class StripeInvoiceService {
-  private static readonly ACCESS_STORAGE_UNIT_PRICING = 50; // Temporary - should come from pricing config
-
   /**
    * Main orchestration method for creating and paying appointment invoices
    */
@@ -90,7 +89,7 @@ export class StripeInvoiceService {
           total = storageResult.total;
           break;
 
-        case 'Access Storage':
+        case 'Storage Unit Access':
           const accessResult = await this.createAccessStorageInvoice(appointment, loadingHelpTotal);
           invoice = accessResult.invoice;
           total = accessResult.total;
@@ -155,25 +154,24 @@ export class StripeInvoiceService {
       ]
     });
 
-    // Add invoice items
+    // Add invoice items - use pre-calculated totals for Stripe invoiceItems.create
+    const numberOfUnits = appointment.numberOfUnits || 1;
     const invoiceItems: InvoiceItemData[] = [
       {
         customer: appointment.user.stripeCustomerId!,
-        amount: Math.round(appointment.monthlyStorageRate! * 100),
+        amount: Math.round(storageTotal * 100), // Total storage in cents
         currency: 'usd',
-        quantity: appointment.numberOfUnits!,
-        description: 'Monthly Storage Rate'
+        description: `Monthly Storage Rate (${numberOfUnits} unit${numberOfUnits > 1 ? 's' : ''} @ $${appointment.monthlyStorageRate}/unit)`
       },
       {
         customer: appointment.user.stripeCustomerId!,
-        amount: Math.round(appointment.monthlyInsuranceRate! * 100),
+        amount: Math.round(insuranceTotal * 100), // Total insurance in cents
         currency: 'usd',
-        quantity: appointment.numberOfUnits!,
-        description: appointment.insuranceCoverage || 'Insurance'
+        description: `${appointment.insuranceCoverage || 'Insurance'} (${numberOfUnits} unit${numberOfUnits > 1 ? 's' : ''} @ $${appointment.monthlyInsuranceRate}/unit)`
       },
       {
         customer: appointment.user.stripeCustomerId!,
-        amount: Math.round(loadingHelpTotal * 100),
+        amount: Math.round(loadingHelpTotal * 100), // Total amount
         currency: 'usd',
         description: `Loading Help Service (${Math.round(loadingHelpTotal / (appointment.loadingHelpPrice! / 60))} minutes, 1 hr minimum)`
       }
@@ -192,7 +190,7 @@ export class StripeInvoiceService {
     loadingHelpTotal: number
   ): Promise<{ invoice: Stripe.Invoice; total: number }> {
     const storageUnitCount = appointment.requestedStorageUnits.length;
-    const accessStorageTotal = this.ACCESS_STORAGE_UNIT_PRICING * storageUnitCount;
+    const accessStorageTotal = accessStorageUnitPricing * storageUnitCount;
     const total = loadingHelpTotal + accessStorageTotal;
 
     // Create invoice
@@ -206,13 +204,12 @@ export class StripeInvoiceService {
       ]
     });
 
-    // Add invoice items
+    // Add invoice items - use amount alone (no quantity) for total amounts
     const invoiceItems: InvoiceItemData[] = [
       {
         customer: appointment.user.stripeCustomerId!,
-        amount: Math.round(accessStorageTotal * 100),
+        amount: Math.round(accessStorageTotal * 100), // Total amount, no quantity needed
         currency: 'usd',
-        quantity: 1,
         description: `Storage Unit Access (${storageUnitCount} units)`
       },
       {
@@ -264,21 +261,23 @@ export class StripeInvoiceService {
       ]
     });
 
-    // Add invoice items
+    // Add invoice items - use pre-calculated totals
+    const numberOfUnits = appointment.numberOfUnits || 1;
+    const storageTerminationFee = appointment.monthlyStorageRate! * numberOfUnits * remainingMonths;
+    const insuranceTerminationFee = appointment.monthlyInsuranceRate! * numberOfUnits * remainingMonths;
+    
     const invoiceItems: InvoiceItemData[] = [
       {
         customer: customerId,
-        amount: Math.round(appointment.monthlyStorageRate! * 100),
+        amount: Math.round(storageTerminationFee * 100), // Total in cents
         currency: 'usd',
-        quantity: appointment.numberOfUnits! * remainingMonths,
-        description: `Early Termination Fee - Storage (${remainingMonths} months remaining)`
+        description: `Early Termination Fee - Storage (${numberOfUnits} unit${numberOfUnits > 1 ? 's' : ''} × ${remainingMonths} months @ $${appointment.monthlyStorageRate}/mo)`
       },
       {
         customer: customerId,
-        amount: Math.round(appointment.monthlyInsuranceRate! * 100),
+        amount: Math.round(insuranceTerminationFee * 100), // Total in cents
         currency: 'usd',
-        quantity: appointment.numberOfUnits! * remainingMonths,
-        description: `Early Termination Fee - Insurance (${remainingMonths} months remaining)`
+        description: `Early Termination Fee - Insurance (${numberOfUnits} unit${numberOfUnits > 1 ? 's' : ''} × ${remainingMonths} months @ $${appointment.monthlyInsuranceRate}/mo)`
       }
     ];
 

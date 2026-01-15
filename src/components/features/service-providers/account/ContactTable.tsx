@@ -54,6 +54,7 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
     contactInfo,
     movingPartnerStatus,
     isLoading,
+    isSaving,
     error,
     editField,
     editedInfo,
@@ -89,7 +90,10 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
       const response = await fetch('/api/auth/send-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber: contactInfo.phoneNumber }),
+        body: JSON.stringify({ 
+          phoneNumber: contactInfo.phoneNumber,
+          skipAccountCheck: true // Skip account lookup for phone verification flow
+        }),
       });
 
       if (!response.ok) {
@@ -154,7 +158,10 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
       const response = await fetch('/api/auth/send-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber: contactInfo.phoneNumber }),
+        body: JSON.stringify({ 
+          phoneNumber: contactInfo.phoneNumber,
+          skipAccountCheck: true // Skip account lookup for phone verification flow
+        }),
       });
 
       if (!response.ok) {
@@ -229,7 +236,7 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
       <div className="bg-surface-primary rounded-md shadow-custom-shadow p-6">
         {/* Name Field */}
         <div className="flex items-start justify-between border-b border-border-secondary">
-          <div className="w-full pb-4">
+          <div className="flex flex-col w-full pt-4 pb-4">
             <label
               className={`${
                 editField &&
@@ -243,7 +250,7 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
               {userType === 'driver' ? 'Name' : 'Company Name'}
             </label>
             {isEditable(userType === 'driver' ? 'firstName' : 'name') ? (
-              <>
+              <div>
                 {userType === 'driver' ? (
                   <div className="mt-2 flex gap-2 max-w-md">
                     <input
@@ -313,15 +320,16 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
                       }
                       handleSave();
                     }}
-                    className="block rounded-md py-2.5 px-6 font-semibold bg-primary text-text-inverse hover:bg-primary-hover active:bg-zinc-700 font-inter"
+                    disabled={isSaving}
+                    className="block rounded-md py-2.5 px-6 font-semibold bg-primary text-text-inverse hover:bg-primary-hover active:bg-zinc-700 font-inter disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Save
+                    {isSaving ? 'Saving...' : 'Save'}
                   </button>
                 </div>
-              </>
+              </div>
             ) : (
               <p
-                className={`mt-2 text-sm text-text-secondary ${
+                className={`mt-2 text-sm text-text-tertiary ${
                   isGrayedOut('name') ||
                   isGrayedOut('firstName') ||
                   isGrayedOut('lastName')
@@ -338,7 +346,7 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
           {isEditable(userType === 'driver' ? 'firstName' : 'name') ? (
             <button
               onClick={handleCancel}
-              className="decoration-dotted hover:decoration-solid underline underline-offset-2 text-sm"
+              className="decoration-dotted hover:decoration-solid underline underline-offset-2 pt-4 text-sm"
             >
               Cancel
             </button>
@@ -347,7 +355,7 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
               onClick={() =>
                 handleEdit(userType === 'driver' ? 'firstName' : 'name')
               }
-              className={`decoration-dotted hover:decoration-solid underline underline-offset-2 text-sm ${
+              className={`mt-4 decoration-dotted hover:decoration-solid underline underline-offset-2 text-sm ${
                 isGrayedOut('name') ||
                 isGrayedOut('firstName') ||
                 isGrayedOut('lastName')
@@ -403,14 +411,15 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
                         }
                         handleSave();
                       }}
-                      className="block rounded-md py-2.5 px-6 font-semibold bg-primary text-text-inverse hover:bg-primary-hover active:bg-zinc-700 font-inter"
+                      disabled={isSaving}
+                      className="block rounded-md py-2.5 px-6 font-semibold bg-primary text-text-inverse hover:bg-primary-hover active:bg-zinc-700 font-inter disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Save
+                      {isSaving ? 'Saving...' : 'Save'}
                     </button>
                   </div>
                 </div>
               ) : (
-                <p className="mt-2 text-sm text-text-secondary">
+                <p className="mt-2 text-sm text-text-tertiary">
                   {contactInfo?.description || 'No description provided'}
                 </p>
               )}
@@ -466,14 +475,15 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
                 <div className="flex space-x-4">
                   <button
                     onClick={handleSave}
-                    className="block rounded-md py-2.5 px-6 font-semibold bg-primary text-text-inverse hover:bg-primary-hover active:bg-zinc-700 font-inter"
+                    disabled={isSaving}
+                    className="block rounded-md py-2.5 px-6 font-semibold bg-primary text-text-inverse hover:bg-primary-hover active:bg-zinc-700 font-inter disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Save
+                    {isSaving ? 'Saving...' : 'Save'}
                   </button>
                 </div>
               </div>
             ) : (
-              <p className="mt-2 text-sm text-text-secondary">
+              <p className="mt-2 text-sm text-text-tertiary">
                 {contactInfo?.email}
               </p>
             )}
@@ -530,14 +540,15 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
                 <div className="flex gap-2">
                   <button
                     onClick={handleSave}
-                    className="block rounded-md py-2.5 px-6 font-semibold bg-primary text-text-inverse hover:bg-primary-hover active:bg-zinc-700 font-inter"
+                    disabled={isSaving}
+                    className="block rounded-md py-2.5 px-6 font-semibold bg-primary text-text-inverse hover:bg-primary-hover active:bg-zinc-700 font-inter disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Save
+                    {isSaving ? 'Saving...' : 'Save'}
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-2 mt-2 text-sm text-text-secondary">
+              <div className="flex items-center gap-2 mt-2 text-sm text-text-tertiary">
                 {formatPhoneNumberForDisplay(contactInfo?.phoneNumber ?? '')}
                 {contactInfo?.verifiedPhoneNumber ? (
                   <span className="px-3 py-2 text-xs text-status-success bg-status-bg-success rounded-md">
@@ -609,14 +620,15 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
                   <div className="flex space-x-4">
                     <button
                       onClick={handleSave}
-                      className="block rounded-md py-2.5 px-6 font-semibold bg-primary text-text-inverse hover:bg-primary-hover active:bg-zinc-700 font-inter"
+                      disabled={isSaving}
+                      className="block rounded-md py-2.5 px-6 font-semibold bg-primary text-text-inverse hover:bg-primary-hover active:bg-zinc-700 font-inter disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Save
+                      {isSaving ? 'Saving...' : 'Save'}
                     </button>
                   </div>
                 </div>
               ) : (
-                <p className="mt-2 text-sm text-text-secondary">
+                <p className="mt-2 text-sm text-text-tertiary">
                   ${contactInfo?.hourlyRate?.toFixed(2) || '0.00'}/hour
                 </p>
               )}
@@ -644,7 +656,7 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
         {/* Website Field (Movers Only) */}
         {userType === 'mover' && (
           <div
-            className={`flex items-start justify-between border-b border-border-secondary ${
+            className={`flex items-start justify-between ${
               isGrayedOut('website') ? 'opacity-50' : ''
             }`}
           >
@@ -673,14 +685,15 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
                   <div className="flex space-x-4">
                     <button
                       onClick={handleSave}
-                      className="block rounded-md py-2.5 px-6 font-semibold bg-primary text-text-inverse hover:bg-primary-hover active:bg-zinc-700 font-inter"
+                      disabled={isSaving}
+                      className="block rounded-md py-2.5 px-6 font-semibold bg-primary text-text-inverse hover:bg-primary-hover active:bg-zinc-700 font-inter disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Save
+                      {isSaving ? 'Saving...' : 'Save'}
                     </button>
                   </div>
                 </div>
               ) : (
-                <p className="mt-2 text-sm text-text-secondary">
+                <p className="mt-2 text-sm text-text-tertiary">
                   {contactInfo?.website ? (
                     <a
                       href={contactInfo.website}
@@ -721,10 +734,10 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
         {/* Company Partner (Linked Drivers Only) */}
         {userType === 'driver' &&
           movingPartnerStatus?.isLinkedToMovingPartner && (
-            <div className="flex items-start justify-between border-b border-border-secondary">
+            <div className="flex items-start justify-between">
               <div className="flex flex-col w-full pt-4 pb-4">
                 <label>Company Partner</label>
-                <p className="mt-2 text-sm text-text-secondary">
+                <p className="mt-2 text-sm text-text-tertiary">
                   {movingPartnerStatus.movingPartner?.name}
                 </p>
               </div>
@@ -770,9 +783,10 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
                     <div className="flex space-x-4 mt-4">
                       <button
                         onClick={handleSaveServices}
-                        className="block mt-2 rounded-md py-2.5 px-6 font-semibold bg-primary text-text-inverse hover:bg-primary-hover active:bg-zinc-700 font-inter"
+                        disabled={isSaving}
+                        className="block mt-2 rounded-md py-2.5 px-6 font-semibold bg-primary text-text-inverse hover:bg-primary-hover active:bg-zinc-700 font-inter disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Save
+                        {isSaving ? 'Saving...' : 'Save'}
                       </button>
                     </div>
                   </div>

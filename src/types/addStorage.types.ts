@@ -197,6 +197,7 @@ export interface UseAddStorageFormReturn {
   updateScheduling: (date: Date | null, timeSlot: string | null) => void;
   updatePricing: (pricing: Partial<PricingInfo>) => void;
   validateStep: (step: AddStorageStep) => StepValidationResult;
+  setError: (errorKey: keyof AddStorageFormErrors, error: string | null) => void;
   clearError: (errorKey: keyof AddStorageFormErrors) => void;
   resetForm: () => void;
   togglePlanDetails: () => void;

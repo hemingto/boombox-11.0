@@ -45,6 +45,17 @@ export const storageUnitSchema = z.object({
   location: z.string().nullable().optional()
 });
 
+// Schema for pending appointment data from accessRequests
+const pendingAppointmentSchema = z.object({
+  id: z.number().positive(),
+  date: z.string().or(z.date()),
+  status: z.string()
+});
+
+const accessRequestSchema = z.object({
+  appointment: pendingAppointmentSchema.nullable().optional()
+});
+
 export const storageUnitUsageSchema = z.object({
   id: z.number().positive(),
   usageStartDate: z.string().min(1, 'Usage start date is required'),
@@ -55,7 +66,9 @@ export const storageUnitUsageSchema = z.object({
   storageUnit: z.object({
     id: z.number().positive(),
     storageUnitNumber: z.string().min(1, 'Storage unit number is required'),
-    mainImage: z.string().nullable().optional()
+    mainImage: z.string().nullable().optional(),
+    // Access requests for this storage unit (pending appointments)
+    accessRequests: z.array(accessRequestSchema).optional()
   }),
   appointment: z.any().optional(),
   uploadedImages: z.array(z.string()).default([]),
@@ -90,7 +103,7 @@ export const deliveryPurposeStepSchema = z.object({
   address: z.string().min(1, 'Please enter your address by selecting from the verified dropdown options'),
   zipCode: zipCodeSchema,
   coordinates: coordinatesSchema.nullable(),
-  cityName: z.string().min(1, 'City name is required'),
+  cityName: z.string(), // Made optional - not all addresses have city names extracted
   selectedStorageUnits: z
     .array(z.string())
     .min(1, 'Please select at least one unit'),
@@ -232,6 +245,7 @@ export const appointmentDetailsResponseSchema = z.object({
   loadingHelpPrice: z.number().min(0),
   monthlyStorageRate: z.number().min(0),
   monthlyInsuranceRate: z.number().min(0),
+  insuranceCoverage: z.string().nullable(),
   quotedPrice: z.number().min(0),
   status: z.string(),
   user: z.object({
@@ -467,12 +481,35 @@ export const validateStorageUnitSelection = (
 };
 
 /**
+ * Options for appointment date/time validation
+ */
+export interface ValidateAppointmentDateTimeOptions {
+  /** 
+   * Whether this is edit mode - allows past times for existing appointments.
+   * When true and originalDateTime is provided, skips past-time check if unchanged.
+   */
+  isEditMode?: boolean;
+  /** 
+   * The original appointment date/time (for edit mode).
+   * If the date/time matches this, skip the past-time validation.
+   */
+  originalDateTime?: Date | null;
+}
+
+/**
  * Validates appointment date/time combination
+ * 
+ * @param date - The selected date
+ * @param timeSlot - The selected time slot (e.g., "10am-11am")
+ * @param options - Optional validation options for edit mode
  */
 export const validateAppointmentDateTime = (
   date: Date | null,
-  timeSlot: string | null
+  timeSlot: string | null,
+  options: ValidateAppointmentDateTimeOptions = {}
 ) => {
+  const { isEditMode = false, originalDateTime = null } = options;
+  
   if (!date || !timeSlot) {
     return { isValid: false, error: 'Please select a date and time slot' };
   }
@@ -495,11 +532,30 @@ export const validateAppointmentDateTime = (
   appointmentDateTime.setHours(hours, minutes, 0, 0);
   
   // Check if appointment is in the past
-  if (appointmentDateTime < new Date()) {
+  const now = new Date();
+  const isInPast = appointmentDateTime < now;
+  
+  if (isInPast) {
+    // In edit mode, allow the original date/time to be kept even if it's in the past
+    if (isEditMode && originalDateTime) {
+      // Check if the selected date/time matches the original appointment
+      const originalDate = new Date(originalDateTime);
+      const isSameDateTime = 
+        appointmentDateTime.getFullYear() === originalDate.getFullYear() &&
+        appointmentDateTime.getMonth() === originalDate.getMonth() &&
+        appointmentDateTime.getDate() === originalDate.getDate() &&
+        appointmentDateTime.getHours() === originalDate.getHours();
+      
+      if (isSameDateTime) {
+        // Allow keeping the original time slot unchanged
+        return { isValid: true, error: null, appointmentDateTime, isOriginalDateTime: true };
+      }
+    }
+    
     return { isValid: false, error: 'Appointment cannot be scheduled in the past' };
   }
 
-  return { isValid: true, error: null, appointmentDateTime };
+  return { isValid: true, error: null, appointmentDateTime, isOriginalDateTime: false };
 };
 
 /**

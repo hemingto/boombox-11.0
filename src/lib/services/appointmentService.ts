@@ -278,19 +278,13 @@ export async function processOnfleetAndAssignDriver(
 
     console.log(`PROCESS_ONFLEET: DEBUG - Payload for create-task:`, JSON.stringify(payload, null, 2));
 
-    // Use the AppointmentOnfleetService for task creation
-    const { AppointmentOnfleetService } = await import('@/lib/services/appointmentOnfleetService');
-    const onfleetService = new AppointmentOnfleetService();
+    // Use the createOnfleetTasksWithDatabaseSave function for task creation
+    const { createOnfleetTasksWithDatabaseSave } = await import('@/lib/services/appointmentOnfleetService');
     
-    console.log(`PROCESS_ONFLEET: DEBUG - Calling AppointmentOnfleetService.createAdditionalTasks for Appointment ID: ${appointmentId}.`);
+    console.log(`PROCESS_ONFLEET: DEBUG - Calling createOnfleetTasksWithDatabaseSave for Appointment ID: ${appointmentId}.`);
     
-    // Use the AppointmentOnfleetService to create tasks
-    // Note: This uses the same service that the edit route uses
-    const taskResult = await onfleetService.createAdditionalTasks(
-      appointmentId,
-      [], // Unit numbers - will be handled by the service
-      payload
-    );
+    // Create Onfleet tasks and save to database
+    const taskResult = await createOnfleetTasksWithDatabaseSave(payload);
     
     console.log(`PROCESS_ONFLEET: DEBUG - Successfully created Onfleet tasks for Appointment ID: ${appointmentId}. Result:`, taskResult);
 

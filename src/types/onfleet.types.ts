@@ -297,3 +297,86 @@ export function isOnfleetWebhookEvent(
     'triggerId' in obj
   );
 }
+
+// ===== ONFLEET TASK CREATION TYPES (BOOMBOX 11.0) =====
+
+/**
+ * Payload for creating Onfleet tasks via API
+ */
+export interface OnfleetTaskPayload {
+  destination: {
+    address: {
+      apartment?: string;
+      state: string;
+      postalCode: string;
+      number: string;
+      street: string;
+      city: string;
+      country: string;
+    };
+  };
+  recipients: Array<{
+    name: string;
+    phone: string;
+    notes?: string;
+    skipPhoneNumberValidation?: boolean;
+  }>;
+  notes: string;
+  serviceTime?: number;
+  completeAfter: number;
+  completeBefore: number;
+  quantity: number;
+  container: {
+    type: 'TEAM';
+    team: string;
+  };
+  recipientSkipSMSNotifications?: boolean;
+  pickupTask?: boolean;
+  requirePhoto?: boolean;
+  dependencies?: string[];
+  customFields: Array<{
+    key: string;
+    value: number | string;
+  }>;
+  metadata: Array<{
+    name: string;
+    type: 'boolean' | 'number' | 'string';
+    value: boolean | number | string;
+    visibility: string[];
+  }>;
+}
+
+/**
+ * Result from creating linked Onfleet tasks
+ */
+export interface OnfleetTaskCreationResult {
+  taskIds: {
+    pickup: string[];
+    customer: string[];
+    return: string[];
+  };
+  shortIds: {
+    pickup: string[];
+    customer: string[];
+    return: string[];
+  };
+}
+
+/**
+ * Configuration for task note generation
+ */
+export interface TaskNotesConfig {
+  appointmentType: string;
+  planType: string;
+  unitNumber: number;
+  isFirstUnit: boolean;
+}
+
+/**
+ * Configuration for task timing calculations
+ */
+export interface TaskTimingConfig {
+  appointmentTime: Date;
+  existingUnitCount: number;
+  currentUnitIndex: number;
+}

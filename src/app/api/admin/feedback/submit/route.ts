@@ -37,9 +37,7 @@ export async function POST(req: Request) {
     console.log('Raw request body:', body);
 
     const validatedData = SubmitFeedbackRequestSchema.parse(body);
-    const { appointmentId, rating, comments: comment } = validatedData;
-    const tipAmount = (validatedData as any).tipAmount;
-    const driverRatings = (validatedData as any).driverRatings;
+    const { appointmentId, rating, comments: comment, tipAmount, driverRatings } = validatedData;
 
     console.log('API received parsed data:', {
       appointmentId,

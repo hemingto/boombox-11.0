@@ -27,10 +27,10 @@
 
 import React from 'react';
 import { TrashIcon, XMarkIcon, DocumentIcon } from '@heroicons/react/24/outline';
-import { PhotoIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import { usePhotoUpload, type UsePhotoUploadOptions } from '@/hooks/usePhotoUpload';
 import { cn } from '@/lib/utils/cn';
+import { Button } from '@/components/ui/primitives/Button/Button';
 
 export interface PhotoUploadsProps extends UsePhotoUploadOptions {
   /**
@@ -62,6 +62,21 @@ export interface PhotoUploadsProps extends UsePhotoUploadOptions {
    * Whether the component is disabled
    */
   disabled?: boolean;
+  
+  /**
+   * Name attribute for the field (used for error message ID)
+   */
+  name?: string;
+  
+  /**
+   * Error message to display (e.g., validation error)
+   */
+  error?: string;
+  
+  /**
+   * Callback to clear the error when modal opens
+   */
+  onErrorClear?: () => void;
 }
 
 /**
@@ -75,6 +90,9 @@ const PhotoUploads: React.FC<PhotoUploadsProps> = ({
   aspectRatio = "aspect-square",
   className,
   disabled = false,
+  name,
+  error,
+  onErrorClear,
   ...uploadOptions
 }) => {
   const {
@@ -99,19 +117,46 @@ const PhotoUploads: React.FC<PhotoUploadsProps> = ({
   const modalContentHeight = "h-64";
 
   /**
+   * Clone icon with error styling if needed
+   */
+  const renderIcon = () => {
+    if (!React.isValidElement(icon)) return icon;
+    
+    if (error) {
+      const existingClassName = (icon.props as any).className || '';
+      const errorClassName = existingClassName.replace(/text-\S+/, 'text-red-100');
+      return React.cloneElement(icon as React.ReactElement<any>, {
+        className: errorClassName
+      });
+    }
+    
+    return icon;
+  };
+
+  /**
+   * Handle opening the modal and clear error
+   */
+  const handleOpenModal = () => {
+    if (onErrorClear) {
+      onErrorClear();
+    }
+    handleAddPhotosClick();
+  };
+
+  /**
    * Render the upload modal content based on current state
    * @source boombox-10.0/src/app/components/reusablecomponents/photouploads.tsx (lines 280-432)
    */
   const renderModalContent = () => {
     if (uploadState === 'selecting') {
       return (
-        <div className="fixed inset-0 bg-overlay-primary flex items-center justify-center z-50">
-          <div className="bg-surface-primary rounded-lg shadow-custom-shadow w-full max-w-xl" role="dialog" aria-modal="true" aria-labelledby="modal-title-selecting">
-            <div className="flex justify-between items-center p-4 border-b border-border">
-              <h3 id="modal-title-selecting" className="text-lg font-medium text-text-primary">{photoUploadTitle}</h3>
+        <div className="fixed inset-0 bg-primary bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-surface-primary rounded-lg shadow-xl w-full max-w-xl" role="dialog" aria-modal="true" aria-labelledby="modal-title-selecting">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 id="modal-title-selecting" className="text-lg font-medium">{photoUploadTitle}</h3>
               <button
                 onClick={handleCloseModal}
-                className="w-8 h-8 flex items-center justify-center rounded-full transition-colors text-text-primary hover:bg-surface-tertiary active:bg-surface-disabled focus-visible"
+                className="w-8 h-8 flex items-center justify-center rounded-full text-text-primary hover:bg-surface-tertiary active:bg-slate-200"
                 aria-label="Close upload modal"
               >
                 <XMarkIcon className="w-5 h-5" />
@@ -119,30 +164,20 @@ const PhotoUploads: React.FC<PhotoUploadsProps> = ({
             </div>
             <div 
               className={cn(
-                "p-8 m-4 border-2 border-dashed rounded-md text-center flex flex-col items-center justify-center transition-colors",
-                modalContentHeight,
-                "border-border hover:border-border-focus hover:bg-surface-secondary"
+                "p-8 m-4 border-2 border-dashed border-slate-200 rounded-md text-center flex flex-col items-center justify-center",
+                modalContentHeight
               )}
               onDragOver={handleDragOver}
               onDrop={handleDrop}
-              role="button"
-              tabIndex={0}
-              aria-label="Drag and drop files here or click to browse"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  fileInputRef.current?.click();
-                }
-              }}
             >
-              <div className="flex justify-center items-center mb-4 text-text-secondary">
+              <div className="flex justify-center items-center mb-2">
                 {icon}
               </div>
-              <h4 className="text-lg font-medium mb-2 text-text-primary">Drag and drop</h4>
-              <p className="text-sm text-text-secondary mb-4">or browse for photos</p>
+              <h4 className="text-lg font-medium mb-2">Drag and drop</h4>
+              <p className="text-sm text-text-tertiary mb-4">or browse for photos</p>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="btn-primary focus-visible"
+                className="py-2.5 px-6 bg-primary text-text-inverse font-semibold rounded-md hover:bg-primary-hover active:bg-primary-active font-inter focus:outline-none"
                 type="button"
               >
                 Browse
@@ -153,38 +188,36 @@ const PhotoUploads: React.FC<PhotoUploadsProps> = ({
                 onChange={handleFileSelect}
                 multiple={uploadOptions.maxPhotos !== 1}
                 accept="image/*,.pdf,application/pdf"
-                className="sr-only"
-                aria-hidden="true"
+                className="hidden"
               />
             </div>
             
             {uploadError && (
-              <div className="px-4" role="alert">
+              <div className="px-4">
                 <div className="p-4 mb-4 bg-status-bg-error border border-status-error rounded-md">
-                  <p className="text-sm text-status-text-error">{uploadError}</p>
+                  <p className="text-sm text-status-error">{uploadError}</p>
                 </div>
               </div>
             )}
             
-            <div className="flex justify-between items-center p-4 border-t border-border">
-              <button
+            <div className="flex justify-between items-center p-4 border-t">
+              <Button
                 onClick={handleCloseModal}
-                className="btn-secondary focus-visible"
+                variant="secondary"
+                size="md"
                 type="button"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleComplete}
                 disabled={selectedFiles.length === 0}
-                className={cn(
-                  "btn-primary focus-visible",
-                  selectedFiles.length === 0 && "opacity-50 cursor-not-allowed"
-                )}
+                variant="primary"
+                size="md"
                 type="button"
               >
                 Upload
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -193,13 +226,13 @@ const PhotoUploads: React.FC<PhotoUploadsProps> = ({
 
     if (uploadState === 'preview' || uploadState === 'uploading' || uploadState === 'complete') {
       return (
-        <div className="fixed inset-0 bg-overlay-primary flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-primary bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-surface-primary rounded-lg shadow-custom-shadow w-full max-w-xl" role="dialog" aria-modal="true" aria-labelledby="modal-title-preview">
-            <div className="flex justify-between items-center p-4 border-b border-border">
-              <h3 id="modal-title-preview" className="text-lg font-medium text-text-primary">{photoUploadTitle}</h3>
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 id="modal-title-preview" className="text-lg font-medium">{photoUploadTitle}</h3>
               <button
                 onClick={handleCloseModal}
-                className="w-8 h-8 flex items-center justify-center rounded-full transition-colors text-text-primary hover:bg-surface-tertiary active:bg-surface-disabled focus-visible"
+                className="w-8 h-8 flex items-center justify-center rounded-full text-text-primary hover:bg-surface-tertiary active:bg-slate-200"
                 aria-label="Close upload modal"
               >
                 <XMarkIcon className="w-5 h-5" />
@@ -211,17 +244,17 @@ const PhotoUploads: React.FC<PhotoUploadsProps> = ({
                 {selectedFiles.map((file, index) => (
                   <div key={index} className="relative">
                     <div className={cn(
-                      "relative w-full bg-surface-tertiary rounded-md overflow-hidden",
+                      "relative w-full bg-slate-100 rounded-md overflow-hidden",
                       modalContentHeight
                     )}>
                       {file.type.includes('pdf') || file.name.toLowerCase().endsWith('.pdf') ? (
                         <div className="w-full h-full flex items-center justify-center bg-surface-tertiary">
                           <div className="flex flex-col items-center justify-center p-4">
                             <DocumentIcon className="w-12 h-12 text-text-secondary mb-2" />
-                            <p className="text-sm font-medium text-text-primary truncate max-w-full">
+                            <p className="text-sm font-medium text-text-tertiary truncate max-w-full">
                               {file.name}
                             </p>
-                            <p className="text-xs text-text-secondary">
+                            <p className="text-xs text-zinc-500">
                               PDF Document
                             </p>
                           </div>
@@ -238,68 +271,42 @@ const PhotoUploads: React.FC<PhotoUploadsProps> = ({
                       {uploadState === 'preview' && (
                         <button
                           onClick={() => handleDelete(index)}
-                          className="absolute top-4 right-4 w-8 h-8 bg-overlay-secondary rounded-full flex items-center justify-center text-text-inverse hover:bg-overlay-primary transition-all focus-visible"
+                          className="absolute top-4 right-4 w-8 h-8 bg-primary bg-opacity-50 rounded-full flex items-center justify-center text-text-inverse hover:bg-opacity-80"
                           aria-label={`Delete ${file.name}`}
                         >
                           <TrashIcon className="w-5 h-5" />
                         </button>
                       )}
                     </div>
-                    
-                    {/* Upload progress indicator */}
-                    {uploadState === 'uploading' && (
-                      <div className="absolute bottom-2 left-2 right-2">
-                        <div className="bg-surface-primary rounded-full p-2">
-                          <div className="w-full bg-surface-disabled rounded-full h-2">
-                            <div 
-                              className="bg-primary h-2 rounded-full transition-all duration-300"
-                              style={{ width: `${uploadProgress}%` }}
-                              role="progressbar"
-                              aria-valuenow={uploadProgress}
-                              aria-valuemin={0}
-                              aria-valuemax={100}
-                              aria-label={`Upload progress: ${uploadProgress}%`}
-                            />
-                          </div>
-                          <p className="text-xs text-text-secondary mt-1 text-center">
-                            {uploadProgress}% uploaded
-                          </p>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
             </div>
             
             {uploadError && (
-              <div className="px-4" role="alert">
+              <div className="px-4">
                 <div className="p-4 mb-4 bg-status-bg-error border border-status-error rounded-md">
-                  <p className="text-sm text-status-text-error">{uploadError}</p>
+                  <p className="text-sm text-status-error">{uploadError}</p>
                 </div>
               </div>
             )}
             
-            <div className="flex justify-between items-center p-4 border-t border-border">
-              <button
-                onClick={() => {
-                  if (uploadState === 'preview') {
-                    handleCloseModal();
-                  }
-                }}
-                className="btn-secondary focus-visible"
+            <div className="flex justify-between items-center p-4 border-t">
+              <Button
+                onClick={handleCloseModal}
+                variant="secondary"
+                size="md"
                 disabled={uploadState === 'uploading'}
                 type="button"
               >
                 {uploadState === 'preview' ? 'Back' : 'Cancel'}
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleComplete}
                 disabled={uploadState === 'uploading'}
-                className={cn(
-                  "btn-primary focus-visible",
-                  uploadState === 'uploading' && "opacity-50 cursor-not-allowed"
-                )}
+                variant="primary"
+                size="md"
+                loading={uploadState === 'uploading'}
                 type="button"
               >
                 {uploadState === 'preview' && uploadOptions.directUpload 
@@ -307,7 +314,7 @@ const PhotoUploads: React.FC<PhotoUploadsProps> = ({
                   : uploadState === 'uploading' 
                     ? 'Uploading...' 
                     : 'Done'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -320,11 +327,11 @@ const PhotoUploads: React.FC<PhotoUploadsProps> = ({
   return (
     <div className={cn("w-full", className)}>
       <div className={cn(
-        "w-full rounded-md flex items-center justify-center relative transition-colors",
+        "w-full rounded-md flex items-center justify-center relative",
         uploadState === 'done' 
-          ? "border-2 border-solid border-border bg-surface-primary" 
-          : "border-2 border-dashed border-border bg-surface-secondary",
-        !disabled && "hover:border-border-focus hover:bg-surface-tertiary",
+          ? "bg-surface-tertiary" 
+          : "border-2 border-dashed border-slate-200 bg-surface-tertiary",
+        error && "border-border-error border-dashed bg-red-50",
         disabled && "opacity-50 cursor-not-allowed"
       )}>
         {uploadState === 'done' && selectedFiles.length > 0 ? (
@@ -333,10 +340,10 @@ const PhotoUploads: React.FC<PhotoUploadsProps> = ({
               <div className="w-full h-full flex items-center justify-center bg-surface-tertiary p-10 rounded-md">
                 <div className="flex flex-col items-center justify-center p-4">
                   <DocumentIcon className="w-16 h-16 text-text-secondary mb-2" />
-                  <p className="text-sm font-medium text-text-primary truncate max-w-full">
+                  <p className="text-sm font-medium text-text-tertiary truncate max-w-full">
                     {selectedFiles[0].name}
                   </p>
-                  <p className="text-xs text-text-secondary">
+                  <p className="text-xs text-zinc-500">
                     PDF Document
                   </p>
                 </div>
@@ -352,7 +359,7 @@ const PhotoUploads: React.FC<PhotoUploadsProps> = ({
             )}
             <button
               onClick={handleDeleteUploadedPhoto}
-              className="absolute top-4 right-4 p-3 bg-overlay-secondary text-text-inverse rounded-full hover:bg-overlay-primary transition-all focus-visible"
+              className="absolute top-4 right-4 font-inter font-semibold p-3 bg-primary bg-opacity-70 text-text-inverse rounded-full hover:bg-opacity-90 focus-visible"
               disabled={disabled}
               aria-label="Delete uploaded photo"
             >
@@ -361,12 +368,17 @@ const PhotoUploads: React.FC<PhotoUploadsProps> = ({
           </div>
         ) : (
           <div className="p-10 flex flex-col items-center justify-center">
-            <div className="text-text-secondary mb-2" data-testid="photo-icon">
-              {icon}
+            <div className="mb-2" data-testid="photo-icon">
+              {renderIcon()}
             </div>
             <button 
-              onClick={handleAddPhotosClick} 
-              className="btn-secondary mt-2 focus-visible"
+              onClick={handleOpenModal} 
+              className={cn(
+                "font-inter font-semibold mt-2 px-6 py-3 rounded-md text-sm focus:outline-none",
+                error 
+                  ? "border-border-error ring-2 ring-border-error bg-red-50 text-status-error" 
+                  : "bg-surface-primary border border-text-disabled text-text-tertiary hover:bg-slate-50"
+              )}
               disabled={disabled}
               type="button"
             >
@@ -375,6 +387,12 @@ const PhotoUploads: React.FC<PhotoUploadsProps> = ({
           </div>
         )}
       </div>
+      
+      {error && name && (
+        <p id={`${name}-error`} className="form-error">
+          {error}
+        </p>
+      )}
       
       {isModalOpen && renderModalContent()}
     </div>

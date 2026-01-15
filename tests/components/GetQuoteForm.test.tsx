@@ -15,9 +15,16 @@ import { GetQuoteForm } from '@/components/features/orders/get-quote';
 // Extend Jest matchers
 expect.extend(toHaveNoViolations);
 
-// Mock MyQuote component
+// Mock MyQuote component with button
 jest.mock('@/components/features/orders/MyQuote', () => ({
-  MyQuote: () => <div data-testid="my-quote-sidebar">MyQuote Sidebar</div>,
+  MyQuote: ({ handleSubmit, buttonTexts, currentStep }: any) => (
+    <div data-testid="my-quote-sidebar">
+      MyQuote Sidebar
+      <button onClick={handleSubmit}>
+        {buttonTexts?.[currentStep] || 'Submit'}
+      </button>
+    </div>
+  ),
 }));
 
 // Mock QuoteBuilder component
@@ -84,17 +91,18 @@ describe('GetQuoteForm', () => {
     it('provides context to children', () => {
       render(<GetQuoteForm />);
       
-      // Provider should work and render content
-      expect(screen.getByText(/Current Step:/i)).toBeInTheDocument();
+      // Provider should work and render content with step announcement
+      const liveRegion = screen.getByRole('status');
+      expect(liveRegion).toBeInTheDocument();
     });
 
     it('displays step 1 by default', () => {
       render(<GetQuoteForm />);
       
       expect(screen.getByTestId('quote-builder')).toBeInTheDocument();
-      expect(screen.getByText(/Current Step:/i)).toBeInTheDocument();
-      // Multiple instances due to accessibility (sr-only + visible)
-      expect(screen.getAllByText(/1 of 5/i).length).toBeGreaterThan(0);
+      // Check sr-only step announcement
+      const liveRegion = screen.getByRole('status');
+      expect(liveRegion).toHaveTextContent(/Step 1 of 5/i);
     });
   });
 
@@ -103,15 +111,6 @@ describe('GetQuoteForm', () => {
       render(<GetQuoteForm />);
       
       expect(screen.getByTestId('quote-builder')).toBeInTheDocument();
-    });
-
-    it('renders Continue to Scheduling button on step 1', () => {
-      render(<GetQuoteForm />);
-      
-      // Button has aria-label for accessibility
-      const button = screen.getByRole('button', { name: /Continue to step 2: Scheduling/i });
-      expect(button).toBeInTheDocument();
-      expect(button).toHaveTextContent(/Continue to Scheduling/i);
     });
 
     it('renders MyQuote sidebar on step 1', () => {
@@ -131,33 +130,14 @@ describe('GetQuoteForm', () => {
       // Should render MyQuote sidebar
       expect(screen.getByTestId('my-quote-sidebar')).toBeInTheDocument();
     });
-
-    it('displays step indicator', () => {
-      render(<GetQuoteForm />);
-      
-      expect(screen.getByText(/Current Step:/i)).toBeInTheDocument();
-      // Multiple instances due to accessibility (sr-only + visible)
-      const stepTexts = screen.getAllByText(/1 of 5/i);
-      expect(stepTexts.length).toBeGreaterThan(0);
-    });
-
-    it('displays plan information in step indicator', () => {
-      render(<GetQuoteForm />);
-      
-      // Should show "Not selected" initially
-      // Multiple instances due to accessibility (sr-only "Selected plan:" + visible "Plan:")
-      const planTexts = screen.getAllByText(/Plan:/i);
-      expect(planTexts.length).toBeGreaterThan(0);
-      expect(screen.getByText(/Not selected/i)).toBeInTheDocument();
-    });
   });
 
   describe('Responsive Design', () => {
     it('has proper container classes for responsive layout', () => {
       const { container } = render(<GetQuoteForm />);
       
-      // Check for responsive classes
-      const layoutDiv = container.querySelector('.flex.flex-col.md\\:flex-row');
+      // Check for responsive classes - the main container uses md:flex
+      const layoutDiv = container.querySelector('.md\\:flex');
       expect(layoutDiv).toBeInTheDocument();
     });
   });
@@ -167,10 +147,8 @@ describe('GetQuoteForm', () => {
       render(<GetQuoteForm />);
       
       // If provider is working, we should be able to access state
-      expect(screen.getByText(/Current Step:/i)).toBeInTheDocument();
-      // Multiple instances due to accessibility (sr-only + visible)
-      const planTexts = screen.getAllByText(/Plan:/i);
-      expect(planTexts.length).toBeGreaterThan(0);
+      const liveRegion = screen.getByRole('status');
+      expect(liveRegion).toBeInTheDocument();
     });
   });
 
@@ -228,21 +206,12 @@ describe('GetQuoteForm', () => {
       expect(form).toBeInTheDocument();
     });
 
-    it('has proper aria-describedby linking form to progress', () => {
-      const { container } = render(<GetQuoteForm />);
-      
-      const form = screen.getByRole('form');
-      expect(form).toHaveAttribute('aria-describedby', 'step-progress');
-      
-      const progress = container.querySelector('#step-progress');
-      expect(progress).toBeInTheDocument();
-    });
-
-    it('has navigation landmark for step indicator', () => {
+    it('has navigation landmark for accessibility', () => {
       render(<GetQuoteForm />);
       
-      const navigation = screen.getByRole('navigation', { name: /form progress/i });
-      expect(navigation).toBeInTheDocument();
+      // Check that form has proper accessibility structure
+      const form = screen.getByRole('form', { name: /get quote form/i });
+      expect(form).toBeInTheDocument();
     });
 
     it('announces step changes to screen readers', () => {
@@ -258,16 +227,9 @@ describe('GetQuoteForm', () => {
     it('has screen reader only text for context', () => {
       render(<GetQuoteForm />);
       
-      // Check for sr-only elements
-      expect(screen.getByText('Form progress:')).toHaveClass('sr-only');
-      expect(screen.getByText('Selected plan:')).toHaveClass('sr-only');
-    });
-
-    it('has proper aria-current on step indicator', () => {
-      render(<GetQuoteForm />);
-      
-      const currentStep = screen.getByText('1 of 5');
-      expect(currentStep).toHaveAttribute('aria-current', 'step');
+      // Check for sr-only elements in step announcement
+      const liveRegion = screen.getByRole('status');
+      expect(liveRegion).toHaveClass('sr-only');
     });
 
     it('has aside landmark for quote summary', () => {
@@ -277,25 +239,14 @@ describe('GetQuoteForm', () => {
       expect(aside).toBeInTheDocument();
     });
 
-    it('has proper aria-label on navigation buttons', () => {
-      render(<GetQuoteForm />);
-      
-      const continueButton = screen.getByRole('button', { name: /continue to step 2: scheduling/i });
-      expect(continueButton).toBeInTheDocument();
-      expect(continueButton).toHaveAttribute('aria-label');
-    });
-
     it('supports keyboard navigation with proper focus indicators', () => {
       render(<GetQuoteForm />);
       
-      // Button has accessible name with aria-label
-      const continueButton = screen.getByRole('button', { name: /continue to step 2/i });
+      // MyQuote button should be keyboard accessible
+      const myQuoteButton = screen.getByRole('button', { name: /schedule appointment/i });
       
       // Button should be keyboard accessible
-      expect(continueButton).not.toHaveAttribute('tabindex', '-1');
-      
-      // btn-primary class includes focus-visible styles
-      expect(continueButton).toHaveClass('btn-primary');
+      expect(myQuoteButton).not.toHaveAttribute('tabindex', '-1');
     });
 
     it('has proper loading state announcements', () => {
@@ -305,6 +256,36 @@ describe('GetQuoteForm', () => {
       // This is tested in Step 4 integration
       const form = screen.getByRole('form');
       expect(form).toBeInTheDocument();
+    });
+  });
+
+  describe('MyQuote Button Step Progression', () => {
+    let user: ReturnType<typeof userEvent.setup>;
+    
+    beforeEach(() => {
+      user = userEvent.setup();
+    });
+
+    it('should render MyQuote button with correct text on Step 1', () => {
+      render(<GetQuoteForm />);
+      
+      // Step 1: "Schedule Appointment"
+      const myQuoteButton = screen.getByRole('button', { name: /schedule appointment/i });
+      expect(myQuoteButton).toBeInTheDocument();
+    });
+
+    it('should trigger validation when MyQuote button clicked without filling required fields', async () => {
+      render(<GetQuoteForm />);
+      
+      // Click MyQuote button without filling required fields
+      const myQuoteButton = screen.getByRole('button', { name: /schedule appointment/i });
+      await user.click(myQuoteButton);
+      
+      // Should remain on Step 1 (validation failed) - check sr-only announcement
+      await waitFor(() => {
+        const liveRegion = screen.getByRole('status');
+        expect(liveRegion).toHaveTextContent(/Step 1 of 5/i);
+      });
     });
   });
 
@@ -580,8 +561,9 @@ describe('GetQuoteForm', () => {
       render(<GetQuoteForm />);
       
       // Provider initializes with default state (Step 1)
-      // In production, URL params could restore state
-      expect(screen.getByText(/1 of 5/i, { selector: 'span' })).toBeInTheDocument();
+      // Check sr-only step announcement
+      const liveRegion = screen.getByRole('status');
+      expect(liveRegion).toHaveTextContent(/Step 1 of 5/i);
     });
   });
 
@@ -625,8 +607,8 @@ describe('GetQuoteForm', () => {
     it('maintains two-column layout across all steps', () => {
       const { container } = render(<GetQuoteForm />);
       
-      // Layout structure persists regardless of current step
-      const layoutDiv = container.querySelector('.flex.flex-col.md\\:flex-row');
+      // Layout structure persists regardless of current step - check for md:flex container
+      const layoutDiv = container.querySelector('.md\\:flex');
       expect(layoutDiv).toBeInTheDocument();
     });
   });

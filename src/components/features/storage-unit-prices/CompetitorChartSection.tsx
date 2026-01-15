@@ -57,10 +57,10 @@ export function CompetitorChartSection({ features }: CompetitorChartSectionProps
                 <span className="sr-only">Feature name</span>
               </th>
               <th className="text-center py-4" scope="col">
-                <h2 className="text-xl sm:text-2xl pr-2 text-text-primary">Boombox</h2>
+                <h2 className="font-medium text-xl sm:text-2xl pr-2 text-text-primary">Boombox</h2>
               </th>
               <th className="text-center py-4" scope="col">
-                <h2 className="text-xl sm:text-2xl text-text-primary">Competitors</h2>
+                <h2 className="font-medium text-xl sm:text-2xl text-text-primary">Competitors</h2>
               </th>
             </tr>
           </thead>
@@ -69,7 +69,7 @@ export function CompetitorChartSection({ features }: CompetitorChartSectionProps
             {features.map((item, index) => (
               <tr key={index}>
                 <th className="pl-6 py-4 sm:py-6 text-lg text-left font-normal" scope="row">
-                  <h3 className="text-xl sm:text-2xl text-text-primary">{item.feature}</h3>
+                  <h3 className="font-medium text-xl sm:text-2xl text-text-primary">{item.feature}</h3>
                 </th>
                 <td className="text-center py-4">
                   {item.boombox ? (
@@ -83,7 +83,7 @@ export function CompetitorChartSection({ features }: CompetitorChartSectionProps
                   ) : (
                     <>
                       <XCircleIcon 
-                        className="w-8 h-8 text-text-tertiary mx-auto" 
+                        className="w-8 h-8 text-zinc-300 mx-auto" 
                         aria-hidden="true"
                       />
                       <span className="sr-only">Not available</span>
@@ -102,7 +102,7 @@ export function CompetitorChartSection({ features }: CompetitorChartSectionProps
                   ) : (
                     <>
                       <XCircleIcon 
-                        className="w-8 h-8 text-text-tertiary mx-auto" 
+                        className="w-8 h-8 text-zinc-300 mx-auto" 
                         aria-hidden="true"
                       />
                       <span className="sr-only">Not available</span>

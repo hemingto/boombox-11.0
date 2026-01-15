@@ -15,3 +15,8 @@ export * from './types';
 export { driverJobOfferSms } from './templates/sms/booking/driverJobOffer';
 export { packingSupplyOrderConfirmationSms } from './templates/sms/logistics/packingSupplyOrderConfirmation';
 export { driverInvitationEmail } from './templates/email/auth/driverInvitation';
+
+// Account approval templates
+export { driverApprovalSms, driverInvitationSms, moverApprovalSms } from './templates/sms/account';
+export { driverApprovalEmail } from './templates/email/account/driverApprovalEmail';
+export { moverApprovalEmail } from './templates/email/account/moverApprovalEmail';

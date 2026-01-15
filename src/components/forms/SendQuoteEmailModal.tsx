@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * @fileoverview Send quote email modal component using Modal primitive and EmailInput
  * @source boombox-10.0/src/app/components/reusablecomponents/sendquoteemailpopup.tsx
@@ -41,74 +43,74 @@ import { cn } from '@/lib/utils/cn';
 export type { QuoteData } from '@/lib/services/quoteService';
 
 export interface SendQuoteEmailModalProps {
-  /**
-   * Whether the modal is open
-   */
-  isOpen: boolean;
-  
-  /**
-   * Callback when modal should close
-   */
-  onClose: () => void;
-  
-  /**
-   * Quote data to send via email
-   */
-  quoteData?: import('@/lib/services/quoteService').QuoteData;
-  
-  /**
-   * CSS class name for the trigger button icon
-   */
-  iconClassName?: string;
-  
-  /**
-   * Callback fired when email is sent successfully
-   */
-  onSuccess?: (email: string) => void;
-  
-  /**
-   * Callback fired when email sending fails
-   */
-  onError?: (error: string) => void;
+ /**
+  * Whether the modal is open
+  */
+ isOpen: boolean;
+ 
+ /**
+  * Callback when modal should close
+  */
+ onClose: () => void;
+ 
+ /**
+  * Quote data to send via email
+  */
+ quoteData?: import('@/lib/services/quoteService').QuoteData;
+ 
+ /**
+  * CSS class name for the trigger button icon
+  */
+ iconClassName?: string;
+ 
+ /**
+  * Callback fired when email is sent successfully
+  */
+ onSuccess?: (email: string) => void;
+ 
+ /**
+  * Callback fired when email sending fails
+  */
+ onError?: (error: string) => void;
 }
 
 /**
  * Trigger button component for opening the send quote email modal
  */
 export interface SendQuoteEmailTriggerProps {
-  /**
-   * Callback to open the modal
-   */
-  onClick: () => void;
-  
-  /**
-   * CSS class name for the icon
-   */
-  iconClassName?: string;
-  
-  /**
-   * Whether the button is disabled
-   */
-  disabled?: boolean;
+ /**
+  * Callback to open the modal
+  */
+ onClick: () => void;
+ 
+ /**
+  * CSS class name for the icon
+  */
+ iconClassName?: string;
+ 
+ /**
+  * Whether the button is disabled
+  */
+ disabled?: boolean;
 }
 
 const SendQuoteEmailTrigger: React.FC<SendQuoteEmailTriggerProps> = ({
-  onClick,
-  iconClassName,
-  disabled = false,
+ onClick,
+ iconClassName,
+ disabled = false,
 }) => (
-  <button 
-    onClick={onClick}
-    disabled={disabled}
-    className={cn(
-      "text-text-primary flex gap-1 items-center transition-colors",
-      "hover:text-primary focus:text-primary",
-      "disabled:text-text-disabled disabled:cursor-not-allowed"
-    )}
-    aria-label="Email your quote"
-  >
-    <DocumentArrowUpIcon className={cn("w-5 h-5", iconClassName)} />
-  </button>
+ <button 
+  onClick={onClick}
+  disabled={disabled}
+  className={cn(
+   "text-text-primary flex gap-1 items-center",
+   "hover:text-primary focus:text-primary",
+   "disabled:text-text-disabled disabled:cursor-not-allowed"
+  )}
+  aria-label="Email your quote"
+ >
+  <DocumentArrowUpIcon className={cn("w-5 h-5", iconClassName)} />
+ </button>
 );
 
 /**
@@ -118,134 +120,126 @@ const SendQuoteEmailTrigger: React.FC<SendQuoteEmailTriggerProps> = ({
  * ```tsx
  * // Basic usage
  * <SendQuoteEmailModal
- *   isOpen={isModalOpen}
- *   onClose={() => setIsModalOpen(false)}
- *   quoteData={currentQuote}
+ *  isOpen={isModalOpen}
+ *  onClose={() => setIsModalOpen(false)}
+ *  quoteData={currentQuote}
  * />
  * 
  * // With callbacks
  * <SendQuoteEmailModal
- *   isOpen={isModalOpen}
- *   onClose={() => setIsModalOpen(false)}
- *   quoteData={currentQuote}
- *   onSuccess={(email) => console.log(`Quote sent to ${email}`)}
- *   onError={(error) => console.error('Failed to send quote:', error)}
+ *  isOpen={isModalOpen}
+ *  onClose={() => setIsModalOpen(false)}
+ *  quoteData={currentQuote}
+ *  onSuccess={(email) => console.log(`Quote sent to ${email}`)}
+ *  onError={(error) => console.error('Failed to send quote:', error)}
  * />
  * ```
  */
 const SendQuoteEmailModal: React.FC<SendQuoteEmailModalProps> = ({
-  isOpen,
-  onClose,
-  quoteData,
+ isOpen,
+ onClose,
+ quoteData,
+ onSuccess,
+ onError,
+}) => {
+ // Use custom hook for business logic
+ const {
+  email,
+  setEmail,
+  error,
+  isLoading,
+  isSuccess,
+  sendQuoteEmail,
+  reset,
+ } = useSendQuoteEmail({
   onSuccess,
   onError,
-}) => {
-  // Use custom hook for business logic
-  const {
-    email,
-    setEmail,
-    error,
-    isLoading,
-    isSuccess,
-    sendQuoteEmail,
-    reset,
-  } = useSendQuoteEmail({
-    onSuccess,
-    onError,
-  });
+ });
 
-  /**
-   * Handle modal close with state reset
-   */
-  const handleClose = () => {
-    if (!isLoading) {
-      reset();
-      onClose();
-    }
-  };
+ /**
+  * Handle modal close with state reset
+  */
+ const handleClose = () => {
+  if (!isLoading) {
+   reset();
+   onClose();
+  }
+ };
 
-  /**
-   * Handle form submission
-   */
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!quoteData) {
-      return;
-    }
+ /**
+  * Handle form submission
+  */
+ const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  if (!quoteData) {
+   return;
+  }
 
-    await sendQuoteEmail(quoteData);
-  };
+  await sendQuoteEmail(quoteData);
+ };
 
-  return (
-    <Modal
-      open={isOpen}
-      onClose={handleClose}
-      title={!isSuccess ? "Email your quote" : undefined}
-      size="sm"
-      closeOnOverlayClick={!isLoading}
-      showCloseButton={!isLoading}
-      className="bg-surface-primary p-6 rounded-lg shadow-xl"
-    >
-      {!isSuccess ? (
-        <form onSubmit={handleSubmit} noValidate>
-          {/* Email Input */}
-          <div className="mb-8">
-            <EmailInput
-              value={email}
-              onEmailChange={setEmail}
-              placeholder="Enter your email"
-              required
-              validateOnChange={false}
-              disabled={isLoading}
-              hasError={!!error}
-              errorMessage={error}
-              className="w-full"
-              aria-describedby="quote-email-description"
-            />
-            
-            {/* Helper text */}
-            <p 
-              id="quote-email-description"
-              className="text-sm text-text-secondary mt-2"
-            >
-              We'll send a copy of your quote to this email address.
-            </p>
-          </div>
+ return (
+  <Modal
+   open={isOpen}
+   onClose={handleClose}
+   title={!isSuccess ? "Email your quote" : undefined}
+   size="sm"
+   closeOnOverlayClick={!isLoading}
+   showCloseButton={!isLoading}
+   className="bg-surface-primary p-6 rounded-lg shadow-xl"
+  >
+   {!isSuccess ? (
+    <form onSubmit={handleSubmit} noValidate>
+     {/* Email Input - with fixed height to prevent modal jumping */}
+     <div className="mb-8">
+      <EmailInput
+       value={email}
+       onEmailChange={setEmail}
+       placeholder="Enter your email"
+       required
+       disabled={isLoading}
+       hasError={!!error}
+       errorMessage={error}
+       className="w-full"
+       aria-describedby="quote-email-description"
+      />
+     
+   
+     </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-4 justify-end">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={handleClose}
-              disabled={isLoading}
-              className="text-sm"
-            >
-              Cancel
-            </Button>
-            
-            <Button
-              type="submit"
-              variant="primary"
-              loading={isLoading}
-              disabled={isLoading || !quoteData || !email.trim()}
-              className="min-w-[80px]"
-            >
-              {isLoading ? 'Sending...' : 'Send'}
-            </Button>
-          </div>
-        </form>
-      ) : (
-        <SuccessState
-          title="Success!"
-          message="A copy of your quote has been sent to your email address."
-          size="md"
-          centered
-        />
-      )}
-    </Modal>
-  );
+     {/* Action Buttons */}
+     <div className="flex gap-4 justify-end">
+      <button
+       type="button"
+       onClick={handleClose}
+       disabled={isLoading}
+       className="underline text-sm font-medium text-zinc-950 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+       <p>Close</p>
+      </button>
+      
+      <Button
+       type="submit"
+       variant="primary"
+       loading={isLoading}
+       disabled={isLoading || !quoteData || !email.trim()}
+       className="min-w-[80px]"
+      >
+       {isLoading ? 'Sending...' : 'Send'}
+      </Button>
+     </div>
+    </form>
+   ) : (
+    <SuccessState
+     title="Success!"
+     message="A copy of your quote has been sent to your email address."
+     size="md"
+     centered
+    />
+   )}
+  </Modal>
+ );
 };
 
 /**
@@ -254,66 +248,66 @@ const SendQuoteEmailModal: React.FC<SendQuoteEmailModalProps> = ({
  * @example
  * ```tsx
  * <SendQuoteEmail
- *   quoteData={currentQuote}
- *   iconClassName="text-primary"
+ *  quoteData={currentQuote}
+ *  iconClassName="text-primary"
  * />
  * ```
  */
 export interface SendQuoteEmailProps {
-  /**
-   * Quote data to send via email
-   */
-  quoteData?: import('@/lib/services/quoteService').QuoteData;
-  
-  /**
-   * CSS class name for the trigger button icon
-   */
-  iconClassName?: string;
-  
-  /**
-   * Callback fired when email is sent successfully
-   */
-  onSuccess?: (email: string) => void;
-  
-  /**
-   * Callback fired when email sending fails
-   */
-  onError?: (error: string) => void;
+ /**
+  * Quote data to send via email
+  */
+ quoteData?: import('@/lib/services/quoteService').QuoteData;
+ 
+ /**
+  * CSS class name for the trigger button icon
+  */
+ iconClassName?: string;
+ 
+ /**
+  * Callback fired when email is sent successfully
+  */
+ onSuccess?: (email: string) => void;
+ 
+ /**
+  * Callback fired when email sending fails
+  */
+ onError?: (error: string) => void;
 }
 
 const SendQuoteEmail: React.FC<SendQuoteEmailProps> = ({
-  quoteData,
-  iconClassName,
-  onSuccess,
-  onError,
+ quoteData,
+ iconClassName,
+ onSuccess,
+ onError,
 }) => {
-  const [isModalOpen, setIsModalOpen] = React.useState(false);
+ const [isModalOpen, setIsModalOpen] = React.useState(false);
 
-  const handleOpenModal = () => {
-    setIsModalOpen(true);
-  };
+ const handleOpenModal = () => {
+  setIsModalOpen(true);
+ };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-  };
+ const handleCloseModal = () => {
+  setIsModalOpen(false);
+ };
 
-  return (
-    <>
-      <SendQuoteEmailTrigger
-        onClick={handleOpenModal}
-        iconClassName={iconClassName}
-        disabled={!quoteData}
-      />
-      
-      <SendQuoteEmailModal
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        quoteData={quoteData}
-        onSuccess={onSuccess}
-        onError={onError}
-      />
-    </>
-  );
+ return (
+  <>
+   <SendQuoteEmailTrigger
+    onClick={handleOpenModal}
+    iconClassName={iconClassName}
+    disabled={!quoteData}
+   />
+   
+   <SendQuoteEmailModal
+    isOpen={isModalOpen}
+    onClose={handleCloseModal}
+    quoteData={quoteData}
+    onSuccess={onSuccess}
+    onError={onError}
+   />
+  </>
+ );
 };
 
 export default SendQuoteEmail;

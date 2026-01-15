@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * @fileoverview Interactive calendar component for date selection with availability display
  * @source boombox-10.0/src/app/components/reusablecomponents/calendarview.tsx
@@ -43,6 +45,22 @@ interface CalendarViewProps {
   isLoading: boolean;
   /** Error state indicator for accessibility and visual feedback */
   hasError?: boolean;
+  /** 
+   * In edit mode, allow today's date to be selectable if it matches the original appointment.
+   * This is needed when editing an existing same-day appointment.
+   */
+  allowTodayInEditMode?: boolean;
+  /** 
+   * The original appointment date (for edit mode). 
+   * When provided, this date will always be allowed even if it's today.
+   */
+  originalAppointmentDate?: Date | null;
+  /**
+   * Minimum number of days in advance that an appointment can be booked.
+   * Default is 1 (tomorrow is the first available day).
+   * For example, minimumDaysInAdvance={2} means the day after tomorrow is the first available day.
+   */
+  minimumDaysInAdvance?: number;
 }
 
 const daysOfWeek = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -55,6 +73,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   onMonthChange,
   isLoading,
   hasError,
+  allowTodayInEditMode = false,
+  originalAppointmentDate = null,
+  minimumDaysInAdvance = 1,
 }) => {
   /**
    * Generate date key in YYYY-MM-DD format for availability lookup
@@ -63,28 +84,38 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   const getDayKey = (date: Date) => date.toISOString().split('T')[0];
 
   /**
-   * Create tomorrow's date with time normalized to midnight
-   * Reuses similar pattern from getTodayDateRange in adminTaskUtils
+   * Get the first available date based on minimumDaysInAdvance.
+   * Default is 1 (tomorrow). If minimumDaysInAdvance is 2, first available is day after tomorrow.
    */
-  const getTomorrowDate = () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0);
-    return tomorrow;
+  const getFirstAvailableDate = () => {
+    const firstAvailable = new Date();
+    firstAvailable.setDate(firstAvailable.getDate() + minimumDaysInAdvance);
+    firstAvailable.setHours(0, 0, 0, 0);
+    return firstAvailable;
+  };
+
+  /**
+   * Check if a date is before the minimum days in advance requirement.
+   */
+  const isDateTooSoon = (date: Date): boolean => {
+    const firstAvailable = getFirstAvailableDate();
+    const dateNormalized = new Date(date);
+    dateNormalized.setHours(0, 0, 0, 0);
+    return dateNormalized < firstAvailable;
   };
 
   useEffect(() => {
-    // Set default selected date to tomorrow if no date is selected
+    // Set default selected date to first available date if no date is selected
     if (!selectedDate) {
-      const tomorrow = getTomorrowDate();
-      const tomorrowKey = getDayKey(tomorrow);
+      const firstAvailable = getFirstAvailableDate();
+      const firstAvailableKey = getDayKey(firstAvailable);
       
-      // Only select tomorrow if it's available
-      if (availableDates[tomorrowKey]) {
-        onDateSelect(tomorrow);
+      // Only select if it's available
+      if (availableDates[firstAvailableKey]) {
+        onDateSelect(firstAvailable);
       }
     }
-  }, [availableDates, selectedDate, onDateSelect, getDayKey, getTomorrowDate]);
+  }, [availableDates, selectedDate, onDateSelect, minimumDaysInAdvance]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth(); // 0-indexed
@@ -120,7 +151,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   return (
     <section className={`p-4 sm:p-6 rounded-md mb-6 
       ${hasError 
-        ? 'ring-border-error ring-2 bg-status-bg-error border-border-error' 
+        ? 'ring-border-error ring-2 bg-red-50' 
         : 'border-2 border-zinc-100 bg-surface-primary'}
     `}
     role="region"
@@ -128,14 +159,14 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     aria-live="polite"
     >
       <header className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-text-primary font-inter">
+        <h3 className="text-lg font-semibold text-text-primary font-poppins">
           {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-        </h2>
+        </h3>
         <nav className="flex items-center space-x-1" aria-label="Calendar navigation">
           <button
             onClick={handlePrevMonth}
             aria-label={`Previous month - ${new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`}
-            className="p-1.5 rounded-md hover:bg-surface-tertiary text-text-secondary hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 transition-colors duration-200"
+            className="p-1.5 rounded-md hover:bg-surface-tertiary text-text-tertiary hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2"
             disabled={isLoading}
           >
             <ChevronLeftIcon className="h-5 w-5" />
@@ -143,7 +174,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           <button
             onClick={handleNextMonth}
             aria-label={`Next month - ${new Date(year, month + 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`}
-            className="p-1.5 rounded-md hover:bg-surface-tertiary text-text-secondary hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 transition-colors duration-200"
+            className="p-1.5 rounded-md hover:bg-surface-tertiary text-text-tertiary hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2"
             disabled={isLoading}
           >
             <ChevronRightIcon className="h-5 w-5" />
@@ -153,7 +184,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
       {isLoading ? (
         <div className="relative" aria-label="Loading calendar">
-          <div className="grid grid-cols-7 h-6 gap-px text-center text-sm text-text-secondary mb-2">
+          <div className="grid grid-cols-7 h-6 gap-px text-center text-sm text-text-tertiary mb-2">
             {daysOfWeek.map((day, index) => (
               <div key={`${day}-${index}`} className="font-medium font-inter">{day}</div>
             ))}
@@ -173,7 +204,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-7 gap-px text-center text-sm text-text-secondary mb-2">
+          <div className="grid grid-cols-7 gap-px text-center text-sm text-text-tertiary mb-2">
             {daysOfWeek.map((day, index) => (
               <div key={`${day}-${index}`} className="font-medium font-inter" role="columnheader">{day}</div>
             ))}
@@ -187,31 +218,56 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
               const dayKey = getDayKey(day);
               const isSelected = selectedDate ? getDayKey(selectedDate) === dayKey : false;
-              const isPast = day < today;
-              const isAvailable = availableDates[dayKey] === true && !isPast;
               const isToday = getDayKey(today) === dayKey;
+              const isPast = day < today; // Strictly in the past (before today)
               
-              let buttonClasses = 'py-1.5 sm:py-2.5 w-full flex items-center justify-center rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-1 transition-colors duration-200 font-inter';
+              // In edit mode, allow the original appointment date even if it's too soon
+              const isOriginalAppointmentDate = originalAppointmentDate && 
+                getDayKey(originalAppointmentDate) === dayKey;
+              const allowDateForEdit = allowTodayInEditMode && isOriginalAppointmentDate;
+              
+              // Check if the date is before the minimum days in advance requirement
+              const isTooSoon = isDateTooSoon(day);
+              
+              // Date is unavailable if:
+              // 1. It's in the past (before today), OR
+              // 2. It's before the minimum days in advance requirement
+              // Exception: In edit mode, the original appointment date is always allowed
+              const isPastOrTooSoon = (isPast || isTooSoon) && !allowDateForEdit;
+              const isAvailable = (availableDates[dayKey] === true && !isPastOrTooSoon) || allowDateForEdit;
+              
+              let buttonClasses = 'py-1.5 sm:py-2.5 w-full flex items-center justify-center rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-1 font-inter';
 
               if (isSelected) {
                 buttonClasses += ' bg-primary text-text-inverse';
-              } else if (isPast) {
-                buttonClasses += ' text-text-secondary cursor-not-allowed bg-surface-disabled';
+              } else if (isPastOrTooSoon) {
+                buttonClasses += ' text-zinc-200 cursor-not-allowed bg-slate-50 line-through';
               } else if (isAvailable) {
                 buttonClasses += ' text-text-primary hover:bg-surface-tertiary active:bg-surface-disabled';
-              } else { // Not available and not past
-                buttonClasses += ' text-text-secondary cursor-not-allowed bg-surface-disabled';
+              } else { // Not available and not past/today
+                buttonClasses += ' text-zinc-200 cursor-not-allowed bg-slate-50 line-through';
               }
+
+              // Determine the unavailability reason for accessibility
+              const getUnavailabilityReason = () => {
+                if (isPast) {
+                  return '(not available - past date)';
+                }
+                if (isTooSoon && !allowDateForEdit) {
+                  return `(not available - must book at least ${minimumDaysInAdvance} day${minimumDaysInAdvance > 1 ? 's' : ''} in advance)`;
+                }
+                return '(not available)';
+              };
 
               return (
                 <div key={dayKey} className="relative py-px px-px" role="gridcell">
                   <button
                     type="button"
                     onClick={() => isAvailable && onDateSelect(day)}
-                    disabled={isPast || !isAvailable}
+                    disabled={isPastOrTooSoon || !isAvailable}
                     className={buttonClasses}
                     aria-pressed={isSelected}
-                    aria-label={`${day.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} ${isPast ? '(past date)' : isAvailable ? '(available)' : '(not available)'}`}
+                    aria-label={`${day.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} ${isAvailable ? '(available)' : getUnavailabilityReason()}`}
                     tabIndex={isSelected ? 0 : (isAvailable ? 0 : -1)}
                   >
                     <span className="relative">

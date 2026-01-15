@@ -87,7 +87,7 @@ export const BlogAllArticles: React.FC = () => {
 
       {/* Category Tabs */}
       <div 
-        className="flex w-full space-x-4 border-b border-border mb-6 text-nowrap overflow-x-auto scrollbar-hide whitespace-nowrap"
+        className="flex w-full space-x-4 mb-6 text-nowrap overflow-x-auto scrollbar-hide whitespace-nowrap border-b border-border"
         role="tablist"
         aria-label="Blog categories"
       >
@@ -98,10 +98,10 @@ export const BlogAllArticles: React.FC = () => {
             aria-selected={isCategorySelected(category)}
             aria-controls={`blog-posts-${category.toLowerCase().replace(/\s+/g, '-')}`}
             className={cn(
-              "py-2 px-4 border-b-2 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
+              "py-2 px-4 border-b-2 focus:outline-none",
               isCategorySelected(category)
                 ? "border-primary text-text-primary"
-                : "border-transparent text-text-secondary hover:text-text-primary hover:border-border-focus"
+                : "border-transparent text-text-secondary hover:border-border-focus"
             )}
             onClick={() => handleCategorySelect(category)}
           >
@@ -145,7 +145,7 @@ export const BlogAllArticles: React.FC = () => {
                 href={blog.link}
                 className="block group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
               >
-                <h2 className="text-base sm:text-lg md:text-2xl mb-1 md:mb-2 text-text-primary group-hover:text-primary transition-colors duration-200 line-clamp-2">
+                <h2 className="text-base sm:text-lg md:text-2xl mb-1 md:mb-2 text-text-primary line-clamp-2">
                   {blog.blogTitle}
                 </h2>
               </Link>
@@ -154,7 +154,7 @@ export const BlogAllArticles: React.FC = () => {
                 href={blog.link}
                 className="block group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
               >
-                <p className="text-sm sm:mb-4 text-text-secondary group-hover:text-text-primary transition-colors duration-200 line-clamp-3">
+                <p className="text-sm sm:mb-4 text-text-primary line-clamp-3">
                   {blog.blogDescription}
                 </p>
               </Link>
@@ -164,7 +164,7 @@ export const BlogAllArticles: React.FC = () => {
                   href={blog.link}
                   className="focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
                 >
-                  <p className="hidden sm:block text-xs text-text-tertiary hover:text-text-secondary transition-colors duration-200">
+                  <p className="hidden sm:block text-xs text-text-tertiary">
                     by {blog.author} | {blog.readTime}
                   </p>
                 </Link>

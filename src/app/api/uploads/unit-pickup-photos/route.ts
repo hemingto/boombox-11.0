@@ -30,6 +30,7 @@ import { cloudinary } from '@/lib/integrations';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 // Function to convert buffer to base64
 function bufferToBase64(buffer: Buffer, fileType: string): string {

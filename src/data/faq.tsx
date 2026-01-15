@@ -93,13 +93,13 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
         question: "How does Boombox work?",
         answer: (
           <>
-            Boombox arrives at your delivery location with a mobile storage unit. You can pack the unit yourself or get paired with local pros. If you want to remember the items you&apos;ve stored, we recommend taking photos of your stored items, which you can then upload later to your account page.
+            Boombox arrives at your delivery location with a mobile storage unit. You can pack the unit yourself or get paired with local pros. If you want to remember the items you've stored, we recommend taking photos of your stored items, which you can then upload later to your account page.
             <br />
             <br />
             Once your storage unit is packed, our Boombox delivery driver will return your unit to our secure storage facility.
             <br />
             <br />
-            Whenever you need access to your storage unit, simply log in to your Boombox account, select the unit you need delivered, and we&apos;ll deliver it right to your door. You&apos;ll never have to hassle with a San Francisco storage unit again! And best of all, our storage unit prices are better than most all San Francisco self-storage options.
+            Whenever you need access to your storage unit, simply log in to your Boombox account, select the unit you need delivered, and we'll deliver it right to your door. You'll never have to hassle with a San Francisco storage unit again! And best of all, our storage unit prices are better than most all San Francisco self-storage options.
           </>
         ),
         category: "General",
@@ -109,9 +109,9 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
       question: "How much time do I have to load my unit?",
       answer: (
         <>
-        <p>You can take as much time as you need! However, the less time you take packing your unit the less you&apos;ll pay.</p>
+        <p>You can take as much time as you need! However, the less time you take packing your unit the less you'll pay.</p>
         <br />
-        <p>The first 60 mins are free. The driver will arrive at your delivery address and once you have been contacted your first hour of free loading time will begin. If you pack your container within that first hour - GREAT! - you won&apos;t be charged for your delivery. If you need more time, no worries! The driver can wait at your location while you pack at a rate of $55/hr.</p>
+        <p>The first 60 mins are free. The driver will arrive at your delivery address and once you have been contacted your first hour of free loading time will begin. If you pack your container within that first hour - GREAT! - you won't be charged for your delivery. If you need more time, no worries! The driver can wait at your location while you pack at a rate of $55/hr.</p>
         <br />
         <p>Before ordering a Boombox, we recommend going through our pre pickup checklist to make sure you are prepared and ready to go before your crew arrives. Typically, we can have a Boombox container delivered with as little as 1 days notice so make sure prepare before you order to have your move go as smoothy as possible.</p>
         <br />
@@ -134,7 +134,7 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
         <br />
       <p>A Boombox delivery driver will bring your storage unit straight to your door, all with straightforward, flat-rate pricing.</p>
         <br />
-      <p>Please be mindful of the driver&apos;s time to keep things moving smoothly, limiting the loading and unloading to just what&apos;s needed.</p>
+      <p>Please be mindful of the driver's time to keep things moving smoothly, limiting the loading and unloading to just what's needed.</p>
         <br />
       <strong>Delivery is a $45 flat rate</strong>
       </>,
@@ -148,10 +148,10 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
             Sure thing! You can add additional items to your existing storage unit as needed by requesting a delivery of your unit from your account page.
             <br />
             <br />
-            A Boombox delivery expert will bring your storage unit straight to your door, all with straightforward, flat-rate pricing. Please be mindful of the driver&apos;s time to keep things moving smoothly, limiting the loading and unloading to just what&apos;s needed.
+            A Boombox delivery expert will bring your storage unit straight to your door, all with straightforward, flat-rate pricing. Please be mindful of the driver's time to keep things moving smoothly, limiting the loading and unloading to just what's needed.
             <br />
             <br />
-            If you need to store additional items that won&apos;t fit in your existing Boombox, you can request to add an additional unit to your account by logging on to your user page and setting up an appointment.
+            If you need to store additional items that won't fit in your existing Boombox, you can request to add an additional unit to your account by logging on to your user page and setting up an appointment.
             <br />
             <br />
             Delivery of an existing storage unit is a $45 flat rate.
@@ -161,13 +161,13 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
         image: "",
       },
       {
-        question: "What&apos;s included in my Boombox quote?",
+        question: "What's included in my Boombox quote?",
         answer: (
           <>
-            Your Boombox quote includes the full amount you&apos;ll pay on the day of your initial delivery. Including:
+            Your Boombox quote includes the full amount you'll pay on the day of your initial delivery. Including:
             <br />
             <br />
-            - Your first month&apos;s rent
+            - Your first month's rent
             <br />
             - Loading Help (Optional)
             <br />
@@ -184,7 +184,7 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
         question: "When do I pay for my initial Boombox delivery?",
         answer: (
           <>
-            You won&apos;t be charged until the day of your delivery.
+            You won't be charged until the day of your delivery.
             <br />
             <br />
             We ask for credit card information in order to hold your reservation to ensure our operation runs smoothly.
@@ -203,7 +203,7 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
         question: "How much does Boombox cost?",
         answer: (
           <>
-            The cost of your Boombox varies based on your needs. Typically, our costs are below the average self-storage rate for your area. With all the added convenience, we think that&apos;s a pretty awesome deal!
+            The cost of your Boombox varies based on your needs. Typically, our costs are below the average self-storage rate for your area. With all the added convenience, we think that's a pretty awesome deal!
             <br />
             <br />
             To get an accurate quote for your Boombox, click <a href="/quote">here</a>.
@@ -219,10 +219,10 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
         question: "How big are Boombox containers?",
         answer: (
           <>
-            Boombox containers are 5 feet wide by 8 feet long by 8 feet tall. The precise outside dimensions are 5&apos; (60&quot;) wide x 8&apos; (96&quot;) long x 8&apos; (90&quot;) high.
+            Boombox containers are 5 feet wide by 8 feet long by 8 feet tall. The precise outside dimensions are 5' (60") wide x 8' (96") long x 8' (90") high.
             <br />
             <br />
-            The internal dimensions of our moving containers are approximately 56&quot; wide x 90&quot; long x 90&quot; high. Capacity is 257 cubic feet, holding up to 1,000lbs.
+            The internal dimensions of our moving containers are approximately 56" wide x 90" long x 90" high. Capacity is 257 cubic feet, holding up to 1,000lbs.
             <br />
             <br />
             Each portable storage container has a large door for easy access and will typically accommodate an average room to a room and a half of household goods and furniture. Boombox containers rest about 6 inches off the ground to ensure that your belongings are safe and dry. A King size mattress will fit standing up. A California King mattress will fit standing up as well.
@@ -238,13 +238,13 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
         question: "How do I know how many Boombox containers I will need?",
         answer: (
           <>
-            The best way to estimate the exact amount of containers you&apos;ll need is by checking out our space calculator tool. Just enter in the items you plan on storing, and you&apos;ll know exactly how many containers you will need.
+            The best way to estimate the exact amount of containers you'll need is by checking out our space calculator tool. Just enter in the items you plan on storing, and you'll know exactly how many containers you will need.
             <br />
             <br />
             If you end up needing more containers, no problem! We can typically send out another container the next day.
             <br />
             <br />
-            Please be mindful of the amount of containers you request. Our quick delivery turnaround times give you flexibility, so you don&apos;t need to over-order upfront. We prefer you order as you go to prevent delivering containers that go unused.
+            Please be mindful of the amount of containers you request. Our quick delivery turnaround times give you flexibility, so you don't need to over-order upfront. We prefer you order as you go to prevent delivering containers that go unused.
           </>
         ),
         category: "Storage Unit Sizes",
@@ -257,7 +257,7 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
             When you are booking your delivery appointment, you can specify a 1-hour delivery window that works best for you.
             <br />
             <br />
-            We know you are busy, and we always want to be respectful of your time. That&apos;s why, with real-time tracking, you&apos;ll always know exactly when your Boombox is set to arrive within the 1-hour delivery window you requested.
+            We know you are busy, and we always want to be respectful of your time. That's why, with real-time tracking, you'll always know exactly when your Boombox is set to arrive within the 1-hour delivery window you requested.
           </>
         ),
         category: "Delivery",
@@ -286,7 +286,7 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
             Our delivery drivers will bring your Boombox to your delivery address but are not expected or insured to help with moving your belongings into the container.
             <br />
             <br />
-            We can let you use a floor dolly to help move your items, but if you don&apos;t add moving help to your order, you are expected to load the container yourself.
+            We can let you use a floor dolly to help move your items, but if you don't add moving help to your order, you are expected to load the container yourself.
           </>
         ),
         category: "Labor",
@@ -303,7 +303,7 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
             <br />
             - Drain water connections from appliances (mini-fridges, washing machines, etc.).
             <br />
-            - Make sure you aren&apos;t storing anything flammable (gasoline, fireworks, etc.).
+            - Make sure you aren't storing anything flammable (gasoline, fireworks, etc.).
             <br />
             - Label boxes to quickly identify them during unpacking.
             <br />
@@ -329,7 +329,7 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
             Another key is to fill any gaps with furniture pads or soft items to make sure there is no room for contents to shift.
             <br />
             <br />
-            If you are nervous that you won&apos;t be able to pack your container properly, no problem! Our network of local pros are more than capable of packing your container correctly.
+            If you are nervous that you won't be able to pack your container properly, no problem! Our network of local pros are more than capable of packing your container correctly.
           </>
         ),
         category: "Best Practices",
@@ -342,7 +342,7 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
             To end your storage term, simply log on to your account and book a delivery on your account page. In the delivery form, please make sure to note that this is your final delivery.
             <br />
             <br />
-            To end the account, you&apos;ll need to make sure your container is completely free of items at the end of your delivery appointment.
+            To end the account, you'll need to make sure your container is completely free of items at the end of your delivery appointment.
             <br />
             <br />
             Once your container is returned empty, your monthly storage bill will end, and you will no longer be charged moving forward.
@@ -355,19 +355,19 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
         question: "What items cannot be placed in my Boombox?",
         answer: (
           <>
-            Don&apos;t store anything that&apos;s illegal and/or unsafe.
+            Don't store anything that's illegal and/or unsafe.
             <br />
             <br />
-            We don&apos;t store anything that goes boom, such as guns (or weapons of any kind), explosives, fireworks, and other flammables like gas, oil, kerosene, paint, and lighter fluid.
+            We don't store anything that goes boom, such as guns (or weapons of any kind), explosives, fireworks, and other flammables like gas, oil, kerosene, paint, and lighter fluid.
             <br />
             <br />
             Anything that is or was alive. This includes things like fruit, meats, cheeses, animals, insects, fungal or bacterial cultures, etc.
             <br />
             <br />
-            Anything that is (or was) edible. This includes any perishable and non-perishable food items. Anything that&apos;s illegal, such as drugs, drug paraphernalia, stolen property, and anything else that you can get arrested for possessing.
+            Anything that is (or was) edible. This includes any perishable and non-perishable food items. Anything that's illegal, such as drugs, drug paraphernalia, stolen property, and anything else that you can get arrested for possessing.
             <br />
             <br />
-            Anything that smells, oozes, leaks, or bursts, such as hazardous items, toxic materials, items that produce gas or odors, any container with liquids, items that produce loud or disruptive noises, and items that may increase in size or burst. Basically, anything that might get outside of your box or bin and harm others, our customers&apos; and employees&apos; belongings, or our storage facility.
+            Anything that smells, oozes, leaks, or bursts, such as hazardous items, toxic materials, items that produce gas or odors, any container with liquids, items that produce loud or disruptive noises, and items that may increase in size or burst. Basically, anything that might get outside of your box or bin and harm others, our customers' and employees' belongings, or our storage facility.
           </>
         ),
         category: "Best Practices",
@@ -380,7 +380,7 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
             You can edit existing reservations as well as cancel reservations by logging on to your account page.
             <br />
             <br />
-            On your account page, you will see all your upcoming appointments. From there you&apos;ll be able to make edits to all your existing appointments.
+            On your account page, you will see all your upcoming appointments. From there you'll be able to make edits to all your existing appointments.
           </>
         ),
         category: "Scheduling",
@@ -396,7 +396,7 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
             On your account page, you will see all your upcoming appointments. Locate the upcoming appointment you would like to cancel and hit the "cancel reservation" button.
             <br />
             <br />
-            We ask for at least 12 hours notice for cancellations. If we don&apos;t receive 24 hours notice, you&apos;ll be subject to a $65 fee.
+            We ask for at least 12 hours notice for cancellations. If we don't receive 24 hours notice, you'll be subject to a $65 fee.
           </>
         ),
         category: "Scheduling",
@@ -422,7 +422,7 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
             We always handle your storage unit with care; however, it is up to you to make sure your unit is packed properly to ensure no items shift during transit.
             <br />
             <br />
-            We don&apos;t insure items that are damaged due to being improperly packed, but our comprehensive insurance coverage protects against any potential hazards in the unlikely event that they occur.
+            We don't insure items that are damaged due to being improperly packed, but our comprehensive insurance coverage protects against any potential hazards in the unlikely event that they occur.
             <br />
             <br />
             You can find our full insurance coverage details <a href="#">here</a>.
@@ -438,7 +438,7 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
             To help ensure you remember the items you have in storage, you can upload your own photos of the contents you stored on your account page.
             <br />
             <br />
-            You&apos;ll find a picture of your storage unit on your account page and a link to upload your stored photos. Simply click on the link to upload your stored item photos.
+            You'll find a picture of your storage unit on your account page and a link to upload your stored photos. Simply click on the link to upload your stored item photos.
           </>
         ),
         category: "Delivery",
@@ -448,7 +448,7 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
         question: "I moved outside the service area, how do I get my stored belongings back?",
         answer: (
           <>
-            We don&apos;t offer shipping services outside our service area. To have your items moved out of our service area, please contact us at <span className="font-semibold">help@boomboxstorage.com</span> and we can help facilitate a move with a moving company of your choosing.
+            We don't offer shipping services outside our service area. To have your items moved out of our service area, please contact us at <span className="font-semibold">help@boomboxstorage.com</span> and we can help facilitate a move with a moving company of your choosing.
           </>
         ),
         category: "Locations",
@@ -482,10 +482,10 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
         question: "Is there a minimum payment term?",
         answer: (
           <>
-            Yes, the minimum payment term is 2 months. You can receive your items back before the two-month period has ended, but you&apos;ll still be charged for the minimum term of 2 months.
+            Yes, the minimum payment term is 2 months. You can receive your items back before the two-month period has ended, but you'll still be charged for the minimum term of 2 months.
             <br />
             <br />
-            If you have a clear idea of how long you&apos;ll be storing your items, please let us know as it helps us make sure our operation runs smoothly.
+            If you have a clear idea of how long you'll be storing your items, please let us know as it helps us make sure our operation runs smoothly.
           </>
         ),
         category: "Pricing",
@@ -495,7 +495,7 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
         question: "When is my first bill?",
         answer: (
           <>
-            Your first month&apos;s storage bill is charged on the day your storage unit is delivered. Then your next bill is recurring every 30 days after your initial delivery.
+            Your first month's storage bill is charged on the day your storage unit is delivered. Then your next bill is recurring every 30 days after your initial delivery.
             <br />
             <br />
             You can check all your past invoices on your account page as well as update your payment information.
@@ -508,7 +508,7 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
         question: "How does Boombox handle billing?",
         answer: (
           <>
-            Billing is automatic so you don&apos;t have to worry about putting in your credit card information every month.
+            Billing is automatic so you don't have to worry about putting in your credit card information every month.
             <br />
             <br />
             Due to banking fees associated with automatic payments, we charge a payment processing fee of 3.5% of your total storage bill.

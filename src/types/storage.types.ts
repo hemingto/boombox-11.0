@@ -54,6 +54,12 @@ export interface FormattedStorageUnit {
   lastAccessedDate: string;
   description: string;
   location?: string | null;
+  /** Pending access storage appointment for this unit, if any */
+  pendingAppointment?: {
+    id: number;
+    date: string;
+    status: string;
+  } | null;
 }
 
 export interface RequestedStorageUnit {

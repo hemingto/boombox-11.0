@@ -9,8 +9,8 @@
  * - Updates unit status and completes task
  * 
  * API ROUTES USED:
- * - GET /api/appointments/[id]/getAppointmentDetails - Fetch appointment data
- * - POST /api/admin/tasks/[taskId]/prep-units-delivery - Mark units as ready
+ * - GET /api/orders/appointments/[id]/details - Fetch appointment data
+ * - POST /api/admin/tasks/prep-units-delivery/[appointmentId] - Mark units as ready
  * 
  * DESIGN SYSTEM UPDATES:
  * - Uses semantic color tokens (text-text-primary, bg-status-info)
@@ -28,6 +28,7 @@ import { useRouter } from 'next/navigation';
 import { useTask } from '@/hooks';
 import { ChevronLeftIcon, CalendarDaysIcon, CubeIcon } from '@heroicons/react/24/outline';
 import YesOrNoRadio from '@/components/forms/YesOrNoRadio';
+import { Button } from '@/components/ui/primitives/Button';
 import { Transition } from '@headlessui/react';
 
 interface PrepUnitsDeliveryPageProps {
@@ -84,7 +85,7 @@ export function PrepUnitsDeliveryPage({ taskId }: PrepUnitsDeliveryPageProps) {
       
       try {
         setIsLoading(true);
-        const response = await fetch(`/api/appointments/${appointmentId}/getAppointmentDetails`);
+        const response = await fetch(`/api/orders/appointments/${appointmentId}/details`);
         if (!response.ok) {
           throw new Error(`Failed to fetch appointment details: ${response.status}`);
         }
@@ -137,13 +138,12 @@ export function PrepUnitsDeliveryPage({ taskId }: PrepUnitsDeliveryPageProps) {
 
     setSubmitting(true);
     try {
-      const response = await fetch(`/api/admin/tasks/${taskId}/prep-units-delivery`, {
+      const response = await fetch(`/api/admin/tasks/prep-units-delivery/${appointmentId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          appointmentId,
           unitNumbers: Object.keys(selectedUnits).filter(unit => selectedUnits[unit])
         }),
       });
@@ -204,10 +204,10 @@ export function PrepUnitsDeliveryPage({ taskId }: PrepUnitsDeliveryPageProps) {
         <div className="bg-surface-primary">
           <div className="p-6 space-y-6">
             {/* Appointment Card */}
-            <div className="bg-status-info rounded-lg p-6">
+            <div className="bg-sky-500 rounded-lg p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="relative bg-status-info-hover rounded-full h-12 w-12 flex items-center justify-center">
+                  <div className="relative bg-sky-600 rounded-full h-12 w-12 flex items-center justify-center">
                     <CalendarDaysIcon className="h-6 w-6 text-white" />
                   </div>
                   <div>
@@ -228,7 +228,7 @@ export function PrepUnitsDeliveryPage({ taskId }: PrepUnitsDeliveryPageProps) {
                   </div>
                 </div>
                 <div className="flex items-center">
-                  <div className="relative bg-status-info-hover rounded-full h-12 w-12 mr-3 flex items-center justify-center">
+                  <div className="relative bg-sky-600 rounded-full h-12 w-12 mr-3 flex items-center justify-center">
                     <CubeIcon className="h-6 w-6 text-white" />
                   </div>
                   <div className="flex flex-col items-start text-white mr-4">
@@ -319,15 +319,17 @@ export function PrepUnitsDeliveryPage({ taskId }: PrepUnitsDeliveryPageProps) {
 
               {/* Action Button */}
               <div className="flex justify-end pt-8">
-                <button
+                <Button
                   type="button"
-                  disabled={!allUnitsChecked || !allUnitsInStagingArea || submitting}
+                  disabled={!allUnitsChecked || !allUnitsInStagingArea}
+                  loading={submitting}
                   onClick={handleMarkComplete}
-                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  variant="primary"
+                  className="!bg-sky-500 hover:!bg-sky-600 active:!bg-sky-600 disabled:!bg-sky-500"
                   aria-label="Mark prep complete"
                 >
-                  {submitting ? 'Processing...' : 'Mark Complete'}
-                </button>
+                  Mark Complete
+                </Button>
               </div>
             </div>
           </div>

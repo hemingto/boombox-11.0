@@ -75,24 +75,33 @@ export async function GET(req: NextRequest) {
     
     // Handle reconfirmation tokens differently from regular tokens
     if (decodedToken.action === 'reconfirm') {
-      // For reconfirmation, look for tasks assigned to this driver that are pending reconfirmation
+      // For reconfirmation, look for tasks where:
+      // - driverId matches this driver (they already have the job assigned)
+      // - driverNotificationStatus is 'pending_reconfirmation'
+      // NOTE: For reconfirmations, the driver ALREADY has the job assigned (driverId is set),
+      // we're just asking them to confirm after a schedule change
       const reconfirmTasks = await prisma.onfleetTask.findMany({
         where: {
           appointmentId: decodedToken.appointmentId,
-          driverId: decodedToken.driverId,
+          driverId: decodedToken.driverId,  // Driver already has the job assigned
           driverNotificationStatus: 'pending_reconfirmation'
         }
       });
       
+      console.log('DEBUG: Reconfirmation token verification for driver', decodedToken.driverId, 'appointment', decodedToken.appointmentId);
+      console.log('DEBUG: Found reconfirmation tasks:', reconfirmTasks.length);
+      
       if (reconfirmTasks.length === 0) {
-        // Check if tasks are already accepted
+        // Check if tasks are already accepted (driverId is set to this driver)
         const acceptedTasks = await prisma.onfleetTask.findMany({
           where: {
             appointmentId: decodedToken.appointmentId,
-            driverId: decodedToken.driverId,
+            driverId: decodedToken.driverId,  // After acceptance, driverId is set
             driverNotificationStatus: 'accepted'
           }
         });
+        
+        console.log('DEBUG: Found accepted tasks for this driver:', acceptedTasks.length);
         
         if (acceptedTasks.length > 0) {
           return NextResponse.json({ 
@@ -107,6 +116,7 @@ export async function GET(req: NextRequest) {
           }, { status: 400 });
         }
         
+        console.log('DEBUG: No pending or accepted tasks found - returning error');
         return NextResponse.json({ 
           error: 'No pending reconfirmation found for this job',
           expired: true 
@@ -114,6 +124,7 @@ export async function GET(req: NextRequest) {
       }
       
       // Return the decoded token data for reconfirmation
+      console.log('DEBUG: Returning valid reconfirmation token data');
       return NextResponse.json({
         driverId: decodedToken.driverId,
         appointmentId: decodedToken.appointmentId,

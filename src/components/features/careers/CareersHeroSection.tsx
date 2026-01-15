@@ -9,14 +9,14 @@
  * DESIGN SYSTEM UPDATES:
  * - Replaced hardcoded colors with design system tokens (bg-primary, hover:bg-primary-hover)
  * - Used btn-primary utility class for consistent button styling
- * - Replaced bg-slate-100 placeholder with OptimizedImage component
+ * - Uses Next.js Image for better performance
  * - Applied consistent spacing patterns from design system
  * - Enhanced accessibility with proper ARIA labels and semantic HTML
  * 
- * @refactor Updated to use design system colors and OptimizedImage primitive for better performance
+ * @refactor Updated to use design system colors and Next.js Image for better performance
  */
 
-import { OptimizedImage } from '@/components/ui/primitives/OptimizedImage';
+import Image from 'next/image';
 import { BriefcaseIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 
@@ -43,7 +43,7 @@ export interface CareersHeroSectionProps {
 }
 
 export function CareersHeroSection({ 
-  heroImageSrc = '/img/palo-alto.png',
+  heroImageSrc = '/palo-alto.png',
   heroImageAlt = 'Boombox team members collaborating in Palo Alto office',
   jobListingsUrl = 'https://www.indeed.com/cmp/Boombox-Storage',
   className 
@@ -68,7 +68,7 @@ export function CareersHeroSection({
         {/* Text content */}
         <div className="place-content-center items-center basis-5/12 mr-4">
           <h2 className="mb-4 text-text-primary">Join the Boombox team!</h2>
-          <p className="max-w-lg mb-8 text-text-secondary">
+          <p className="max-w-lg mb-8 text-text-primary">
             We are always looking for talented people to help with our mission of making 
             storage as simple and convenient as possible. Think you can help? Check out our job listings.
           </p>
@@ -91,20 +91,17 @@ export function CareersHeroSection({
 
         {/* Hero image */}
         <div className="flex place-content-end basis-7/12">
-          <OptimizedImage
-            src={heroImageSrc}
-            alt={heroImageAlt}
-            containerClassName="w-full md:ml-6 mt-8 md:mt-0 rounded-md"
-            className="object-cover"
-            aspectRatio="video"
-            loading="eager"
-            priority
-            quality={90}
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 58vw, 50vw"
-            fallbackSrc="/img/placeholder-office.jpg"
-            showSkeleton={true}
-            skeletonClassName="bg-surface-tertiary"
-          />
+          <div className="relative w-full md:ml-6 mt-8 md:mt-0 aspect-video rounded-md overflow-hidden">
+            <Image
+              src={heroImageSrc}
+              alt={heroImageAlt}
+              fill
+              className="object-cover rounded-md"
+              priority
+              quality={90}
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 58vw, 50vw"
+            />
+          </div>
         </div>
       </div>
     </section>

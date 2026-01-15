@@ -1,9 +1,13 @@
 /**
- * @fileoverview Moving partner utility functions
+ * @fileoverview SERVER-ONLY Moving partner utility functions
  * @source boombox-10.0/src/app/api/movers/route.ts (formatToE164, createDefaultMoverAvailability)
- * @source boombox-10.0/src/app/api/moving-partners/route.ts (parseTimeToMinutes, getDayOfWeekString)
+ * @source boombox-10.0/src/app/api/moving-partners/route.ts (database operations)
  * @source boombox-10.0/src/app/api/cron/process-expired-mover-changes/route.ts (assignMovingPartnerDriver)
  * @refactor Extracted utility functions for moving partner operations
+ * 
+ * ⚠️ WARNING: This file contains SERVER-ONLY utilities that use Node.js modules.
+ * DO NOT import this file in client components (components with 'use client').
+ * For client-safe utilities, use movingPartnerClientUtils.ts instead.
  */
 
 import { prisma } from '@/lib/database/prismaClient';
@@ -12,6 +16,7 @@ import { formatTime24Hour } from '@/lib/utils/dateUtils';
 import cloudinary from '@/lib/integrations/cloudinaryClient';
 import { v4 as uuidv4 } from 'uuid';
 import { Readable } from 'stream';
+import { parseTimeToMinutes, getDayOfWeekString } from './movingPartnerClientUtils';
 
 /**
  * Helper function to create default availability for all days of the week
@@ -47,25 +52,6 @@ export async function createDefaultMoverAvailability(moverId: number): Promise<v
   
   // Execute all creation operations
   await Promise.all(availabilityPromises);
-}
-
-/**
- * Helper function to parse HH:mm time string to minutes since midnight
- * @source boombox-10.0/src/app/api/moving-partners/route.ts (parseTimeToMinutes)
- */
-export function parseTimeToMinutes(timeStr: string): number {
-  if (!timeStr || !timeStr.includes(':')) return 0; // Basic validation
-  const [hours, minutes] = timeStr.split(':').map(Number);
-  return hours * 60 + minutes;
-}
-
-/**
- * Helper function to get day of week string
- * @source boombox-10.0/src/app/api/moving-partners/route.ts (getDayOfWeekString)
- */
-export function getDayOfWeekString(date: Date): string {
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  return days[date.getUTCDay()];
 }
 
 /**

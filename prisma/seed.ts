@@ -3,14 +3,16 @@
  * Seeds the database with initial data for development and testing
  */
 
-const { seedBlogData } = require('./seeds/blogSeed');
+
+import { seedProducts } from './seeds/productSeed.js';
+
 
 async function main() {
   console.log('🌱 Starting database seeding...');
   
   try {
-    // Seed blog data
-    await seedBlogData();
+    // Seed product data
+    await seedProducts();
     
     console.log('🎉 Database seeding completed successfully!');
   } catch (error) {

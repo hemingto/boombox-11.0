@@ -65,6 +65,24 @@ export function isValidURL(url: string): boolean {
 }
 
 /**
+ * Normalize website URL by adding https:// protocol if missing
+ * @source boombox-11.0/src/components/features/moving-partners/MoverSignUpForm.tsx
+ * @refactor Extracted from component to centralized utility for reusability
+ */
+export function normalizeWebsiteURL(url: string): string {
+  const trimmedUrl = url.trim();
+  if (!trimmedUrl) return '';
+  
+  // Check if URL already has a protocol
+  if (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')) {
+    return trimmedUrl;
+  }
+  
+  // Add https:// protocol if missing
+  return `https://${trimmedUrl}`;
+}
+
+/**
  * Validate 4-digit year
  */
 export function isValidYear(year: string): boolean {

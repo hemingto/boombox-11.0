@@ -7,12 +7,19 @@
 'use client';
 
 import { AddStorageForm } from '@/components/features/orders';
+import { AddStorageProvider } from '@/components/features/orders/AddStorageProvider';
 
 export default function AddStorage() {
   return (
-    <div className="min-h-[1200px]">
-      <AddStorageForm />
-    </div>
+    <AddStorageProvider 
+      mode="create"
+      initialStorageUnitCount={1}
+      initialZipCode=""
+    >
+      <div className="min-h-[1200px]">
+        <AddStorageForm />
+      </div>
+    </AddStorageProvider>
   );
 }
 

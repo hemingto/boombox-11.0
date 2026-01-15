@@ -1,34 +1,32 @@
 /**
- * @fileoverview Email input field component with validation, error states, and accessibility features
+ * @fileoverview Email input field component with email-specific defaults and accessibility features
  * @source boombox-10.0/src/app/components/reusablecomponents/emailinput.tsx
  * 
  * COMPONENT FUNCTIONALITY:
- * Provides an email input field with built-in validation, error state handling, focus management,
- * and integrated envelope icon. Supports real-time validation feedback, placeholder customization,
- * and comprehensive accessibility features including ARIA labels and keyboard navigation.
+ * Thin wrapper around the Input primitive that provides email-specific defaults including
+ * envelope icon, proper input type, and email-specific HTML attributes. Validation is handled
+ * by parent components for flexibility.
  * 
  * API ROUTES UPDATED:
  * - None (Pure UI component)
  * 
  * DESIGN SYSTEM UPDATES:
- * - Replaced hardcoded colors with design system tokens (primary, status-error, text colors)
- * - Applied input-field and input-field--error utility classes from globals.css
- * - Implemented proper semantic color usage throughout component states
- * - Added consistent hover/focus states using design system colors
+ * - Uses Input primitive from design system
+ * - Applies email-specific icon and attributes
+ * - Maintains consistent styling with other form inputs
  * 
  * ARCHITECTURE IMPROVEMENTS:
- * - Extracted business logic into useEmailInput custom hook for reusability
- * - Separated email validation utilities into dedicated emailUtils module
- * - Component now focuses purely on UI rendering and user interactions
- * - Enhanced with email-specific validation presets and utilities
+ * - Simplified to be a thin wrapper around Input primitive
+ * - Validation handled by parent components for better flexibility
+ * - Focuses purely on email-specific UI defaults
  * 
- * @refactor Migrated from inline custom styling to design system compliance with centralized
- * validation utilities, enhanced accessibility features, improved type safety, and clean architecture
+ * @refactor Simplified from complex validation wrapper to lean email-specific input wrapper
  */
 
+import { useMemo } from 'react';
 import { EnvelopeIcon } from '@heroicons/react/20/solid';
-import { useEmailInput, type EmailValidator } from '@/hooks/useEmailInput';
-import { EmailValidators } from '@/lib/utils/emailUtils';
+import { Input } from '@/components/ui/primitives/Input';
+import { cn } from '@/lib/utils/cn';
 
 export interface EmailInputProps {
   /** Current email value */
@@ -39,10 +37,6 @@ export interface EmailInputProps {
   placeholder?: string;
   /** Whether the field is required */
   required?: boolean;
-  /** Whether to validate email format in real-time */
-  validateOnChange?: boolean;
-  /** Custom validation function or preset validator */
-  customValidator?: EmailValidator | 'basic' | 'strict' | 'business' | 'permanent';
   /** Whether the input is disabled */
   disabled?: boolean;
   /** Unique identifier for the input */
@@ -55,6 +49,8 @@ export interface EmailInputProps {
   errorMessage?: string;
   /** Callback fired when error state should be cleared */
   onClearError?: () => void;
+  /** Label text for the input */
+  label?: string;
   /** ARIA label for accessibility */
   'aria-label'?: string;
   /** ARIA described by for accessibility */
@@ -62,35 +58,18 @@ export interface EmailInputProps {
 }
 
 /**
- * EmailInput component with validation, error handling, and accessibility features
+ * EmailInput component - thin wrapper around Input primitive with email-specific defaults
  * 
  * @example
  * ```tsx
- * // Basic usage
+ * // Basic usage with external validation
  * <EmailInput
  *   value={email}
  *   onEmailChange={setEmail}
- *   placeholder="Enter your email address"
+ *   hasError={!!emailError}
+ *   errorMessage={emailError || ''}
+ *   onClearError={() => setEmailError(null)}
  *   required
- *   validateOnChange
- * />
- * 
- * // With business email validation
- * <EmailInput
- *   value={email}
- *   onEmailChange={setEmail}
- *   customValidator="business"
- *   required
- * />
- * 
- * // With custom validator
- * <EmailInput
- *   value={email}
- *   onEmailChange={setEmail}
- *   customValidator={(email) => ({
- *     isValid: email.endsWith('@company.com'),
- *     message: 'Must use company email'
- *   })}
  * />
  * ```
  */
@@ -99,118 +78,54 @@ const EmailInput: React.FC<EmailInputProps> = ({
   onEmailChange,
   placeholder = 'Enter your email address',
   required = false,
-  validateOnChange = false,
-  customValidator,
   disabled = false,
   id = 'email',
   className = '',
-  hasError: externalHasError,
-  errorMessage: externalErrorMessage,
+  hasError = false,
+  errorMessage = '',
   onClearError,
+  label,
   'aria-label': ariaLabel,
   'aria-describedby': ariaDescribedBy,
 }) => {
-  // Resolve validator from string preset or use directly
-  const resolvedValidator = typeof customValidator === 'string' 
-    ? EmailValidators[customValidator]
-    : customValidator;
-
-  // Use email input hook for business logic
-  const emailInput = useEmailInput({
-    required,
-    validateOnChange,
-    customValidator: resolvedValidator,
-    hasError: externalHasError,
-    errorMessage: externalErrorMessage,
-    onClearError,
-  });
-
   /**
    * Handle email input change
    */
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newEmail = e.target.value;
-    onEmailChange(newEmail);
-    emailInput.handleChange(newEmail);
+    onEmailChange(e.target.value);
   };
 
-  /**
-   * Handle input blur
-   */
-  const handleBlur = () => {
-    emailInput.handleBlur(value);
-  };
+  const hasValue = value.length > 0;
 
-  /**
-   * Handle Enter key press
-   */
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    emailInput.handleKeyDown(e, value);
-  };
-
-  // Get styling classes from hook
-  const iconColorClass = emailInput.getIconColorClass(value);
-  const inputClasses = emailInput.getInputClasses(`input-field pl-10 ${className}`);
-  const finalInputClasses = disabled 
-    ? `${inputClasses} opacity-50 cursor-not-allowed`
-    : inputClasses;
-
-  // Generate error message ID for ARIA
-  const errorId = `${id}-error`;
-  const showError = emailInput.hasError && emailInput.errorMessage;
+  // Memoize the icon to prevent recreating it on every render
+  const icon = useMemo(
+    () => <EnvelopeIcon className={cn('w-5 h-5', hasValue && 'text-text-primary')} />,
+    [hasValue]
+  );
 
   return (
-    <div className="w-full">
-      {/* Input container with icon */}
-      <div className="relative w-full">
-        {/* Email icon */}
-        <span 
-          className="absolute top-3 left-3 pointer-events-none"
-          aria-hidden="true"
-        >
-          <EnvelopeIcon
-            className={`w-5 h-5 transition-colors duration-200 ${iconColorClass}`}
-          />
-        </span>
-
-        {/* Email input */}
-        <input
-          id={id}
-          type="email"
-          value={value}
-          onChange={handleEmailChange}
-          onFocus={emailInput.handleFocus}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          className={finalInputClasses}
-          disabled={disabled}
-          required={required}
-          aria-label={ariaLabel || `Email address ${required ? '(required)' : ''}`}
-          aria-describedby={`
-            ${ariaDescribedBy || ''} 
-            ${showError ? errorId : ''}
-          `.trim()}
-          aria-invalid={emailInput.hasError}
-          autoComplete="email"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck="false"
-        />
-      </div>
-
-      {/* Error message */}
-      {showError && (
-        <p 
-          id={errorId}
-          className="form-error sm:-mt-2 mb-3"
-          role="alert"
-          aria-live="polite"
-        >
-          {emailInput.errorMessage}
-        </p>
-      )}
-    </div>
+    <Input
+      id={id}
+      type="email"
+      value={value}
+      onChange={handleEmailChange}
+      label={label}
+      placeholder={placeholder}
+      disabled={disabled}
+      required={required}
+      error={hasError ? errorMessage : undefined}
+      icon={icon}
+      iconPosition="left"
+      fullWidth
+      className={className}
+      onClearError={onClearError}
+      aria-label={ariaLabel || `Email address ${required ? '(required)' : ''}`}
+      aria-describedby={ariaDescribedBy}
+      autoComplete="email"
+      autoCapitalize="none"
+      autoCorrect="off"
+      spellCheck="false"
+    />
   );
 };
 

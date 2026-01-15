@@ -166,6 +166,10 @@ export interface GetQuoteFormActions {
   setLastName: (name: string) => void;
   setEmail: (email: string) => void;
   setPhoneNumber: (phone: string) => void;
+  setFirstNameError: (error: string | null) => void;
+  setLastNameError: (error: string | null) => void;
+  setEmailError: (error: string | null) => void;
+  setPhoneError: (error: string | null) => void;
   clearContactErrors: () => void;
   
   // Payment

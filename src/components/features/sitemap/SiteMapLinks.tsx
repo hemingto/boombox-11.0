@@ -50,7 +50,7 @@ export function SiteMapLinks(): React.ReactElement {
                 <Link
                   key={i}
                   href={link.href}
-                  className="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+                  className="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-disabled focus:bg-slate-300 focus:outline-none"
                   aria-label={`Navigate to ${link.name}`}
                 >
                   {link.name}

@@ -131,16 +131,15 @@ export async function POST(request: NextRequest) {
 
       try {
         // Call the batch optimization endpoint
-        // @REFACTOR-P9-TEMP: Update URL path when batch-optimize route is migrated
         const batchOptimizeResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_APP_URL}/api/packing-supplies/batch-optimize`,
+          `${process.env.NEXT_PUBLIC_APP_URL}/api/onfleet/packing-supplies/batch-optimize`,
           {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              date: targetDate.toISOString().split('T')[0],
+              deliveryDate: targetDate.toISOString().split('T')[0],
               source: 'manual_trigger',
             }),
           }

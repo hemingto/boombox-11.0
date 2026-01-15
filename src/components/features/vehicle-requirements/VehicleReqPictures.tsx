@@ -10,16 +10,16 @@
  * - Updated border colors: border-slate-100 → border-border
  * - Updated success color: text-emerald-500 → text-status-success
  * - Updated error color: text-red-500 → text-status-error
- * - Uses OptimizedImage component for proper image optimization and loading states
+ * - Uses Next.js Image for proper image optimization and loading states
  * - Uses semantic spacing classes
  * - Replaced placeholder images with /placeholder.jpg
  * 
- * @refactor Renamed to PascalCase, applied design system colors, replaced Next.js Image with OptimizedImage,
+ * @refactor Renamed to PascalCase, applied design system colors, uses Next.js Image,
  *           improved accessibility with ARIA labels and semantic HTML, added image optimization
  */
 
 import React from 'react';
-import { OptimizedImage } from '@/components/ui/primitives/OptimizedImage/OptimizedImage';
+import Image from 'next/image';
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid';
 
 /**
@@ -68,18 +68,16 @@ export function VehicleReqPictures() {
         </h2>
         <div className="flex flex-col sm:flex-row gap-4 max-w-6xl">
           {approvedVehicles.map((vehicle, index) => (
-            <div key={index} className="relative w-full">
-              <OptimizedImage
+            <div key={index} className="relative w-full aspect-square rounded-md overflow-hidden">
+              <Image
                 src={vehicle.src}
                 alt={`Example of an approved vehicle showing proper angle and condition - photo ${index + 1}`}
-                width={500}
-                height={500}
-                aspectRatio="square"
-                containerClassName="w-full rounded-md"
+                fill
                 className="object-cover rounded-md"
                 loading="lazy"
                 quality={85}
                 sizes="(max-width: 640px) 100vw, 33vw"
+              />
               />
               <CheckCircleIcon
                 className="absolute bg-white rounded-full top-2 right-2 w-6 h-6 sm:w-10 sm:h-10 text-status-success"
@@ -100,14 +98,11 @@ export function VehicleReqPictures() {
         </h2>
         <div className="flex flex-col sm:flex-row gap-4 max-w-6xl">
           {notApprovedVehicles.map((vehicle, index) => (
-            <div key={index} className="relative w-full">
-              <OptimizedImage
+            <div key={index} className="relative w-full aspect-square rounded-lg overflow-hidden">
+              <Image
                 src={vehicle.src}
                 alt={`Example of a not-approved vehicle showing issues with photo or condition - photo ${index + 1}`}
-                width={500}
-                height={500}
-                aspectRatio="square"
-                containerClassName="w-full rounded-lg"
+                fill
                 className="object-cover rounded-lg"
                 loading="lazy"
                 quality={85}

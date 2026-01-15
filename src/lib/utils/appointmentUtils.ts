@@ -11,6 +11,18 @@ export interface AppointmentChanges {
   timeChanged: boolean;
   unitsAdded: number[];
   unitsRemoved: number[];
+  /**
+   * For Additional Storage / Initial Pickup appointments:
+   * Number of new units to create (count-based, not specific unit IDs)
+   * These appointments use numberOfUnits count rather than selectedStorageUnits array
+   */
+  additionalUnitsToCreate: number;
+  /**
+   * For Additional Storage / Initial Pickup appointments:
+   * Number of units to remove (count-based, not specific unit IDs)
+   * Tasks with unitNumber > newCount will be deleted
+   */
+  unitsToRemoveByCount: number;
   movingPartnerChanged: boolean;
   driverReassignmentRequired: boolean;
 }
@@ -51,7 +63,7 @@ export interface AdditionalStorageAppointmentData {
   address: string;
   zipCode: string;
   storageUnitCount: number;
-  selectedInsurance: string;
+  selectedInsurance: string | { label: string; [key: string]: any } | null;
   appointmentDateTime: Date;
   planType: string;
   parsedLoadingHelpPrice: number;
@@ -87,6 +99,10 @@ export function generateDriverReconfirmToken(
 
 /**
  * Calculate what changes are being made to an appointment
+ * 
+ * Handles two different appointment types:
+ * - Access Storage (Storage Unit Access, End Storage Term): Uses selectedStorageUnits (specific unit IDs)
+ * - Additional Storage / Initial Pickup: Uses numberOfUnits (count-based)
  */
 export function calculateAppointmentChanges(
   existingAppointment: any,
@@ -101,7 +117,7 @@ export function calculateAppointmentChanges(
     timeChanged = existingAppointment.date.getTime() !== newDateTime.getTime();
   }
 
-  // Calculate unit changes
+  // Calculate unit changes for Access Storage appointments (uses specific storage unit IDs)
   const existingUnitIds =
     existingAppointment.requestedStorageUnits?.map(
       (unit: any) => unit.storageUnitId
@@ -115,6 +131,24 @@ export function calculateAppointmentChanges(
     (id: number) => !newUnitIds.includes(id)
   );
 
+  // Calculate unit changes for Additional Storage / Initial Pickup appointments (count-based)
+  // These appointments don't use requestedStorageUnits - they just specify a numberOfUnits count
+  let additionalUnitsToCreate = 0;
+  let unitsToRemoveByCount = 0;
+  const isCountBasedAppointment = 
+    existingAppointment.appointmentType === 'Additional Storage' ||
+    existingAppointment.appointmentType === 'Initial Pickup';
+  
+  if (isCountBasedAppointment && updateData.numberOfUnits !== undefined) {
+    const existingCount = existingAppointment.numberOfUnits || 0;
+    const newCount = updateData.numberOfUnits;
+    if (newCount > existingCount) {
+      additionalUnitsToCreate = newCount - existingCount;
+    } else if (newCount < existingCount) {
+      unitsToRemoveByCount = existingCount - newCount;
+    }
+  }
+
   const movingPartnerChanged =
     updateData.movingPartnerId !== existingAppointment.movingPartnerId;
 
@@ -123,13 +157,15 @@ export function calculateAppointmentChanges(
   // 2. Moving partner changes
   // 3. Units are reduced (need to cancel some driver assignments)
   const driverReassignmentRequired =
-    planChanged || movingPartnerChanged || unitsRemoved.length > 0;
+    planChanged || movingPartnerChanged || unitsRemoved.length > 0 || unitsToRemoveByCount > 0;
 
   return {
     planChanged,
     timeChanged,
     unitsAdded,
     unitsRemoved,
+    additionalUnitsToCreate,
+    unitsToRemoveByCount,
     movingPartnerChanged,
     driverReassignmentRequired,
   };
@@ -281,7 +317,7 @@ export function validateAppointmentDateTime(dateTimeString: string): {
 export function generateDriverWebViewUrl(token: string): string {
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL || 'https://app.boomboxstorage.com';
-  return `${baseUrl}/driver/offer/${token}`;
+  return `${baseUrl}/service-provider/driver/offer/${token}`;
 }
 
 // ===== DRIVER HELPER FUNCTIONS =====
@@ -601,27 +637,47 @@ export function verifyTrackingToken(token: string): {
 
 /**
  * Update appointment additional details
- * @source boombox-10.0 (legacy appointment update logic)
- * @refactor Added function for appointment detail updates
+ * @source boombox-10.0/src/app/api/appointments/[appointmentId]/addDetails/route.ts
+ * @refactor Uses AdditionalAppointmentInfo model with upsert operation
  */
 export async function updateAppointmentAdditionalDetails(
   appointmentId: number,
-  details: any
+  details: {
+    itemsOver100lbs?: boolean;
+    storageTerm?: string;
+    storageAccessFrequency?: string;
+    moveDescription?: string;
+    conditionsDescription?: string;
+  }
 ) {
   const { prisma } = await import('@/lib/database/prismaClient');
 
-  // @REFACTOR-P9-TEMP: Mock implementation
-  console.log('PLACEHOLDER: updateAppointmentAdditionalDetails called', {
-    appointmentId,
-    details,
+  // First verify the appointment exists
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
   });
 
-  return await prisma.appointment.update({
-    where: { id: appointmentId },
-    data: {
-      description: details.description || null,
-      additionalNotes: details.additionalNotes || null,
-      // Add other fields as needed
+  if (!appointment) {
+    throw new Error('Appointment not found');
+  }
+
+  // Upsert the additional appointment info
+  return await prisma.additionalAppointmentInfo.upsert({
+    where: { appointmentId: appointmentId },
+    update: {
+      itemsOver100lbs: details.itemsOver100lbs ?? false,
+      storageTerm: details.storageTerm || null,
+      storageAccessFrequency: details.storageAccessFrequency || null,
+      moveDescription: details.moveDescription || null,
+      conditionsDescription: details.conditionsDescription || null,
+    },
+    create: {
+      appointmentId: appointmentId,
+      itemsOver100lbs: details.itemsOver100lbs ?? false,
+      storageTerm: details.storageTerm || null,
+      storageAccessFrequency: details.storageAccessFrequency || null,
+      moveDescription: details.moveDescription || null,
+      conditionsDescription: details.conditionsDescription || null,
     },
   });
 }
@@ -658,15 +714,49 @@ export async function getAppointmentForTracking(appointmentId: number) {
  */
 export async function createStorageAccessAppointment(data: StorageAccessAppointmentData) {
   const { prisma } = await import('@/lib/database/prismaClient');
+  const { generateJobCode } = await import('@/lib/utils/formatUtils');
+  const { accessStorageUnitPricing } = await import('@/data/accessStorageUnitPricing');
 
-  // @REFACTOR-P9-TEMP: Mock implementation
-  console.log('PLACEHOLDER: createStorageAccessAppointment called', { data });
+  const appointmentDate = data.appointmentDateTime;
+  
+  // Calculate quoted price: access storage unit pricing * number of units
+  const numberOfUnits = data.selectedStorageUnits.length;
+  const calculatedQuotedPrice = data.calculatedTotal || (accessStorageUnitPricing * numberOfUnits);
 
   return await prisma.appointment.create({
     data: {
-      appointmentType: 'STORAGE_ACCESS',
-      ...data,
+      userId: data.userId,
+      movingPartnerId: data.movingPartnerId || null,
+      thirdPartyMovingPartnerId: data.thirdPartyMovingPartnerId || null,
+      appointmentType: data.appointmentType || 'Storage Unit Access',
+      address: data.address,
+      zipcode: data.zipCode,  // Map zipCode → zipcode for Prisma schema
+      date: appointmentDate,
+      time: appointmentDate,
+      planType: data.planType || null,
+      deliveryReason: data.deliveryReason || null,
+      loadingHelpPrice: data.parsedLoadingHelpPrice,
+      monthlyStorageRate: data.monthlyStorageRate,
+      monthlyInsuranceRate: data.monthlyInsuranceRate,
+      quotedPrice: calculatedQuotedPrice,
+      status: 'Scheduled',
+      description: data.description || 'No added info',
+      jobCode: generateJobCode(),
+      // Create RequestedAccessStorageUnit records
+      requestedStorageUnits: {
+        create: data.selectedStorageUnits.map((unitId: number) => ({
+          storageUnit: { connect: { id: unitId } }
+        }))
+      }
     },
+    // Include the created records in response
+    include: {
+      requestedStorageUnits: {
+        include: {
+          storageUnit: true
+        }
+      }
+    }
   });
 }
 
@@ -677,38 +767,117 @@ export async function createStorageAccessAppointment(data: StorageAccessAppointm
  */
 export async function createAdditionalStorageAppointment(data: AdditionalStorageAppointmentData) {
   const { prisma } = await import('@/lib/database/prismaClient');
-
-  // @REFACTOR-P9-TEMP: Mock implementation
-  console.log('PLACEHOLDER: createAdditionalStorageAppointment called', {
-    data,
-  });
-
+  const { generateJobCode } = await import('@/lib/utils/formatUtils');
+  
+  const appointmentDate = data.appointmentDateTime;
+  
+  // Extract insurance label string from insurance object (Prisma expects String, not Object)
+  const insuranceCoverageValue = data.selectedInsurance
+    ? (typeof data.selectedInsurance === 'string' 
+        ? data.selectedInsurance 
+        : data.selectedInsurance.label || null)
+    : null;
+  
   return await prisma.appointment.create({
     data: {
-      appointmentType: 'ADDITIONAL_STORAGE',
-      ...data,
+      userId: data.userId,
+      movingPartnerId: data.movingPartnerId || null,
+      thirdPartyMovingPartnerId: data.thirdPartyMovingPartnerId || null,
+      appointmentType: data.appointmentType || 'Additional Storage',
+      address: data.address,
+      zipcode: data.zipCode,  // Map zipCode → zipcode for Prisma schema
+      date: appointmentDate,
+      time: appointmentDate,
+      numberOfUnits: data.storageUnitCount || 1,
+      planType: data.planType || null,
+      insuranceCoverage: insuranceCoverageValue,
+      loadingHelpPrice: data.parsedLoadingHelpPrice,
+      monthlyStorageRate: data.monthlyStorageRate,
+      monthlyInsuranceRate: data.monthlyInsuranceRate,
+      quotedPrice: data.calculatedTotal || 0,
+      status: 'Scheduled',
+      description: data.description || 'No added info',
+      jobCode: generateJobCode()
     },
   });
 }
 
 /**
- * Process Onfleet tasks and assign driver
+ * Create Onfleet tasks for appointment
  * @source boombox-10.0 (legacy onfleet processing logic)
- * @refactor Added function for onfleet processing and driver assignment
+ * @refactor Simplified to only handle Onfleet task creation (driver assignment happens in API routes)
+ * @note Driver assignment is handled separately in the API route to avoid importing server-only code
  */
-export async function processOnfleetAndAssignDriver(
+export async function createOnfleetTasksForAppointment(
   appointmentId: number,
-  data: any
+  data: {
+    userId: number;
+    selectedInsurance?: any;
+    stripeCustomerId?: string;
+    deliveryReason?: string;
+    storageUnitIds?: number[];
+  }
 ) {
-  // @REFACTOR-P9-TEMP: Mock implementation
-  console.log('PLACEHOLDER: processOnfleetAndAssignDriver called', {
-    appointmentId,
-    data,
-  });
+  const { prisma } = await import('@/lib/database/prismaClient');
+  
+  console.log(`Creating Onfleet tasks for Appointment ID: ${appointmentId}`);
+  
+  try {
+    // Fetch complete appointment data with relations
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      include: { 
+        user: true,
+        movingPartner: {
+          select: { onfleetTeamId: true }
+        }
+      }
+    });
 
-  return {
-    success: true,
-    taskIds: [`task-${appointmentId}`],
-    driverId: null, // Will be assigned later
-  };
+    if (!appointment) {
+      throw new Error(`Appointment with ID ${appointmentId} not found`);
+    }
+
+    // Build payload for Onfleet task creation
+    const payload = {
+      appointmentId,
+      userId: data.userId,
+      selectedPlanName: appointment.planType,
+      selectedLabor: appointment.planType === 'Full Service Plan' && appointment.movingPartner?.onfleetTeamId
+        ? { onfleetTeamId: appointment.movingPartner.onfleetTeamId } 
+        : null,
+      firstName: appointment.user.firstName,
+      lastName: appointment.user.lastName,
+      phoneNumber: appointment.user.phoneNumber,
+      address: appointment.address,
+      zipCode: appointment.zipcode,
+      storageUnitCount: appointment.numberOfUnits,
+      parsedLoadingHelpPrice: appointment.loadingHelpPrice,
+      monthlyStorageRate: appointment.monthlyStorageRate,
+      monthlyInsuranceRate: appointment.monthlyInsuranceRate,
+      selectedInsurance: data.selectedInsurance || { label: appointment.insuranceCoverage },
+      appointmentType: appointment.appointmentType,
+      appointmentDateTime: appointment.date.getTime(),
+      stripeCustomerId: data.stripeCustomerId,
+      deliveryReason: data.deliveryReason,
+      storageUnitIds: data.storageUnitIds // Pass through storage unit IDs for access storage appointments
+    };
+
+    // Call Onfleet task creation service
+    const { createOnfleetTasksWithDatabaseSave } = await import('@/lib/services/appointmentOnfleetService');
+    const taskResult = await createOnfleetTasksWithDatabaseSave(payload);
+    
+    console.log(`Successfully created Onfleet tasks for Appointment ID: ${appointmentId}`);
+
+    return { success: true, taskResult, appointmentId };
+  } catch (error) {
+    console.error(`Error creating Onfleet tasks for Appointment ID: ${appointmentId}:`, error);
+    return { success: false, error };
+  }
 }
+
+/**
+ * Legacy function name kept for backward compatibility
+ * @deprecated Use createOnfleetTasksForAppointment instead
+ */
+export const processOnfleetAndAssignDriver = createOnfleetTasksForAppointment;

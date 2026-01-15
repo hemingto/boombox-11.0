@@ -34,7 +34,7 @@ export default async function CustomerDashboard({
   }
 
   return (
-    <div className="mb-12 sm:mb-24">
+    <div className="mb-24 sm:mb-48">
       <UserPageHero firstName={user.firstName} />
       <CompleteUserPage userId={userId} />
     </div>

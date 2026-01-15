@@ -24,6 +24,7 @@
 
 import { useState } from 'react';
 import { Modal } from '@/components/ui/primitives/Modal/Modal';
+import { Button } from '@/components/ui/primitives/Button/Button';
 
 interface MovingPartner {
   name: string;
@@ -42,6 +43,8 @@ interface DriverAssignmentModalProps {
   jobCode?: string;
   /** Appointment ID */
   appointmentId?: number;
+  /** Plan type (Full Service Plan, Do It Yourself Plan, etc.) */
+  planType?: string;
   /** Callback when completed */
   onComplete?: (appointmentId: number, calledMovingPartner: boolean) => Promise<void>;
 }
@@ -67,15 +70,14 @@ export function DriverAssignmentModal({
   movingPartner,
   jobCode,
   appointmentId,
+  planType,
   onComplete,
 }: DriverAssignmentModalProps) {
   const [calledMovingPartner, setCalledMovingPartner] = useState(false);
   const [showError, setShowError] = useState(false);
 
-  if (!movingPartner) return null;
-
   const handleComplete = async () => {
-    if (!calledMovingPartner) {
+    if (movingPartner && !calledMovingPartner) {
       setShowError(true);
       return;
     }
@@ -96,75 +98,104 @@ export function DriverAssignmentModal({
     <Modal
       open={isOpen}
       onClose={handleClose}
-      title="Moving Partner Details"
+      title={movingPartner ? "Moving Partner Details" : "No Moving Partner Assigned"}
       size="md"
     >
       <div className="space-y-4">
-        {/* Warning Banner */}
-        <div className="bg-status-bg-error border border-border-error p-4 rounded-md">
-          <p className="text-sm text-status-error">
-            Call the moving partner to make sure they assign a driver to this job in Onfleet
-          </p>
-        </div>
-
-        {/* Moving Partner Information */}
-        <div className="space-y-4 bg-surface-tertiary p-4 rounded-md">
-          {jobCode && (
-            <div>
-              <h4 className="text-sm font-medium text-text-secondary">Job Code</h4>
-              <p className="mt-1 text-sm text-text-primary">{jobCode}</p>
+        {movingPartner ? (
+          <>
+            {/* Warning Banner */}
+            <div className="bg-status-bg-error border border-border-error p-4 rounded-md">
+              <p className="text-sm text-status-error">
+                Call the moving partner to make sure they assign a driver to this job in Onfleet
+              </p>
             </div>
-          )}
-          <div>
-            <h4 className="text-sm font-medium text-text-secondary">Name</h4>
-            <p className="mt-1 text-sm text-text-primary">{movingPartner.name}</p>
-          </div>
-          <div>
-            <h4 className="text-sm font-medium text-text-secondary">Email</h4>
-            <p className="mt-1 text-sm text-text-primary">{movingPartner.email}</p>
-          </div>
-          <div>
-            <h4 className="text-sm font-medium text-text-secondary">Phone Number</h4>
-            <p className="mt-1 text-sm text-text-primary">{movingPartner.phoneNumber}</p>
-          </div>
-        </div>
 
-        {/* Confirmation Checkbox */}
-        <div>
-          <div className="flex items-center">
-            <input
-              id="called-moving-partner"
-              name="called-moving-partner"
-              type="checkbox"
-              checked={calledMovingPartner}
-              onChange={(e) => {
-                setCalledMovingPartner(e.target.checked);
-                setShowError(false);
-              }}
-              className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-              aria-describedby={showError ? 'checkbox-error' : undefined}
-            />
-            <label htmlFor="called-moving-partner" className="ml-2 block text-sm text-text-primary">
-              Called Moving Partner
-            </label>
-          </div>
-          {showError && (
-            <p id="checkbox-error" className="form-error">
-              Please confirm you have called the moving partner before proceeding.
-            </p>
-          )}
-        </div>
+            {/* Moving Partner Information */}
+            <div className="space-y-4 bg-surface-tertiary p-4 rounded-md">
+              {jobCode && (
+                <div>
+                  <h4 className="text-sm font-medium text-text-secondary">Job Code</h4>
+                  <p className="mt-1 text-sm text-text-primary">{jobCode}</p>
+                </div>
+              )}
+              <div>
+                <h4 className="text-sm font-medium text-text-secondary">Name</h4>
+                <p className="mt-1 text-sm text-text-primary">{movingPartner.name}</p>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-text-secondary">Email</h4>
+                <p className="mt-1 text-sm text-text-primary">{movingPartner.email}</p>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-text-secondary">Phone Number</h4>
+                <p className="mt-1 text-sm text-text-primary">{movingPartner.phoneNumber}</p>
+              </div>
+            </div>
+
+            {/* Confirmation Checkbox */}
+            <div>
+              <div className="flex items-center">
+                <input
+                  id="called-moving-partner"
+                  name="called-moving-partner"
+                  type="checkbox"
+                  checked={calledMovingPartner}
+                  onChange={(e) => {
+                    setCalledMovingPartner(e.target.checked);
+                    setShowError(false);
+                  }}
+                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                  aria-describedby={showError ? 'checkbox-error' : undefined}
+                />
+                <label htmlFor="called-moving-partner" className="ml-2 block text-sm text-text-primary">
+                  Called Moving Partner
+                </label>
+              </div>
+              {showError && (
+                <p id="checkbox-error" className="form-error">
+                  Please confirm you have called the moving partner before proceeding.
+                </p>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* No Moving Partner Warning - Different message based on plan type */}
+            <div className="bg-status-bg-warning p-4 rounded-md">
+              <p className="text-sm text-status-warning">
+                {planType?.toLowerCase().includes('full service') ? (
+                  'This job does not have a moving partner assigned. Please assign a moving partner to this job before assigning a driver.'
+                ) : planType?.toLowerCase().includes('do it yourself') ? (
+                  'Need to find an available Boombox Delivery Driver to assign to this job. Assign a driver in the Onfleet dashboard once you have confirmed availability with the driver.'
+                ) : (
+                  'This job does not have a moving partner assigned. Please assign a moving partner to this job before assigning a driver.'
+                )}
+              </p>
+            </div>
+
+            {jobCode && (
+              <div className="space-y-4 bg-surface-tertiary p-4 rounded-md">
+                <div>
+                  <h4 className="text-sm font-medium text-text-tertiary">Job Code</h4>
+                  <p className="mt-1 text-sm text-text-primary">{jobCode}</p>
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
         {/* Action Button */}
-        <div className="mt-5 sm:mt-6">
-          <button
+        <div className="mt-5 sm:mt-6 flex justify-end">
+          <Button
             type="button"
-            className="btn-primary w-full"
+            variant="primary"
+            size="md"
             onClick={handleComplete}
             aria-label="Mark task as complete"
           >
-            Done
-          </button>
+            {movingPartner ? 'Done' : 'Close'}
+          </Button>
         </div>
       </div>
     </Modal>

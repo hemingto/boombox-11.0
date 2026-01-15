@@ -132,7 +132,8 @@ export async function createStorageUnitUsages(
 export async function updateOnfleetTasksWithStorageUnits(
   appointmentId: number,
   unitIndex: number,
-  storageUnits: any[]
+  storageUnits: any[],
+  driverMatches?: boolean
 ) {
   const onfleetTasks = await prisma.onfleetTask.findMany({
     where: {
@@ -148,7 +149,9 @@ export async function updateOnfleetTasksWithStorageUnits(
           id: task.id
         },
         data: {
-          storageUnitId: unit.id
+          storageUnitId: unit.id,
+          // Update driverVerified if driverMatches was provided
+          ...(driverMatches !== undefined && { driverVerified: driverMatches })
         }
       });
     }

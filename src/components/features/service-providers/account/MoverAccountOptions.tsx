@@ -81,7 +81,7 @@ export function MoverAccountOptions({
       <h3 className="text-lg text-text-primary mb-1">
         {title}
       </h3>
-      <p className="text-text-secondary leading-5">
+      <p className="text-text-tertiary text-sm leading-5">
         {description}
       </p>
     </button>

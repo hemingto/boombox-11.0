@@ -82,7 +82,7 @@ describe('TimeSlotPicker Component', () => {
 
       render(<TimeSlotPicker {...props} />);
       const container = screen.getByRole('region', { name: 'Time slot selection' });
-      expect(container).toHaveClass('ring-border-error', 'ring-2', 'bg-status-bg-error');
+      expect(container).toHaveClass('ring-border-error', 'ring-2', 'bg-red-50');
     });
   });
 
@@ -328,4 +328,5 @@ describe('TimeSlotPicker Component', () => {
       expect(defaultProps.onTimeSlotSelect).toHaveBeenCalledWith('9am-10am');
     });
   });
+
 });

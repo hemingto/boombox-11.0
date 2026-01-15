@@ -40,17 +40,20 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, ReactNode } from 'react';
 import { CheckCircleIcon } from '@heroicons/react/24/outline';
 import { Modal } from '@/components/ui/primitives/Modal/Modal';
+import { Button } from '@/components/ui/primitives/Button/Button';
 import EmailInput from '@/components/forms/EmailInput';
 import PhoneNumberInput from '@/components/forms/PhoneNumberInput';
-import { DriverInvites } from './DriverInvites';
 import MoverPartnerDriver from './MoverPartnerDriver';
+import { inviteDriver } from '@/lib/services/driverInvitationService';
 
 export interface DriverContentProps {
   /** Moving partner ID */
   moverId: string;
+  /** Driver invites Server Component passed from page */
+  driverInvites: ReactNode;
   /** Optional callback when driver is invited */
   onDriverInvited?: () => void;
   /** Optional className for additional styling */
@@ -59,6 +62,7 @@ export interface DriverContentProps {
 
 export const DriverContent: React.FC<DriverContentProps> = ({
   moverId,
+  driverInvites,
   onDriverInvited,
   className = '',
 }) => {
@@ -71,28 +75,33 @@ export const DriverContent: React.FC<DriverContentProps> = ({
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
 
-  const toggleInputMethod = () => {
-    setShowEmailInput(!showEmailInput);
+  // Memoized callback to clear error state
+  const handleClearError = useCallback(() => {
     setError('');
-  };
+  }, []);
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setEmail('');
     setPhone('');
     setError('');
     setSuccess('');
     setShowSuccessMessage(false);
-  };
+  }, []);
 
-  const handleOpenModal = () => {
+  const toggleInputMethod = useCallback(() => {
+    setShowEmailInput(!showEmailInput);
+    setError('');
+  }, [showEmailInput]);
+
+  const handleOpenModal = useCallback(() => {
     resetForm();
     setShowInviteModal(true);
-  };
+  }, [resetForm]);
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setShowInviteModal(false);
     resetForm();
-  };
+  }, [resetForm]);
 
   const handleSubmit = async () => {
     setIsLoading(true);
@@ -100,23 +109,14 @@ export const DriverContent: React.FC<DriverContentProps> = ({
     setSuccess('');
 
     try {
-      const response = await fetch(`/api/moving-partners/${moverId}/invite-driver`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: email || undefined,
-          phone: phone || undefined,
-          expiresInDays: 15,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to send invitation');
-      }
+      // Use Server Action to invite driver
+      // revalidatePath() is called automatically in the Server Action
+      // The DriverInvites Server Component will auto-refresh
+      await inviteDriver(
+        parseInt(moverId, 10),
+        email || phone, // Send email or phone
+        15
+      );
 
       setSuccess('Invitation sent successfully!');
       setShowSuccessMessage(true);
@@ -133,12 +133,12 @@ export const DriverContent: React.FC<DriverContentProps> = ({
 
   return (
     <div 
-      className={`flex flex-col lg:px-16 px-6 max-w-5xl w-full mx-auto mb-10 ${className}`}
+      className={`flex flex-col lg:px-16 px-6 max-w-5xl w-full mx-auto mb-96 sm:mb-60 ${className}`}
       role="region"
       aria-label="Driver management"
     >
-      {/* Driver Invites Table */}
-      <DriverInvites moverId={moverId} />
+      {/* Driver Invites Table - Server Component passed as prop */}
+      {driverInvites}
 
       {/* Header with Add Driver Button */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-8">
@@ -146,13 +146,14 @@ export const DriverContent: React.FC<DriverContentProps> = ({
           Your drivers
         </h2>
 
-        <button
+        <Button
           onClick={handleOpenModal}
-          className="rounded-md py-2.5 px-5 font-semibold bg-primary text-text-inverse hover:bg-primary-hover active:bg-primary-active transition-colors duration-200 font-inter focus:outline-none focus:ring-2 focus:ring-border-focus focus:ring-offset-2"
+          variant="primary"
+          size="md"
           aria-label="Add new driver"
         >
           Add Driver
-        </button>
+        </Button>
       </div>
 
       {/* Driver List */}
@@ -177,16 +178,17 @@ export const DriverContent: React.FC<DriverContentProps> = ({
             <h3 className="text-2xl text-text-primary font-bold mb-4">
               Success!
             </h3>
-            <p className="text-text-secondary mb-6">
+            <p className="text-text-primary mb-6">
               The invitation has been sent successfully.
             </p>
-            <button
+            <Button
               onClick={handleCloseModal}
-              className="rounded-md py-2.5 px-5 font-semibold bg-primary text-text-inverse hover:bg-primary-hover active:bg-primary-active transition-colors duration-200 font-inter focus:outline-none focus:ring-2 focus:ring-border-focus focus:ring-offset-2"
+              variant="primary"
+              size="md"
               aria-label="Close success message"
             >
               Done
-            </button>
+            </Button>
           </div>
         ) : (
           /* Invitation Form */
@@ -202,9 +204,10 @@ export const DriverContent: React.FC<DriverContentProps> = ({
                   onEmailChange={setEmail}
                   hasError={!!error && !!email}
                   errorMessage={error}
-                  onClearError={() => setError('')}
+                  onClearError={handleClearError}
                   placeholder="Enter driver's email address"
                   aria-label="Driver Email"
+                  label="Driver Email"
                 />
               ) : (
                 <PhoneNumberInput
@@ -212,7 +215,7 @@ export const DriverContent: React.FC<DriverContentProps> = ({
                   onChange={setPhone}
                   hasError={!!error && !!phone}
                   errorMessage={error}
-                  onClearError={() => setError('')}
+                  onClearError={handleClearError}
                   placeholder="Enter driver's phone number"
                   label="Driver Phone"
                 />
@@ -220,13 +223,13 @@ export const DriverContent: React.FC<DriverContentProps> = ({
             </fieldset>
 
             {/* Toggle Input Method */}
-            <p className="text-sm text-text-primary mb-4">
+            <p className="text-sm text-text-primary mb-12">
               Would you rather send the invite via{' '}
               <button
                 type="button"
                 onClick={toggleInputMethod}
                 disabled={isLoading}
-                className="underline font-bold cursor-pointer hover:text-primary transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-border-focus rounded-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="underline font-semibold cursor-pointer focus:outline-none focus:ring-2 focus:ring-border-focus rounded-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label={`Switch to ${showEmailInput ? 'phone' : 'email'} invitation`}
               >
                 {showEmailInput ? 'text instead' : 'email instead'}
@@ -247,23 +250,25 @@ export const DriverContent: React.FC<DriverContentProps> = ({
 
             {/* Action Buttons */}
             <div className="flex justify-end gap-3 mt-6">
-              <button
+              <Button
                 onClick={handleCloseModal}
                 disabled={isLoading}
-                className="rounded-md py-2.5 px-5 font-semibold text-text-primary bg-surface-secondary hover:bg-surface-tertiary active:bg-surface-disabled transition-colors duration-200 border border-border focus:outline-none focus:ring-2 focus:ring-border-focus focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                variant="secondary"
+                size="md"
                 aria-label="Cancel invitation"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleSubmit}
                 disabled={isLoading || (showEmailInput ? !email : !phone)}
-                className="rounded-md py-2.5 px-5 font-semibold bg-primary text-text-inverse hover:bg-primary-hover active:bg-primary-active transition-colors duration-200 font-inter focus:outline-none focus:ring-2 focus:ring-border-focus focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                loading={isLoading}
+                variant="primary"
+                size="md"
                 aria-label="Send driver invitation"
-                aria-disabled={isLoading || (showEmailInput ? !email : !phone)}
               >
                 {isLoading ? 'Sending...' : 'Send Invite'}
-              </button>
+              </Button>
             </div>
           </div>
         )}

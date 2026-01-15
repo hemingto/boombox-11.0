@@ -149,11 +149,13 @@ export async function getResourceAvailabilityForDays(
 /**
  * Get time slot booking conflicts for moving partners
  * @source Original booking conflict checking
+ * @param excludeAppointmentId - Optional appointment ID to exclude from conflicts (for edit mode)
  */
 export async function getPartnerBookingConflicts(
   partnerIds: number[],
   dateStart: Date,
-  dateEnd: Date
+  dateEnd: Date,
+  excludeAppointmentId?: number
 ): Promise<Map<number, Array<{ bookingDate: Date; endDate: Date }>>> {
   if (partnerIds.length === 0) return new Map();
 
@@ -165,7 +167,9 @@ export async function getPartnerBookingConflicts(
       bookingDate: {
         gte: dateStart,
         lt: dateEnd
-      }
+      },
+      // Exclude the current appointment's booking when in edit mode
+      ...(excludeAppointmentId && { appointmentId: { not: excludeAppointmentId } })
     },
     select: {
       movingPartnerAvailability: {
@@ -195,11 +199,13 @@ export async function getPartnerBookingConflicts(
 /**
  * Get driver time slot booking conflicts
  * @source Original driver booking conflict checking
+ * @param excludeAppointmentId - Optional appointment ID to exclude from conflicts (for edit mode)
  */
 export async function getDriverBookingConflicts(
   driverIds: number[],
   dateStart: Date,
-  dateEnd: Date
+  dateEnd: Date,
+  excludeAppointmentId?: number
 ): Promise<Map<number, Array<{ bookingDate: Date; endDate: Date }>>> {
   if (driverIds.length === 0) return new Map();
 
@@ -211,7 +217,9 @@ export async function getDriverBookingConflicts(
       bookingDate: {
         gte: dateStart,
         lt: dateEnd
-      }
+      },
+      // Exclude the current appointment's booking when in edit mode
+      ...(excludeAppointmentId && { appointmentId: { not: excludeAppointmentId } })
     },
     select: {
       driverAvailability: {
@@ -241,16 +249,20 @@ export async function getDriverBookingConflicts(
 /**
  * Get Onfleet task conflicts for drivers on a specific date
  * @source Original Onfleet task fetching with deduplication
+ * @param excludeAppointmentId - Optional appointment ID to exclude from conflicts (for edit mode)
  */
 export async function getOnfleetTasksForDriversAndDate(
   driverIds: number[],
-  dateString: string
+  dateString: string,
+  excludeAppointmentId?: number
 ): Promise<Record<number, Array<{ appointment: { time: Date } }>>> {
   if (driverIds.length === 0) return {};
 
   const allTasksForDay = await prisma.onfleetTask.findMany({
     where: {
       driverId: { in: driverIds },
+      // Exclude tasks for the current appointment when in edit mode
+      ...(excludeAppointmentId && { appointmentId: { not: excludeAppointmentId } }),
       appointment: {
         date: {
           gte: new Date(`${dateString}T00:00:00.000Z`),
@@ -387,7 +399,8 @@ export async function getResourceCountsByDayOfWeek(
 export async function getDateSpecificAvailabilityData(
   date: string,
   dayOfWeek: string,
-  planType: PlanType
+  planType: PlanType,
+  excludeAppointmentId?: number
 ): Promise<{
   resourceData: ResourceAvailabilityData;
   partnerBookingConflicts: Map<number, Array<{ bookingDate: Date; endDate: Date }>>;
@@ -406,10 +419,11 @@ export async function getDateSpecificAvailabilityData(
   );
 
   // Get all conflict data in parallel
+  // Pass excludeAppointmentId to skip the current appointment's booking/tasks in edit mode
   const [partnerBookingConflicts, driverBookingConflicts, onfleetTasks] = await Promise.all([
-    getPartnerBookingConflicts(resourceData.movers.map(m => m.id), dateStart, dateEnd),
-    getDriverBookingConflicts(resourceData.drivers.map(d => d.id), dateStart, dateEnd),
-    getOnfleetTasksForDriversAndDate(resourceData.drivers.map(d => d.id), date)
+    getPartnerBookingConflicts(resourceData.movers.map(m => m.id), dateStart, dateEnd, excludeAppointmentId),
+    getDriverBookingConflicts(resourceData.drivers.map(d => d.id), dateStart, dateEnd, excludeAppointmentId),
+    getOnfleetTasksForDriversAndDate(resourceData.drivers.map(d => d.id), date, excludeAppointmentId)
   ]);
 
   return {

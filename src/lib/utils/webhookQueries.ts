@@ -213,6 +213,44 @@ export async function updateStorageUnitMainImage(
 }
 
 /**
+ * Update StorageUnitUsage with main image and additional photos from webhook
+ * Sets mainImage to the first photo and appends additional photos to uploadedImages
+ * Avoids duplicates by checking existing uploadedImages
+ */
+export async function updateStorageUnitPhotosFromWebhook(
+  storageUnitId: number,
+  mainImage: string,
+  additionalImages: string[]
+): Promise<void> {
+  // Find the active usage record for this storage unit
+  const usage = await prisma.storageUnitUsage.findFirst({
+    where: {
+      storageUnitId,
+      usageEndDate: null // Only update active usage records
+    }
+  });
+
+  if (!usage) {
+    console.log(`[webhookQueries] No active StorageUnitUsage found for storageUnitId: ${storageUnitId}`);
+    return;
+  }
+
+  // Merge existing uploadedImages with new ones, avoiding duplicates
+  const existingImages = usage.uploadedImages || [];
+  const newImages = additionalImages.filter(url => !existingImages.includes(url));
+
+  await prisma.storageUnitUsage.update({
+    where: { id: usage.id },
+    data: {
+      mainImage,
+      uploadedImages: [...existingImages, ...newImages]
+    }
+  });
+
+  console.log(`[webhookQueries] Updated StorageUnitUsage ${usage.id}: mainImage set, ${newImages.length} new photos added to uploadedImages`);
+}
+
+/**
  * Find storage usage for early termination calculations
  */
 export async function findActiveStorageUsage(storageUnitId: number) {

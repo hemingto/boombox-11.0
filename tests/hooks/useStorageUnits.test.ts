@@ -72,7 +72,7 @@ const mockFormattedStorageUnits: FormattedStorageUnit[] = [
   },
   {
     id: '102',
-    imageSrc: '/img/golden-gate.png',
+    imageSrc: '/placeholder.jpg',
     title: 'Boombox BX002',
     pickUpDate: '1/20/2024',
     lastAccessedDate: '1/20/2024',

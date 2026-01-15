@@ -308,6 +308,16 @@ export function useAddStorageForm(params: UseAddStorageFormParams = {}): UseAddS
   }, [formState]);
 
   /**
+   * Set a specific error
+   */
+  const setError = useCallback((errorKey: keyof AddStorageFormErrors, error: string | null) => {
+    setErrors(prev => ({
+      ...prev,
+      [errorKey]: error,
+    }));
+  }, []);
+
+  /**
    * Clear specific error
    */
   const clearError = useCallback((errorKey: keyof AddStorageFormErrors) => {
@@ -370,6 +380,7 @@ export function useAddStorageForm(params: UseAddStorageFormParams = {}): UseAddS
     updateScheduling,
     updatePricing,
     validateStep,
+    setError,
     clearError,
     resetForm,
     togglePlanDetails: togglePlanDetails,
@@ -387,6 +398,7 @@ export function useAddStorageForm(params: UseAddStorageFormParams = {}): UseAddS
     updateScheduling,
     updatePricing,
     validateStep,
+    setError,
     clearError,
     resetForm,
     togglePlanDetails,

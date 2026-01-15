@@ -25,37 +25,13 @@ import {
   buildTrackingUrl,
   buildFeedbackUrl
 } from './onfleetWebhookUtils';
-
-// @REFACTOR-P9-TEMP: Replace with actual implementations when API migrations complete
-// Priority: High | Est: 2h | Dependencies: API_005_DRIVERS_DOMAIN, API_006_MOVING_PARTNERS_DOMAIN, API_008_ADMIN_SYSTEM_DOMAIN
-const processPackingSupplyPayout = async (orderId: number) => {
-  console.log('PLACEHOLDER: processPackingSupplyPayout called for order', orderId);
-  return { success: false, error: 'Placeholder implementation' };
-};
-
-const calculatePackingSupplyPayout = (routeMetrics: any) => {
-  console.log('PLACEHOLDER: calculatePackingSupplyPayout called');
-  return { totalPayout: 0 };
-};
-
-const checkRouteCompletion = async (routeId: string) => {
-  console.log('PLACEHOLDER: checkRouteCompletion called for route', routeId);
-  return { isComplete: false, pendingOrders: [] };
-};
-
-const calculateRouteMetrics = async (routeId: string) => {
-  console.log('PLACEHOLDER: calculateRouteMetrics called for route', routeId);
-  return null;
-};
-
-const completeRoute = async (routeId: string, metrics: any) => {
-  console.log('PLACEHOLDER: completeRoute called for route', routeId);
-};
-
-const processRoutePayout = async (routeId: string) => {
-  console.log('PLACEHOLDER: processRoutePayout called for route', routeId);
-  return { success: false, error: 'Placeholder implementation' };
-};
+import { PackingSupplyPayoutService } from '@/lib/services/payments/PackingSupplyPayoutService';
+import { 
+  checkRouteCompletion, 
+  calculateRouteMetrics, 
+  completeRoute 
+} from '@/lib/services/route-manager';
+import { processRoutePayout } from '@/lib/services/routePayoutService';
 
 /**
  * Handles packing supply task started webhook event
@@ -252,7 +228,7 @@ export async function handlePackingSupplyTaskFailed(order: any, taskDetails: Web
 export async function processPackingSupplyPayoutFromWebhook(order: any, taskDetails: WebhookTaskDetails) {
   try {
     const routeMetrics = calculateIndividualTaskMetrics(taskDetails);
-    const payoutCalculation = calculatePackingSupplyPayout(routeMetrics);
+    const payoutCalculation = PackingSupplyPayoutService.calculatePackingSupplyPayout(routeMetrics);
 
     // Update order with payout information
     await prisma.packingSupplyOrder.update({
@@ -270,10 +246,10 @@ export async function processPackingSupplyPayoutFromWebhook(order: any, taskDeta
     console.log(`Payout calculated for order ${order.id}: ${formatCurrency(payoutCalculation.totalPayout)}`);
     
     // Process the actual Stripe Connect payout
-    const payoutResult = await processPackingSupplyPayout(order.id);
+    const payoutResult = await PackingSupplyPayoutService.processPackingSupplyPayout(order.id);
     
     if (payoutResult.success) {
-      console.log(`Payout processed successfully for order ${order.id}: $${(payoutResult as any).amount}`);
+      console.log(`Payout processed successfully for order ${order.id}: $${payoutResult.amount}`);
     } else {
       console.error(`Payout processing failed for order ${order.id}: ${payoutResult.error}`);
     }

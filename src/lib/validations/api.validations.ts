@@ -106,6 +106,8 @@ export const DriverAssignmentRequestSchema = z.object({
   onfleetTaskId: z.string().optional(),
   driverId: z.number().int().positive().optional(),
   action: z.enum(['assign', 'accept', 'decline', 'retry', 'cancel', 'reconfirm']).default('assign'),
+  // Source of the request - used to prevent duplicate SMS when accepting via inbound SMS
+  source: z.enum(['web', 'inbound_sms']).optional(),
 });
 
 export const DriverAssignmentResponseSchema = z.object({
@@ -407,23 +409,166 @@ export const UpdateAppointmentResponseSchema = z.object({
     movingPartnerChanged: z.boolean(),
     driverReassignmentRequired: z.boolean(),
   }).optional(),
+  notificationsSent: z.array(z.string()).optional(),
 });
 
+/**
+ * Validation schema for storage unit reduction operations
+ * Used by AppointmentUpdateOrchestrator to validate unit removal requests
+ */
+export const StorageUnitReductionSchema = z.object({
+  appointmentId: positiveIntSchema,
+  unitIdsToRemove: z.array(positiveIntSchema).min(1, 'At least one unit must be specified for removal'),
+  unitNumbersToRemove: z.array(positiveIntSchema).min(1, 'At least one unit number must be specified'),
+  reason: z.string().optional(),
+}).refine(
+  (data) => {
+    // Validate that we're not trying to remove more units than exist
+    return data.unitIdsToRemove.length === data.unitNumbersToRemove.length;
+  },
+  {
+    message: 'Unit IDs and unit numbers must have matching lengths',
+  }
+);
+
+/**
+ * Validation schema for notification scope
+ * Determines who should receive notifications for appointment changes
+ */
+export const AppointmentNotificationScopeSchema = z.object({
+  notifyDriver: z.boolean(),
+  notifyMovingPartner: z.boolean(),
+  notifyCustomer: z.boolean(),
+  notificationTypes: z.array(
+    z.enum([
+      'time_change',
+      'plan_change',
+      'unit_reduction',
+      'driver_reassignment',
+      'mover_reassignment',
+      'cancellation',
+    ])
+  ),
+  driverIds: z.array(positiveIntSchema).optional(),
+  movingPartnerId: positiveIntSchema.nullable().optional(),
+  customerId: positiveIntSchema.optional(),
+});
+
+/**
+ * Validation schema for detailed appointment change information
+ * Used by change detection utilities and notification orchestrator
+ */
+export const AppointmentChangeDetailsSchema = z.object({
+  hasChanges: z.boolean(),
+  timeChange: z.object({
+    changed: z.boolean(),
+    oldTime: z.date(),
+    newTime: z.date(),
+  }).nullable(),
+  planChange: z.object({
+    changed: z.boolean(),
+    oldPlan: z.string(),
+    newPlan: z.string(),
+    switchType: z.enum(['diy_to_full_service', 'full_service_to_diy']),
+  }).nullable(),
+  movingPartnerChange: z.object({
+    changed: z.boolean(),
+    oldMovingPartnerId: z.number().int().nullable(),
+    newMovingPartnerId: z.number().int().nullable(),
+  }).nullable(),
+  storageUnitChange: z.object({
+    changed: z.boolean(),
+    unitsAdded: z.array(z.number().int()),
+    unitsRemoved: z.array(z.number().int()),
+    countIncreased: z.boolean(),
+    countDecreased: z.boolean(),
+  }).nullable(),
+  addressChange: z.object({
+    changed: z.boolean(),
+    oldAddress: z.string(),
+    newAddress: z.string(),
+    oldZipcode: z.string(),
+    newZipcode: z.string(),
+  }).nullable(),
+});
+
+/**
+ * Validation schema for Onfleet task update operations
+ * Used by OnfleetTaskUpdateService to validate task update payloads
+ */
+export const OnfleetTaskUpdatePayloadSchema = z.object({
+  notes: z.string().optional(),
+  completeAfter: z.number().int().positive().optional(),
+  completeBefore: z.number().int().positive().optional(),
+  destination: z.object({
+    address: z.object({
+      street: z.string(),
+      city: z.string(),
+      state: z.string(),
+      postalCode: z.string(),
+      country: z.string(),
+    }),
+    location: z.tuple([z.number(), z.number()]), // [longitude, latitude]
+  }).optional(),
+  container: z.object({
+    type: z.enum(['TEAM', 'WORKER', 'ORGANIZATION']),
+    team: z.string().optional(),
+    worker: z.string().optional(),
+  }).optional(),
+  metadata: z.array(
+    z.object({
+      name: z.string(),
+      type: z.enum(['string', 'number', 'boolean']),
+      value: z.string(),
+      visibility: z.array(z.string()),
+    })
+  ).optional(),
+}).refine(
+  (data) => {
+    // If container type is TEAM, team must be provided
+    if (data.container?.type === 'TEAM' && !data.container?.team) {
+      return false;
+    }
+    // If container type is WORKER, worker must be provided
+    if (data.container?.type === 'WORKER' && !data.container?.worker) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: 'Container must have team ID when type is TEAM, or worker ID when type is WORKER',
+  }
+);
+
+/**
+ * Validation refinement: Ensure unit count doesn't go below 1
+ */
+export const validateUnitCountNotBelowOne = (data: { numberOfUnits?: number }) => {
+  if (data.numberOfUnits !== undefined && data.numberOfUnits < 1) {
+    return false;
+  }
+  return true;
+};
+
 export const CreatePackingSupplyOrderRequestSchema = z.object({
-  customerId: positiveIntSchema,
-  items: z
+  customerName: z.string().min(1, 'Customer name is required'),
+  customerEmail: emailSchema,
+  customerPhone: phoneSchema,
+  deliveryAddress: z.string().min(1, 'Delivery address is required'),
+  cartItems: z
     .array(
       z.object({
-        itemId: positiveIntSchema,
+        name: z.string().min(1, 'Item name is required'),
         quantity: positiveIntSchema,
+        price: z.number().positive('Price must be positive'),
       })
     )
     .min(1, 'At least one item is required'),
-  deliveryAddress: z.string().min(1, 'Delivery address is required'),
-  deliveryZipCode: zipCodeSchema,
-  deliveryDate: dateStringSchema,
-  deliveryTimeWindow: z.string().min(1, 'Delivery time window is required'),
-  specialInstructions: z.string().optional(),
+  totalPrice: z.number().positive('Total price must be positive'),
+  paymentMethod: z.string().min(1, 'Payment method is required'),
+  stripePaymentMethodId: z.string().optional(),
+  userId: positiveIntSchema.optional(),
+  deliveryNotes: z.string().optional(),
 });
 
 export const PackingSupplyOrderResponseSchema = z.object({
@@ -432,6 +577,45 @@ export const PackingSupplyOrderResponseSchema = z.object({
   totalAmount: z.number(),
   estimatedDelivery: z.string(),
   trackingNumber: z.string(),
+});
+
+// GET Order Status Schemas
+export const GetPackingSupplyOrderStatusRequestSchema = z.object({
+  orderId: z.string().optional(),
+  taskId: z.string().optional(),
+}).refine(
+  (data) => data.orderId || data.taskId,
+  { message: 'Either orderId or taskId is required' }
+);
+
+export const GetPackingSupplyOrderStatusResponseSchema = z.object({
+  success: z.boolean(),
+  order: z.object({
+    id: positiveIntSchema,
+    status: z.string(),
+    deliveryAddress: z.string(),
+    contactName: z.string(),
+    contactEmail: z.string(),
+    contactPhone: z.string().nullable(),
+    deliveryDate: z.date(),
+    totalPrice: z.number(),
+    onfleetTaskId: z.string().nullable(),
+    onfleetTaskShortId: z.string().nullable(),
+    deliveryWindowStart: z.date().nullable(),
+    deliveryWindowEnd: z.date().nullable(),
+    actualDeliveryTime: z.date().nullable(),
+    assignedDriver: z.object({
+      firstName: z.string(),
+      lastName: z.string(),
+      phoneNumber: z.string().nullable(),
+    }).nullable(),
+    orderDetails: z.array(z.object({
+      id: positiveIntSchema,
+      quantity: positiveIntSchema,
+      price: z.number(),
+      productId: positiveIntSchema,
+    })),
+  }),
 });
 
 export const SendQuoteEmailRequestSchema = z.object({
@@ -902,9 +1086,9 @@ export const DriverVehiclePostRequestSchema = z.object({
   // Required fields for creating a vehicle
   make: z.string().min(1, 'Vehicle make is required'),
   model: z.string().min(1, 'Vehicle model is required'),
-  year: z.number().int().min(1900).max(new Date().getFullYear() + 1),
+  year: z.string().regex(/^\d{4}$/, 'Year must be a 4-digit number').refine(val => parseInt(val) >= 1900 && parseInt(val) <= new Date().getFullYear() + 1, 'Year must be between 1900 and next year'),
   licensePlate: z.string().min(1, 'License plate is required'),
-  vehicleType: z.string().min(1, 'Vehicle type is required'),
+  vehicleType: z.string().optional(), // Optional - not stored in database but may be passed
 }).passthrough(); // Allow additional vehicle fields
 
 export const DriverVehicleResponseSchema = z.object({
@@ -912,7 +1096,7 @@ export const DriverVehicleResponseSchema = z.object({
   driverId: positiveIntSchema,
   make: z.string().nullable(),
   model: z.string().nullable(),
-  year: z.number().nullable(),
+  year: z.string().nullable(),
   licensePlate: z.string().nullable(),
   vehicleType: z.string().nullable(),
   frontVehiclePhoto: z.string().nullable(),
@@ -1075,6 +1259,8 @@ export type DriverMovingPartnerRequest = z.infer<typeof DriverMovingPartnerReque
 export type DriverMovingPartnerResponse = z.infer<typeof DriverMovingPartnerResponseSchema>;
 export type DriverPackingSupplyRoutesRequest = z.infer<typeof DriverPackingSupplyRoutesRequestSchema>;
 export type DriverPackingSupplyRoutesResponse = z.infer<typeof DriverPackingSupplyRoutesResponseSchema>;
+export type GetPackingSupplyOrderStatusRequest = z.infer<typeof GetPackingSupplyOrderStatusRequestSchema>;
+export type GetPackingSupplyOrderStatusResponse = z.infer<typeof GetPackingSupplyOrderStatusResponseSchema>;
 export type DriverProfilePictureRequest = z.infer<typeof DriverProfilePictureRequestSchema>;
 export type DriverProfilePictureResponse = z.infer<typeof DriverProfilePictureResponseSchema>;
 export type DriverRemoveLicensePhotosRequest = z.infer<typeof DriverRemoveLicensePhotosRequestSchema>;
@@ -1251,13 +1437,16 @@ export const DriverProfileResponseSchema = z.object({
   onfleetWorkerId: z.string().nullable(),
   onfleetTeamIds: z.array(z.string()),
   verifiedPhoneNumber: z.boolean(),
+  activeMessageShown: z.boolean(),
   vehicles: z.array(z.object({
     id: z.number(),
     make: z.string().nullable(),
     model: z.string().nullable(),
-    year: z.number().nullable(),
+    // year can be number or string (from DB) - coerce to handle both
+    year: z.union([z.number(), z.string()]).nullable(),
     licensePlate: z.string().nullable(),
-    vehicleType: z.string().nullable()
+    // vehicleType can be null or undefined
+    vehicleType: z.string().nullish()
   })).optional(),
   movingPartnerAssociations: z.array(z.object({
     id: z.number(),
@@ -1348,11 +1537,13 @@ export const MovingPartnerProfileResponseSchema = z.object({
   description: z.string().nullable(),
   email: z.string(),
   phoneNumber: z.string(),
-  hourlyRate: z.number(),
+  hourlyRate: z.number().nullable(),
   website: z.string().nullable(),
   status: z.string(),
   isApproved: z.boolean(),
+  onfleetTeamId: z.string().nullable(),
   verifiedPhoneNumber: z.boolean(),
+  activeMessageShown: z.boolean(),
   vehicles: z.array(z.object({
     id: positiveIntSchema,
     isApproved: z.boolean(),
@@ -2110,8 +2301,12 @@ export const SubmitFeedbackRequestSchema = z
       .min(1, 'Rating must be at least 1')
       .max(5, 'Rating cannot exceed 5'),
     comments: z.string().optional(),
-    categories: z.array(z.string()).min(1, 'At least one category is required'),
+    categories: z.array(z.string()).optional(),
     photos: z.array(z.string()).optional(),
+    tipAmount: z.number().min(0).optional(),
+    driverRatings: z
+      .record(z.string(), z.enum(['thumbs_up', 'thumbs_down']))
+      .optional(),
   })
   .refine(
     data =>
@@ -2367,8 +2562,8 @@ export const CreateSubmitQuoteRequestSchema = z.object({
     'Storage Unit Access',
     'End Storage Term'
   ]),
-  movingPartnerId: z.string().or(positiveIntSchema).optional(),
-  thirdPartyMovingPartnerId: z.string().or(positiveIntSchema).optional(),
+  movingPartnerId: z.string().or(positiveIntSchema).nullable().optional(),
+  thirdPartyMovingPartnerId: z.string().or(positiveIntSchema).nullable().optional(),
 });
 
 // ===== APPOINTMENT ADDITIONAL DETAILS SCHEMAS =====
@@ -2635,31 +2830,37 @@ export type OnfleetCalculatePayoutRequest = z.infer<typeof OnfleetCalculatePayou
  */
 
 // Webhook task completion details
+// Note: Onfleet sends null for fields when task is in progress (not yet completed)
 const WebhookCompletionDetailsSchema = z.object({
-  photoUploadId: z.string().optional(),
-  photoUploadIds: z.array(z.string()).optional(),
+  photoUploadId: z.string().nullable().optional(),
+  photoUploadIds: z.array(z.string()).nullable().optional(),
   unavailableAttachments: z.array(z.object({
     attachmentType: z.string(),
     attachmentId: z.string().optional()
-  })).optional(),
-  drivingDistance: z.number().optional(),
-  drivingTime: z.number().optional(),
-  time: z.number().optional()
+  })).nullable().optional(),
+  drivingDistance: z.number().nullable().optional(),
+  drivingTime: z.number().nullable().optional(),
+  time: z.number().nullable().optional()
 });
 
 // Webhook task details
+// Note: Onfleet can send estimatedArrivalTime as string (ISO), number (timestamp), or null
+// Worker can be a string (worker ID) or an object with worker details
 const WebhookTaskDetailsSchema = z.object({
   shortId: z.string(),
-  estimatedArrivalTime: z.string().optional(),
-  trackingURL: z.string().optional(),
-  completionDetails: WebhookCompletionDetailsSchema.optional(),
+  estimatedArrivalTime: z.union([z.string(), z.number()]).nullable().optional(),
+  trackingURL: z.string().nullable().optional(),
+  completionDetails: WebhookCompletionDetailsSchema.nullable().optional(),
   metadata: z.array(z.object({
     name: z.string(),
-    value: z.string()
-  })).optional(),
-  worker: z.object({
-    name: z.string().optional()
-  }).optional()
+    value: z.union([z.string(), z.number(), z.boolean(), z.null()])
+  })).nullable().optional(),
+  worker: z.union([
+    z.string(), // Worker ID when task is assigned
+    z.object({
+      name: z.string().optional()
+    })
+  ]).nullable().optional()
 });
 
 // Main webhook payload
@@ -3266,11 +3467,11 @@ export const TrackingStepActionSchema = z.object({
   url: z.string().optional(),
   type: z.literal('timer').optional(),
   startTime: z.string().optional(),
-  endTime: z.string().optional(),
+  endTime: z.string().nullable().optional(),
   timerData: z.object({
     type: z.literal('timer'),
     startTime: z.string(),
-    endTime: z.string().optional(),
+    endTime: z.string().nullable().optional(),
   }).optional(),
   iconName: z.string().optional(),
 });
@@ -3376,6 +3577,28 @@ export const ProcessExpiredMoverChangesResponseSchema = z.object({
   })
 });
 
+// ===== ADMIN TASKS DOMAIN SCHEMAS =====
+
+export const AdminTaskIdSchema = z.string().regex(
+  /^(storage-return-|storage-|unassigned-|packing-supply-feedback-|feedback-|cleaning-|requested-unit-|update-location-|prep-delivery-|prep-packing-supply-)/,
+  'Invalid task ID format'
+);
+
+export const AdminTaskResponseSchema = z.object({
+  task: z.object({
+    id: z.string(),
+    title: z.string(),
+    description: z.string(),
+    action: z.string(),
+    color: z.enum(['cyan', 'rose', 'amber', 'purple', 'orange', 'emerald', 'sky', 'indigo', 'darkAmber']),
+    details: z.string(),
+  }).passthrough(), // Allow additional properties specific to each task type
+  success: z.boolean()
+});
+
+// Note: AdminTaskListingResponseSchema and AdminTaskStatisticsResponseSchema 
+// already exist at lines 2022-2044 above
+
 // Export types
 export type TwilioInboundRequest = z.infer<typeof TwilioInboundRequestSchema>;
 export type TwilioInboundResponse = z.infer<typeof TwilioInboundResponseSchema>;
@@ -3383,3 +3606,7 @@ export type CreateAdminInviteRequest = z.infer<typeof CreateAdminInviteRequestSc
 export type CreateAdminInviteResponse = z.infer<typeof CreateAdminInviteResponseSchema>;
 export type ProcessExpiredMoverChangesRequest = z.infer<typeof ProcessExpiredMoverChangesRequestSchema>;
 export type ProcessExpiredMoverChangesResponse = z.infer<typeof ProcessExpiredMoverChangesResponseSchema>;
+export type AdminTaskId = z.infer<typeof AdminTaskIdSchema>;
+export type AdminTaskResponse = z.infer<typeof AdminTaskResponseSchema>;
+export type AdminTaskListingResponse = z.infer<typeof AdminTaskListingResponseSchema>;
+export type AdminTaskStatistics = z.infer<typeof AdminTaskStatisticsResponseSchema>;

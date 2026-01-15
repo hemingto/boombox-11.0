@@ -142,7 +142,7 @@ export const CheckboxCard: React.FC<CheckboxCardProps> = ({
       data-testid={testId}
       className={cn(
         // Base styles
-        'mb-4 rounded-md flex flex-col justify-between cursor-pointer transition-all duration-200',
+        'mb-4 rounded-md flex flex-col justify-between cursor-pointer',
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
         
         // State-based styling with design system colors
@@ -154,7 +154,7 @@ export const CheckboxCard: React.FC<CheckboxCardProps> = ({
           'ring-primary ring-2 bg-surface-primary shadow-md': checked && !hasError,
           
           // Default state
-          'ring-border ring-2 bg-surface-tertiary hover:bg-surface-secondary hover:ring-primary': !checked && !hasError,
+          'ring-border ring-2 bg-surface-tertiary': !checked && !hasError,
           
           // Disabled state
           'opacity-50 cursor-not-allowed': disabled,
@@ -167,7 +167,7 @@ export const CheckboxCard: React.FC<CheckboxCardProps> = ({
       {/* Header Section */}
       <div
         className={cn(
-          'flex flex-col items-center border-b-2 transition-colors duration-200',
+          'flex flex-col items-center border-b-2',
           {
             // Error border
             'border-status-error': hasError,
@@ -194,7 +194,7 @@ export const CheckboxCard: React.FC<CheckboxCardProps> = ({
           </p>
           <p 
             className={cn(
-              'px-4 pt-2 text-sm text-text-secondary',
+              'px-4 pt-2 text-sm text-text-tertiary',
               {
                 'text-status-error': hasError,
               }
@@ -222,7 +222,7 @@ export const CheckboxCard: React.FC<CheckboxCardProps> = ({
           <p 
             id={`${id}-description`}
             className={cn(
-              'text-xs text-text-secondary mt-1',
+              'text-xs text-text-tertiary mt-1',
               {
                 'text-status-error': hasError,
               }
@@ -239,7 +239,7 @@ export const CheckboxCard: React.FC<CheckboxCardProps> = ({
         >
           <div 
             className={cn(
-              'w-5 h-5 rounded-full border-2 transition-all duration-200',
+              'w-5 h-5 rounded-full border-2',
               {
                 // Error state
                 'border-status-error': hasError,

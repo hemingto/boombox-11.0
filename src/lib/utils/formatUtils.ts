@@ -17,6 +17,7 @@ export interface ParsedAddress {
   street: string;
   city: string;
   state: string;
+  postalCode: string;
   country: string;
 }
 
@@ -29,11 +30,17 @@ export function parseAddress(fullAddress: string): ParsedAddress {
   const cleanedAddress = fullAddress.replace(/(\d+),\s*([A-Za-z])/, '$1 $2');
   const parts = cleanedAddress.split(',').map(part => part.trim());
 
+  // Parse state and zip code from parts[2] (e.g., "CA 94105")
+  const stateZipParts = parts[2]?.split(' ') || [];
+  const state = stateZipParts[0] || '';
+  const postalCode = stateZipParts.slice(1).join(' ') || '';
+
   return {
     number: parts[0]?.split(' ')[0] || '',
     street: parts[0]?.split(' ').slice(1).join(' ') || '',
     city: parts[1] || '',
-    state: parts[2]?.split(' ')[0] || '',
+    state,
+    postalCode,
     country: 'USA',
   };
 }

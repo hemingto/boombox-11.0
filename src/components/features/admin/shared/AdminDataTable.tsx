@@ -1,20 +1,30 @@
 /**
+ * @deprecated Use table/AdminTable instead - AdminJobsPage gold standard with skeleton loading
+ * 
  * @fileoverview Reusable data table component for admin management pages
  * @source Extracted pattern from boombox-10.0 admin management pages
+ * 
+ * WHY DEPRECATED:
+ * - Uses spinner loading (inferior UX to skeleton loading)
+ * - AdminJobsPage gold standard uses skeleton rows for better perceived performance
+ * - New table/AdminTable follows superior patterns from AdminJobsPage
+ * 
+ * MIGRATION:
+ * Replace with: import { AdminTable } from '@/components/features/admin/shared/table/AdminTable'
  * 
  * COMPONENT FUNCTIONALITY:
  * Generic table component with:
  * - Sortable headers
  * - Column visibility management
  * - Row rendering via render prop
- * - Loading and error states
+ * - Loading and error states (SPINNER - not skeleton)
  * - Empty state handling
  * - Responsive design
  * 
  * DESIGN SYSTEM UPDATES:
  * - Uses semantic colors for table styling
  * - Consistent spacing and borders
- * - Spinner component for loading states
+ * - Spinner component for loading states (NOT SKELETON - inferior)
  * - Proper focus and hover states
  * 
  * @refactor Extracted from inline table implementations across 8+ management pages
@@ -24,18 +34,17 @@
 
 import React from 'react';
 import { SortableTableHeader, SortConfig } from './SortableTableHeader';
-import { Spinner } from '@/components/ui/primitives/Spinner/Spinner';
 import type { Column } from './ColumnManagerMenu';
 
-interface AdminDataTableProps<T = any> {
+interface AdminDataTableProps<T = any, C extends string = string> {
   /** Array of column definitions */
-  columns: Column[];
+  columns: Column<C>[];
   /** Array of data items to display */
   data: T[];
   /** Current sort configuration */
-  sortConfig: SortConfig;
+  sortConfig: SortConfig<C>;
   /** Callback when column is clicked for sorting */
-  onSort: (columnId: string) => void;
+  onSort: (columnId: C) => void;
   /** Render function for each table row */
   renderRow: (item: T) => React.ReactNode;
   /** Loading state */
@@ -69,7 +78,7 @@ interface AdminDataTableProps<T = any> {
  * />
  * ```
  */
-export function AdminDataTable<T = any>({
+export function AdminDataTable<T = any, C extends string = string>({
   columns,
   data,
   sortConfig,
@@ -79,14 +88,13 @@ export function AdminDataTable<T = any>({
   error = null,
   emptyMessage = 'No data available',
   className = '',
-}: AdminDataTableProps<T>) {
-  const visibleColumns = columns.filter(col => col.visible);
-
+}: AdminDataTableProps<T, C>) {
+  
   // Loading state
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Spinner size="lg" color="primary" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
@@ -94,11 +102,11 @@ export function AdminDataTable<T = any>({
   // Error state
   if (error) {
     return (
-      <div className="rounded-md bg-status-bg-error p-4">
+      <div className="rounded-md bg-red-50 p-4">
         <div className="flex">
           <div className="flex-shrink-0">
             <svg
-              className="h-5 w-5 text-status-error"
+              className="h-5 w-5 text-red-500"
               viewBox="0 0 20 20"
               fill="currentColor"
               aria-hidden="true"
@@ -111,10 +119,10 @@ export function AdminDataTable<T = any>({
             </svg>
           </div>
           <div className="ml-3">
-            <h3 className="text-sm font-medium text-status-error">
+            <h3 className="text-sm font-medium text-red-700">
               Error loading data
             </h3>
-            <div className="mt-2 text-sm text-status-error">
+            <div className="mt-2 text-sm text-red-600">
               <p>{error}</p>
             </div>
           </div>
@@ -128,7 +136,7 @@ export function AdminDataTable<T = any>({
     return (
       <div className="text-center py-12">
         <svg
-          className="mx-auto h-12 w-12 text-text-secondary"
+          className="mx-auto h-12 w-12 text-gray-500"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -141,7 +149,7 @@ export function AdminDataTable<T = any>({
             d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
           />
         </svg>
-        <h3 className="mt-2 text-sm font-medium text-text-primary">
+        <h3 className="mt-2 text-sm font-medium text-gray-900">
           {emptyMessage}
         </h3>
       </div>
@@ -150,10 +158,10 @@ export function AdminDataTable<T = any>({
 
   return (
     <div className={`overflow-x-auto ${className}`}>
-      <table className="min-w-full divide-y divide-border">
-        <thead className="bg-surface-tertiary">
+      <table className="min-w-full divide-y divide-gray-300 bg-slate-100">
+        <thead className="bg-slate-100">
           <tr>
-            {visibleColumns.map((column) => (
+            {columns.map((column) => (
               <SortableTableHeader
                 key={column.id}
                 label={column.label}
@@ -164,7 +172,7 @@ export function AdminDataTable<T = any>({
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-border bg-surface-primary">
+        <tbody className="divide-y divide-gray-200 bg-white">
           {data.map((item, index) => renderRow(item))}
         </tbody>
       </table>

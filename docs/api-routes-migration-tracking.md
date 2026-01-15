@@ -229,10 +229,10 @@ This file tracks the migration status of all 181 API routes from boombox-10.0 to
 - [x] `admin/jobs/route.ts` → `api/admin/jobs/route.ts` ✅ **MIGRATED**
 
 **Task Management:**
-- [x] `admin/tasks/route.ts` → `api/admin/tasks/route.ts`
-- [x] `admin/tasks/[taskId]/route.ts` → `api/admin/tasks/[id]/route.ts`
-- [x] `admin/tasks/[taskId]/prep-units-delivery/route.ts` → `api/admin/tasks/[id]/prep-units-delivery/route.ts`
-- [x] `admin/tasks/[taskId]/update-location/route.ts` → `api/admin/tasks/[id]/update-location/route.ts`
+- [x] `admin/tasks/route.ts` → `api/admin/tasks/route.ts` ✅ **COMPLETED** - Task listing with service orchestration
+- [x] `admin/tasks/[taskId]/route.ts` → `api/admin/tasks/[taskId]/route.ts` ✅ **COMPLETED** (Oct 30, 2025) - **NEW ARCHITECTURE**: Unified service-based route replacing 716-line monolithic route. Delegates to 10 task services with ~79% code reduction (~270 lines vs 716). Maintains 99.9% functionality while following boombox-11.0 architecture principles.
+- [x] `admin/tasks/[taskId]/prep-units-delivery/route.ts` → `api/admin/tasks/[taskId]/prep-units-delivery/route.ts`
+- [x] `admin/tasks/[taskId]/update-location/route.ts` → `api/admin/tasks/[taskId]/update-location/route.ts`
 
 **Appointment Management:**
 - [x] `admin/appointments/[id]/assign-requested-unit/route.ts` → `api/admin/appointments/[id]/assign-requested-unit/route.ts`

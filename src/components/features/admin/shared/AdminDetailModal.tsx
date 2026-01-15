@@ -80,7 +80,7 @@ export function AdminDetailModal<T = any>({
         {data ? (
           renderContent(data)
         ) : (
-          <div className="flex items-center justify-center py-12 text-text-secondary">
+          <div className="flex items-center justify-center py-12 text-gray-500">
             <p>{emptyMessage}</p>
           </div>
         )}

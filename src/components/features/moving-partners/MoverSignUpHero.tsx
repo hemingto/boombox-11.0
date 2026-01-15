@@ -51,7 +51,7 @@ export function MoverSignUpHero({ title, description }: MoverSignUpHeroProps) {
       <div className="mb-8">
         <MovingHelpIcon className="w-20 mb-4 mx-auto text-primary" />
         <h1 className="mb-4 text-text-primary">{title}</h1>
-        <p className="text-text-secondary">{description}</p>
+        <p className="text-text-primary">{description}</p>
       </div>
     </div>
   );

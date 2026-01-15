@@ -35,6 +35,7 @@ import { stripe } from '@/lib/integrations/stripeClient';
 import { getStripeCustomerId } from '@/lib/utils/stripeUtils';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { packingSupplyOrderConfirmationSms } from '@/lib/messaging/templates/sms/orders/packingSupplyOrderConfirmation';
+import { packingSupplyOrderConfirmationEmail } from '@/lib/messaging/templates/email/orders/packingSupplyOrderConfirmation';
 import { CreatePackingSupplyOrderRequestSchema } from '@/lib/validations/api.validations';
 import {
   calculateDeliveryTimeWindow,
@@ -46,6 +47,7 @@ import {
   type CreateOrderRequest,
   type CreateOrderResponse,
 } from '@/lib/utils/packingSupplyUtils';
+import { NotificationService } from '@/lib/services/NotificationService';
 
 export async function POST(request: NextRequest) {
   let createdOrderId: number | null = null;
@@ -53,11 +55,13 @@ export async function POST(request: NextRequest) {
 
   try {
     const body: CreateOrderRequest = await request.json();
+    console.log('📦 Received order request body:', JSON.stringify(body, null, 2));
 
     // Validate request with Zod schema
     const validationResult =
       CreatePackingSupplyOrderRequestSchema.safeParse(body);
     if (!validationResult.success) {
+      console.error('❌ Zod validation failed:', JSON.stringify(validationResult.error.errors, null, 2));
       return NextResponse.json(
         {
           success: false,
@@ -209,6 +213,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Onfleet task for batch optimization
+    console.log('📋 Creating Onfleet task with data:', {
+      teamId,
+      address: body.deliveryAddress,
+      orderId: createdOrder.id,
+      timeWindow: {
+        start: timeWindow.start.toISOString(),
+        end: timeWindow.end.toISOString()
+      }
+    });
+
     const taskData = {
       destination: {
         address: {
@@ -332,24 +346,127 @@ export async function POST(request: NextRequest) {
 
     // Send order confirmation via centralized messaging system
     try {
+      // Format deliveryTimeText to match boombox-10.0 pattern
+      const [year, month, day] = timeWindow.deliveryDate.split('-').map(Number);
+      const deliveryDate = new Date(year, month - 1, day);
+      const formattedDeliveryDate = deliveryDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric'
+      });
+      const deliveryTimeText = timeWindow.isSameDay 
+        ? `Today between 12:00 PM - 7:00 PM`
+        : `${formattedDeliveryDate} between 12:00 PM - 7:00 PM`;
+
       await MessageService.sendSms(
         body.customerPhone,
         packingSupplyOrderConfirmationSms,
         {
-          deliveryDate: timeWindow.deliveryDate,
-          trackingUrl: `${process.env.NEXT_PUBLIC_BASE_URL}${updatedOrder.trackingUrl}`,
+          customerName: body.customerName.split(' ')[0], // First name only
           orderId: createdOrder.id.toString(),
           totalPrice: formatCurrency(body.totalPrice),
-          itemCount: capacity.itemCount.toString(),
+          deliveryTimeText: deliveryTimeText,
+          trackingUrl: `${process.env.NEXT_PUBLIC_BASE_URL}${updatedOrder.trackingUrl}`,
         }
       );
       console.log(`✅ Order confirmation SMS sent for order ${createdOrderId}`);
+      
+      // Create in-app notification if user is logged in
+      if (body.userId) {
+        try {
+          await NotificationService.notifyOrderConfirmed(
+            body.userId,
+            {
+              orderId: createdOrder.id,
+              orderType: 'packing-supplies',
+              deliveryDate: timeWindow.deliveryDate,
+              deliveryAddress: body.deliveryAddress,
+              totalAmount: body.totalPrice,
+              itemCount: capacity.itemCount
+            }
+          );
+        } catch (notificationError) {
+          console.error('Error creating in-app order confirmed notification:', notificationError);
+          // Don't fail if notification fails
+        }
+      }
     } catch (smsError) {
       console.error(
         `⚠️ Failed to send order confirmation SMS for order ${createdOrderId}:`,
         smsError
       );
       // Continue with order creation even if SMS fails
+    }
+
+    // Send order confirmation email
+    try {
+      // Format deliveryTimeText for display
+      const [year, month, day] = timeWindow.deliveryDate.split('-').map(Number);
+      const deliveryDate = new Date(year, month - 1, day);
+      const formattedDeliveryDate = deliveryDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      const deliveryTimeText = timeWindow.isSameDay 
+        ? `Today between 12:00 PM - 7:00 PM`
+        : `${formattedDeliveryDate} between 12:00 PM - 7:00 PM`;
+
+      // Format cart items for email
+      const cartItemsText = body.cartItems
+        .map(item => `- ${item.quantity}x ${item.name} - ${formatCurrency(item.price * item.quantity)}`)
+        .join('\n');
+
+      const itemsHtml = body.cartItems.map(item => `
+        <tr>
+          <td style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">
+            <span style="font-weight: 500;">${item.quantity}x</span> ${item.name}
+          </td>
+          <td style="padding: 8px 0; border-bottom: 1px solid #f0f0f0; text-align: right;">
+            ${formatCurrency(item.price * item.quantity)}
+          </td>
+        </tr>
+      `).join('');
+
+      // Generate Stripe receipt URL if payment intent ID is available
+      const stripeReceiptUrl = paymentIntentId 
+        ? `https://payments.stripe.com/receipts/${paymentIntentId}/payment_intent_receipt`
+        : '';
+
+      const stripeReceiptText = stripeReceiptUrl ? `View receipt: ${stripeReceiptUrl}` : '';
+      const stripeReceiptButton = stripeReceiptUrl ? `
+        <div>
+          <a href="${stripeReceiptUrl}" 
+             style="display: inline-block; padding: 12px 24px; background-color: #ffffff; color: #4a5568; text-decoration: none; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-weight: 500;">
+            📄 View Receipt
+          </a>
+        </div>
+      ` : '';
+
+      await MessageService.sendEmail(
+        body.customerEmail,
+        packingSupplyOrderConfirmationEmail,
+        {
+          orderId: createdOrder.id.toString(),
+          customerName: body.customerName,
+          deliveryAddress: body.deliveryAddress,
+          totalPrice: formatCurrency(body.totalPrice),
+          deliveryTimeText: deliveryTimeText,
+          cartItemsText: cartItemsText,
+          itemsHtml: itemsHtml,
+          trackingUrl: `${process.env.NEXT_PUBLIC_BASE_URL}${updatedOrder.trackingUrl}`,
+          stripeReceiptText: stripeReceiptText,
+          stripeReceiptButton: stripeReceiptButton
+        }
+      );
+      console.log(`✅ Order confirmation email sent for order ${createdOrderId}`);
+    } catch (emailError) {
+      console.error(
+        `⚠️ Failed to send order confirmation email for order ${createdOrderId}:`,
+        emailError
+      );
+      // Continue with order creation even if email fails
     }
 
     // Return success response
@@ -428,6 +545,93 @@ export async function POST(request: NextRequest) {
             ? error.message
             : 'Failed to create packing supply order',
       } as CreateOrderResponse,
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * GET handler for retrieving packing supply order status
+ * Allows fetching order by orderId or taskId (Onfleet task ID)
+ * 
+ * @source boombox-10.0/src/app/api/packing-supplies/create-order/route.ts (lines 588-667)
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const orderId = searchParams.get('orderId');
+    const taskId = searchParams.get('taskId');
+
+    if (!orderId && !taskId) {
+      return NextResponse.json(
+        { success: false, error: 'Either orderId or taskId is required' },
+        { status: 400 }
+      );
+    }
+
+    let order;
+    if (orderId) {
+      order = await prisma.packingSupplyOrder.findUnique({
+        where: { id: parseInt(orderId) },
+        include: {
+          orderDetails: true,
+          assignedDriver: {
+            select: {
+              firstName: true,
+              lastName: true,
+              phoneNumber: true,
+            },
+          },
+        },
+      });
+    } else if (taskId) {
+      order = await prisma.packingSupplyOrder.findFirst({
+        where: { onfleetTaskId: taskId },
+        include: {
+          orderDetails: true,
+          assignedDriver: {
+            select: {
+              firstName: true,
+              lastName: true,
+              phoneNumber: true,
+            },
+          },
+        },
+      });
+    }
+
+    if (!order) {
+      return NextResponse.json(
+        { success: false, error: 'Order not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      order: {
+        id: order.id,
+        status: order.status,
+        deliveryAddress: order.deliveryAddress,
+        contactName: order.contactName,
+        contactEmail: order.contactEmail,
+        contactPhone: order.contactPhone,
+        deliveryDate: order.deliveryDate,
+        totalPrice: order.totalPrice,
+        onfleetTaskId: order.onfleetTaskId,
+        onfleetTaskShortId: order.onfleetTaskShortId,
+        deliveryWindowStart: order.deliveryWindowStart,
+        deliveryWindowEnd: order.deliveryWindowEnd,
+        actualDeliveryTime: order.actualDeliveryTime,
+        assignedDriver: order.assignedDriver,
+        orderDetails: order.orderDetails,
+      },
+    });
+
+  } catch (error) {
+    console.error('Error fetching order status:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch order status' },
       { status: 500 }
     );
   }

@@ -14,7 +14,7 @@ export interface ButtonProps
   /**
    * Visual style variant
    */
-  variant?: 'primary' | 'secondary' | 'destructive' | 'ghost' | 'outline' | 'white';
+  variant?: 'primary' | 'secondary' | 'destructive' | 'ghost' | 'outline' | 'white' | 'approve';
 
   /**
    * Size variant
@@ -89,7 +89,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         data-loading={loading}
         className={cn(
           // Base styles
-          'inline-flex items-center justify-center font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-inter',
+          'inline-flex items-center justify-center font-semibold disabled:opacity-50 disabled:cursor-not-allowed font-inter',
 
           // Border radius variants
           {
@@ -117,6 +117,8 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
               variant === 'outline',
             'bg-white text-zinc-950 hover:bg-slate-100 active:bg-slate-200':
               variant === 'white',
+            'bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800':
+              variant === 'approve',
           },
 
           // Full width

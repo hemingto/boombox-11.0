@@ -24,7 +24,7 @@ export const UserPageHero: React.FC<UserPageHeroProps> = ({ firstName }) => {
       <h1 className="text-4xl font-semibold text-text-primary">
         Hi {firstName},
       </h1>
-      <p className="mt-4 text-text-secondary">
+      <p className="mt-4 text-text-primary">
         You can manage upcoming appointments and your stored items from this page
       </p>
     </div>

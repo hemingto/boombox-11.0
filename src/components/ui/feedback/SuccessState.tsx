@@ -160,7 +160,7 @@ const SuccessState: React.FC<SuccessStateProps> = ({
       {/* Success Message */}
       <p 
         className={cn(
-          'text-text-secondary',
+          'text-text-primary',
           currentSize.message
         )}
       >

@@ -3,8 +3,8 @@ import * as React from "react";
 export const BoomboxLogo: React.FC<{ className?: string }> = ({ className }) => (
   <svg
     className={className}
-    width="129"
-    height="27"
+    width="100%"
+    height="100%"
     viewBox="0 0 129 27"
     style={{ display: 'block' }}
     title="Boombox Storage Logo"

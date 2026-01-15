@@ -35,8 +35,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { CreditCardIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { IdentificationIcon, CreditCardIcon, TrashIcon } from '@heroicons/react/24/outline';
 import PhotoUploads from '@/components/forms/PhotoUploads';
+import { Button } from '@/components/ui/primitives/Button/Button';
+import { Modal } from '@/components/ui/primitives/Modal/Modal';
 
 interface DriversLicenseImagesProps {
   userId: string;
@@ -156,11 +158,11 @@ const DriversLicenseImages: React.FC<DriversLicenseImagesProps> = ({
 
       {!driverLicenseFront && !driverLicenseBack && !isLoadingData && (
         <div 
-          className="bg-amber-50 w-fit border border-amber-200 rounded-md p-4 mb-6"
+          className="bg-status-bg-warning w-fit border border-border-warning rounded-md p-4 mb-6"
           role="alert"
           aria-live="polite"
         >
-          <p className="text-amber-700 text-sm">
+          <p className="text-status-warning text-sm">
             To activate your driver account upload a front and back photo of your driver&apos;s license
           </p>
         </div>
@@ -170,8 +172,8 @@ const DriversLicenseImages: React.FC<DriversLicenseImagesProps> = ({
         {/* Front License Photo */}
         <div className="w-full">
           {isLoadingData ? (
-            <div className="border bg-surface-tertiary rounded-md p-4 aspect-video flex items-center justify-center">
-              <CreditCardIcon className="w-16 h-16 text-text-tertiary mb-1" aria-hidden="true" />
+            <div className="bg-surface-tertiary rounded-md p-4 aspect-video flex items-center justify-center">
+              <IdentificationIcon className="w-16 h-16 text-text-secondary" aria-hidden="true" />
             </div>
           ) : driverLicenseFront ? (
             <>
@@ -179,15 +181,18 @@ const DriversLicenseImages: React.FC<DriversLicenseImagesProps> = ({
               <div className="aspect-video relative rounded-md overflow-hidden">
                 {isLoadingFront && (
                   <div className="border bg-surface-tertiary rounded-md p-4 aspect-video flex items-center justify-center">
-                    <CreditCardIcon className="w-16 h-16 text-text-tertiary mb-1" aria-hidden="true" />
+                    <IdentificationIcon className="w-16 h-16 text-text-secondary" aria-hidden="true" />
                   </div>
                 )}
                 <Image 
+                  key={driverLicenseFront}
                   src={driverLicenseFront} 
                   alt="Front of Driver's License" 
                   className="w-full h-full object-cover"
                   width={600}
                   height={400}
+                  priority={true}
+                  loading="eager"
                   onLoad={() => setIsLoadingFront(false)}
                   onError={() => setIsLoadingFront(false)}
                 />
@@ -208,7 +213,7 @@ const DriversLicenseImages: React.FC<DriversLicenseImagesProps> = ({
               aspectRatio="aspect-video"
               directUpload={true}
               uploadEndpoint={`/api/drivers/${userId}/upload-drivers-license`}
-              icon={<CreditCardIcon className="w-16 h-16 text-text-tertiary mb-1" aria-hidden="true" />}
+              icon={<IdentificationIcon className="w-16 h-16 text-text-secondary" aria-hidden="true" />}
               photoDescription="front"
               onUploadSuccess={handleSuccessfulUpload}
             />
@@ -218,8 +223,8 @@ const DriversLicenseImages: React.FC<DriversLicenseImagesProps> = ({
         {/* Back License Photo */}
         <div className="w-full">
           {isLoadingData ? (
-            <div className="border bg-surface-tertiary rounded-md p-4 aspect-video flex items-center justify-center">
-              <CreditCardIcon className="w-16 h-16 text-text-tertiary mb-1" aria-hidden="true" />
+            <div className="bg-surface-tertiary rounded-md p-4 aspect-video flex items-center justify-center">
+              <CreditCardIcon className="w-16 h-16 text-text-secondary mb-1" aria-hidden="true" />
             </div>
           ) : driverLicenseBack ? (
             <>
@@ -227,15 +232,18 @@ const DriversLicenseImages: React.FC<DriversLicenseImagesProps> = ({
               <div className="aspect-video relative rounded-md overflow-hidden">
                 {isLoadingBack && (
                   <div className="border bg-surface-tertiary rounded-md p-4 aspect-video flex items-center justify-center">
-                    <CreditCardIcon className="w-16 h-16 text-text-tertiary mb-1" aria-hidden="true" />
+                    <CreditCardIcon className="w-16 h-16 text-text-secondary" aria-hidden="true" />
                   </div>
                 )}
                 <Image 
+                  key={driverLicenseBack}
                   src={driverLicenseBack} 
                   alt="Back of Driver's License" 
                   className="w-full h-full object-cover"
                   width={600}
                   height={400}
+                  priority={true}
+                  loading="eager"
                   onLoad={() => setIsLoadingBack(false)}
                   onError={() => setIsLoadingBack(false)}
                 />
@@ -256,7 +264,7 @@ const DriversLicenseImages: React.FC<DriversLicenseImagesProps> = ({
               aspectRatio="aspect-video"
               directUpload={true}
               uploadEndpoint={`/api/drivers/${userId}/upload-drivers-license`}
-              icon={<CreditCardIcon className="w-16 h-16 text-text-tertiary mb-1" aria-hidden="true" />}
+              icon={<CreditCardIcon className="w-16 h-16 text-text-secondary" aria-hidden="true" />}
               photoDescription="back"
               onUploadSuccess={handleSuccessfulUpload}
             />
@@ -265,43 +273,36 @@ const DriversLicenseImages: React.FC<DriversLicenseImagesProps> = ({
       </div>
 
       {/* Delete Confirmation Modal */}
-      {showDeleteConfirmation && (
-        <div 
-          className="fixed inset-0 bg-primary bg-opacity-50 flex items-center justify-center z-50"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-modal-title"
-        >
-          <div className="bg-surface-primary rounded-md p-6 sm:p-10 max-w-lg w-full mx-4 shadow-custom-shadow">
-            <h3 
-              id="delete-modal-title"
-              className="text-2xl font-semibold text-text-primary mb-4"
-            >
-              Remove Photo
-            </h3>
-            <p className="text-text-primary mb-4">
-              Are you sure you want to remove your driver&apos;s license photo?
-            </p>
-            <div className="mt-10 flex justify-end space-x-2">
-              <button
-                className="px-4 py-2 text-sm text-text-primary underline-offset-4 underline hover:text-text-secondary transition-colors"
-                onClick={() => setShowDeleteConfirmation(false)}
-                aria-label="Cancel deletion"
-              >
-                Close
-              </button>
-              <button
-                className="rounded-md py-2.5 px-6 font-semibold bg-primary text-text-inverse text-sm hover:bg-primary-hover active:bg-primary transition-colors disabled:opacity-50"
-                onClick={handleDeletePhoto}
-                disabled={isDeleting}
-                aria-busy={isDeleting}
-              >
-                {isDeleting ? 'Removing...' : 'Remove'}
-              </button>
-            </div>
-          </div>
+      <Modal
+        open={showDeleteConfirmation}
+        onClose={() => setShowDeleteConfirmation(false)}
+        title="Remove Photo"
+        size="md"
+      >
+        <p className="text-text-primary mb-4">
+          Are you sure you want to remove your driver&apos;s license photo?
+        </p>
+        <div className="flex justify-end space-x-2">
+          <Button
+            variant="ghost"
+            size="md"
+            onClick={() => setShowDeleteConfirmation(false)}
+            aria-label="Cancel deletion"
+          >
+            Close
+          </Button>
+          <Button
+            variant="destructive"
+            size="md"
+            onClick={handleDeletePhoto}
+            disabled={isDeleting}
+            loading={isDeleting}
+            aria-busy={isDeleting}
+          >
+            {isDeleting ? 'Removing...' : 'Remove'}
+          </Button>
         </div>
-      )}
+      </Modal>
     </>
   );
 };

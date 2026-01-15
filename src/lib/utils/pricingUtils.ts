@@ -170,7 +170,7 @@ export function formatInsurancePrice(
     return `$${baseRate * storageUnitCount}/mo`;
   }
 
-  return `${selectedInsurance.price}/mo`;
+  return selectedInsurance.price;
 }
 
 /**

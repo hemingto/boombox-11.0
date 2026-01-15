@@ -1,0 +1,13 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/expire-driver-offers",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/packing-supply-route-assignment",
+      "schedule": "0 20 * * *"
+    }
+  ]
+}
+

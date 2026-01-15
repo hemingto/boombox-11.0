@@ -114,10 +114,38 @@ export async function fetchAppointmentDetails(
       // Validate response data
       const validationResult = validateAppointmentDetailsResponse(responseData);
       if (!validationResult.isValid) {
-        console.error('Invalid appointment data received:', validationResult.errors);
+        // Log detailed validation errors for debugging
+        console.error('Invalid appointment data received:', {
+          errors: validationResult.errors,
+          receivedData: {
+            hasId: typeof responseData?.id,
+            hasUserId: typeof responseData?.userId,
+            hasAddress: typeof responseData?.address,
+            hasZipcode: typeof responseData?.zipcode,
+            hasDate: typeof responseData?.date,
+            hasTime: typeof responseData?.time,
+            hasPlanType: typeof responseData?.planType,
+            hasDeliveryReason: typeof responseData?.deliveryReason,
+            hasNumberOfUnits: typeof responseData?.numberOfUnits,
+            hasAppointmentType: typeof responseData?.appointmentType,
+            hasLoadingHelpPrice: typeof responseData?.loadingHelpPrice,
+            hasMonthlyStorageRate: typeof responseData?.monthlyStorageRate,
+            hasMonthlyInsuranceRate: typeof responseData?.monthlyInsuranceRate,
+            hasQuotedPrice: typeof responseData?.quotedPrice,
+            hasStatus: typeof responseData?.status
+          }
+        });
+        
+        // Construct more specific error message from validation errors
+        const errorDetails = Object.entries(validationResult.errors || {})
+          .map(([field, msg]) => `${field}: ${msg}`)
+          .join(', ');
+        
         return {
           success: false,
-          error: 'Invalid appointment data received from server'
+          error: errorDetails 
+            ? `Invalid appointment data: ${errorDetails}` 
+            : 'Invalid appointment data received from server'
         };
       }
 

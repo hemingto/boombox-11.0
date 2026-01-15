@@ -109,7 +109,7 @@ export default function TrackingPage({ params }: { params: Promise<PageParams> }
 
         {/* Delivery units skeleton */}
         {[1, 2].map((unitIndex) => (
-          <div key={unitIndex} className="bg-surface-primary border-b border-border mb-2">
+          <div key={unitIndex} className="bg-white border-b border-slate-100 mb-2">
             {/* Unit header */}
             <div className="px-4 py-4 flex items-center justify-between">
               <div>

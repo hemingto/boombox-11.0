@@ -23,11 +23,12 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
-import { PhoneIcon } from '@heroicons/react/20/solid';
 import { VerificationCode } from '@/components/features/auth/VerificationCodeInput';
+import { PhoneNumberInput } from '@/components/forms/PhoneNumberInput';
+import { Button } from '@/components/ui/primitives/Button';
 import { formatPhoneNumberForDisplay, extractPhoneDigits, isValidPhoneNumber } from '@/lib/utils/phoneUtils';
 
 export interface VerifyPhoneNumberProps {
@@ -61,15 +62,59 @@ export function VerifyPhoneNumber({
   const [verificationCode, setVerificationCode] = useState(['', '', '', '']);
   const [verificationError, setVerificationError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [codeSent, setCodeSent] = useState(false);
   
   /**
-   * Handle phone number input change with formatting
+   * Handle phone number input change
+   * Receives cleaned digits from PhoneNumberInput component
    */
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatPhoneNumberForDisplay(e.target.value);
-    setLocalPhoneNumber(formatted);
+  const handlePhoneChange = (cleanedDigits: string) => {
+    setLocalPhoneNumber(cleanedDigits);
     setPhoneError(null);
   };
+  
+  /**
+   * Send SMS verification code
+   */
+  const sendVerificationCode = async (phone: string) => {
+    try {
+      const response = await fetch('/api/auth/send-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          phoneNumber: phone,
+          skipAccountCheck: true // Skip account lookup for phone verification flow
+        }),
+      });
+      
+      if (response.ok) {
+        setVerificationCode(['', '', '', '']);
+        setVerificationError(null);
+      } else {
+        const data = await response.json();
+        setPhoneError(data.message || 'Failed to send verification code.');
+      }
+    } catch (error) {
+      console.error('Error sending verification code:', error);
+      setPhoneError('An error occurred while sending the code.');
+    }
+  };
+  
+  /**
+   * Send SMS verification code automatically when component mounts
+   * This ensures new users receive their verification code immediately
+   */
+  useEffect(() => {
+    // Only send code once on mount if we have a valid phone number
+    if (!codeSent && initialPhoneNumber) {
+      const digits = extractPhoneDigits(initialPhoneNumber);
+      if (digits.length === 10) {
+        sendVerificationCode(digits);
+        setCodeSent(true);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Intentionally empty - only run once on mount
   
   /**
    * Save updated phone number and send new verification code
@@ -116,30 +161,6 @@ export function VerifyPhoneNumber({
     setLocalPhoneNumber(phoneNumber);
     setIsEditing(false);
     setPhoneError(null);
-  };
-  
-  /**
-   * Send SMS verification code
-   */
-  const sendVerificationCode = async (phone: string) => {
-    try {
-      const response = await fetch('/api/auth/send-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber: phone }),
-      });
-      
-      if (response.ok) {
-        setVerificationCode(['', '', '', '']);
-        setVerificationError(null);
-      } else {
-        const data = await response.json();
-        setPhoneError(data.message || 'Failed to send verification code.');
-      }
-    } catch (error) {
-      console.error('Error sending verification code:', error);
-      setPhoneError('An error occurred while sending the code.');
-    }
   };
   
   /**
@@ -196,7 +217,7 @@ export function VerifyPhoneNumber({
       const result = await signIn('credentials', {
         redirect: false,
         contact: digits,
-        accountType: 'customer',
+        accountType: 'USER',
         code,
         skipVerification: 'true',
         userId: redirectUserId.toString(),
@@ -209,8 +230,8 @@ export function VerifyPhoneNumber({
         return;
       }
       
-      // Redirect to user page
-      router.push(`/user-page/${redirectUserId}`);
+      // Redirect to customer page
+      router.push(`/customer/${redirectUserId}`);
     } catch (error) {
       console.error('Error verifying code:', error);
       setVerificationError('An error occurred while verifying the code.');
@@ -229,8 +250,8 @@ export function VerifyPhoneNumber({
     <div className="w-full">
       <div className="mx-auto w-96 max-h-[90vh] max-w-xl overflow-y-auto rounded-lg bg-white p-6 sm:w-full">
         {/* Success Banner */}
-        <div className="flex shrink-0 rounded-md border border-status-success-border bg-status-success-bg p-3">
-          <p className="text-sm font-semibold text-status-success">
+        <div className="flex shrink-0 rounded-md bg-status-bg-success p-3">
+          <p className="text-sm text-status-success">
             Great! We received your appointment request. To view your account page and manage 
             your appointments please verify your phone number below
           </p>
@@ -245,54 +266,38 @@ export function VerifyPhoneNumber({
         <div className="mt-8">
           {isEditing ? (
             <div>
-              <div className="relative">
-                <span className="absolute left-3 top-3">
-                  <PhoneIcon 
-                    className={`h-5 w-5 ${phoneError ? 'text-status-error' : 'text-text-primary'}`}
-                    aria-hidden="true"
-                  />
-                </span>
-                <input
-                  type="tel"
-                  value={localPhoneNumber}
-                  onChange={handlePhoneChange}
-                  onFocus={() => setPhoneError(null)}
-                  className={`mb-2 w-full rounded-md py-2.5 pl-10 pr-3 focus:outline-none sm:mb-4 ${
-                    phoneError
-                      ? 'bg-status-error-bg ring-2 ring-status-error text-status-error placeholder:text-status-error'
-                      : 'bg-surface-secondary placeholder:text-text-tertiary focus:bg-white focus:ring-2 focus:ring-primary focus:placeholder:text-text-primary'
-                  }`}
-                  placeholder="Enter your phone number"
-                  aria-label="Phone number"
-                  aria-invalid={!!phoneError}
-                  aria-describedby={phoneError ? 'phone-error' : undefined}
-                />
-              </div>
-              {phoneError && (
-                <p id="phone-error" className="mb-3 text-sm text-status-error sm:-mt-2" role="alert">
-                  {phoneError}
-                </p>
-              )}
-              <div className="flex gap-2">
-                <button
-                  onClick={handleSave}
-                  className="btn-primary rounded-md px-6 py-2.5 font-semibold"
-                  type="button"
-                >
-                  Save
-                </button>
-                <button
+              <PhoneNumberInput
+                value={localPhoneNumber}
+                onChange={handlePhoneChange}
+                hasError={!!phoneError}
+                errorMessage={phoneError || undefined}
+                onClearError={() => setPhoneError(null)}
+                placeholder="Enter your phone number"
+                aria-label="Phone number"
+                aria-describedby={phoneError ? 'phone-error' : undefined}
+              />
+              <div className="flex gap-2 mt-4 justify-end">
+                <Button
                   onClick={handleCancel}
-                  className="text-sm underline decoration-dotted underline-offset-2 hover:decoration-solid"
+                  variant="ghost"
+                  size="sm"
                   type="button"
                 >
                   Cancel
-                </button>
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  variant="primary"
+                  size="md"
+                  type="button"
+                >
+                  Save
+                </Button>
               </div>
             </div>
           ) : (
             <div className="flex items-center justify-between">
-              <p className="text-text-secondary">{phoneNumber}</p>
+              <p className="text-text-tertiary">{phoneNumber}</p>
               <button
                 onClick={() => setIsEditing(true)}
                 className="text-sm underline decoration-dotted underline-offset-2 hover:decoration-solid"
@@ -320,7 +325,7 @@ export function VerifyPhoneNumber({
           />
           
           {/* Resend Code */}
-          <p className="mb-4 text-sm text-text-secondary">
+          <p className="mb-4 mt-4 text-sm text-text-primary">
             Didn&apos;t receive code?{' '}
             <button
               onClick={handleResend}

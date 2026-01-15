@@ -27,6 +27,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/nextAuthConfig";
+import { MovingPartnerStatus } from '@prisma/client';
 
 export async function DELETE(
     request: NextRequest,
@@ -63,6 +64,26 @@ export async function DELETE(
                 id: driverId
             }
         });
+
+        // Check if there are any remaining active, approved drivers
+        // If not, update the moving partner status to INACTIVE
+        const remainingActiveApprovedDrivers = await prisma.movingPartnerDriver.count({
+            where: {
+                movingPartnerId: moverId,
+                isActive: true,
+                driver: {
+                    isApproved: true
+                }
+            }
+        });
+
+        if (remainingActiveApprovedDrivers === 0) {
+            await prisma.movingPartner.update({
+                where: { id: moverId },
+                data: { status: MovingPartnerStatus.INACTIVE }
+            });
+            console.log(`Moving partner ${moverId} status updated to INACTIVE - no remaining active approved drivers`);
+        }
 
         return NextResponse.json({ message: 'Driver removed successfully' });
     } catch (error) {

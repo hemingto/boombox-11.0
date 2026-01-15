@@ -4,8 +4,8 @@
  * @refactor PHASE 4 - Moving Partners Domain
  * 
  * ROUTE FUNCTIONALITY:
- * POST endpoint that resends existing driver invitations with extended expiration.
- * Finds invitation by token, extends expiration by 7 days, and resends email.
+ * POST endpoint that resends existing driver invitations.
+ * Now delegates to Server Action for consistency and automatic cache revalidation.
  * 
  * USED BY (boombox-10.0 files):
  * - Moving partner driver invitation management
@@ -16,17 +16,14 @@
  * INTEGRATION NOTES:
  * - Requires { token } in request body
  * - Finds invitation by token and movingPartnerId
- * - Extends expiration by 7 days from current date
- * - Resets invitation status to 'pending'
  * - Resends invitation email via SendGrid integration
  * - Includes moving partner details for email personalization
  * 
- * @refactor Uses centralized messaging service from @/lib/messaging
+ * @refactor Uses Server Action from @/lib/services/driverInvitationService
  */
 
 import { NextResponse, NextRequest } from 'next/server';
-import { prisma } from '@/lib/database/prismaClient';
-import { sendDriverInvitationEmail } from "@/lib/messaging";
+import { resendDriverInvite } from '@/lib/services/driverInvitationService';
 
 export async function POST(
     request: NextRequest,
@@ -44,44 +41,15 @@ export async function POST(
             );
         }
 
-        // Find the invitation
-        const invitation = await prisma.driverInvitation.findFirst({
-            where: {
-                token,
-                movingPartnerId: moverIdNum,
-            },
-            include: {
-                movingPartner: true,
-            },
-        });
-
-        if (!invitation) {
+        if (!token) {
             return NextResponse.json(
-                { error: 'Invitation not found' },
-                { status: 404 }
+                { error: 'Token is required' },
+                { status: 400 }
             );
         }
 
-        // Update the invitation to extend its expiration
-        const newExpiresAt = new Date();
-        newExpiresAt.setDate(newExpiresAt.getDate() + 7); // Extend by 7 days
-
-        await prisma.driverInvitation.update({
-            where: {
-                token,
-            },
-            data: {
-                expiresAt: newExpiresAt,
-                status: 'pending',
-            },
-        });
-
-        // Send the email using SendGrid
-        await sendDriverInvitationEmail(
-            invitation.email,
-            invitation.token,
-            invitation.movingPartner.name
-        );
+        // Delegate to Server Action
+        await resendDriverInvite(moverIdNum, token);
 
         return NextResponse.json({ success: true });
     } catch (error) {

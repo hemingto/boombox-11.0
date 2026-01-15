@@ -37,10 +37,10 @@ interface InfoCardProps {
 
 const variantClasses: Record<CardVariant, { base: string; border: string; hover: string; active: string }> = {
   default: {
-    base: 'bg-surface-secondary',
+    base: 'bg-slate-100',
     border: 'border-border',
-    hover: 'hover:bg-surface-tertiary',
-    active: 'active:bg-zinc-200',
+    hover: 'hover:bg-slate-50',
+    active: 'active:bg-slate-200',
   },
   success: {
     base: 'bg-status-bg-success',
@@ -50,7 +50,7 @@ const variantClasses: Record<CardVariant, { base: string; border: string; hover:
   },
   warning: {
     base: 'bg-status-bg-warning',
-    border: 'border-status-warning',
+    border: 'border-border-warning',
     hover: 'hover:bg-amber-200',
     active: 'active:bg-amber-300',
   },
@@ -61,10 +61,10 @@ const variantClasses: Record<CardVariant, { base: string; border: string; hover:
     active: 'active:bg-red-300',
   },
   info: {
-    base: 'bg-status-bg-info',
-    border: 'border-status-info',
-    hover: 'hover:bg-cyan-200',
-    active: 'active:bg-cyan-300',
+    base: 'bg-sky-100',
+    border: 'border-sky-100',
+    hover: 'hover:bg-sky-100',
+    active: 'active:bg-sky-200',
   },
 };
 
@@ -84,9 +84,8 @@ const InfoCard: React.FC<InfoCardProps> = ({
   return (
     <div
       className={twMerge(
-        'pt-4 mb-4 rounded-md border relative',
+        'pt-4 mb-4 rounded-md relative',
         variants.base,
-        variants.border,
         className
       )}
       role="region"
@@ -95,7 +94,7 @@ const InfoCard: React.FC<InfoCardProps> = ({
       {showCloseIcon && (
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 text-text-secondary hover:text-text-primary"
+          className="absolute top-3 right-3 text-text-primary"
           aria-label="Close"
         >
           <XMarkIcon className="w-5 h-5" />
@@ -104,15 +103,13 @@ const InfoCard: React.FC<InfoCardProps> = ({
 
       <div className="px-4 pb-4">
         <h3 id="info-card-title" className="text-lg font-semibold text-text-primary">{title}</h3>
-        <p className="text-sm mt-2 text-text-tertiary">{description}</p>
+        <p className="text-sm mt-2 text-text-primary">{description}</p>
       </div>
 
       <button
         onClick={onButtonClick}
         className={twMerge(
-          'px-4 py-4 flex items-center justify-between w-full rounded-b-md transition border-t',
-          variants.border,
-          variants.hover,
+          'px-4 py-4 flex items-center justify-between w-full rounded-b-md transition border-t border-white',
           variants.active
         )}
       >
@@ -120,7 +117,7 @@ const InfoCard: React.FC<InfoCardProps> = ({
           <span className="mr-2 text-text-primary">{buttonIcon}</span>
           <span className="text-sm font-medium text-text-primary">{buttonText}</span>
         </div>
-        <ChevronRightIcon className="w-4 h-4 shrink-0 text-text-secondary" />
+        <ChevronRightIcon className="w-4 h-4 shrink-0 text-text-primary" />
       </button>
     </div>
   );

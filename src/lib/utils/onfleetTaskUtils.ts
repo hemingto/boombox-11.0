@@ -125,6 +125,28 @@ export function updateStorageUnitNotes(
 }
 
 /**
+ * Format parsed address for Onfleet API
+ * Onfleet expects: { street, city, state, postalCode, country }
+ * parseAddress returns: { number, street, city, state, postalCode, country }
+ */
+function formatAddressForOnfleet(parsedAddress: {
+  number: string;
+  street: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+}) {
+  return {
+    street: `${parsedAddress.number} ${parsedAddress.street}`.trim(),
+    city: parsedAddress.city,
+    state: parsedAddress.state,
+    postalCode: parsedAddress.postalCode,
+    country: parsedAddress.country,
+  };
+}
+
+/**
  * Builds task destination object based on step number and coordinates
  * @param stepNumber - The step number (1, 2, or 3)
  * @param customerAddress - Parsed customer address
@@ -140,8 +162,9 @@ export function buildTaskDestination(
 ) {
   if (stepNumber === 2 && customerCoordinates) {
     // Customer tasks (step 2) use customer's address
+    // Format address for Onfleet API requirements
     return {
-      address: customerAddress,
+      address: formatAddressForOnfleet(customerAddress),
       location: customerCoordinates
     };
   } else if ((stepNumber === 1 || stepNumber === 3) && warehouseCoordinates) {
@@ -149,7 +172,7 @@ export function buildTaskDestination(
     const parsedWarehouseAddress = parseAddress(WAREHOUSE_ADDRESS);
     if (parsedWarehouseAddress) {
       return {
-        address: parsedWarehouseAddress,
+        address: formatAddressForOnfleet(parsedWarehouseAddress),
         location: warehouseCoordinates
       };
     }

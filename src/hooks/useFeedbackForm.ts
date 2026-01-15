@@ -164,7 +164,7 @@ export function useFeedbackForm({
       const payload = {
         appointmentId: parseInt(appointmentId, 10),
         rating,
-        comment,
+        comments: comment,
         tipAmount,
         driverRatings: taskIdRatings,
       };

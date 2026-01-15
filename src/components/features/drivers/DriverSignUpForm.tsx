@@ -52,17 +52,18 @@ import { useRouter } from 'next/navigation';
 import { useSession, signOut, signIn } from "next-auth/react";
 
 // Form components
-import FirstNameInput from '@/components/forms/FirstNameInput';
 import EmailInput from '@/components/forms/EmailInput';
 import { PhoneNumberInput } from '@/components/forms/PhoneNumberInput';
 import YesOrNoRadio from '@/components/forms/YesOrNoRadio';
 import { CheckboxCard } from '@/components/ui/primitives/CheckboxCard';
 import { Modal } from '@/components/ui/primitives/Modal';
 import { LoadingOverlay } from '@/components/ui/primitives/LoadingOverlay';
+import { Input } from '@/components/ui/primitives/Input';
 import { LocationSelect } from './LocationSelect';
 
 // UI components
 import { Select } from '@/components/ui/primitives/Select';
+import { Button } from '@/components/ui/primitives/Button';
 
 // Utilities
 import { validateForm } from '@/lib/utils/validationUtils';
@@ -123,8 +124,6 @@ interface DriverFormData {
   vehicleType: string | null;
   hasTrailerHitch: boolean;
   consentToBackgroundCheck: boolean;
-  status: string;
-  isApproved: boolean;
   invitationToken?: string;
   createDefaultAvailability: boolean;
 }
@@ -169,6 +168,7 @@ export function DriverSignUpForm({
   // Error state
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [trailerHitchError, setTrailerHitchError] = useState<string | null>(null);
 
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -183,6 +183,15 @@ export function DriverSignUpForm({
       setHasTrailerHitch('Yes'); // Set hasTrailerHitch to Yes for invitation token
     }
   }, [invitationToken, selectedServices.length]);
+
+  // Validate trailer hitch requirement for Storage Unit Delivery
+  useEffect(() => {
+    if (hasTrailerHitch === 'No' && selectedServices.includes('option1')) {
+      setTrailerHitchError('Your vehicle must have a trailer hitch to be a Storage Unit Delivery Driver');
+    } else {
+      setTrailerHitchError(null);
+    }
+  }, [hasTrailerHitch, selectedServices]);
 
   /**
    * Handles service selection toggle
@@ -288,8 +297,6 @@ export function DriverSignUpForm({
     vehicleType: invitationToken ? "pending" : selectedVehicle,
     hasTrailerHitch: invitationToken ? false : hasTrailerHitch === 'Yes',
     consentToBackgroundCheck: backgroundCheckConsent === 'Yes',
-    status: 'Pending',
-    isApproved: false,
     invitationToken: invitationToken || undefined,
     createDefaultAvailability: true
   });
@@ -301,6 +308,12 @@ export function DriverSignUpForm({
     // Clear previous errors
     setSubmitError(null);
     setErrors({});
+
+    // Check for trailer hitch requirement conflict
+    if (trailerHitchError) {
+      setSubmitError(trailerHitchError);
+      return;
+    }
 
     if (!validateFormData()) {
       return;
@@ -326,43 +339,71 @@ export function DriverSignUpForm({
       
       // Use the accept-invitation route if there's an invitation token
       const endpoint = invitationToken ? '/api/drivers/accept-invitation' : '/api/drivers/list';
+      
+      // Prepare payload based on endpoint
+      const payload = invitationToken ? {
+        // For invitation acceptance, only send fields expected by the API schema
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phoneNumber: formData.phoneNumber,
+        phoneProvider: formData.phoneProvider,
+        location: formData.location,
+        backgroundCheckConsent: formData.consentToBackgroundCheck ? 'Yes' : 'No',
+        token: invitationToken
+      } : {
+        // For regular signup, send all fields
+        ...formData,
+      };
+      
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...formData,
-          token: invitationToken || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // Automatically sign in the user
-        const signInResult = await signIn('credentials', {
-          contact: phoneNumber || email,
-          accountType: 'driver',
-          redirect: false,
-          skipVerification: true,
-          userId: data.driver.id.toString()
-        });
-
-        if (signInResult?.error) {
-          console.error('Error signing in:', signInResult.error);
-          setSubmitError('Failed to sign in. Please try logging in manually.');
-          window.location.href = `/login?from=/driver-account-page/${data.driver.id}`;
+        // Extract driver ID from the response
+        // Regular signup returns: { success: true, data: { id, firstName, lastName, email, assignedTeams } }
+        // Invitation signup returns: { success: true, data: { driver: { id, ... }, message } }
+        const driverId = data.data?.id || data.data?.driver?.id;
+        
+        if (!driverId) {
+          console.error('Driver ID not found in response:', data);
+          setSubmitError('Account created but unable to sign in. Please try logging in manually.');
+          setIsSubmitting(false);
           return;
         }
-
-        // If sign in successful, redirect to driver account page
-        window.location.href = `/driver-account-page/${data.driver.id}`;
+        
+        // Automatically sign in the user
+        // Use redirect: false to ensure session is established before redirecting
+        const signInResult = await signIn('credentials', {
+          contact: phoneNumber || email,
+          accountType: 'DRIVER',
+          skipVerification: true,
+          userId: driverId.toString(),
+          redirect: false
+        });
+        
+        if (signInResult?.ok) {
+          // Give the session cookie time to be fully established
+          // This prevents the middleware from seeing a null token during redirect
+          await new Promise(resolve => setTimeout(resolve, 300));
+          router.push(`/service-provider/driver/${driverId}`);
+        } else {
+          console.error('SignIn failed:', signInResult?.error);
+          setSubmitError('Account created but unable to sign in. Please try logging in manually.');
+          setIsSubmitting(false);
+        }
       } else {
         if (response.status === 409) {
-          setSubmitError(data.error || 'A driver with this email or phone number already exists.');
+          setSubmitError(data.error?.message || 'A driver with this email or phone number already exists.');
         } else {
-          setSubmitError(data.error || 'Failed to create driver account. Please try again.');
+          setSubmitError(data.error?.message || 'Failed to create driver account. Please try again.');
         }
         setIsSubmitting(false);
       }
@@ -410,99 +451,109 @@ export function DriverSignUpForm({
         spinnerSize="xl"
       />
       
-      <h2 className="mb-4 text-text-primary">Tell us about yourself</h2>
+      <h2 className="mb-6">Tell us about yourself</h2>
       
       {/* Display submit error if any */}
       {submitError && (
-        <div className="mb-4 p-3 bg-status-bg-error text-status-error rounded-md" role="alert">
+        <div className="mb-6 p-3 bg-red-100 border border-border-error text-red-500 rounded" role="alert">
           {submitError}
         </div>
       )}
       
       {/* Personal Information Section */}
-      <div className="form-group">
-        <div className="flex-col sm:flex sm:flex-row gap-2">
-          <FirstNameInput
+      {/* Name inputs */}
+      <div className="flex-col sm:flex sm:flex-row gap-2 mb-4">
+        <div className="basis-1/2 mb-4 sm:mb-0">
+          <Input
+            id="firstName"
+            type="text"
             value={firstName}
-            onFirstNameChange={setFirstName}
-            hasError={!!errors.firstName}
-            errorMessage={errors.firstName}
+            onChange={(e) => setFirstName(e.target.value)}
             onClearError={() => clearError('firstName')}
+            label="First Name"
+            placeholder="Enter your first name"
+            error={errors.firstName}
             required
+            aria-label="First name (required)"
+            autoComplete="given-name"
+            fullWidth
           />
-          <div className="basis-1/2">
-            <input
-              type="text"
-              value={lastName}
-              onChange={(e) => {
-                setLastName(e.target.value);
-                clearError('lastName');
-              }}
-              placeholder="Last Name"
-              className={cn(
-                "input-field",
-                errors.lastName && "input-field--error"
-              )}
-              required
-              aria-label="Last name (required)"
-              aria-invalid={!!errors.lastName}
-              autoComplete="family-name"
-            />
-            {errors.lastName && (
-              <p className="form-error sm:-mt-2 mb-3" role="alert">
-                {errors.lastName}
-              </p>
-            )}
-          </div>
+        </div>
+        
+        {/* Last Name Input */}
+        <div className="basis-1/2">
+          <Input
+            id="lastName"
+            type="text"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            onClearError={() => clearError('lastName')}
+            label="Last Name"
+            placeholder="Enter your last name"
+            error={errors.lastName}
+            required
+            aria-label="Last name (required)"
+            autoComplete="family-name"
+            fullWidth
+          />
         </div>
       </div>
 
-      <div className="form-group">
+      {/* Email Input */}
+      <div className="mb-4">
         <EmailInput
           value={email}
           onEmailChange={(newEmail) => {
             setEmail(newEmail);
             clearError('email');
           }}
+          label="Email Address"
           hasError={!!errors.email}
           errorMessage={errors.email}
           onClearError={() => clearError('email')}
+          placeholder="Enter your email address"
           required
         />
       </div>
 
-      <div className="form-group">
+      {/* Phone Number Input */}
+      <div className="mb-4">
         <PhoneNumberInput
           value={phoneNumber}
           onChange={(newPhone) => {
             setPhoneNumber(newPhone);
             clearError('phoneNumber');
           }}
+          label="Phone Number"
           hasError={!!errors.phoneNumber}
           errorMessage={errors.phoneNumber}
           onClearError={() => clearError('phoneNumber')}
+          placeholder="Enter your phone number"
           required
         />
       </div>
 
-      <div className="form-group">
+      <div className="mb-4">
         <LocationSelect
           value={selectedLocation}
           onLocationChange={(location) => {
             setSelectedLocation(location);
             clearError('location');
           }}
+          label="Where are you located?"
           hasError={!!errors.location}
           onClearError={() => clearError('location')}
+          required
+          size="md"
         />
         {errors.location && (
-          <p className="form-error text-sm sm:-mt-2 mb-3" role="alert">
+          <p className="form-error text-sm" role="alert">
             Please select your location
           </p>
         )}
       </div>
 
-      <div className="form-group">
+      <div className="mb-4">
         <Select
           label="Your phone's service provider?"
           value={selectedProvider || undefined}
@@ -514,12 +565,14 @@ export function DriverSignUpForm({
           placeholder="Select provider"
           error={errors.phoneProvider}
           required
+          size="md"
+          compactLabel
         />
       </div>
 
       {/* Background Check Consent */}
-      <div className="form-group">
-        <p className="form-label">Do you consent to a background check?</p>
+      <div className="mb-4 mt-10">
+        <p className="form-label mb-4">Do you consent to a background check?</p>
         <YesOrNoRadio
           value={backgroundCheckConsent}
           onChange={(value) => {
@@ -534,8 +587,8 @@ export function DriverSignUpForm({
 
       {/* Services Selection */}
       {!hideServicesSection && (
-        <div className="form-group">
-          <h2 className="mb-4 mt-10 text-text-primary">What services can you offer?</h2>
+        <div className="mb-4 mt-10">
+          <h2 className="mb-4">What services can you offer?</h2>
           {errors.services && (
             <p className="form-error text-sm mb-3" role="alert">
               Please select at least one service you can offer
@@ -570,10 +623,10 @@ export function DriverSignUpForm({
 
       {/* Vehicle Information */}
       {!invitationToken && (
-        <div className="form-group">
-          <h2 className="mb-4 mt-10 text-text-primary">Vehicle Information</h2>
+        <div className="mb-4 mt-10">
+          <h2 className="mb-4">Vehicle Information</h2>
           
-          <div className="mb-6">
+          <div className="mb-4">
             <Select
               label="Vehicle Type"
               value={selectedVehicle || undefined}
@@ -582,35 +635,45 @@ export function DriverSignUpForm({
               placeholder="Select vehicle type"
               error={errors.vehicle}
               required
+              size="sm"
             />
           </div>
 
-          <div className="mb-6">
-            <p className="form-label">Does your vehicle have a trailer hitch?</p>
+          <div className="mb-4">
+            <p className="form-label mb-4">Does your vehicle have a trailer hitch?</p>
             <YesOrNoRadio
               value={hasTrailerHitch}
               onChange={(value) => {
                 setHasTrailerHitch(value as "Yes" | "No");
                 clearError('hasTrailerHitch');
               }}
-              hasError={!!errors.hasTrailerHitch}
+              hasError={!!errors.hasTrailerHitch || !!trailerHitchError}
               errorMessage={errors.hasTrailerHitch}
               name="trailer-hitch"
             />
+            {trailerHitchError && (
+              <div className="bg-status-bg-error border border-border-error rounded-md p-4 mt-4">
+                <p className="text-status-error text-sm" role="alert">
+                  {trailerHitchError}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {/* Submit Button */}
       <div className="mb-4 mt-12">
-        <button
-          className="btn-primary w-full"
+        <Button
+          variant="primary"
           onClick={handleSubmit}
           disabled={isSubmitting}
+          fullWidth
           aria-describedby={submitError ? "submit-error" : undefined}
+          aria-busy={isSubmitting}
         >
-          {isSubmitting ? 'Processing...' : 'Submit Application'}
-        </button>
+          {isSubmitting ? 'Submitting Application...' : 'Submit Application'}
+        </Button>
       </div>
 
       {/* Session Warning Modal */}
@@ -620,7 +683,7 @@ export function DriverSignUpForm({
           setShowSessionWarning(false);
           setIsProcessingLogout(false);
         }}
-        title="Account Session Warning"
+        title="Already Logged In"
         size="md"
       >
         <div className="space-y-4">
@@ -628,27 +691,30 @@ export function DriverSignUpForm({
             You are currently logged into another account. To create a new driver account, 
             you need to log out of your current session first.
           </p>
-          <p className="text-text-secondary text-sm">
+          <p className="text-text-primary">
             Your form data will be saved and submitted after logging out.
           </p>
-          <div className="flex space-x-3 pt-4">
-            <button
-              className="btn-primary flex-1"
-              onClick={handleSessionWarningConfirm}
-              disabled={isProcessingLogout}
-            >
-              {isProcessingLogout ? 'Processing...' : 'Log Out & Continue'}
-            </button>
-            <button
-              className="btn-secondary flex-1"
+          <div className="flex space-x-3 pt-8 justify-end">
+          <Button
+              variant="secondary"
               onClick={() => {
                 setShowSessionWarning(false);
                 setIsProcessingLogout(false);
               }}
               disabled={isProcessingLogout}
+              
             >
               Cancel
-            </button>
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSessionWarningConfirm}
+              disabled={isProcessingLogout}
+              loading={isProcessingLogout}
+              
+            >
+              Log Out & Continue
+            </Button>
           </div>
         </div>
       </Modal>

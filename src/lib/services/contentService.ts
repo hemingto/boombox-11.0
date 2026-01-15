@@ -21,7 +21,7 @@ import { BlogCategory, BlogPost, PopularArticle } from '@/types/content.types';
 const BLOG_POSTS: BlogPost[] = [
   {
     category: 'Tips and Tricks',
-    thumbnail: '/img/palo-alto.png',
+    thumbnail: 'https://res.cloudinary.com/demo/image/upload/c_fill,w_800,h_600/sample',
     blogTitle: 'How to store paintings the right way',
     blogDescription: 'Learn the best practices for storing artwork safely and securely.',
     author: 'Sophie',
@@ -31,7 +31,7 @@ const BLOG_POSTS: BlogPost[] = [
   },
   {
     category: 'Tips and Tricks',
-    thumbnail: '/img/berkeley.png',
+    thumbnail: 'https://res.cloudinary.com/demo/image/upload/c_fill,w_800,h_600/sample_landscape',
     blogTitle: 'Packing fragile items for storage',
     blogDescription: 'Essential tips for protecting your delicate belongings.',
     author: 'Michael',
@@ -41,7 +41,7 @@ const BLOG_POSTS: BlogPost[] = [
   },
   {
     category: 'Press',
-    thumbnail: '/img/san-jose.png',
+    thumbnail: 'https://res.cloudinary.com/demo/image/upload/c_fill,w_800,h_600/docs/models',
     blogTitle: 'Boombox featured in TechCrunch',
     blogDescription: 'Our innovative storage solution gets recognition.',
     author: 'Press Team',
@@ -51,7 +51,7 @@ const BLOG_POSTS: BlogPost[] = [
   },
   {
     category: 'Most Recent',
-    thumbnail: '/img/mountain-view.png',
+    thumbnail: 'https://res.cloudinary.com/demo/image/upload/c_fill,w_800,h_600/docs/logo',
     blogTitle: 'New storage locations now open',
     blogDescription: 'Expanding our service to more Bay Area locations.',
     author: 'Operations',
@@ -64,28 +64,52 @@ const BLOG_POSTS: BlogPost[] = [
 // Static popular articles data
 const POPULAR_ARTICLES: PopularArticle[] = [
   {
-    title: 'Berkeley Storage Solutions',
-    author: 'Location Team',
-    readTime: '7 min read',
-    imageSrc: '/img/berkeley.png',
-    imageAlt: 'Berkeley storage facility',
+    title: 'Moving Costs in San Francisco',
+    author: 'Sophie',
+    readTime: '10 min read',
+    imageSrc: 'https://res.cloudinary.com/demo/image/upload/c_fill,w_600,h_400/sample_cityscape',
+    imageAlt: 'Golden Gate Bridge',
+    link: '/locations/san-francisco'
+  },
+  {
+    title: '5 Best Ways to Store Trading Cards',
+    author: 'Sophie',
+    readTime: '10 min read',
+    imageSrc: 'https://res.cloudinary.com/demo/image/upload/c_fill,w_600,h_400/sample_cards',
+    imageAlt: 'Runners at Lake Merritt',
+    link: '/locations/oakland'
+  },
+  {
+    title: 'Moving to San Francisco: Advice & Tips',
+    author: 'Sophie',
+    readTime: '10 min read',
+    imageSrc: 'https://res.cloudinary.com/demo/image/upload/c_fill,w_600,h_400/sample_architecture',
+    imageAlt: 'Berkeley skyline',
     link: '/locations/berkeley'
   },
   {
-    title: 'Palo Alto Premium Storage',
-    author: 'Location Team',
-    readTime: '6 min read',
-    imageSrc: '/img/palo-alto.png',
-    imageAlt: 'Palo Alto storage facility',
-    link: '/locations/palo-alto'
+    title: 'The 7 Best Jewelry Storage Ideas',
+    author: 'Sophie',
+    readTime: '10 min read',
+    imageSrc: 'https://res.cloudinary.com/demo/image/upload/c_fill,w_600,h_400/sample_jewelry',
+    imageAlt: 'bike in front of office building',
+    link: '/locations/berkeley'
   },
   {
-    title: 'San Jose Storage Hub',
-    author: 'Location Team',
-    readTime: '8 min read',
-    imageSrc: '/img/san-jose.png',
-    imageAlt: 'San Jose storage facility',
-    link: '/locations/san-jose'
+    title: 'The Complete Guide to RV Storage',
+    author: 'Sophie',
+    readTime: '10 min read',
+    imageSrc: 'https://res.cloudinary.com/demo/image/upload/c_fill,w_600,h_400/sample_rv',
+    imageAlt: 'Stanford University archways',
+    link: '/locations/berkeley'
+  },
+  {
+    title: '7 Tips on How to Pack Dishes',
+    author: 'Sophie',
+    readTime: '10 min read',
+    imageSrc: 'https://res.cloudinary.com/demo/image/upload/c_fill,w_600,h_400/sample_dishes',
+    imageAlt: 'Downtown San Jose office buildings and palm trees',
+    link: '/locations/berkeley'
   }
 ];
 
@@ -159,7 +183,17 @@ export class ContentService {
    * Get the primary featured article (first blog post for now)
    * @returns Primary featured article or null if none available
    */
-  static getPrimaryFeaturedArticle(): BlogPost | null {
-    return BLOG_POSTS.length > 0 ? BLOG_POSTS[0] : null;
+  static getPrimaryFeaturedArticle(): (BlogPost & { authorImage: string; articleImage: string; date: string; description: string }) | null {
+    if (BLOG_POSTS.length === 0) return null;
+    
+    const firstPost = BLOG_POSTS[0];
+    // Add featured article specific fields
+    return {
+      ...firstPost,
+      authorImage: 'https://res.cloudinary.com/demo/image/upload/c_fill,w_100,h_100,g_face/avatar_example',
+      articleImage: firstPost.thumbnail,
+      date: firstPost.datePublished,
+      description: firstPost.blogDescription
+    };
   }
 }

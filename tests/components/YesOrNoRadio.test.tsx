@@ -280,11 +280,11 @@ describe('YesOrNoRadio Component', () => {
       
       expect(yesButton).toHaveClass('ring-border-error');
       expect(yesButton).toHaveClass('bg-status-bg-error');
-      expect(yesButton).toHaveClass('text-status-text-error');
+      expect(yesButton).toHaveClass('text-status-error');
       
       expect(noButton).toHaveClass('ring-border-error');
       expect(noButton).toHaveClass('bg-status-bg-error');
-      expect(noButton).toHaveClass('text-status-text-error');
+      expect(noButton).toHaveClass('text-status-error');
     });
 
     it('does not display error message when hasError is true but errorMessage is not provided', () => {

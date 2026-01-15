@@ -303,7 +303,7 @@ describe('PackingKits', () => {
 
       const badge = screen.getByText('Free delivery').parentElement;
       expect(badge).toHaveClass('bg-status-bg-success');
-      expect(badge).toHaveClass('text-status-text-success');
+      expect(badge).toHaveClass('text-status-success');
     });
 
     it('should use design system colors for navigation buttons', () => {
@@ -418,7 +418,7 @@ describe('PackingKits', () => {
       const bedroomImage = screen.getByAltText('1-2 Bedroom Kit packing supplies kit');
       const largeBedroomImage = screen.getByAltText('3-4 Bedroom Kit packing supplies kit');
 
-      expect(apartmentImage).toHaveAttribute('src', '/img/golden-gate.png');
+      expect(apartmentImage).toHaveAttribute('src', '/placeholder.jpg');
       expect(bedroomImage).toHaveAttribute('src', '/img/mountain-view.png');
       expect(largeBedroomImage).toHaveAttribute('src', '/img/palo-alto.png');
     });

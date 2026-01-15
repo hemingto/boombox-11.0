@@ -29,13 +29,9 @@
  * - Input has proper type and validation feedback
  * 
  * IMAGE OPTIMIZATION:
- * - ✅ Uses OptimizedImage component (HeroImage variant) for enhanced performance
- * - Priority loading for above-the-fold hero image
- * - Automatic skeleton loading state while image loads
- * - Fallback image support for error handling
+ * - Uses Next.js Image with priority loading for above-the-fold hero image
  * - Proper aspect ratio (square) and responsive sizing
  * - Quality optimized for hero display (90%)
- * - Blur placeholder for smoother loading experience
  * 
  * BUSINESS LOGIC PRESERVED:
  * - Exact same storage unit count mapping
@@ -56,7 +52,8 @@ import { TwobedroomIcon } from '@/components/icons/TwoBedroomIcon';
 import { FullhomeIcon } from '@/components/icons/FullHomeIcon';
 import { MapPinIcon } from '@heroicons/react/20/solid';
 import { useRouter } from 'next/navigation';
-import { HeroImage } from '@/components/ui/primitives/OptimizedImage/OptimizedImage';
+import Image from 'next/image';
+import { Input } from '@/components/ui/primitives/Input/Input';
 
 interface StorageOption {
   value: string;
@@ -134,8 +131,6 @@ export function HeroSection({
   const [selectedValue, setSelectedValue] = useState<string>('extraItems');
   const [zipCode, setZipCode] = useState<string>('');
   const router = useRouter();
-  const [isFocused, setIsFocused] = useState<boolean>(false);
-  const [hasValue, setHasValue] = useState<boolean>(false);
 
   const handleRadioChange = (value: string) => {
     setSelectedValue(value);
@@ -155,14 +150,18 @@ export function HeroSection({
     // Convert form data to query string
     const queryParams = new URLSearchParams(formData as any).toString();
     
-    // Navigate to the getquote page with the query parameters
-    router.push(`/getquote?${queryParams}`);
+    // Navigate to the get-quote page with the query parameters
+    router.push(`/get-quote?${queryParams}`);
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       handleGetQuote();
     }
+  };
+
+  const handleZipChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setZipCode(e.target.value);
   };
 
   return (
@@ -219,39 +218,22 @@ export function HeroSection({
           </fieldset>
 
           {/* Zip code input */}
-          <div className="mb-8">
-            <label htmlFor="zip-code-input" className="block mb-4">
-              Where do you need us?
-            </label>
-            <div className="relative">
-              <input
-                id="zip-code-input"
-                className="pl-8 bg-surface-tertiary py-2.5 px-3 min-w-80 mb-4 rounded-md focus:outline-none placeholder:text-text-secondary focus:placeholder:text-text-primary placeholder:text-sm focus-within:ring-2 focus-within:ring-primary focus:bg-surface-primary cursor-pointer" 
-                type="text" 
-                placeholder="Enter your zip"
-                maxLength={5}
-                pattern="\d{5}"
-                value={zipCode}
-                onChange={(e) => {
-                  setZipCode(e.target.value);
-                  setHasValue(e.target.value.length > 0);
-                }}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
-                onKeyDown={handleKeyDown}
-                aria-label="Enter your 5-digit zip code"
-                aria-describedby="zip-code-hint"
-              />
-              <span id="zip-code-hint" className="sr-only">
-                Enter a 5-digit zip code to check availability
-              </span>
-              <MapPinIcon 
-                className={`absolute inset-y-3 left-2 w-5 h-5 ${
-                  isFocused || hasValue ? 'text-text-primary' : 'text-text-secondary'
-                }`}
-                aria-hidden="true"
-              />
-            </div>
+          <div className="mb-10">
+            <Input
+              id="zip-code-input"
+              type="text"
+              placeholder="Enter your zip"
+              label="Where do you need us?"
+              value={zipCode}
+              onChange={handleZipChange}
+              onKeyDown={handleKeyDown}
+              icon={<MapPinIcon />}
+              iconPosition="left"
+              size="md"
+              maxLength={5}
+              className="max-w-80 placeholder:text-sm"
+              aria-label="Enter your 5-digit zip code"
+            />
           </div>
 
           {/* CTA Button */}
@@ -267,14 +249,17 @@ export function HeroSection({
 
       {/* Right column: Image */}
       <div className="flex place-content-center basis-1/2">
-        <HeroImage
-          src={imageSrc}
-          alt={imageAlt}
-          fallbackSrc={fallbackSrc}
-          aspectRatio="square"
-          containerClassName="w-full max-w-xl rounded-md"
-          className="rounded-md object-cover"
-        />
+        <div className="relative w-full max-w-xl aspect-square rounded-md overflow-hidden">
+          <Image
+            src={imageSrc}
+            alt={imageAlt}
+            fill
+            priority
+            quality={90}
+            className="rounded-md object-cover"
+            sizes="(max-width: 768px) 100vw, 50vw"
+          />
+        </div>
       </div>
     </section>
   );

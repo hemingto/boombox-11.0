@@ -42,18 +42,32 @@ export function useLaborSelection(params: UseLaborSelectionParams): UseLaborSele
 
   // Check if selected partner is still available
   useEffect(() => {
-    if (
+    const hasError = !!(
       selectedLabor &&
       planType === "Full Service Plan" && 
       movingPartners.length > 0 &&
       !movingPartners.some((partner) => partner.id.toString() === selectedLabor.id)
-    ) {
+    );
+
+    if (hasError) {
       const errorMessage = `Your previously selected mover, ${selectedLabor.title}, is no longer available for the selected date/time. Please select another moving partner.`;
-      setUnavailableLaborError(errorMessage);
-      onUnavailableLaborChange?.(true);
+      setUnavailableLaborError(prev => {
+        // Only update if error message changed
+        if (prev !== errorMessage) {
+          onUnavailableLaborChange?.(true);
+          return errorMessage;
+        }
+        return prev;
+      });
     } else {
-      setUnavailableLaborError(null);
-      onUnavailableLaborChange?.(false);
+      setUnavailableLaborError(prev => {
+        // Only update if there was an error before
+        if (prev !== null) {
+          onUnavailableLaborChange?.(false);
+          return null;
+        }
+        return prev;
+      });
     }
   }, [selectedLabor, planType, movingPartners, onUnavailableLaborChange]);
 

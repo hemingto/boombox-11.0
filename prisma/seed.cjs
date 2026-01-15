@@ -4,13 +4,25 @@
  */
 
 const { seedBlogData } = require('./seeds/blogSeed.cjs');
+const { seedMovingPartnersAndDrivers } = require('./seeds/movingPartnerSeed.cjs');
+const { seedProducts } = require('./seeds/productSeed.cjs');
+const { seedAdminTasks } = require('./seeds/adminTasksSeed.cjs');
 
 async function main() {
   console.log('🌱 Starting database seeding...');
   
   try {
+    // Seed products
+    await seedProducts();
+    
+    // Seed moving partners and drivers
+    await seedMovingPartnersAndDrivers();
+    
     // Seed blog data
     await seedBlogData();
+    
+    // Seed admin tasks
+    await seedAdminTasks();
     
     console.log('🎉 Database seeding completed successfully!');
   } catch (error) {

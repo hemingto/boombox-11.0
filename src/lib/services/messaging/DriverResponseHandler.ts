@@ -8,13 +8,13 @@ import {
   findRecentPackingSupplyRoute,
   findLatestDriverTask,
   removeDriverFromAppointment,
-  generateSmsResponseToken,
   formatAppointmentDate,
   formatAppointmentTime,
   findCustomerByPhone,
   findPendingMoverChange,
   type MessageIntent,
 } from '@/lib/utils';
+import { generateSmsResponseToken } from '@/lib/utils/twilioUtils';
 import { MessageService } from '../../messaging/MessageService';
 import { config } from '@/lib/config/environment';
 import type { Driver } from '@prisma/client';
@@ -52,10 +52,21 @@ export class DriverResponseHandler {
     intent: MessageIntent,
     messageText: string
   ): Promise<MessageRouteResult> {
+    // DEBUG: Log handler entry
+    console.log('--- DriverResponseHandler.handleResponse DEBUG ---');
+    console.log('Driver ID:', driver.id);
+    console.log('Driver name:', `${driver.firstName} ${driver.lastName}`);
+    console.log('Driver stored phone:', driver.phoneNumber);
+    console.log('Intent:', intent);
+    console.log('Message text:', messageText);
+    
     // Check for recent packing supply route offers first (within last 30 minutes)
+    console.log('DEBUG: Checking for recent packing supply route...');
     const recentPackingSupplyRoute = await findRecentPackingSupplyRoute();
+    console.log('DEBUG: Recent packing supply route found:', recentPackingSupplyRoute ? `Route ID: ${recentPackingSupplyRoute.routeId}` : 'NONE');
 
     if (recentPackingSupplyRoute) {
+      console.log('DEBUG: Routing to handlePackingSupplyResponse');
       return await this.handlePackingSupplyResponse(
         driver,
         phoneNumber,
@@ -65,6 +76,7 @@ export class DriverResponseHandler {
     }
 
     // Handle regular driver task responses
+    console.log('DEBUG: No packing supply route, routing to handleTaskResponse');
     return await this.handleTaskResponse(driver, phoneNumber, intent);
   }
 
@@ -203,10 +215,34 @@ export class DriverResponseHandler {
     intent: MessageIntent
   ): Promise<MessageRouteResult> {
     try {
+      // DEBUG: Log task lookup
+      console.log('--- handleTaskResponse DEBUG ---');
+      console.log('Looking up latest task for driver ID:', driver.id);
+      
       // Find the latest task notification
       const latestTask = await findLatestDriverTask(driver.id);
+      
+      // DEBUG: Log task lookup result
+      if (latestTask) {
+        console.log('DEBUG: Task found!');
+        console.log('  - Task ID:', latestTask.id);
+        console.log('  - Task taskId (Onfleet):', latestTask.taskId);
+        console.log('  - Appointment ID:', latestTask.appointmentId);
+        console.log('  - driverNotificationStatus:', latestTask.driverNotificationStatus);
+        console.log('  - driverNotificationSentAt:', latestTask.driverNotificationSentAt);
+        console.log('  - lastNotifiedDriverId:', latestTask.lastNotifiedDriverId);
+        console.log('  - Appointment date:', latestTask.appointment?.date);
+        console.log('  - Appointment time:', latestTask.appointment?.time);
+      } else {
+        console.log('DEBUG: NO TASK FOUND for driver ID:', driver.id);
+        console.log('  - This means no OnfleetTask exists where:');
+        console.log('    1. lastNotifiedDriverId =', driver.id);
+        console.log('    2. driverNotificationStatus IN ["sent", "pending_reconfirmation"]');
+        console.log('    3. driverNotificationSentAt is within the last 2 hours');
+      }
 
       if (!latestTask) {
+        console.log('DEBUG: Sending noRecentTaskFoundTemplate SMS');
         await MessageService.sendSms(
           phoneNumber,
           noRecentTaskFoundTemplate,
@@ -216,10 +252,13 @@ export class DriverResponseHandler {
       }
 
       const action = intent === 'positive' ? 'accept' : 'decline';
+      console.log('DEBUG: Action determined:', action);
 
       if (action === 'accept') {
+        console.log('DEBUG: Calling handleTaskAcceptance');
         return await this.handleTaskAcceptance(driver, phoneNumber, latestTask);
       } else {
+        console.log('DEBUG: Calling handleTaskDecline');
         return await this.handleTaskDecline(driver, phoneNumber, latestTask);
       }
     } catch (error) {
@@ -237,10 +276,25 @@ export class DriverResponseHandler {
     task: any
   ): Promise<MessageRouteResult> {
     try {
+      // DEBUG: Log acceptance details
+      console.log('--- handleTaskAcceptance DEBUG ---');
       const actionToUse =
         task.driverNotificationStatus === 'pending_reconfirmation'
           ? 'reconfirm'
           : 'accept';
+      console.log('DEBUG: Action to use:', actionToUse);
+
+      const requestBody = {
+        appointmentId: task.appointmentId,
+        driverId: driver.id,
+        onfleetTaskId: task.taskId,
+        action: actionToUse,
+        // Mark source as inbound_sms so driver-assign API skips sending its SMS confirmation
+        // (we send our own confirmation in this handler after the API call succeeds)
+        source: 'inbound_sms',
+      };
+      console.log('DEBUG: Calling /api/onfleet/driver-assign with:', JSON.stringify(requestBody, null, 2));
+      console.log('DEBUG: API URL:', `${config.app.url}/api/onfleet/driver-assign`);
 
       const response = await fetch(
         `${config.app.url}/api/onfleet/driver-assign`,
@@ -249,16 +303,17 @@ export class DriverResponseHandler {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            appointmentId: task.appointmentId,
-            driverId: driver.id,
-            onfleetTaskId: task.taskId,
-            action: actionToUse,
-          }),
+          body: JSON.stringify(requestBody),
         }
       );
 
+      // DEBUG: Log response
+      const responseText = await response.text();
+      console.log('DEBUG: driver-assign response status:', response.status);
+      console.log('DEBUG: driver-assign response body:', responseText);
+
       if (!response.ok) {
+        console.log('DEBUG: driver-assign failed, sending error SMS');
         await MessageService.sendSms(
           phoneNumber,
           taskAcceptanceErrorTemplate,
@@ -270,6 +325,7 @@ export class DriverResponseHandler {
       // Send confirmation with appointment details
       const formattedDate = formatAppointmentDate(task.appointment.date);
       const formattedTime = formatAppointmentTime(task.appointment.time);
+      console.log('DEBUG: Sending confirmation SMS for date:', formattedDate, 'time:', formattedTime);
 
       await MessageService.sendSms(
         phoneNumber,
@@ -280,6 +336,7 @@ export class DriverResponseHandler {
         }
       );
 
+      console.log('DEBUG: Task acceptance completed successfully');
       return { success: true, action: 'accept', type: 'driver_task' };
     } catch (error) {
       console.error('Error handling task acceptance:', error);

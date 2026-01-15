@@ -59,6 +59,8 @@ export interface Task {
   customerName?: string;
   appointmentDate?: string;
   appointmentAddress?: string;
+  deliveryAddress?: string;
+  driverName?: string;
   appointment?: Appointment;
   feedback?: Feedback;
   storageUnitNumber?: string;

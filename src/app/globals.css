@@ -33,22 +33,65 @@
 }
 
 /* Base styles */
-body {
-  background: rgb(var(--color-surface-primary));
-  color: rgb(var(--color-text-primary));
-  font-family:
-    var(--font-poppins),
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    sans-serif;
+@layer base {
+  body {
+    background: rgb(var(--color-surface-primary));
+    color: rgb(var(--color-text-primary));
+    font-weight: 400;
+    font-family:
+      var(--font-poppins),
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      sans-serif;
+  }
+
+  /* Typography - matching boombox-10.0 heading styles */
+  h1 {
+    font-size: 56px;
+    font-weight: 600;
+    line-height: 56px;
+    font-family:
+      var(--font-poppins),
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      sans-serif;
+    color: rgb(var(--color-text-primary));
+  }
+
+  h2 {
+    font-size: 24px;
+    font-weight: 400;
+    line-height: 32px;
+    font-family:
+      var(--font-poppins),
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      sans-serif;
+    color: rgb(var(--color-text-primary));
+  }
+
+  h3 {
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 28px;
+    font-family:
+      var(--font-poppins),
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      sans-serif;
+    color: rgb(var(--color-text-primary));
+  }
 }
 
 /* Component utility classes */
 @layer components {
   /* Button variants - primary pattern from boombox-10.0 */
   .btn-primary {
-    @apply inline-flex items-center justify-center px-6 py-2.5 text-white font-semibold rounded-md transition-colors duration-200;
+    @apply inline-flex items-center justify-center px-6 py-2.5 text-white font-semibold rounded-md;
     @apply bg-primary hover:bg-primary-hover active:bg-primary-active;
     @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
     @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary;
@@ -56,15 +99,15 @@ body {
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center px-6 py-2.5 font-semibold rounded-md transition-colors duration-200;
+    @apply inline-flex items-center justify-center px-6 py-2.5 font-semibold rounded-md;
     @apply bg-surface-tertiary text-text-primary;
-    @apply hover:bg-surface-disabled focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
+    @apply hover:bg-surface-secondary focus:bg-surface-pressed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
     @apply disabled:opacity-50 disabled:cursor-not-allowed;
     @apply font-inter;
   }
 
   .btn-destructive {
-    @apply inline-flex items-center justify-center px-6 py-2.5 text-white font-semibold rounded-md transition-colors duration-200;
+    @apply inline-flex items-center justify-center px-6 py-2.5 text-white font-semibold rounded-md;
     @apply bg-status-error hover:bg-red-600 active:bg-red-700;
     @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-status-error focus-visible:ring-offset-2;
     @apply disabled:opacity-50 disabled:cursor-not-allowed;
@@ -76,16 +119,21 @@ body {
   /* Input field pattern from boombox-10.0 */
   .input-field {
     @apply w-full px-3 py-2.5 text-sm rounded-md;
-    @apply bg-surface-tertiary border border-border;
+    @apply bg-surface-tertiary;
     @apply placeholder:text-text-secondary;
-    @apply focus:bg-surface-primary focus:outline-none focus:ring-2 focus:ring-border-focus focus:border-transparent;
+    @apply focus:bg-surface-primary focus:outline-none focus:border-transparent;
     @apply focus:placeholder:text-text-primary;
     @apply disabled:bg-surface-disabled disabled:cursor-not-allowed;
     @apply disabled:text-text-secondary disabled:placeholder:text-text-secondary;
   }
+  
+  /* Apply focus ring only when there's no error */
+  .input-field:not(.input-field--error):focus {
+    @apply ring-2 ring-border-focus;
+  }
 
   .input-field--error {
-    @apply border-border-error ring-2 ring-border-error;
+    @apply border-border-error ring-2 ring-border-error !important;
     @apply bg-red-50 focus:bg-red-50;
     @apply placeholder:text-status-error focus:placeholder:text-status-error;
     @apply text-status-error;
@@ -102,31 +150,31 @@ body {
 
   /* Status badge patterns - directly from statusUtils.ts */
   .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center px-3 py-2 rounded-full text-xs font-medium;
   }
 
   .badge-success {
-    @apply badge bg-status-bg-success text-status-text-success;
+    @apply badge bg-status-bg-success text-status-success;
   }
 
   .badge-warning {
-    @apply badge bg-status-bg-warning text-status-text-warning;
+    @apply badge bg-status-bg-warning text-status-warning;
   }
 
   .badge-error {
-    @apply badge bg-status-bg-error text-status-text-error;
+    @apply badge bg-status-bg-error text-status-error;
   }
 
   .badge-info {
-    @apply badge bg-status-bg-info text-status-text-info;
+    @apply badge bg-status-bg-info text-status-info;
   }
 
   .badge-pending {
-    @apply badge bg-status-bg-pending text-status-text-pending;
+    @apply badge bg-status-bg-pending text-status-pending;
   }
 
   .badge-processing {
-    @apply badge bg-status-bg-processing text-status-text-processing;
+    @apply badge bg-status-bg-processing text-status-processing;
   }
 
   /* Loading skeleton patterns */
@@ -162,15 +210,19 @@ body {
   }
 
   .form-label {
-    @apply block text-lg font-normal text-primary mb-4;
+    @apply block text-base font-normal text-primary mb-4;
+  }
+
+  .form-label-compact {
+    @apply block text-base font-normal text-primary mb-2;
   }
 
   .form-error {
-    @apply text-sm text-status-error mt-1;
+    @apply text-sm font-medium text-status-error mt-2;
   }
 
   .form-helper {
-    @apply text-sm text-text-tertiary mt-1;
+    @apply text-sm text-text-primary mt-1;
   }
 
   /* Input reset utility - removes all default browser styling */
@@ -363,6 +415,10 @@ body {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
 
+  .account-page-container {
+    @apply max-w-5xl lg:px-16 px-6 mx-auto;
+  }
+
   .section-spacing {
     @apply py-16 lg:py-24;
   }
@@ -384,5 +440,16 @@ body {
 
   .animate-slide-in {
     @apply animate-slideIn;
+  }
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .scrollbar-hide {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
   }
 }

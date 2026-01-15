@@ -2,79 +2,57 @@
  * @fileoverview YourStorageUnits component - Displays active storage units for a customer
  * @source boombox-10.0/src/app/components/user-page/yourstorageunits.tsx
  * @refactored Following REFACTOR_PRD.md and component-migration-checklist.md
+ *
+ * COMPONENT FUNCTIONALITY:
+ * - Receives storage units as props from parent (page-level data fetching)
+ * - Allows description editing and photo uploads
+ * - Opens popup for detailed view with image carousel
+ * - Provides "Access Storage" CTA button
+ *
+ * ARCHITECTURE:
+ * - Data is fetched at page level via useCustomerHomePageData hook
+ * - Component receives data as props, no internal data fetching
+ * - Parent handles conditional rendering (component only mounts when data exists)
  */
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { LockOpenIcon } from '@heroicons/react/20/solid';
-import { 
-  getActiveStorageUnits, 
-  StorageUnitUsageDisplay 
-} from '@/lib/utils/customerUtils';
+import { StorageUnitUsageDisplay } from '@/lib/services/customerDataService';
 import { 
   StorageUnitsCard, 
   StorageUnitPopup 
 } from '@/components/features/customers';
-import { 
-  SkeletonCard, 
-  SkeletonTitle 
-} from '@/components/ui/primitives/Skeleton';
+import { Button } from '@/components/ui/primitives/Button';
 
 export interface YourStorageUnitsProps {
   userId: string;
+  storageUnits: StorageUnitUsageDisplay[];
+  onStorageUnitsChange: React.Dispatch<React.SetStateAction<StorageUnitUsageDisplay[]>>;
 }
 
 /**
  * YourStorageUnits - Container component for displaying user's active storage units
  * 
  * Features:
- * - Fetches and displays active storage units from the database
- * - Sorts units by storage unit number
+ * - Displays active storage units from props
  * - Allows description editing and photo uploads
  * - Opens popup for detailed view with image carousel
  * - Provides "Access Storage" CTA button
- * - Uses skeleton primitives for loading state
  */
-export const YourStorageUnits: React.FC<YourStorageUnitsProps> = ({ userId }) => {
-  const [activeStorageUnits, setActiveStorageUnits] = useState<StorageUnitUsageDisplay[]>([]);
+export const YourStorageUnits: React.FC<YourStorageUnitsProps> = ({ 
+  userId,
+  storageUnits,
+  onStorageUnitsChange,
+}) => {
   const [showPopup, setShowPopup] = useState(false);
   const [selectedStorageUnit, setSelectedStorageUnit] = useState<StorageUnitUsageDisplay | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Fetch storage units when component mounts
-  useEffect(() => {
-    const fetchStorageUnits = async () => {
-      try {
-        const units = await getActiveStorageUnits(userId);
-        
-        // Sort by storageUnitNumber
-        const sorted = [...units].sort((a, b) => {
-          const numA = parseInt(a.storageUnit.storageUnitNumber);
-          const numB = parseInt(b.storageUnit.storageUnitNumber);
-          
-          if (isNaN(numA) || isNaN(numB)) {
-            return a.storageUnit.storageUnitNumber.localeCompare(b.storageUnit.storageUnitNumber);
-          }
-          
-          return numA - numB;
-        });
-        
-        setActiveStorageUnits(sorted);
-      } catch (error) {
-        console.error('Error fetching storage units:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchStorageUnits();
-  }, [userId]);
 
   const handleDescriptionChange = async (id: number, newDescription: string) => {
-    // Optimistically update local state
-    setActiveStorageUnits((prev) =>
+    // Optimistically update local state via parent
+    onStorageUnitsChange((prev) =>
       prev.map((unit) =>
         unit.id === id ? { ...unit, description: newDescription } : unit
       )
@@ -96,25 +74,24 @@ export const YourStorageUnits: React.FC<YourStorageUnitsProps> = ({ userId }) =>
       console.log('Description updated successfully');
     } catch (error) {
       console.error('Error updating description:', error);
-      // Revert local state on error
-      const units = await getActiveStorageUnits(userId);
-      setActiveStorageUnits(units);
+      // On error, the parent would need to refetch data
+      // For now, we'll just log the error since the parent handles data
     }
   };
 
   const handleImageClick = (storageUnit: StorageUnitUsageDisplay) => {
-    setSelectedStorageUnit(storageUnit); // Set the clicked storage unit data
-    setShowPopup(true); // Show the popup
+    setSelectedStorageUnit(storageUnit);
+    setShowPopup(true);
   };
 
   const handleClosePopup = () => {
-    setShowPopup(false); // Close the popup
-    setSelectedStorageUnit(null); // Reset the selected storage unit
+    setShowPopup(false);
+    setSelectedStorageUnit(null);
   };
 
   const handlePhotosUploaded = async (storageUnitUsageId: number, newPhotoUrls: string[]) => {
-    // Update the local state to include the new photos
-    setActiveStorageUnits((prev) =>
+    // Update the parent state to include the new photos
+    onStorageUnitsChange((prev) =>
       prev.map((unit) =>
         unit.id === storageUnitUsageId 
           ? { ...unit, uploadedImages: [...unit.uploadedImages, ...newPhotoUrls] }
@@ -130,41 +107,25 @@ export const YourStorageUnits: React.FC<YourStorageUnitsProps> = ({ userId }) =>
     return match ? match[1] : location;
   };
 
-  // Loading state with skeleton primitives
-  if (isLoading) {
-    return (
-      <div className="mb-24">
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center lg:px-16 px-6 max-w-5xl mx-auto mb-8">
-          <SkeletonTitle className="w-48 h-8" />
-        </div>
-        <div className="lg:px-16 px-6 max-w-5xl w-full mx-auto space-y-4">
-          <SkeletonCard className="h-64" />
-          <SkeletonCard className="h-64" />
-        </div>
-      </div>
-    );
-  }
-
-  // Don't render anything if there are no active storage units
-  if (activeStorageUnits.length === 0) {
-    return null;
-  }
-
   return (
     <div className="mb-24">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center lg:px-16 px-6 max-w-5xl mx-auto mb-8">
         <h2 className="text-2xl font-semibold text-primary">Your storage units</h2>
-        <Link href={`/user-page/${userId}/access-storage`}>
-          <button className="hidden sm:block rounded-md py-2.5 px-5 font-semibold bg-primary text-white text-md hover:bg-primary-hover active:bg-primary-active transition-colors font-inter">
-            <span className="flex items-center text-nowrap">
-              <LockOpenIcon className="w-4 h-4 mr-2" />
-              Access Storage
-            </span>
-          </button>
+        <Link href={`/customer/${userId}/access-storage`}>
+          <Button
+            variant="primary"
+            size="md"
+            icon={<LockOpenIcon className="w-4 h-4" />}
+            iconPosition="left"
+            noWrap
+            className="hidden sm:inline-flex"
+          >
+            Access Storage
+          </Button>
         </Link>
       </div>
       <div className="lg:px-16 px-6 max-w-5xl w-full mx-auto">
-        {activeStorageUnits.map((usage) => (
+        {storageUnits.map((usage) => (
           <StorageUnitsCard
             key={usage.id}
             id={usage.id}
@@ -182,7 +143,7 @@ export const YourStorageUnits: React.FC<YourStorageUnitsProps> = ({ userId }) =>
               handleDescriptionChange(usage.id, newDescription)
             }
             onUploadClick={() => console.log('Upload clicked')}
-            description={usage.description ?? 'Add a description of your stored items...'}
+            description={usage.description ?? ''}
             onImageClick={() => handleImageClick(usage)}
             onPhotosUploaded={(newPhotoUrls) => handlePhotosUploaded(usage.id, newPhotoUrls)}
           />
@@ -196,7 +157,7 @@ export const YourStorageUnits: React.FC<YourStorageUnitsProps> = ({ userId }) =>
             images={selectedStorageUnit.uploadedImages}
             mainImage={selectedStorageUnit.storageUnit.mainImage}
             onClose={handleClosePopup}
-            description={selectedStorageUnit.description ?? 'Add a description of your stored items...'}
+            description={selectedStorageUnit.description ?? ''}
             onDescriptionChange={(newDescription) =>
               handleDescriptionChange(selectedStorageUnit.id, newDescription)
             }
@@ -214,4 +175,3 @@ export const YourStorageUnits: React.FC<YourStorageUnitsProps> = ({ userId }) =>
     </div>
   );
 };
-

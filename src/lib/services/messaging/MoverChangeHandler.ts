@@ -8,8 +8,8 @@ import {
   findCustomerByPhone,
   findPendingMoverChange,
   parseAppointmentDescription,
-  generateMoverChangeToken,
 } from '@/lib/utils';
+import { generateMoverChangeToken } from '@/lib/utils/twilioUtils';
 import { MessageService } from '../../messaging/MessageService';
 import { config } from '@/lib/config/environment';
 import {

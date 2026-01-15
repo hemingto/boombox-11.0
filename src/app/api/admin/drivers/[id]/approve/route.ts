@@ -16,6 +16,7 @@
  * - Requires approved vehicle for Boombox delivery network drivers
  * - Handles duplicate phone number errors by linking to existing Onfleet worker
  * - Updates driver status to approved and active upon success
+ * - Sends approval notifications (in-app, SMS, email) upon success
  * 
  * Complex Integrations:
  * - Onfleet API worker creation with team assignment
@@ -23,15 +24,19 @@
  * - Phone number formatting for international compatibility
  * - Service-to-team mapping with environment variable configuration
  * - Comprehensive error handling for API failures
+ * - Multi-channel notification delivery
  * 
  * Dependencies:
  * - @/lib/services/onfleet-driver-service: approveDriverWithOnfleet
+ * - @/lib/services/ApprovalNotificationService: notification orchestration
  * - @/lib/validations/api.validations: validation schemas
  * - @/lib/database/prismaClient: database access
  */
 
 import { NextResponse, NextRequest } from 'next/server';
 import { approveDriverWithOnfleet } from '@/lib/services/onfleet-driver-service';
+import { ApprovalNotificationService } from '@/lib/services/ApprovalNotificationService';
+import { prisma } from '@/lib/database/prismaClient';
 import { 
   ApproveDriverRequestSchema,
   validateApiRequest 
@@ -58,6 +63,34 @@ export async function POST(
     const result = await approveDriverWithOnfleet(driverIdNum);
 
     if (result.success) {
+      // Fetch driver data for notifications
+      const driver = await prisma.driver.findUnique({
+        where: { id: driverIdNum },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phoneNumber: true,
+          services: true
+        }
+      });
+
+      // Send approval notifications (non-blocking)
+      if (driver) {
+        ApprovalNotificationService.notifyDriverApproved({
+          id: driver.id,
+          firstName: driver.firstName,
+          lastName: driver.lastName,
+          email: driver.email,
+          phoneNumber: driver.phoneNumber,
+          services: driver.services || []
+        }).catch((error) => {
+          // Log but don't fail the approval if notifications fail
+          console.error('Error sending driver approval notifications:', error);
+        });
+      }
+
       return NextResponse.json({ 
         success: true,
         message: result.message,

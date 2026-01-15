@@ -7,56 +7,21 @@
 'use server';
 
 import { prisma } from '@/lib/database/prismaClient';
+import { MovingPartnerStatus } from '@prisma/client';
+import type {
+  MoverChecklistStatus,
+  DriverChecklistStatus,
+  ChecklistStatus,
+  ChecklistData,
+} from './accountSetupChecklistUtils';
 
-export interface MoverChecklistStatus {
-  companyDescription: boolean;
-  companyPicture: boolean;
-  phoneVerified: boolean;
-  hourlyRate: boolean;
-  approvedDrivers: boolean;
-  approvedVehicles: boolean;
-  calendarSet: boolean;
-  bankAccountLinked: boolean;
-  termsOfServiceReviewed: boolean;
-}
-
-export interface DriverChecklistStatus {
-  profilePicture: boolean;
-  driversLicense: boolean;
-  phoneVerified: boolean;
-  termsOfServiceReviewed: boolean;
-  approvedVehicle?: boolean;
-  workSchedule?: boolean;
-  bankAccountLinked?: boolean;
-}
-
-export type ChecklistStatus = MoverChecklistStatus | DriverChecklistStatus;
-
-export interface ChecklistData {
-  checklistStatus: ChecklistStatus;
-  isApproved: boolean;
-  status?: 'PENDING' | 'APPROVED' | 'ACTIVE';
-  hasMovingPartner?: boolean;
-  applicationComplete?: boolean;
-}
-
-/**
- * Type guard to check if checklist is for a mover
- */
-export function isMoverChecklist(
-  checklist: ChecklistStatus
-): checklist is MoverChecklistStatus {
-  return 'companyDescription' in checklist;
-}
-
-/**
- * Type guard to check if checklist is for a driver
- */
-export function isDriverChecklist(
-  checklist: ChecklistStatus
-): checklist is DriverChecklistStatus {
-  return 'profilePicture' in checklist;
-}
+// Re-export types for convenience
+export type {
+  MoverChecklistStatus,
+  DriverChecklistStatus,
+  ChecklistStatus,
+  ChecklistData,
+};
 
 /**
  * Fetches and calculates checklist status for a driver
@@ -68,13 +33,17 @@ export async function getDriverChecklistStatus(
     const driver = await prisma.driver.findUnique({
       where: { id: parseInt(driverId) },
       include: {
-        movingPartner: {
-          select: {
-            id: true,
-            name: true,
+        movingPartnerAssociations: {
+          include: {
+            movingPartner: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
-        vehicle: true,
+        vehicles: true,
         availability: true,
       },
     });
@@ -83,12 +52,17 @@ export async function getDriverChecklistStatus(
       throw new Error('Driver not found');
     }
 
+    // Check if driver has an active moving partner
+    const hasMovingPartner = driver.movingPartnerAssociations.some(
+      (assoc) => assoc.isActive
+    );
+
     // Check if driver has approved vehicle
-    const hasApprovedVehicle = driver.vehicle
-      ? driver.vehicle.approvalStatus === 'APPROVED'
+    const hasApprovedVehicle = driver.vehicles && driver.vehicles.length > 0
+      ? driver.vehicles.some(v => v.isApproved)
       : false;
 
-    // Check if work schedule is set
+    // Check if work schedule is set (check if driver has availability records that have been modified)
     const hasWorkSchedule =
       driver.availability && driver.availability.length > 0
         ? driver.availability.some(
@@ -106,14 +80,15 @@ export async function getDriverChecklistStatus(
       termsOfServiceReviewed: !!driver.agreedToTerms,
       approvedVehicle: hasApprovedVehicle,
       workSchedule: hasWorkSchedule,
-      bankAccountLinked: !!driver.stripeAccountId,
+      bankAccountLinked: !!driver.stripeConnectAccountId,
     };
 
     return {
       checklistStatus,
       isApproved: !!driver.isApproved,
-      hasMovingPartner: !!driver.movingPartner,
+      hasMovingPartner,
       applicationComplete: !!driver.applicationComplete,
+      activeMessageShown: !!driver.activeMessageShown,
     };
   } catch (error) {
     console.error('Error fetching driver checklist status:', error);
@@ -133,14 +108,18 @@ export async function getMoverChecklistStatus(
       include: {
         approvedDrivers: {
           where: {
-            isApproved: true,
+            isActive: true,
+          },
+          include: {
+            driver: {
+              select: {
+                id: true,
+                isApproved: true,
+              },
+            },
           },
         },
-        vehicles: {
-          where: {
-            approvalStatus: 'APPROVED',
-          },
-        },
+        vehicles: true,
         availability: true,
       },
     });
@@ -154,73 +133,54 @@ export async function getMoverChecklistStatus(
       mover.availability && mover.availability.length > 0
         ? mover.availability.some(
             (record) =>
+              record.createdAt && record.updatedAt &&
               new Date(record.createdAt).getTime() !==
               new Date(record.updatedAt).getTime()
           )
         : false;
+
+    // Count approved drivers
+    const approvedDriverCount = mover.approvedDrivers.filter(
+      (assoc) => assoc.driver.isApproved
+    ).length;
+
+    // Count approved vehicles
+    const approvedVehicleCount = mover.vehicles.filter(
+      (vehicle) => vehicle.isApproved
+    ).length;
 
     const checklistStatus: MoverChecklistStatus = {
       companyDescription: !!mover.description,
       companyPicture: !!mover.imageSrc,
       phoneVerified: !!mover.verifiedPhoneNumber,
       hourlyRate: !!mover.hourlyRate,
-      approvedDrivers: mover.approvedDrivers.length > 0,
-      approvedVehicles: mover.vehicles.length > 0,
+      approvedDrivers: approvedDriverCount > 0,
+      approvedVehicles: approvedVehicleCount > 0,
       calendarSet,
-      bankAccountLinked: !!mover.stripeAccountId,
+      bankAccountLinked: !!mover.stripeConnectAccountId,
       termsOfServiceReviewed: !!mover.agreedToTerms,
     };
 
-    // Determine mover status
-    let status: 'PENDING' | 'APPROVED' | 'ACTIVE' = 'PENDING';
-    if (mover.status === 'ACTIVE') {
-      status = 'ACTIVE';
-    } else if (mover.isApproved && mover.onfleetTeamId) {
-      status = 'APPROVED';
-    } else if (
-      mover.status === 'INACTIVE' &&
-      mover.approvedDrivers.length === 0
-    ) {
-      status = 'PENDING';
-    }
+    // Return mover status from database
+    // Note: Status transitions are now handled by API routes:
+    // - INACTIVE → PENDING: When application completes (application-complete route)
+    // - PENDING → APPROVED: When admin approves (admin approve route)
+    // - APPROVED → ACTIVE: When approved drivers are added (update-status route)
+    const status: 'PENDING' | 'APPROVED' | 'ACTIVE' = 
+      mover.status === MovingPartnerStatus.ACTIVE ? 'ACTIVE' :
+      mover.status === MovingPartnerStatus.PENDING ? 'PENDING' :
+      mover.isApproved && mover.onfleetTeamId ? 'APPROVED' :
+      'PENDING';
 
     return {
       checklistStatus,
       isApproved: !!mover.isApproved,
       status,
       applicationComplete: !!mover.applicationComplete,
+      activeMessageShown: !!mover.activeMessageShown,
     };
   } catch (error) {
     console.error('Error fetching mover checklist status:', error);
     throw new Error('Failed to fetch mover checklist status');
   }
 }
-
-/**
- * Checks if checklist is complete (all required items checked)
- */
-export function isChecklistComplete(
-  checklist: ChecklistStatus,
-  userType: 'driver' | 'mover',
-  isApproved: boolean = false
-): boolean {
-  if (userType === 'mover' && isMoverChecklist(checklist)) {
-    // For movers, check all items except approvedDrivers if not approved
-    return Object.entries(checklist).every(([key, value]) => {
-      if (key === 'approvedDrivers' && !isApproved) {
-        return true; // Skip this check if mover not approved
-      }
-      return value === true;
-    });
-  } else if (userType === 'driver' && isDriverChecklist(checklist)) {
-    // For drivers, all core items must be true
-    return (
-      checklist.profilePicture &&
-      checklist.driversLicense &&
-      checklist.phoneVerified &&
-      checklist.termsOfServiceReviewed
-    );
-  }
-  return false;
-}
-

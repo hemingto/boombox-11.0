@@ -42,6 +42,16 @@ interface TimeSlotPickerProps {
   currentCalendarDate: Date;
   /** Error state indicator */
   hasError?: boolean;
+  /** 
+   * Whether this is edit mode - allows original time slot to be kept.
+   * When true and originalTimeSlot is provided, that slot will always be available.
+   */
+  isEditMode?: boolean;
+  /** 
+   * The original appointment time slot (for edit mode).
+   * This slot will always be shown as available in edit mode.
+   */
+  originalTimeSlot?: string | null;
 }
 
 const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
@@ -52,6 +62,8 @@ const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
   isLoading,
   currentCalendarDate,
   hasError,
+  isEditMode = false,
+  originalTimeSlot = null,
 }) => {
   // Only show time slots if selected date is in the current calendar month
   const isSelectedDateInCurrentMonth = selectedDate && 
@@ -70,12 +82,16 @@ const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
     );
   }
 
-  if (timeSlots.length === 0 && !isLoading) {
+  // In edit mode with an original time slot, we can still proceed even if no slots are returned
+  // This handles the case of editing a same-day appointment where the original slot has passed
+  const hasOriginalSlotInEditMode = isEditMode && originalTimeSlot;
+  
+  if (timeSlots.length === 0 && !isLoading && !hasOriginalSlotInEditMode) {
     return (
       <section className="bg-surface-primary p-4 sm:p-6 rounded-md border-2 border-zinc-100">
-        <h3 className="text-lg font-semibold text-text-primary mb-3 font-poppins">
+        <h2 className="font-semibold text-text-primary mb-3 font-poppins">
           Available time slots for {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-        </h3>
+        </h2>
         <p className="text-text-secondary font-inter">No available time slots for this date.</p>
       </section>
     );
@@ -85,7 +101,7 @@ const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
     <section 
       className={`p-4 sm:p-6 rounded-md 
         ${hasError 
-          ? 'ring-border-error ring-2 bg-status-bg-error border-border-error' 
+          ? 'ring-border-error ring-2 bg-red-50' 
           : 'border-2 border-zinc-100 bg-surface-primary'}
       `}
       aria-label="Time slot selection"
@@ -116,28 +132,60 @@ const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({
             role="group"
             aria-label="Available time slots"
           >
-            {timeSlots.map((slot) => (
-              <button
-                key={slot.display}
-                onClick={() => onTimeSlotSelect(slot.display)}
-                disabled={!slot.available}
-                className={`py-3 px-3 rounded-lg text-sm font-medium font-inter focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 transition-colors duration-200 ${
-                  selectedTimeSlot === slot.display
-                    ? 'bg-primary text-text-inverse'
-                    : !slot.available
-                    ? 'text-text-secondary cursor-not-allowed bg-surface-disabled line-through'
-                    : 'bg-surface-tertiary text-text-primary hover:bg-surface-disabled active:bg-zinc-200'
-                }`}
-                aria-pressed={selectedTimeSlot === slot.display}
-                aria-label={`${slot.display} ${!slot.available ? '(not available)' : ''}`}
-                type="button"
-              >
-                {slot.display}
-              </button>
-            ))}
+            {(() => {
+              // In edit mode, ensure the original time slot is in the list and marked as available
+              let slotsToRender = [...timeSlots];
+              
+              if (isEditMode && originalTimeSlot) {
+                const originalSlotExists = timeSlots.some(s => s.display === originalTimeSlot);
+                
+                if (!originalSlotExists) {
+                  // Add the original time slot to the list (it may have passed or not be in API response)
+                  // Parse the time slot display to create start/end times
+                  const [startPart, endPart] = originalTimeSlot.split('-');
+                  slotsToRender.push({
+                    startTime: startPart || '',
+                    endTime: endPart || '',
+                    display: originalTimeSlot,
+                    available: true, // Always available in edit mode for original slot
+                  });
+                }
+              }
+              
+              return slotsToRender.map((slot) => {
+                // In edit mode, the original time slot is always available
+                const isOriginalSlot = isEditMode && originalTimeSlot === slot.display;
+                const isSlotAvailable = slot.available || isOriginalSlot;
+                
+                return (
+                  <button
+                    key={slot.display}
+                    onClick={() => onTimeSlotSelect(slot.display)}
+                    disabled={!isSlotAvailable}
+                    className={`py-3 px-3 rounded-lg text-sm font-medium font-inter focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 ${
+                      selectedTimeSlot === slot.display
+                        ? 'bg-primary text-text-inverse'
+                        : !isSlotAvailable
+                        ? 'text-zinc-200 cursor-not-allowed bg-slate-50 line-through'
+                        : isOriginalSlot && !slot.available
+                        ? 'bg-amber-50 text-text-primary hover:bg-amber-100 active:bg-amber-200 border border-amber-300'
+                        : 'bg-surface-tertiary text-text-primary hover:bg-surface-disabled active:bg-zinc-200'
+                    }`}
+                    aria-pressed={selectedTimeSlot === slot.display}
+                    aria-label={`${slot.display} ${!isSlotAvailable ? '(not available)' : isOriginalSlot && !slot.available ? '(original appointment time)' : ''}`}
+                    type="button"
+                  >
+                    {slot.display}
+                    {isOriginalSlot && !slot.available && (
+                      <span className="sr-only"> (your current appointment time)</span>
+                    )}
+                  </button>
+                );
+              });
+            })()}
           </div>
           
-          <p className="text-text-primary text-sm px-1 pt-6 font-inter">
+          <p className="text-text-primary font-medium text-sm px-1 pt-6 font-poppins">
             This is the arrival window not how long the job will take
           </p>
         </>

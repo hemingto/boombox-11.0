@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * @fileoverview Storage unit counter component for selecting number of storage units needed
  * @source boombox-10.0/src/app/components/reusablecomponents/storageunitcounter.tsx
@@ -21,11 +23,22 @@
  * @refactor Extracted API calls to custom hook, applied design system colors, enhanced accessibility
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { MinusCircleIcon, PlusCircleIcon } from "@heroicons/react/24/outline";
 import { StorageUnitIcon } from "../icons/StorageUnitIcon";
 import { useStorageUnitAvailability } from '@/hooks/useStorageUnitAvailability';
 import { useClickOutside } from '@/hooks/useClickOutside';
+
+/**
+ * Hook to track the previous value of a variable
+ */
+function usePrevious<T>(value: T): T | undefined {
+  const ref = useRef<T | undefined>(undefined);
+  useEffect(() => {
+    ref.current = value;
+  });
+  return ref.current;
+}
 
 interface StorageUnitCounterProps {
   /** Callback fired when counter value changes */
@@ -73,6 +86,9 @@ export default function StorageUnitCounter({
   const [isFocused, setIsFocused] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Track previous initialCount to detect external changes (e.g., from appointment data loading)
+  const prevInitialCount = usePrevious(initialCount);
 
   // Custom hook for availability checking
   const { 
@@ -108,6 +124,31 @@ export default function StorageUnitCounter({
       setIsInitialized(true);
     }
   }, [initialCount, availableUnits, isInitialized]);
+  
+  // Handle external initialCount changes (e.g., when edit form loads appointment data)
+  // This allows the counter to update when the parent component passes a new initialCount
+  // after the component has already initialized (common in edit mode scenarios)
+  useEffect(() => {
+    if (
+      isInitialized && 
+      prevInitialCount !== undefined && 
+      initialCount !== prevInitialCount &&
+      initialCount !== counter
+    ) {
+      const systemAwareMax = availableUnits !== null 
+        ? Math.min(COMPONENT_MAX, availableUnits) 
+        : COMPONENT_MAX;
+      
+      let countToSet = initialCount;
+      if (availableUnits === 0) {
+        countToSet = COMPONENT_MIN;
+      } else {
+        countToSet = Math.min(initialCount, systemAwareMax);
+        countToSet = Math.max(countToSet, COMPONENT_MIN);
+      }
+      setCounter(countToSet);
+    }
+  }, [initialCount, prevInitialCount, isInitialized, availableUnits, counter]);
 
   // Adjust counter when availability changes
   useEffect(() => {
@@ -225,8 +266,8 @@ export default function StorageUnitCounter({
    * Get container styling based on state
    */
   const getContainerClasses = (): string => {
-    const baseClasses = 'flex gap-4 w-full p-4 bg-surface-tertiary border-2 border-border rounded-md items-center max-w-lg transition-all duration-200';
-    const focusClasses = isFocused ? 'bg-surface-primary ring-2 ring-border-focus' : '';
+    const baseClasses = 'flex gap-4 w-full p-4 bg-surface-tertiary border-2 border-slate-100 rounded-md items-center max-w-lg';
+    const focusClasses = isFocused ? 'bg-white ring-2 ring-border-focus' : '';
     const disabledClasses = (disabled || availableUnits === 0) ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer';
     
     return `${baseClasses} ${focusClasses} ${disabledClasses} ${className}`.trim();
@@ -236,7 +277,7 @@ export default function StorageUnitCounter({
    * Get button styling based on state
    */
   const getButtonClasses = (canPerformAction: boolean): string => {
-    const baseClasses = 'w-6 h-6 transition-colors duration-200';
+    const baseClasses = 'w-6 h-6';
     const enabledClasses = canPerformAction && !disabled && availableUnits !== 0 
       ? 'text-text-primary hover:text-primary cursor-pointer' 
       : 'text-text-secondary cursor-not-allowed';
@@ -247,10 +288,10 @@ export default function StorageUnitCounter({
   return (
     <div className={className}>
       {/* Header with availability indicator */}
-      <div className="flex items-center justify-between mt-4 mb-4">
+      <div className="flex items-center justify-between mt-4 mb-4 min-h-[2.5rem]">
         <label 
           htmlFor="storage-unit-counter"
-          className="mr-2 text-text-primary font-medium"
+          className="mr-2 text-text-primary"
         >
           How many storage units do you need?
         </label>
@@ -266,13 +307,6 @@ export default function StorageUnitCounter({
               ? 'No units available' 
               : `${availableUnits} unit${availableUnits !== 1 ? 's' : ''} left`
             }
-          </span>
-        )}
-
-        {/* Loading indicator */}
-        {isLoading && (
-          <span className="px-3 py-2 text-xs text-text-secondary">
-            Checking availability...
           </span>
         )}
 
@@ -318,19 +352,19 @@ export default function StorageUnitCounter({
           >
             Boombox Storage Unit{counter > 1 ? 's' : ''}
           </h3>
-          <p className="text-xs text-text-secondary">
+          <p className="text-xs text-text-tertiary">
             {getStorageUnitText(counter)}
           </p>
         </div>
         
         {/* Counter controls */}
-        <div className="flex items-center gap-3 ml-auto flex-shrink-0">
+        <div className="flex items-center gap-2 ml-auto flex-shrink-0">
           {/* Decrement button */}
           <button 
             onClick={decrementCounter} 
             aria-label={`Decrease to ${counter - 1} storage unit${counter - 1 !== 1 ? 's' : ''}`}
             disabled={!canDecrement || availableUnits === 0}
-            className="p-1 rounded-full hover:bg-surface-disabled focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus transition-colors duration-200"
+            className="p-1 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
             tabIndex={disabled ? -1 : 0}
           >
             <MinusCircleIcon className={getButtonClasses(canDecrement)} />
@@ -349,7 +383,7 @@ export default function StorageUnitCounter({
             onClick={incrementCounter} 
             aria-label={`Increase to ${counter + 1} storage unit${counter + 1 !== 1 ? 's' : ''}`}
             disabled={!canIncrement || availableUnits === 0}
-            className="p-1 rounded-full hover:bg-surface-disabled focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus transition-colors duration-200"
+            className="p-1 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
             tabIndex={disabled ? -1 : 0}
           >
             <PlusCircleIcon className={getButtonClasses(canIncrement)} />

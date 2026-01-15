@@ -102,7 +102,7 @@ const ThirdPartyLaborList: React.FC<ThirdPartyLaborListProps> = ({
   if (!partners.length) {
     return (
       <div 
-        className="text-text-secondary bg-surface-tertiary border border-border rounded-md p-4 text-center"
+        className="text-status-error bg-status-bg-error border-2 border-border-error rounded-md p-4 mb-4"
         role="status"
       >
         <p className="text-sm">

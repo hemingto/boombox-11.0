@@ -43,6 +43,8 @@
 
 import { useState, useRef, useEffect, KeyboardEvent } from 'react';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { cn } from '@/lib/utils/cn';
+import { ChevronDownIcon } from '@heroicons/react/24/outline';
 
 /**
  * Location group interface for organizing service areas by region
@@ -64,6 +66,14 @@ interface LocationSelectProps {
   hasError?: boolean;
   /** Callback to clear error state (typically fired on interaction) */
   onClearError?: () => void;
+  /** Label for the select field */
+  label?: string;
+  /** Whether the field is required */
+  required?: boolean;
+  /** Size variant matching Select component */
+  size?: 'sm' | 'md' | 'lg';
+  /** Placeholder text */
+  placeholder?: string;
 }
 
 /**
@@ -113,9 +123,14 @@ export function LocationSelect({
   onLocationChange,
   hasError = false,
   onClearError,
+  label,
+  required = false,
+  size = 'md',
+  placeholder = 'Select your location',
 }: LocationSelectProps) {
   const [selectedLocation, setSelectedLocation] = useState<string | null>(value);
   const [isOpen, setIsOpen] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -209,82 +224,100 @@ export function LocationSelect({
   };
 
   return (
-    <div className="w-full relative mb-2 sm:mb-4" ref={ref}>
+    <div className="form-group w-full relative" ref={ref}>
+      {/* Label */}
+      {label && (
+        <label className="form-label-compact">
+          {label}
+        </label>
+      )}
+
+      {/* Select Trigger - matching Select component styling */}
       <div
-        className={`relative rounded-md py-2.5 px-3 cursor-pointer transition-colors ${
-          hasError
-            ? 'text-status-error bg-status-bg-error ring-2 ring-border-error'
-            : isOpen
-            ? 'ring-2 ring-border-focus bg-surface-primary'
-            : 'bg-surface-tertiary hover:bg-surface-hover'
-        }`}
+        className={cn(
+          'relative rounded-md cursor-pointer outline-none',
+          'flex justify-between items-center',
+          // Size variants matching Select
+          {
+            'p-3 text-sm font-medium': size === 'sm',
+            'py-2.5 px-3 text-base': size === 'md',
+            'py-3 px-4 text-lg': size === 'lg',
+          },
+          // State-based styling matching Select component
+          {
+            // Error state
+            'border-border-error ring-2 ring-border-error bg-red-50 text-status-error': hasError,
+            // Focused or open state - matching Select focus state
+            'border-transparent ring-2 ring-border-focus bg-surface-primary': (isFocused || isOpen) && !hasError,
+            // Default state - matching Select default state
+            'border-border bg-surface-tertiary': !isFocused && !isOpen && !hasError,
+          }
+        )}
         onClick={handleToggle}
         onKeyDown={handleKeyDown}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
         role="combobox"
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         aria-invalid={hasError}
-        aria-label="Select your service area location"
+        aria-label={label || "Select your service area location"}
         tabIndex={0}
       >
-        <div className="flex justify-between items-center">
-          <span
-            className={`${
-              hasError
-                ? 'text-status-error'
-                : selectedLocation
-                ? 'text-base text-text-primary'
-                : 'text-sm leading-6 text-text-secondary'
-            }`}
-          >
-            {selectedLocation ? selectedLocation : 'Where are you located?'}
-          </span>
-          <svg
-            className={`w-5 h-5 transition-transform ${isOpen ? 'rotate-180' : ''} ${
-              hasError ? 'text-status-error' : 'text-text-secondary'
-            }`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
+        <div
+          className={cn(
+            'flex-1 min-w-0',
+            {
+              'text-status-error': hasError,
+              'text-text-secondary': !hasError && !selectedLocation && !isOpen && !isFocused,
+              'text-text-primary': !hasError && (selectedLocation || isOpen || isFocused),
+            }
+          )}
+        >
+          {selectedLocation || placeholder}
         </div>
+        <ChevronDownIcon
+          className={cn(
+            'w-5 h-5 flex-shrink-0 ml-2',
+            {
+              'text-status-error': hasError,
+              'text-text-secondary': !hasError && !selectedLocation,
+              'text-text-primary': !hasError && selectedLocation,
+            }
+          )}
+        />
       </div>
 
+      {/* Dropdown Menu - matching Select component styling */}
       {isOpen && (
         <div
-          className="absolute z-10 w-full mt-2 rounded-md bg-surface-primary shadow-lg border border-border max-h-80 overflow-auto"
+          className="absolute z-50 w-full mt-2 rounded-md bg-white shadow-custom-shadow max-h-60 overflow-auto"
           role="listbox"
           aria-label="Location options"
         >
           {locationGroups.map((group, groupIdx) => (
             <div key={groupIdx}>
-              <div className="px-4 py-4 text-text-primary font-medium underline underline-offset-2">
+              {/* Group Header */}
+              <div className="px-4 py-3 text-text-primary font-semibold text-sm bg-slate-50 border-b border-border sticky top-0">
                 {group.label}
               </div>
+              {/* Group Options */}
               {group.locations.map((location, locIdx) => {
                 const flatIndex = flatLocations.indexOf(location);
-                const isFocused = flatIndex === focusedIndex;
+                const isKeyboardFocused = flatIndex === focusedIndex;
                 const isSelected = selectedLocation === location;
 
                 return (
                   <div
                     key={locIdx}
-                    className={`px-6 py-2 cursor-pointer transition-colors ${
-                      isSelected
-                        ? 'bg-surface-disabled font-medium'
-                        : isFocused
-                        ? 'bg-surface-hover'
-                        : 'bg-surface-primary hover:bg-surface-hover'
-                    }`}
+                    className={cn(
+                      'px-4 py-2 cursor-pointer text-sm text-text-primary',
+                      {
+                        'bg-slate-200': isSelected,
+                        'bg-slate-100': !isSelected && isKeyboardFocused,
+                        'bg-white hover:bg-slate-100': !isSelected && !isKeyboardFocused,
+                      }
+                    )}
                     onClick={() => handleLocationClick(location)}
                     role="option"
                     aria-selected={isSelected}

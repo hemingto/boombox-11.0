@@ -111,17 +111,17 @@ export const Card: React.FC<CardProps> = ({
     >
       {/* Image Section */}
       <div className="relative w-2/5 h-full overflow-hidden rounded-tl-md rounded-bl-md">
-        <Image 
+        <Image
           src={imageSrc}
           alt={imageAlt}
           fill
-          className="object-cover rounded-tl-md rounded-bl-md transition-transform duration-300 group-hover:scale-105"
+          className="transition-transform duration-300 group-hover:scale-105 object-cover rounded-tl-md rounded-bl-md"
           sizes="(max-width: 768px) 40vw, 20vw"
         />
       </div>
       
       {/* Content Section */}
-      <div className="w-3/5 flex flex-col justify-center p-6 border-t border-b border-r border-border bg-surface-primary rounded-tr-md rounded-br-md transition-colors duration-300 group-hover:bg-surface-secondary">
+      <div className="w-3/5 flex flex-col justify-center p-4 border-t border-b border-r border-slate-100 bg-surface-primary rounded-tr-md rounded-br-md">
         {/* Primary heading */}
         {location && (
           <h2 className="text-text-primary font-semibold text-lg mb-1 truncate">
@@ -142,7 +142,7 @@ export const Card: React.FC<CardProps> = ({
         
         {/* Description with customer count */}
         {(customerCount || description) && (
-          <p className="text-text-secondary text-sm mb-2 overflow-hidden" style={{
+          <p className="text-text-primary text-sm mb-2 overflow-hidden" style={{
             display: '-webkit-box',
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical'
@@ -157,9 +157,8 @@ export const Card: React.FC<CardProps> = ({
         
         {/* Author and read time */}
         {(author || readTime) && (
-          <div className="text-text-tertiary text-xs mt-auto flex items-center gap-2">
+          <div className="text-text-tertiary text-xs flex items-center gap-1">
             {author && <span>{author}</span>}
-            {author && readTime && <span aria-hidden="true">•</span>}
             {readTime && <span>{readTime}</span>}
           </div>
         )}

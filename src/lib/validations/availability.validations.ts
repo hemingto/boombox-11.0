@@ -30,6 +30,16 @@ export const queryTypeSchema = z.enum(['month', 'date'], {
   errorMap: () => ({ message: 'Query type must be either "month" or "date"' })
 });
 
+// Optional appointment ID to exclude from booking conflicts (for edit mode)
+export const excludeAppointmentIdSchema = z.preprocess(
+  (val) => {
+    if (val === undefined || val === null || val === '') return undefined;
+    const parsed = parseInt(String(val), 10);
+    return isNaN(parsed) ? undefined : parsed;
+  },
+  z.number().int().positive().optional()
+);
+
 // Main availability query schema (for API endpoint)
 export const availabilityQuerySchema = z.object({
   planType: planTypeSchema,
@@ -38,6 +48,7 @@ export const availabilityQuerySchema = z.object({
   date: dateSchema,
   type: queryTypeSchema,
   numberOfUnits: numberOfUnitsSchema,
+  excludeAppointmentId: excludeAppointmentIdSchema, // Optional: exclude this appointment's booking from conflicts
 }).refine(
   (data) => {
     if (data.type === 'month') {
@@ -67,6 +78,7 @@ export const dailyAvailabilityParamsSchema = z.object({
   planType: planTypeSchema,
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   numberOfUnits: z.number().int().min(1).max(10).default(1),
+  excludeAppointmentId: z.number().int().positive().optional(), // Optional: exclude this appointment's booking from conflicts
 }).refine(
   (data) => {
     const date = new Date(data.date);

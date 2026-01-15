@@ -98,11 +98,15 @@ export async function POST(req: Request) {
     // Send verification code via SMS if phone number is provided
     if (formattedPhoneNumber) {
       try {
-        await twilioClient.messages.create({
-          body: `Your Boombox Storage admin verification code is: ${code}`,
-          from: process.env.TWILIO_PHONE_NUMBER,
-          to: formattedPhoneNumber,
-        });
+        if (twilioClient) {
+          await twilioClient.messages.create({
+            body: `Your Boombox Storage admin verification code is: ${code}`,
+            from: process.env.TWILIO_PHONE_NUMBER,
+            to: formattedPhoneNumber,
+          });
+        } else {
+          console.warn('Twilio client not initialized. SMS not sent.');
+        }
       } catch (error) {
         console.error('Error sending verification SMS:', error);
         // Don't fail the request if SMS fails, just log it

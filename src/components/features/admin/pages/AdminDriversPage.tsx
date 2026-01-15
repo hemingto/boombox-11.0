@@ -12,44 +12,32 @@
  * - View license photos
  * - Sortable by all columns
  * 
- * DESIGN SYSTEM UPDATES:
- * - Uses shared AdminDataTable component
- * - Uses shared hooks (useAdminTable, useAdminDataFetch)
- * - Uses AdminDetailModal for nested records
- * - Uses PhotoViewerModal for license photos
- * - Uses OptimizedImage for profile pictures
- * - 100% semantic color tokens
- * - Consistent with other management pages
+ * DESIGN:
+ * - Uses boombox-10.0 styling patterns
+ * - Indigo-950 header with white text
+ * - Direct Tailwind colors (no design system tokens)
+ * - Headless UI Dialog for modals
  * 
  * API ROUTES:
  * - GET /api/admin/drivers - Fetches all drivers
  * - POST /api/admin/drivers/[id]/approve - Approves driver
  * 
- * CODE REDUCTION:
- * - Original: 669 lines
- * - Refactored: ~380 lines (43% reduction)
- * - Eliminated duplicate state management
- * - Eliminated custom table implementation
- * 
- * @refactor Extracted from inline page implementation, uses shared admin components
+ * @refactor Migrated to boombox-10.0 styling with shared utilities
  */
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
 import Image from 'next/image';
-import {
-  AdminDataTable,
-  ColumnManagerMenu,
-  SearchAndFilterBar,
-  AdminDetailModal,
-  PhotoViewerModal,
-  type Column,
-  type ActionFilter,
-} from '@/components/features/admin/shared';
-import { useAdminTable, useAdminDataFetch } from '@/hooks';
 import { formatPhoneNumberForDisplay } from '@/lib/utils/phoneUtils';
-import { Modal } from '@/components/ui/primitives/Modal/Modal';
+import { AdminTable } from '@/components/features/admin/shared/table/AdminTable';
+import { AdminActionButton } from '@/components/features/admin/shared/buttons/AdminActionButton';
+import { AdminBooleanBadge } from '@/components/features/admin/shared/buttons/AdminBooleanBadge';
+import { FilterDropdown } from '@/components/features/admin/shared/filters/FilterDropdown';
+import { ColumnManagerDropdown } from '@/components/features/admin/shared/filters/ColumnManagerDropdown';
+import { AdminPageHeader } from '@/components/features/admin/shared/filters/AdminPageHeader';
+import { Button } from '@/components/ui/primitives/Button/Button';
 
 interface Driver {
   id: number;
@@ -91,6 +79,7 @@ interface Driver {
     startTime: string;
     endTime: string;
     maxCapacity: number;
+    isBlocked: boolean;
   }[];
   cancellations: {
     id: number;
@@ -133,7 +122,20 @@ type ColumnId =
   | 'driverLicenseFrontPhoto'
   | 'driverLicenseBackPhoto';
 
-const defaultColumns: Column<ColumnId>[] = [
+type RecordType = 'vehicles' | 'availability' | 'cancellations' | 'appointments';
+
+interface Column {
+  id: ColumnId;
+  label: string;
+  visible: boolean;
+}
+
+type SortConfig = {
+  column: ColumnId | null;
+  direction: 'asc' | 'desc';
+};
+
+const allColumns: Column[] = [
   { id: 'profilePicture', label: 'Photo', visible: true },
   { id: 'firstName', label: 'First Name', visible: true },
   { id: 'lastName', label: 'Last Name', visible: true },
@@ -158,165 +160,126 @@ const defaultColumns: Column<ColumnId>[] = [
   { id: 'driverLicenseBackPhoto', label: 'License Back', visible: false },
 ];
 
-const actionFiltersConfig: ActionFilter[] = [
-  { id: 'approve_drivers', label: 'Approve Drivers', active: false },
-];
-
 /**
  * AdminDriversPage - Driver management interface
- * 
- * @example
- * ```tsx
- * // Used in: src/app/(dashboard)/admin/drivers/page.tsx
- * <AdminDriversPage />
- * ```
  */
 export function AdminDriversPage() {
-  // Shared hooks for table management
-  const {
-    columns,
-    toggleColumn,
-    sortConfig,
-    handleSort,
-    searchQuery,
-    setSearchQuery,
-    actionFilters,
-    toggleFilter,
-    getSortedAndFilteredData,
-  } = useAdminTable<ColumnId, Driver>({
-    initialColumns: defaultColumns,
-    initialSort: { column: null, direction: 'asc' },
-    initialFilters: { approve_drivers: false },
-  });
-
-  // Data fetching
-  const { data: drivers, loading, error, refetch } = useAdminDataFetch<Driver[]>({
-    apiEndpoint: '/api/admin/drivers',
-  });
-
-  // Modal states
+  // State management
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [columns, setColumns] = useState<Column[]>(allColumns);
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
+  const [showActionsFilter, setShowActionsFilter] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
-  const [selectedRecordType, setSelectedRecordType] = useState<
-    'vehicles' | 'availability' | 'cancellations' | 'appointments' | null
-  >(null);
-  const [showColumnMenu, setShowColumnMenu] = useState(false);
-  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [selectedPhotoUrl, setSelectedPhotoUrl] = useState<string>('');
+  const [selectedRecordType, setSelectedRecordType] = useState<RecordType | null>(null);
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ column: null, direction: 'asc' });
+  const [actionFilters, setActionFilters] = useState<Record<string, boolean>>({
+    approve_drivers: false,
+  });
+  const [searchQuery, setSearchQuery] = useState('');
 
-  /**
-   * Get Onfleet team name from team ID
-   */
-  const getTeamName = (teamId: string) => {
-    if (
-      teamId === process.env.NEXT_PUBLIC_BOOMBOX_DELIVERY_NETWORK_TEAM_ID ||
-      teamId.includes('Boombox') ||
-      teamId.includes('Delivery') ||
-      teamId.includes('Network')
-    ) {
-      return 'Storage Delivery';
-    } else if (
-      teamId === process.env.NEXT_PUBLIC_BOOMBOX_PACKING_SUPPLY_DELIVERY_DRIVERS ||
-      teamId.includes('Packing') ||
-      teamId.includes('Supply')
-    ) {
-      return 'Packing Supply';
-    } else {
-      return teamId.length > 8 ? `${teamId.substring(0, 8)}...` : teamId;
+  // Fetch drivers
+  useEffect(() => {
+    fetchDrivers();
+  }, []);
+
+  const fetchDrivers = async () => {
+    try {
+      const response = await fetch('/api/admin/drivers');
+      if (!response.ok) throw new Error('Failed to fetch drivers');
+      const data = await response.json();
+      setDrivers(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
     }
   };
 
-  /**
-   * Custom sort function for drivers
-   */
-  const customSortFn = (data: Driver[], config: typeof sortConfig) => {
-    if (!config.column) return data;
+  // Sorting
+  const handleSort = (column: ColumnId) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.column === column && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ column, direction });
+  };
 
-    return [...data].sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
+  const getSortValue = (driver: Driver, column: ColumnId): any => {
+    switch (column) {
+      case 'firstName':
+      case 'lastName':
+      case 'email':
+      case 'status':
+      case 'location':
+      case 'vehicleType':
+        return driver[column]?.toLowerCase() || '';
+      case 'movingPartner':
+        return driver.movingPartnerAssociations[0]?.movingPartner?.name?.toLowerCase() || '';
+      case 'services':
+        return driver.services.join(',').toLowerCase();
+      case 'isApproved':
+      case 'applicationComplete':
+      case 'hasTrailerHitch':
+      case 'consentToBackgroundCheck':
+        return driver[column] ? 'true' : 'false';
+      default:
+        return '';
+    }
+  };
 
-      // Handle special column sorting
-      if (config.column === 'services') {
-        aValue = a.services.join(', ');
-        bValue = b.services.join(', ');
-      } else if (config.column === 'movingPartner') {
-        aValue = a.movingPartnerAssociations[0]?.movingPartner.name || '';
-        bValue = b.movingPartnerAssociations[0]?.movingPartner.name || '';
-      } else {
-        aValue = a[config.column as keyof Driver];
-        bValue = b[config.column as keyof Driver];
-      }
+  const getSortedDrivers = (drivers: Driver[]) => {
+    if (!sortConfig.column) return drivers;
 
-      if (aValue === null || aValue === undefined) return config.direction === 'asc' ? -1 : 1;
-      if (bValue === null || bValue === undefined) return config.direction === 'asc' ? 1 : -1;
+    const sortColumn = sortConfig.column;
+    return [...drivers].sort((a, b) => {
+      const aValue = getSortValue(a, sortColumn);
+      const bValue = getSortValue(b, sortColumn);
 
-      if (aValue < bValue) return config.direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return config.direction === 'asc' ? 1 : -1;
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
   };
 
-  /**
-   * Custom filter function for search and action filters
-   */
-  const customFilterFn = (data: Driver[], query: string, filters: Record<string, boolean>) => {
-    let result = data;
-
-    // Apply search filter
-    if (query) {
-      const lowerQuery = query.toLowerCase();
-      result = result.filter(
-        (driver) =>
-          driver.firstName.toLowerCase().includes(lowerQuery) ||
-          driver.lastName.toLowerCase().includes(lowerQuery) ||
-          driver.email.toLowerCase().includes(lowerQuery) ||
-          (driver.phoneNumber && driver.phoneNumber.includes(query))
+  // Filtering
+  const filteredDrivers = drivers
+    .filter((driver) => {
+      if (actionFilters.approve_drivers) {
+        return !driver.isApproved;
+      }
+      return true;
+    })
+    .filter((driver) => {
+      if (!searchQuery) return true;
+      const searchLower = searchQuery.toLowerCase();
+      return (
+        driver.firstName.toLowerCase().includes(searchLower) ||
+        driver.lastName.toLowerCase().includes(searchLower) ||
+        driver.email.toLowerCase().includes(searchLower) ||
+        driver.phoneNumber?.toLowerCase().includes(searchLower)
       );
-    }
+    });
 
-    // Apply action filters
-    if (filters.approve_drivers) {
-      result = result.filter((driver) => !driver.isApproved);
-    }
+  const sortedDrivers = getSortedDrivers(filteredDrivers);
 
-    return result;
+  // Actions
+  const toggleColumn = (columnId: ColumnId) => {
+    setColumns((prev) => prev.map((col) => (col.id === columnId ? { ...col, visible: !col.visible } : col)));
   };
 
-  /**
-   * Get sorted and filtered driver data
-   */
-  const processedDrivers = useMemo(
-    () => getSortedAndFilteredData(drivers || [], customSortFn, customFilterFn),
-    [drivers, sortConfig, searchQuery, actionFilters, getSortedAndFilteredData]
-  );
-
-  /**
-   * Handle viewing nested records
-   */
-  const handleViewRecord = (
-    driver: Driver,
-    recordType: 'vehicles' | 'availability' | 'cancellations' | 'appointments'
-  ) => {
-    setSelectedDriver(driver);
-    setSelectedRecordType(recordType);
-    setShowViewModal(true);
+  const toggleActionFilter = (action: string) => {
+    setActionFilters((prev) => ({
+      ...prev,
+      [action]: !prev[action],
+    }));
   };
 
-  /**
-   * Handle viewing license photos
-   */
-  const handleViewPhotos = (driver: Driver) => {
-    setSelectedDriver(driver);
-    setCurrentPhotoIndex(0);
-    setShowPhotoModal(true);
-  };
-
-  /**
-   * Handle driver approval
-   */
   const handleApproveDriver = (driver: Driver) => {
     setSelectedDriver(driver);
     setShowApproveModal(true);
@@ -332,7 +295,7 @@ export function AdminDriversPage() {
 
       if (!response.ok) throw new Error('Failed to approve driver');
 
-      await refetch();
+      await fetchDrivers();
       setShowApproveModal(false);
       setSelectedDriver(null);
     } catch (err) {
@@ -340,350 +303,282 @@ export function AdminDriversPage() {
     }
   };
 
-  /**
-   * Render cell content based on column type
-   */
-  const renderCellContent = (driver: Driver, column: Column<ColumnId>): React.ReactNode => {
-    switch (column.id) {
-      case 'profilePicture':
-        return driver.profilePicture ? (
-          <Image
-            src={driver.profilePicture}
-            alt={`${driver.firstName} ${driver.lastName}`}
-            className="w-10 h-10 rounded-full object-cover"
-            width={40}
-            height={40}
-          />
-        ) : (
-          <div className="w-10 h-10 rounded-full bg-surface-tertiary flex items-center justify-center">
-            <span className="text-text-secondary text-sm">
-              {driver.firstName[0]}
-              {driver.lastName[0]}
-            </span>
-          </div>
-        );
-
-      case 'phoneNumber':
-        return driver.phoneNumber ? formatPhoneNumberForDisplay(driver.phoneNumber) : '-';
-
-      case 'services':
-        return driver.services.join(', ');
-
-      case 'movingPartner':
-        return driver.movingPartnerAssociations[0]?.movingPartner.name || '-';
-
-      case 'hasTrailerHitch':
-      case 'consentToBackgroundCheck':
-      case 'isApproved':
-      case 'applicationComplete':
-        return driver[column.id] ? 'Yes' : 'No';
-
-      case 'onfleetWorkerId':
-        return driver.onfleetWorkerId || '-';
-
-      case 'onfleetTeamIds':
-        if (!driver.onfleetTeamIds || driver.onfleetTeamIds.length === 0) return '-';
-        return driver.onfleetTeamIds.map((teamId) => getTeamName(teamId)).join(', ');
-
-      case 'driverLicenseFrontPhoto':
-      case 'driverLicenseBackPhoto':
-        if (!driver.driverLicenseFrontPhoto && !driver.driverLicenseBackPhoto) return '-';
-        return (
-          <button
-            onClick={() => handleViewPhotos(driver)}
-            className="inline-flex items-center bg-primary/10 px-2.5 py-1 text-sm font-inter rounded-md font-medium text-primary ring-1 ring-inset ring-primary/20 hover:bg-primary/20 transition-colors"
-            aria-label={`View license photos for ${driver.firstName} ${driver.lastName}`}
-          >
-            View Photos
-          </button>
-        );
-
-      case 'vehicles':
-      case 'availability':
-      case 'cancellations':
-      case 'appointments': {
-        const recordType = column.id;
-        return driver[recordType]?.length > 0 ? (
-          <button
-            onClick={() => handleViewRecord(driver, recordType)}
-            className="inline-flex items-center bg-primary/10 px-2.5 py-1 text-sm font-inter rounded-md font-medium text-primary ring-1 ring-inset ring-primary/20 hover:bg-primary/20 transition-colors"
-            aria-label={`View ${column.label} for ${driver.firstName} ${driver.lastName}`}
-          >
-            View Records ({driver[recordType].length})
-          </button>
-        ) : (
-          '-'
-        );
-      }
-
-      default: {
-        const value = driver[column.id as keyof Driver];
-        return typeof value === 'string' || typeof value === 'number' ? value : '-';
-      }
-    }
+  const handleViewPhoto = (photoUrl: string) => {
+    setSelectedPhotoUrl(photoUrl);
+    setShowPhotoModal(true);
   };
 
-  /**
-   * Render modal content based on record type
-   */
-  const renderModalContent = () => {
-    if (!selectedDriver || !selectedRecordType) return null;
-
-    const records = selectedDriver[selectedRecordType];
-
-    if (selectedRecordType === 'vehicles') {
-      return (
-        <div className="space-y-4">
-          {records.map((vehicle: any) => (
-            <div key={vehicle.id} className="border-b border-border pb-4 last:border-0">
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className="text-text-secondary">Make/Model:</span>
-                  <span className="ml-2 text-text-primary font-medium">
-                    {vehicle.make} {vehicle.model}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Year:</span>
-                  <span className="ml-2 text-text-primary">{vehicle.year}</span>
-                </div>
-                <div>
-                  <span className="text-text-secondary">License Plate:</span>
-                  <span className="ml-2 text-text-primary">{vehicle.licensePlate}</span>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Approved:</span>
-                  <span className="ml-2 text-text-primary">{vehicle.isApproved ? 'Yes' : 'No'}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    if (selectedRecordType === 'availability') {
-      return (
-        <div className="space-y-4">
-          {records.map((avail: any) => (
-            <div key={avail.id} className="border-b border-border pb-4 last:border-0">
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className="text-text-secondary">Day:</span>
-                  <span className="ml-2 text-text-primary font-medium">{avail.dayOfWeek}</span>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Time:</span>
-                  <span className="ml-2 text-text-primary">
-                    {avail.startTime} - {avail.endTime}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Max Capacity:</span>
-                  <span className="ml-2 text-text-primary">{avail.maxCapacity}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    if (selectedRecordType === 'cancellations') {
-      return (
-        <div className="space-y-4">
-          {records.map((cancel: any) => (
-            <div key={cancel.id} className="border-b border-border pb-4 last:border-0">
-              <div className="space-y-2 text-sm">
-                <div>
-                  <span className="text-text-secondary">Reason:</span>
-                  <p className="mt-1 text-text-primary">{cancel.reason}</p>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Date:</span>
-                  <span className="ml-2 text-text-primary">
-                    {new Date(cancel.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    if (selectedRecordType === 'appointments') {
-      return (
-        <div className="space-y-4">
-          {records.map((apt: any) => (
-            <div key={apt.id} className="border-b border-border pb-4 last:border-0">
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className="text-text-secondary">Job Code:</span>
-                  <span className="ml-2 text-text-primary font-medium">{apt.jobCode}</span>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Status:</span>
-                  <span className="ml-2 text-text-primary">{apt.status}</span>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Customer:</span>
-                  <span className="ml-2 text-text-primary">
-                    {apt.user.firstName} {apt.user.lastName}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Date:</span>
-                  <span className="ml-2 text-text-primary">
-                    {new Date(apt.date).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    return null;
+  const handleViewRecord = (driver: Driver, recordType: RecordType) => {
+    setSelectedDriver(driver);
+    setSelectedRecordType(recordType);
+    setShowViewModal(true);
   };
+
+  if (error) return <div className="p-4 text-red-500">Error: {error}</div>;
+
+  // Convert action filters to FilterDropdown format
+  const actionFilterItems = [
+    { id: 'approve_drivers', label: 'Approve Drivers', checked: actionFilters.approve_drivers },
+  ];
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold text-text-primary">Drivers</h1>
-        <div className="flex gap-3">
-          <SearchAndFilterBar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            searchPlaceholder="Search drivers..."
-            actionFilters={actionFiltersConfig.map((f) => ({
-              ...f,
-              active: actionFilters[f.id] || false,
-            }))}
-            onToggleFilter={toggleFilter}
-            showFilterMenu={showFilterMenu}
-            onToggleFilterMenu={() => setShowFilterMenu(!showFilterMenu)}
-          />
-          <ColumnManagerMenu
-            columns={columns}
-            onToggleColumn={toggleColumn}
-            showMenu={showColumnMenu}
-            onToggleMenu={() => setShowColumnMenu(!showColumnMenu)}
+    <div>
+      <AdminPageHeader title="Drivers">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search drivers..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="block w-full rounded-md border-0 py-2 pl-3 pr-10 text-zinc-950 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 font-semibold"
           />
         </div>
-      </div>
+        <FilterDropdown
+          label="Actions"
+          filters={actionFilterItems}
+          isOpen={showActionsFilter}
+          onToggle={() => {
+            setShowActionsFilter(!showActionsFilter);
+            setShowColumnMenu(false);
+          }}
+          onToggleFilter={(id) => toggleActionFilter(id)}
+          onToggleAll={() => toggleActionFilter('approve_drivers')}
+          allSelected={actionFilters.approve_drivers}
+          allLabel="All Actions"
+        />
+        <ColumnManagerDropdown
+          columns={columns}
+          isOpen={showColumnMenu}
+          onToggle={() => {
+            setShowColumnMenu(!showColumnMenu);
+            setShowActionsFilter(false);
+          }}
+          onToggleColumn={toggleColumn}
+        />
+      </AdminPageHeader>
 
-      {/* Table */}
-      <AdminDataTable
-        columns={columns.filter((c) => c.visible)}
-        data={processedDrivers}
+      <AdminTable
+        columns={[...columns, { id: 'actions' as ColumnId, label: 'Actions', visible: true }].map(col => ({
+          ...col,
+          sortable: ['firstName', 'lastName', 'email'].includes(col.id)
+        }))}
+        data={sortedDrivers}
         sortConfig={sortConfig}
-        onSort={(columnId) => handleSort(columnId as ColumnId)}
+        onSort={handleSort}
         loading={loading}
         error={error}
         emptyMessage="No drivers found"
+        onRetry={fetchDrivers}
         renderRow={(driver) => (
-          <tr key={driver.id} className="hover:bg-surface-tertiary transition-colors">
-            {columns
-              .filter((c) => c.visible)
-              .map((column) => (
-                <td key={column.id} className="px-3 py-4 text-sm text-text-primary whitespace-nowrap">
-                  {renderCellContent(driver, column)}
+          <tr key={driver.id} className="hover:bg-gray-50">
+            {columns.map((column) => {
+              if (!column.visible) return null;
+
+              let content: React.ReactNode = '-';
+
+              if (column.id === 'profilePicture') {
+                content = driver.profilePicture ? (
+                  <div className="h-10 w-10 rounded-full overflow-hidden relative">
+                    <Image src={driver.profilePicture} alt={`${driver.firstName} ${driver.lastName}`} fill className="object-cover" />
+                  </div>
+                ) : (
+                  <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
+                    {driver.firstName[0]}{driver.lastName[0]}
+                  </div>
+                );
+              } else if (column.id === 'phoneNumber') {
+                content = driver.phoneNumber ? formatPhoneNumberForDisplay(driver.phoneNumber) : '-';
+              } else if (column.id === 'services') {
+                content = driver.services?.length > 0 ? driver.services.join(', ') : '-';
+              } else if (column.id === 'movingPartner') {
+                content = driver.movingPartnerAssociations?.[0]?.movingPartner?.name || '-';
+              } else if (column.id === 'isApproved' || column.id === 'applicationComplete') {
+                content = <AdminBooleanBadge value={driver[column.id]} />;
+              } else if (column.id === 'hasTrailerHitch' || column.id === 'consentToBackgroundCheck') {
+                content = driver[column.id] ? 'Yes' : 'No';
+              } else if (column.id === 'vehicles' || column.id === 'availability' || column.id === 'cancellations' || column.id === 'appointments') {
+                const records = driver[column.id];
+                content = records && records.length > 0 ? (
+                  <AdminActionButton variant="indigo" onClick={() => handleViewRecord(driver, column.id as RecordType)}>
+                    View Records ({records.length})
+                  </AdminActionButton>
+                ) : '-';
+              } else if (column.id === 'driverLicenseFrontPhoto' || column.id === 'driverLicenseBackPhoto') {
+                const photoUrl = driver[column.id];
+                content = photoUrl ? (
+                  <AdminActionButton variant="indigo" onClick={() => handleViewPhoto(photoUrl)}>
+                    View Photo
+                  </AdminActionButton>
+                ) : '-';
+              } else if (column.id === 'onfleetTeamIds') {
+                content = driver.onfleetTeamIds?.length > 0 ? driver.onfleetTeamIds.join(', ') : '-';
+              } else {
+                const value = driver[column.id as keyof Driver];
+                content = (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') 
+                  ? String(value) 
+                  : '-';
+              }
+
+              return (
+                <td key={column.id} className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
+                  {content}
                 </td>
-              ))}
-            <td className="px-3 py-4 text-sm text-right">
-              {!driver.isApproved && (
-                <button
-                  onClick={() => handleApproveDriver(driver)}
-                  className="btn-primary text-sm"
-                  aria-label={`Approve ${driver.firstName} ${driver.lastName}`}
-                >
+              );
+            })}
+            <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
+              {!driver.isApproved && driver.applicationComplete && (
+                <AdminActionButton variant="green" onClick={() => handleApproveDriver(driver)}>
                   Approve
-                </button>
+                </AdminActionButton>
               )}
             </td>
           </tr>
         )}
       />
 
-      {/* Detail Modal */}
-      <AdminDetailModal
-        isOpen={showViewModal}
-        onClose={() => {
-          setShowViewModal(false);
-          setSelectedDriver(null);
-          setSelectedRecordType(null);
-        }}
-        title={
-          selectedRecordType === 'vehicles'
-            ? 'Driver Vehicles'
-            : selectedRecordType === 'availability'
-            ? 'Driver Availability'
-            : selectedRecordType === 'cancellations'
-            ? 'Driver Cancellations'
-            : 'Driver Appointments'
-        }
-        data={selectedDriver && selectedRecordType ? selectedDriver[selectedRecordType] : null}
-        renderContent={renderModalContent}
-        size="lg"
-      />
-
-      {/* Photo Viewer Modal */}
-      <PhotoViewerModal
-        isOpen={showPhotoModal}
-        onClose={() => {
-          setShowPhotoModal(false);
-          setSelectedDriver(null);
-          setCurrentPhotoIndex(0);
-        }}
-        photos={
-          selectedDriver
-            ? [selectedDriver.driverLicenseFrontPhoto, selectedDriver.driverLicenseBackPhoto]
-            : []
-        }
-        currentIndex={currentPhotoIndex}
-        onNavigate={setCurrentPhotoIndex}
-        title="Driver License Photos"
-      />
-
-      {/* Approve Confirmation Modal */}
-      <Modal
-        open={showApproveModal}
-        onClose={() => {
-          setShowApproveModal(false);
-          setSelectedDriver(null);
-        }}
-        title="Approve Driver"
-        size="md"
-      >
-        <div className="space-y-4">
-          <p className="text-text-primary">
-            Are you sure you want to approve{' '}
-            <strong>
-              {selectedDriver?.firstName} {selectedDriver?.lastName}
-            </strong>
-            ?
-          </p>
-          <div className="flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setShowApproveModal(false);
-                setSelectedDriver(null);
-              }}
-              className="btn-secondary"
-            >
-              Cancel
-            </button>
-            <button type="button" onClick={handleApproveConfirm} className="btn-primary">
+      {/* Approve Modal */}
+      <Dialog open={showApproveModal} onClose={() => setShowApproveModal(false)} className="relative z-50">
+        <DialogBackdrop className="fixed inset-0 bg-black bg-opacity-50" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <DialogPanel className="bg-white rounded-lg p-6 max-w-md w-full">
+            <DialogTitle className="text-lg font-medium leading-6 text-gray-900 mb-4">
               Approve Driver
-            </button>
-          </div>
+            </DialogTitle>
+            <p className="text-sm text-gray-500 mb-6">
+              Are you sure you want to approve {selectedDriver?.firstName} {selectedDriver?.lastName}?
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button
+                onClick={() => setShowApproveModal(false)}
+                variant="outline"
+                size="sm"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleApproveConfirm}
+                variant="primary"
+                size="sm"
+              >
+                Approve
+              </Button>
+            </div>
+          </DialogPanel>
         </div>
-      </Modal>
+      </Dialog>
+
+      {/* View Records Modal */}
+      <Dialog open={showViewModal} onClose={() => setShowViewModal(false)} className="relative z-50">
+        <DialogBackdrop className="fixed inset-0 bg-black bg-opacity-50" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <DialogPanel className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <DialogTitle className="text-xl font-bold mb-4">
+              {selectedRecordType === 'vehicles'
+                ? 'Driver Vehicles'
+                : selectedRecordType === 'availability'
+                ? 'Driver Availability'
+                : selectedRecordType === 'cancellations'
+                ? 'Driver Cancellations'
+                : 'Driver Appointments'}
+            </DialogTitle>
+            <div className="space-y-4">
+              {selectedDriver && selectedRecordType === 'vehicles' &&
+                selectedDriver.vehicles.map((vehicle) => (
+                  <div key={vehicle.id} className="border p-4 rounded-lg">
+                    <p className="font-semibold">
+                      {vehicle.year} {vehicle.make} {vehicle.model}
+                    </p>
+                    <p>License Plate: {vehicle.licensePlate}</p>
+                    <p>Approved: {vehicle.isApproved ? 'Yes' : 'No'}</p>
+                  </div>
+                ))}
+
+              {selectedDriver && selectedRecordType === 'availability' &&
+                selectedDriver.availability.map((avail) => (
+                  <div 
+                    key={avail.id} 
+                    className={`border p-4 rounded-lg relative ${
+                      avail.isBlocked 
+                        ? 'bg-gray-100 border-gray-300 text-gray-500' 
+                        : ''
+                    }`}
+                  >
+                    {avail.isBlocked && (
+                      <span className="absolute top-4 right-4 inline-flex items-center rounded-full bg-gray-500 px-2 py-1 text-xs font-medium text-white">
+                        Blocked
+                      </span>
+                    )}
+                    <p className={`font-semibold ${avail.isBlocked ? 'text-gray-500' : ''}`}>
+                      {avail.dayOfWeek}
+                    </p>
+                    <p className={avail.isBlocked ? 'text-gray-400' : ''}>
+                      Time: {avail.startTime} - {avail.endTime}
+                    </p>
+                    <p className={avail.isBlocked ? 'text-gray-400' : ''}>
+                      Max Capacity: {avail.maxCapacity}
+                    </p>
+                  </div>
+                ))}
+
+              {selectedDriver && selectedRecordType === 'cancellations' &&
+                selectedDriver.cancellations.map((cancel) => (
+                  <div key={cancel.id} className="border p-4 rounded-lg">
+                    <p className="font-semibold">Reason: {cancel.reason}</p>
+                    <p>Date: {new Date(cancel.createdAt).toLocaleDateString()}</p>
+                  </div>
+                ))}
+
+              {selectedDriver && selectedRecordType === 'appointments' &&
+                selectedDriver.appointments.map((apt) => (
+                  <div key={apt.id} className="border p-4 rounded-lg">
+                    <p className="font-semibold">Job Code: {apt.jobCode}</p>
+                    <p>Status: {apt.status}</p>
+                    <p>Date: {new Date(apt.date).toLocaleDateString()}</p>
+                    <p>
+                      Customer: {apt.user.firstName} {apt.user.lastName}
+                    </p>
+                  </div>
+                ))}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button
+                onClick={() => {
+                  setShowViewModal(false);
+                  setSelectedRecordType(null);
+                }}
+                variant="ghost"
+                size="sm"
+              >
+                Close
+              </Button>
+            </div>
+          </DialogPanel>
+        </div>
+      </Dialog>
+
+      {/* Photo Modal */}
+      <Dialog open={showPhotoModal} onClose={() => setShowPhotoModal(false)} className="relative z-50">
+        <DialogBackdrop className="fixed inset-0 bg-black bg-opacity-50" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <DialogPanel className="bg-white rounded-lg p-6 max-w-2xl w-full">
+            <DialogTitle className="text-lg font-medium leading-6 text-gray-900 mb-4">
+              Driver License Photo
+            </DialogTitle>
+            <div className="relative w-full h-96">
+              <Image src={selectedPhotoUrl} alt="Driver license photo" fill className="object-contain" />
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button 
+                onClick={() => setShowPhotoModal(false)} 
+                variant="ghost"
+                size="sm"
+              >
+                Close
+              </Button>
+            </div>
+          </DialogPanel>
+        </div>
+      </Dialog>
     </div>
   );
 }
-

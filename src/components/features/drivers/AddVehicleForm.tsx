@@ -36,7 +36,8 @@
 
 'use client';
 
-import React from 'react';
+import React, { useRef } from 'react';
+import Link from 'next/link';
 import { PhotoIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
 
 // UI Components
@@ -80,6 +81,28 @@ export function AddVehicleForm({
     handleSubmit,
   } = useAddVehicleForm({ userId, userType, onSuccess });
 
+  // Refs for each form field to enable scrolling to errors
+  const yearRef = useRef<HTMLDivElement>(null);
+  const makeRef = useRef<HTMLDivElement>(null);
+  const modelRef = useRef<HTMLDivElement>(null);
+  const licensePlateRef = useRef<HTMLDivElement>(null);
+  const trailerHitchRef = useRef<HTMLDivElement>(null);
+  const frontPhotoRef = useRef<HTMLDivElement>(null);
+  const backPhotoRef = useRef<HTMLDivElement>(null);
+  const insurancePhotoRef = useRef<HTMLDivElement>(null);
+
+  // Map error field names to refs
+  const errorFieldRefs: Record<string, React.RefObject<HTMLDivElement | null>> = {
+    year: yearRef,
+    make: makeRef,
+    model: modelRef,
+    licensePlate: licensePlateRef,
+    trailerHitch: trailerHitchRef,
+    frontVehiclePhoto: frontPhotoRef,
+    backVehiclePhoto: backPhotoRef,
+    autoInsurancePhoto: insurancePhotoRef,
+  };
+
   // Photo upload handlers
   const handleFrontPhotoSelected = (files: File[]) => {
     if (files.length > 0) {
@@ -96,6 +119,17 @@ export function AddVehicleForm({
   const handleInsurancePhotoSelected = (files: File[]) => {
     if (files.length > 0) {
       updatePhoto('autoInsurancePhoto', files[0]);
+    }
+  };
+
+  // Form submit handler with scroll-to-error functionality
+  const handleFormSubmit = async () => {
+    const firstErrorField = await handleSubmit();
+    if (firstErrorField && errorFieldRefs[firstErrorField]?.current) {
+      errorFieldRefs[firstErrorField].current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
     }
   };
 
@@ -124,17 +158,12 @@ export function AddVehicleForm({
 
       {/* Vehicle Information Section */}
       <section aria-labelledby="vehicle-info-heading">
-        <h3 
-          id="vehicle-info-heading" 
-          className="form-label mb-4 mt-4"
-        >
-          What&apos;s your vehicle&apos;s year, make and model?
-        </h3>
 
         {/* Vehicle Year */}
-        <div className="form-group">
+        <div className="form-group mb-4" ref={yearRef}>
           <Select
             label="Vehicle Year"
+            size="sm"
             value={formData.year || ''}
             onChange={(value: string) => updateField('year', value)}
             error={errors.year || undefined}
@@ -142,23 +171,16 @@ export function AddVehicleForm({
             options={YEAR_OPTIONS.map(year => ({ value: year, label: year }))}
             placeholder="Select year"
             required
-            aria-describedby={errors.year ? 'year-error' : undefined}
+            compactLabel
+            name="year"
           />
-          {errors.year && (
-            <p 
-              id="year-error"
-              className="form-error"
-              role="alert"
-            >
-              {errors.year}
-            </p>
-          )}
         </div>
         
         {/* Vehicle Make */}
-        <div className="form-group">
+        <div className="form-group mb-4" ref={makeRef}>
           <Select
             label="Vehicle Make"
+            size="sm"
             value={formData.make || ''}
             onChange={(value: string) => updateField('make', value)}
             error={errors.make || undefined}
@@ -166,21 +188,13 @@ export function AddVehicleForm({
             options={VEHICLE_MAKES.map(make => ({ value: make, label: make }))}
             placeholder="Select make"
             required
-            aria-describedby={errors.make ? 'make-error' : undefined}
+            compactLabel
+            name="make"
           />
-          {errors.make && (
-            <p 
-              id="make-error"
-              className="form-error"
-              role="alert"
-            >
-              {errors.make}
-            </p>
-          )}
         </div>
         
         {/* Vehicle Model */}
-        <div className="form-group">
+        <div className="form-group mb-8" ref={modelRef}>
           <Input
             label="Vehicle Model"
             value={formData.model}
@@ -196,16 +210,10 @@ export function AddVehicleForm({
 
       {/* License Plate Section */}
       <section aria-labelledby="license-plate-heading">
-        <h3 
-          id="license-plate-heading" 
-          className="form-label mb-4 mt-4"
-        >
-          What is your vehicle&apos;s license plate number?
-        </h3>
         
-        <div className="form-group">
+        <div className="form-group mb-8" ref={licensePlateRef}>
           <Input
-            label="License Plate Number"
+            label="What is your vehicle's license plate number?"
             value={formData.licensePlate}
             onChange={(e) => updateField('licensePlate', e.target.value)}
             error={errors.licensePlate || undefined}
@@ -226,12 +234,13 @@ export function AddVehicleForm({
           Does your vehicle have a trailer hitch?
         </h3>
         
-        <div className="form-group">
+        <div className="form-group" ref={trailerHitchRef}>
           <YesOrNoRadio
             value={formData.hasTrailerHitch}
             onChange={(value) => updateField('hasTrailerHitch', value)}
             hasError={!!errors.trailerHitch}
             errorMessage={errors.trailerHitch || undefined}
+            onErrorClear={() => clearError('trailerHitch')}
             name="trailer-hitch"
           />
         </div>
@@ -247,7 +256,7 @@ export function AddVehicleForm({
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <div className="w-full">
+          <div className="w-full" ref={frontPhotoRef}>
             <PhotoUploads 
               onPhotosSelected={handleFrontPhotoSelected} 
               photoUploadTitle="Front of Vehicle Photo"
@@ -256,10 +265,13 @@ export function AddVehicleForm({
               maxPhotos={1}
               entityId={userId}
               entityType={userType}
+              name="frontVehiclePhoto"
+              error={errors.frontVehiclePhoto || undefined}
+              onErrorClear={() => clearError('frontVehiclePhoto')}
             />
           </div>
           
-          <div className="w-full">
+          <div className="w-full" ref={backPhotoRef}>
             <PhotoUploads 
               onPhotosSelected={handleBackPhotoSelected} 
               photoUploadTitle="Back of Vehicle Photo"
@@ -268,24 +280,29 @@ export function AddVehicleForm({
               maxPhotos={1}
               entityId={userId}
               entityType={userType}
+              name="backVehiclePhoto"
+              error={errors.backVehiclePhoto || undefined}
+              onErrorClear={() => clearError('backVehiclePhoto')}
             />
           </div>
         </div>
 
         {/* Photo Guidelines */}
-        <div className="mt-4 p-3 sm:mb-4 mb-2 bg-surface-tertiary border border-border rounded-md max-w-fit">
+        <div className="mt-4 p-3 sm:mb-4 mb-2 border border-border rounded-md max-w-fit">
           <p className="text-sm text-text-primary">
             Make sure the license plate number is clearly visible in the photos.
           </p>
           <p className="text-sm mt-2 text-text-primary">
             To view examples of acceptable vehicle photos click{' '}
-            <button 
-              type="button"
-              className="underline cursor-pointer font-semibold text-primary hover:text-primary-hover focus:text-primary-hover focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-              aria-label="View examples of acceptable vehicle photos"
+            <Link 
+              href="/vehicle-requirements"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline cursor-pointer font-semibold focus:outline-none"
+              aria-label="View examples of acceptable vehicle photos (opens in new tab)"
             >
               here
-            </button>
+            </Link>
           </p>
         </div>
       </section>
@@ -299,7 +316,7 @@ export function AddVehicleForm({
           Provide vehicle&apos;s auto insurance
         </h2>
         
-        <div className="w-full">
+        <div className="w-full" ref={insurancePhotoRef}>
           <PhotoUploads 
             onPhotosSelected={handleInsurancePhotoSelected} 
             photoUploadTitle="Auto Insurance Document"
@@ -309,23 +326,16 @@ export function AddVehicleForm({
             maxPhotos={1}
             entityId={userId}
             entityType={userType}
+            name="autoInsurancePhoto"
+            error={errors.autoInsurancePhoto || undefined}
+            onErrorClear={() => clearError('autoInsurancePhoto')}
           />
         </div>
 
         {/* Insurance Guidelines */}
-        <div className="mt-4 p-3 sm:mb-4 mb-2 bg-surface-tertiary border border-border rounded-md max-w-fit">
+        <div className="mt-4 p-3 sm:mb-4 mb-2 border border-border rounded-md max-w-fit">
           <p className="text-sm text-text-primary">
-            Make sure the photo is clear, text should not be blurry.
-          </p>
-          <p className="text-sm mt-2 text-text-primary">
-            To view an example of acceptable auto insurance photos click{' '}
-            <button 
-              type="button"
-              className="underline cursor-pointer font-semibold text-primary hover:text-primary-hover focus:text-primary-hover focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-              aria-label="View examples of acceptable auto insurance photos"
-            >
-              here
-            </button>
+            <span className="font-semibold">Note:</span> Upload an ID card or policy document that includes the policy number, the policy expiration date, and VIN number.
           </p>
         </div>
       </section>
@@ -335,7 +345,7 @@ export function AddVehicleForm({
         <button
           type="button"
           className="btn-primary w-full"
-          onClick={handleSubmit}
+          onClick={handleFormSubmit}
           disabled={isSubmitting}
           aria-describedby="submit-button-description"
         >

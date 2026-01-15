@@ -3,91 +3,43 @@
  * @source boombox-10.0/src/app/components/user-page/upcomingappointment.tsx
  *
  * COMPONENT FUNCTIONALITY:
- * - Fetches active appointments from server action.
- * - Displays loading state with skeleton cards.
- * - Maps appointments to AppointmentCard components.
- * - Handles appointment cancellation by filtering from list.
- * - Notifies parent component of state changes via callback.
- * - Formats dates and times for display.
- * - Returns null when no appointments exist.
+ * - Receives appointments as props from parent (page-level data fetching)
+ * - Maps appointments to AppointmentCard components
+ * - Handles appointment cancellation by updating parent state
+ * - Formats dates and times for display
+ *
+ * ARCHITECTURE:
+ * - Data is fetched at page level via useCustomerHomePageData hook
+ * - Component receives data as props, no internal data fetching
+ * - Parent handles conditional rendering (component only mounts when data exists)
  *
  * DESIGN SYSTEM UPDATES:
- * - Uses SkeletonCard primitive directly for loading state (no custom skeleton component).
- * - Uses semantic spacing classes.
+ * - Uses semantic spacing classes
  *
- * @refactor Migrated to boombox-11.0 customer features, replaced custom skeleton with primitives, and extracted date utility function.
+ * @refactor Migrated to page-level data fetching pattern, removed internal loading/fetching
  */
 
 'use client';
 
-import { useState, useEffect } from 'react';
 import { AppointmentCard } from './AppointmentCard';
-import { getActiveCustomerAppointments, type CustomerAppointmentDisplay } from '@/lib/utils/customerUtils';
-import { SkeletonCard, SkeletonTitle, SkeletonText } from '@/components/ui/primitives/Skeleton';
-import { addDateSuffix } from '@/lib/utils/dateUtils';
+import { type CustomerAppointmentDisplay } from '@/lib/services/customerDataService';
+import { addDateSuffix } from '@/lib/utils';
 
 export interface UpcomingAppointmentsProps {
   userId: string;
-  hasActiveStorageUnits: boolean;
-  onStateChange?: (hasAppointments: boolean, loading: boolean) => void;
+  appointments: CustomerAppointmentDisplay[];
+  hasActiveStorageUnits?: boolean;
+  onAppointmentsChange: React.Dispatch<React.SetStateAction<CustomerAppointmentDisplay[]>>;
 }
 
 export function UpcomingAppointments({
   userId,
-  hasActiveStorageUnits,
-  onStateChange,
+  appointments,
+  onAppointmentsChange,
 }: UpcomingAppointmentsProps) {
-  const [appointments, setAppointments] = useState<CustomerAppointmentDisplay[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      try {
-        const activeAppointments = await getActiveCustomerAppointments(userId);
-        setAppointments(activeAppointments);
-      } catch (error) {
-        console.error('Error fetching appointments:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchAppointments();
-  }, [userId]);
-
-  // Notify parent component about state changes
-  useEffect(() => {
-    if (onStateChange) {
-      onStateChange(appointments.length > 0, isLoading);
-    }
-  }, [appointments.length, isLoading, onStateChange]);
-
   const handleCancellation = (appointmentId: number) => {
-    setAppointments((prev) => prev.filter((apt) => apt.id !== appointmentId));
+    onAppointmentsChange((prev) => prev.filter((apt) => apt.id !== appointmentId));
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex flex-col sm:mb-4 mb-2">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="mt-4">
-            <SkeletonCard className="p-6">
-              <div className="mb-4 h-32 bg-surface-tertiary rounded-t-md"></div>
-              <SkeletonTitle />
-              <SkeletonText className="mb-2" />
-              <SkeletonText className="mb-2" />
-              <SkeletonText className="w-1/2" />
-            </SkeletonCard>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // Return null if no appointments, let parent handle InfoCards
-  if (appointments.length === 0) {
-    return null;
-  }
 
   return (
     <div className="flex flex-col sm:mb-4 mb-2">
@@ -151,4 +103,3 @@ export function UpcomingAppointments({
     </div>
   );
 }
-

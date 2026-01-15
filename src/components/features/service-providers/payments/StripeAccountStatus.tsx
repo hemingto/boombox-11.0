@@ -45,7 +45,8 @@
 
 import { useEffect, useState } from 'react';
 import { formatCurrency } from '@/lib/utils/currencyUtils';
-import { getStripeAccountStatusDisplay } from '@/lib/utils/stripeUtils';
+import { getStripeAccountStatusDisplay } from '@/lib/utils/stripeDisplayUtils';
+import { Button } from '@/components/ui/primitives/Button/Button';
 
 interface StripeAccountStatusProps {
   userId: string;
@@ -159,29 +160,29 @@ export function StripeAccountStatus({
           className="grid grid-cols-5 border-b border-border pb-2"
           role="row"
         >
-          <div className="text-sm text-text-secondary" role="columnheader">
+          <div className="text-sm text-text-tertiary" role="columnheader">
             Account Name
           </div>
           <div
-            className="text-sm text-text-secondary text-right"
+            className="text-sm text-text-tertiary text-right"
             role="columnheader"
           >
             Status
           </div>
           <div
-            className="text-sm text-text-secondary text-right"
+            className="text-sm text-text-tertiary text-right"
             role="columnheader"
           >
             Total Balance
           </div>
           <div
-            className="text-sm text-text-secondary text-right"
+            className="text-sm text-text-tertiary text-right"
             role="columnheader"
           >
             Connected
           </div>
           <div
-            className="text-sm text-text-secondary text-right"
+            className="text-sm text-text-tertiary text-right"
             role="columnheader"
           >
             Actions
@@ -221,17 +222,15 @@ export function StripeAccountStatus({
 
           {/* Update Button */}
           <div className="flex justify-end" role="cell">
-            <button
+            <Button
               onClick={handleUpdateStripeDetails}
               disabled={isCreatingLink}
-              className="rounded-md py-1.5 px-3 bg-surface-tertiary w-fit hover:bg-surface-hover active:bg-slate-400 disabled:bg-surface-tertiary disabled:opacity-50 disabled:cursor-not-allowed"
+              variant="secondary"
+              size="sm"
               aria-label="Update Stripe account details"
-              aria-disabled={isCreatingLink}
             >
-              <span className="text-text-primary font-inter font-semibold text-sm">
-                {isCreatingLink ? 'Connecting...' : 'Update'}
-              </span>
-            </button>
+              {isCreatingLink ? 'Connecting...' : 'Update'}
+            </Button>
           </div>
         </div>
       </div>

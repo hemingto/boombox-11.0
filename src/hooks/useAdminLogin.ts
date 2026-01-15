@@ -122,7 +122,7 @@ export function useAdminLogin(): UseAdminLoginReturn {
   const [hideEmailInput, setHideEmailInput] = useState(false);
   const [hidePhoneInput, setHidePhoneInput] = useState(true);
   const [isCodeSent, setIsCodeSent] = useState(false);
-  const [verificationCode, setVerificationCode] = useState(['', '', '', '']);
+  const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   
   // Session warning state
@@ -186,7 +186,7 @@ export function useAdminLogin(): UseAdminLoginReturn {
     if (verificationCode.every((digit) => digit === '')) {
       setErrors((prevErrors) => ({
         ...prevErrors,
-        verificationError: 'Please enter your 4-digit verification code',
+        verificationError: 'Please enter your 6-digit verification code',
       }));
       return false;
     }
@@ -194,7 +194,7 @@ export function useAdminLogin(): UseAdminLoginReturn {
     if (verificationCode.some((digit) => digit === '')) {
       setErrors((prevErrors) => ({
         ...prevErrors,
-        verificationError: 'Please enter a valid 4-digit verification code',
+        verificationError: 'Please enter a valid 6-digit verification code',
       }));
       return false;
     }
@@ -211,17 +211,22 @@ export function useAdminLogin(): UseAdminLoginReturn {
    */
   const performLogin = useCallback(async (contact: string, userId: string) => {
     try {
+      console.log('[useAdminLogin] performLogin called', { contact, userId });
+      
       // Sign in with NextAuth using admin credentials
       const result = await signIn('credentials', {
         contact,
-        accountType: 'admin',
+        accountType: 'ADMIN',
         redirect: false,
         skipVerification: true,
         userId,
+        callbackUrl: '/admin',
       });
       
+      console.log('[useAdminLogin] signIn result:', result);
+      
       if (result?.error) {
-        console.error('NextAuth sign in error:', result.error);
+        console.error('[useAdminLogin] NextAuth sign in error:', result.error);
         setErrors((prevErrors) => ({
           ...prevErrors,
           verificationError: 'Failed to create session. Please try again.',
@@ -230,10 +235,15 @@ export function useAdminLogin(): UseAdminLoginReturn {
         return;
       }
       
-      // Redirect to admin dashboard
-      router.push('/admin');
+      // Redirect to admin dashboard after successful sign in
+      if (result?.ok) {
+        console.log('[useAdminLogin] Sign in successful, redirecting to /admin');
+        window.location.href = '/admin';
+      } else {
+        console.log('[useAdminLogin] Sign in result not OK:', result);
+      }
     } catch (error) {
-      console.error('Error during admin login:', error);
+      console.error('[useAdminLogin] Error during admin login:', error);
       setErrors((prevErrors) => ({
         ...prevErrors,
         verificationError: 'An error occurred during login. Please try again.',
@@ -252,7 +262,7 @@ export function useAdminLogin(): UseAdminLoginReturn {
         setIsLoading(true);
         
         try {
-          const response = await fetch('/api/admin/login', {
+          const response = await fetch('/api/auth/admin-login', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -302,18 +312,21 @@ export function useAdminLogin(): UseAdminLoginReturn {
       }
     } else {
       // Second step: Verify code and login
+      console.log('[useAdminLogin] Step 2: Verifying code and logging in');
       if (validateVerificationCode()) {
         setIsLoading(true);
         setErrors((prevErrors) => ({ ...prevErrors, verificationError: null }));
         
         const contact = hidePhoneInput ? formData.email : formData.phoneNumber;
+        console.log('[useAdminLogin] Contact for login:', contact);
         
         // Check for session conflict
         if (session?.user && session.user.accountType !== 'ADMIN') {
+          console.log('[useAdminLogin] Session conflict detected, current session:', session.user.accountType);
           // Non-admin user is logged in, show warning
           try {
             // Still need to verify the code before showing warning
-            const verifyResponse = await fetch('/api/admin/login', {
+            const verifyResponse = await fetch('/api/auth/admin-login', {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
@@ -329,6 +342,7 @@ export function useAdminLogin(): UseAdminLoginReturn {
             
             if (verifyResponse.ok) {
               // Code is valid, show session warning
+              console.log('[useAdminLogin] Code valid, showing session warning modal');
               setPendingLoginData({
                 contact,
                 userId: data.admin.id.toString(),
@@ -337,6 +351,7 @@ export function useAdminLogin(): UseAdminLoginReturn {
               setIsLoading(false);
               return;
             } else {
+              console.log('[useAdminLogin] Code verification failed in session conflict flow');
               setErrors((prevErrors) => ({
                 ...prevErrors,
                 verificationError: data.message || 'Verification failed.',
@@ -345,7 +360,7 @@ export function useAdminLogin(): UseAdminLoginReturn {
               return;
             }
           } catch (error) {
-            console.error('Error verifying code:', error);
+            console.error('[useAdminLogin] Error verifying code in session conflict flow:', error);
             setErrors((prevErrors) => ({
               ...prevErrors,
               verificationError: 'An error occurred while verifying the code.',
@@ -357,7 +372,8 @@ export function useAdminLogin(): UseAdminLoginReturn {
         
         // No session conflict, proceed with verification and login
         try {
-          const verifyResponse = await fetch('/api/admin/login', {
+          console.log('[useAdminLogin] Verifying code and logging in');
+          const verifyResponse = await fetch('/api/auth/admin-login', {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
@@ -370,11 +386,14 @@ export function useAdminLogin(): UseAdminLoginReturn {
           });
           
           const data = await verifyResponse.json();
+          console.log('[useAdminLogin] Verification response:', { ok: verifyResponse.ok, data });
           
           if (verifyResponse.ok) {
             // Verification successful, perform login
+            console.log('[useAdminLogin] Verification successful, calling performLogin');
             await performLogin(contact, data.admin.id.toString());
           } else {
+            console.log('[useAdminLogin] Verification failed:', data.message);
             setErrors((prevErrors) => ({
               ...prevErrors,
               verificationError: data.message || 'Verification failed.',
@@ -382,7 +401,7 @@ export function useAdminLogin(): UseAdminLoginReturn {
             setIsLoading(false);
           }
         } catch (error) {
-          console.error('Error verifying code:', error);
+          console.error('[useAdminLogin] Error verifying code:', error);
           setErrors((prevErrors) => ({
             ...prevErrors,
             verificationError: 'An error occurred while verifying the code.',
@@ -410,7 +429,7 @@ export function useAdminLogin(): UseAdminLoginReturn {
     setIsLoading(true);
     
     try {
-      const response = await fetch('/api/admin/login', {
+      const response = await fetch('/api/auth/admin-login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -487,15 +506,19 @@ export function useAdminLogin(): UseAdminLoginReturn {
    * Handle session warning confirmation (proceed with admin login)
    */
   const handleSessionWarningConfirm = useCallback(async () => {
+    console.log('[useAdminLogin] Session warning confirmed, proceeding with admin login');
     setShowSessionWarning(false);
     setIsLoading(true);
     
     try {
       if (pendingLoginData) {
+        console.log('[useAdminLogin] Calling performLogin with pending data:', pendingLoginData);
         await performLogin(pendingLoginData.contact, pendingLoginData.userId);
+      } else {
+        console.log('[useAdminLogin] ERROR: No pending login data found');
       }
     } catch (error) {
-      console.error('Error during admin login process:', error);
+      console.error('[useAdminLogin] Error during admin login process:', error);
       setErrors((prev) => ({
         ...prev,
         verificationError: 'An error occurred during the login process. Please try again.',

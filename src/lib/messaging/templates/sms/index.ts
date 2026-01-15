@@ -7,4 +7,5 @@
 export * from './booking';
 export * from './payment';
 export * from './appointment';
-export * from './packing-supply'; 
+export * from './packing-supply';
+export * from './account'; 

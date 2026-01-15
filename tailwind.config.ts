@@ -28,17 +28,17 @@ const config: Config = {
           active: 'rgb(63 63 70)', // zinc-700 - active state
         },
 
-        // Status colors (semantic system)
+        // Status colors (main semantic colors for text, borders, rings)
         status: {
           success: 'rgb(16 185 129)', // emerald-500
           warning: 'rgb(245 158 11)', // amber-500
           error: 'rgb(239 68 68)', // red-500
-          info: 'rgb(6 182 212)', // cyan-500
-          pending: 'rgb(245 158 11)', // amber-500
-          processing: 'rgb(6 182 212)', // cyan-500
+          info: 'rgb(8 145 178)', // cyan-600
+          pending: 'rgb(217 119 6)', // amber-600
+          processing: 'rgb(8 145 178)', // cyan-600
         },
 
-        // Status background colors (light variants for badges)
+        // Status background colors (light variants for alerts/badges)
         'status-bg': {
           success: 'rgb(220 252 231)', // emerald-100
           warning: 'rgb(254 243 199)', // amber-100
@@ -48,22 +48,13 @@ const config: Config = {
           processing: 'rgb(207 250 254)', // cyan-100
         },
 
-        // Status text colors (dark variants for badges)
-        'status-text': {
-          success: 'rgb(5 150 105)', // emerald-600
-          warning: 'rgb(217 119 6)', // amber-600
-          error: 'rgb(239 68 68)', // red-500
-          info: 'rgb(8 145 178)', // cyan-600
-          pending: 'rgb(217 119 6)', // amber-600
-          processing: 'rgb(8 145 178)', // cyan-600
-        },
-
         // Surface colors
         surface: {
           primary: 'rgb(255 255 255)', // white
-          secondary: 'rgb(248 250 252)', // slate-50
+          secondary: 'rgb(226 232 240)', // slate-200
           tertiary: 'rgb(241 245 249)', // slate-100
-          disabled: 'rgb(226 232 240)', // slate-200
+          disabled: 'rgb(248 250 252)', // slate-50
+          pressed: 'rgb(203 213 225)', // slate-300
         },
 
         // Text colors (semantic)
@@ -71,14 +62,17 @@ const config: Config = {
           primary: 'rgb(24 24 27)', // zinc-950
           secondary: 'rgb(161 161 170)', // zinc-400
           tertiary: 'rgb(82, 82, 91)', // zinc-600
+          disabled: 'rgb(203 213 225)', // slate-300
           inverse: 'rgb(255 255 255)', // white
         },
 
         // Border colors
         border: {
-          DEFAULT: 'rgb(228 228 231)', // zinc-200
+          DEFAULT: 'rgb(244 244 245)', // zinc-100
           focus: 'rgb(24 24 27)', // zinc-950
-          error: 'rgb(239 68 68)', // red-500
+          error: 'rgb(254 226 226)', // red-100
+          warning: 'rgb(254 243 199)', // amber-100
+          info: 'rgb(207 250 254)', // cyan-100
         },
 
         // Overlay colors
@@ -121,11 +115,21 @@ const config: Config = {
           '0%': { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(0)' },
         },
+        slideDown: {
+          '0%': { opacity: '0', transform: 'translateY(-10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        slideUp: {
+          '0%': { opacity: '1', transform: 'translateY(0)' },
+          '100%': { opacity: '0', transform: 'translateY(-10px)' },
+        },
       },
       animation: {
         shimmer: 'shimmer 3s infinite',
         fadeIn: 'fadeIn 0.3s ease-out',
         slideIn: 'slideIn 0.3s ease-out',
+        slideDown: 'slideDown 0.3s ease-out',
+        slideUp: 'slideUp 0.3s ease-out forwards',
       },
 
       backgroundImage: {

@@ -6,31 +6,31 @@
  * COMPONENT FUNCTIONALITY:
  * Top-level orchestration component for the user dashboard page.
  * Coordinates all dashboard sections including info cards, upcoming appointments,
- * packing supply orders, and storage units. Manages state and navigation for the entire page.
+ * packing supply orders, and storage units.
+ * 
+ * ARCHITECTURE:
+ * - Uses centralized data hook (useCustomerHomePageData) for page-level loading
+ * - Shows page-level skeleton during loading to prevent layout shift
+ * - Passes fetched data as props to child components
+ * - Conditionally renders sections only when data exists
  * 
  * DESIGN SYSTEM UPDATES:
  * - Applied semantic text colors (text-text-primary, text-text-secondary)
  * - Updated button icon colors to use design system tokens
  * - Replaced hardcoded gray colors with semantic color classes
- * 
- * ARCHITECTURE IMPROVEMENTS:
- * - Uses migrated child components from Phase 1-3
- * - Centralized storage unit checking via customerUtils
- * - Proper TypeScript interfaces for all props and callbacks
- * - State management with proper loading handling
  */
 
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CalendarDateRangeIcon, LockOpenIcon } from '@heroicons/react/20/solid';
 import { UpcomingAppointments } from '@/components/features/customers/UpcomingAppointments';
 import { UpcomingPackingSupplyOrders } from '@/components/features/customers/UpcomingPackingSupplyOrders';
 import { UserPageInfoCards } from '@/components/features/customers/UserPageInfoCards';
 import { YourStorageUnits } from '@/components/features/customers/YourStorageUnits';
+import { CustomerHomePageSkeleton } from '@/components/features/customers/CustomerHomePageSkeleton';
 import { InfoCard } from '@/components/ui/primitives/InfoCard';
-import { hasActiveStorageUnits } from '@/lib/utils/customerUtils';
+import { useCustomerHomePageData } from '@/hooks/useCustomerHomePageData';
 
 export interface CompleteUserPageProps {
   userId: string;
@@ -45,76 +45,71 @@ export interface CompleteUserPageProps {
  * - Upcoming packing supply orders
  * - Active storage units
  * 
- * Manages loading states and conditional rendering based on user data
+ * Uses page-level loading to prevent layout shift
  */
 export const CompleteUserPage: React.FC<CompleteUserPageProps> = ({ userId }) => {
   const router = useRouter();
-  const [hasStorage, setHasStorage] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasPackingSupplyOrders, setHasPackingSupplyOrders] = useState(false);
-  const [hasAppointments, setHasAppointments] = useState(false);
-  const [packingSupplyLoading, setPackingSupplyLoading] = useState(true);
-  const [appointmentsLoading, setAppointmentsLoading] = useState(true);
-
-  // Check if user has active storage units
-  useEffect(() => {
-    const checkStorageUnits = async () => {
-      try {
-        const hasUnits = await hasActiveStorageUnits(userId);
-        setHasStorage(hasUnits);
-      } catch (error) {
-        console.error('Error checking storage units:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkStorageUnits();
-  }, [userId]);
-
-  // Callback handlers for child component state updates
-  const handlePackingSupplyOrdersState = (hasOrders: boolean, loading: boolean) => {
-    setHasPackingSupplyOrders(hasOrders);
-    setPackingSupplyLoading(loading);
-  };
-
-  const handleAppointmentsState = (hasAppts: boolean, loading: boolean) => {
-    setHasAppointments(hasAppts);
-    setAppointmentsLoading(loading);
-  };
+  
+  const {
+    appointments,
+    packingSupplyOrders,
+    storageUnits,
+    hasActiveStorage,
+    isLoading,
+    error,
+    setAppointments,
+    setPackingSupplyOrders,
+    setStorageUnits,
+  } = useCustomerHomePageData({ userId });
 
   // Navigation handlers
   const handleAddStorageClick = () => {
-    router.push(`/user-page/${userId}/add-storage`);
+    router.push(`/customer/${userId}/add-storage`);
   };
 
   const handleAccessStorageClick = () => {
-    router.push(`/user-page/${userId}/access-storage`);
+    router.push(`/customer/${userId}/access-storage`);
   };
 
-  // Conditional rendering logic
-  const showNoUpcomingMessage = 
-    !packingSupplyLoading && 
-    !appointmentsLoading && 
-    !hasPackingSupplyOrders && 
-    !hasAppointments;
+  // Show skeleton during initial load
+  if (isLoading) {
+    return <CustomerHomePageSkeleton />;
+  }
 
-  const showInfoCards = 
-    !packingSupplyLoading && 
-    !appointmentsLoading && 
-    !hasPackingSupplyOrders && 
-    !hasAppointments;
+  // Show error state
+  if (error) {
+    return (
+      <div className="max-w-5xl lg:px-16 px-6 mx-auto">
+        <div
+          className="bg-status-error/10 p-4 mb-4 border border-status-error rounded-md"
+          role="alert"
+        >
+          <p className="text-sm text-status-error">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-2 text-sm text-status-error underline hover:no-underline"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Determine what to show based on data
+  const hasUpcomingItems = appointments.length > 0 || packingSupplyOrders.length > 0;
+  const showInfoCards = !hasUpcomingItems;
 
   return (
     <>
       {/* User info cards section */}
-      <UserPageInfoCards userId={userId} />
+      <UserPageInfoCards userId={userId} appointments={appointments} />
       
       {/* Main content section */}
       <div className="flex flex-col lg:px-16 px-6 max-w-5xl w-full mx-auto sm:mb-8 mb-6">
         {/* Action cards - shown when no upcoming items */}
         {showInfoCards && (
-          <div className="flex flex-col sm:mb-10 mb-8">
+          <div className="flex flex-col">
             <InfoCard
               title="Need more storage space?"
               description="No problem! We've got you covered. Book an appointment for a storage unit to be delivered right to your door."
@@ -123,7 +118,7 @@ export const CompleteUserPage: React.FC<CompleteUserPageProps> = ({ userId }) =>
               onButtonClick={handleAddStorageClick}
               showCloseIcon={false}
             />
-            {hasStorage && (
+            {hasActiveStorage && (
               <InfoCard
                 title="Need access to your storage unit?"
                 description="Sure thing! We'll bring your storage unit to you, so you can add or remove items as needed."
@@ -136,35 +131,43 @@ export const CompleteUserPage: React.FC<CompleteUserPageProps> = ({ userId }) =>
           </div>
         )}
 
-        {/* Upcoming section header */}
-        <h2 className="text-2xl font-semibold sm:mb-4 mb-2 text-text-primary">
-          Upcoming
-        </h2>
-        
-        {/* Empty state message */}
-        {showNoUpcomingMessage && (
-          <p className="text-text-secondary sm:mb-4 mb-2">
-            You have no upcoming appointments.
-          </p>
+        {/* Upcoming section - only show if there are upcoming items */}
+        {hasUpcomingItems && (
+          <>
+            <h2 className="text-2xl font-semibold sm:mb-4 mb-2 text-text-primary mt-8 sm:mt-8">
+              Upcoming
+            </h2>
+            
+            {/* Upcoming packing supply orders */}
+            {packingSupplyOrders.length > 0 && (
+              <UpcomingPackingSupplyOrders 
+                userId={userId}
+                orders={packingSupplyOrders}
+                onOrdersChange={setPackingSupplyOrders}
+              />
+            )}
+            
+            {/* Upcoming appointments */}
+            {appointments.length > 0 && (
+              <UpcomingAppointments 
+                userId={userId}
+                appointments={appointments}
+                hasActiveStorageUnits={hasActiveStorage}
+                onAppointmentsChange={setAppointments}
+              />
+            )}
+          </>
         )}
-        
-        {/* Upcoming packing supply orders */}
-        <UpcomingPackingSupplyOrders 
-          userId={userId} 
-          onStateChange={handlePackingSupplyOrdersState}
-        />
-        
-        {/* Upcoming appointments */}
-        <UpcomingAppointments 
-          userId={userId} 
-          hasActiveStorageUnits={hasStorage}
-          onStateChange={handleAppointmentsState}
-        />
       </div>
 
-      {/* Storage units section */}
-      <YourStorageUnits userId={userId} />
+      {/* Storage units section - only show if there are storage units */}
+      {storageUnits.length > 0 && (
+        <YourStorageUnits 
+          userId={userId}
+          storageUnits={storageUnits}
+          onStorageUnitsChange={setStorageUnits}
+        />
+      )}
     </>
   );
 };
-

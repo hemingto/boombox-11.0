@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * @fileoverview Third Party Labor Card - Radio card component for selecting third-party moving partners
  * @source boombox-10.0/src/app/components/reusablecomponents/thirdpartylaborcard.tsx
@@ -24,14 +26,14 @@
  * - Added proper role attributes and semantic HTML
  * - Ensured WCAG 2.1 AA color contrast compliance
  * 
- * @refactor Migrated to use OptimizedImage primitive, applied design system colors,
+ * @refactor Migrated to use Next.js Image, applied design system colors,
  * enhanced accessibility with ARIA labels, improved error handling UX
  */
 
 import React, { useState } from "react";
+import Image from 'next/image';
 import { StarIcon } from "@heroicons/react/20/solid";
 import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline";
-import { OptimizedImage } from "@/components/ui/primitives";
 
 interface ThirdPartyLaborCardProps {
   id: string;
@@ -85,12 +87,12 @@ const ThirdPartyLaborCard: React.FC<ThirdPartyLaborCardProps> = ({
   return (
     <label
       htmlFor={id}
-      className={`mb-4 p-4 rounded-md flex justify-between cursor-pointer transition-all duration-200 ${
+      className={`mb-4 p-4 rounded-md flex justify-between cursor-pointer ${
         hasError
           ? "ring-status-error bg-status-bg-error ring-2"
           : checked
           ? "ring-primary ring-2 bg-surface-primary"
-          : "ring-border ring-2 bg-surface-tertiary hover:bg-surface-primary hover:ring-border-focus"
+          : "ring-border ring-2 bg-surface-tertiary"
       }`}
       aria-describedby={`${id}-description ${id}-rating`}
       aria-label={`Select ${title} for $${price}`}
@@ -102,10 +104,10 @@ const ThirdPartyLaborCard: React.FC<ThirdPartyLaborCardProps> = ({
           {/* Partner Image */}
           <div className="relative w-28 h-28 bg-surface-disabled flex flex-none justify-center items-center rounded-md mr-3">
             {imageSrc && !isImageBroken ? (
-              <OptimizedImage
+              <Image
                 src={imageSrc}
                 alt={`${title} company logo`}
-                className="object-contain w-full h-full rounded-md p-1"
+                className="object-contain rounded-md p-1"
                 width={112}
                 height={112}
                 onError={() => setIsImageBroken(true)}

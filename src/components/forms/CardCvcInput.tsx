@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * @fileoverview Card CVC input component with Stripe integration and design system compliance
  * @source boombox-10.0/src/app/components/reusablecomponents/cardcvcinput.tsx
@@ -62,6 +64,7 @@ const CardCvcInput: React.FC<CardCvcInputProps> = ({
 
   const handleFocus = () => {
     setIsFocused(true);
+    setHasError(false); // Clear error state when user focuses
     onFocus?.();
   };
 
@@ -74,48 +77,33 @@ const CardCvcInput: React.FC<CardCvcInputProps> = ({
     style: {
       base: {
         fontSize: '16px',
-        color: 'rgb(24 24 27)', // text-primary from design system
-        fontFamily: 'var(--font-poppins), Poppins, sans-serif',
+        color: '#1f2937',
+        fontFamily: 'Poppins, sans-serif',
         lineHeight: '24px',
         fontWeight: '400',
         '::placeholder': {
-          color: 'rgb(161 161 170)', // text-secondary from design system
+          color: hasError ? 'rgb(239 68 68)' : (isFocused ? '#18181b' : '#a1a1aa'), // Red when error, zinc-950 when focused, zinc-400 otherwise
           fontSize: '14px',
         },
       },
       invalid: {
         color: 'rgb(239 68 68)', // status-error from design system
-        '::placeholder': {
-          color: 'rgb(239 68 68)', // status-error from design system
-        },
       },
     },
     placeholder,
     disabled,
   };
 
-  // Determine container classes based on state
-  const getContainerClasses = () => {
-    const baseClasses = 'py-2.5 px-3 rounded-md transition-all duration-200';
-    
-    if (disabled) {
-      return `${baseClasses} bg-surface-disabled cursor-not-allowed opacity-60`;
-    }
-    
-    if (hasError) {
-      return `${baseClasses} input-field--error`;
-    }
-    
-    if (isFocused) {
-      return `${baseClasses} bg-surface-primary ring-2 ring-border-focus border-transparent`;
-    }
-    
-    return `${baseClasses} input-field`;
-  };
+  // Match boombox-10.0 styling exactly
+  const inputClassName = hasError
+    ? 'ring-2 ring-border-error bg-red-50 border-border-error'
+    : isFocused
+    ? 'ring-zinc-950 ring-2 bg-white placeholder:text-zinc-950'
+    : 'bg-slate-100';
 
   return (
     <div
-      className={`${getContainerClasses()} ${className}`}
+      className={`py-2.5 px-3 rounded-md focus:outline-none focus:ring-zinc-950 ${inputClassName} ${className}`}
       role="group"
       aria-label={ariaLabel}
       aria-invalid={hasError}

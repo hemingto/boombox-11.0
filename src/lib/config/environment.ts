@@ -28,6 +28,7 @@ const envSchema = z.object({
 
   // Onfleet Logistics Integration
   ONFLEET_API_KEY: z.string().min(1),
+  ONFLEET_WEBHOOK_SECRET: z.string().min(1).optional(),
   BOOMBOX_PACKING_SUPPLY_DELIVERY_DRIVERS: z.string().min(1).optional(),
   BOOMBOX_DELIVERY_NETWORK_TEAM_ID: z.string().min(1).optional(),
 
@@ -99,6 +100,7 @@ export const config = {
   // Onfleet Logistics Integration
   onfleet: {
     apiKey: env.ONFLEET_API_KEY,
+    webhookSecret: env.ONFLEET_WEBHOOK_SECRET,
     packingSupplyTeamId: env.BOOMBOX_PACKING_SUPPLY_DELIVERY_DRIVERS,
     deliveryNetworkTeamId: env.BOOMBOX_DELIVERY_NETWORK_TEAM_ID,
   },

@@ -22,112 +22,112 @@ exports[`SiteMapLinks Snapshot matches snapshot 1`] = `
         >
           <a
             aria-label="Navigate to Homepage"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/"
           >
             Homepage
           </a>
           <a
             aria-label="Navigate to Storage Unit Prices"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/storage-unit-prices"
           >
             Storage Unit Prices
           </a>
           <a
             aria-label="Navigate to Locations"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/locations"
           >
             Locations
           </a>
           <a
             aria-label="Navigate to Terms"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/terms"
           >
             Terms
           </a>
           <a
             aria-label="Navigate to Careers"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/careers"
           >
             Careers
           </a>
           <a
             aria-label="Navigate to Storage Guidelines"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/storage-guidelines"
           >
             Storage Guidelines
           </a>
           <a
             aria-label="Navigate to Holiday Storage"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/holiday-storage"
           >
             Holiday Storage
           </a>
           <a
             aria-label="Navigate to Blog"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/blog"
           >
             Blog
           </a>
           <a
             aria-label="Navigate to Storage Calculator"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/storage-calculator"
           >
             Storage Calculator
           </a>
           <a
             aria-label="Navigate to Packing Supplies"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/packing-supplies"
           >
             Packing Supplies
           </a>
           <a
             aria-label="Navigate to Insurance"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/insurance"
           >
             Insurance
           </a>
           <a
             aria-label="Navigate to How it works"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/how-it-works"
           >
             How it works
           </a>
           <a
             aria-label="Navigate to Help Center"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/help-center"
           >
             Help Center
           </a>
           <a
             aria-label="Navigate to Driver Sign Up"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/driver-sign-up"
           >
             Driver Sign Up
           </a>
           <a
             aria-label="Navigate to Checklist"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/checklist"
           >
             Checklist
           </a>
           <a
             aria-label="Navigate to Get Quote"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/get-quote"
           >
             Get Quote
@@ -152,35 +152,35 @@ exports[`SiteMapLinks Snapshot matches snapshot 1`] = `
         >
           <a
             aria-label="Navigate to Blog Post"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/blog-post-1"
           >
             Blog Post
           </a>
           <a
             aria-label="Navigate to Blog Post"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/blog-post-2"
           >
             Blog Post
           </a>
           <a
             aria-label="Navigate to Blog Post"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/blog-post-3"
           >
             Blog Post
           </a>
           <a
             aria-label="Navigate to Blog Post"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/blog-post-4"
           >
             Blog Post
           </a>
           <a
             aria-label="Navigate to Blog Post"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/blog-post-5"
           >
             Blog Post
@@ -205,49 +205,49 @@ exports[`SiteMapLinks Snapshot matches snapshot 1`] = `
         >
           <a
             aria-label="Navigate to Burlingame"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/locations/burlingame"
           >
             Burlingame
           </a>
           <a
             aria-label="Navigate to Cupertino"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/locations/cupertino"
           >
             Cupertino
           </a>
           <a
             aria-label="Navigate to San Jose"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/locations/san-jose"
           >
             San Jose
           </a>
           <a
             aria-label="Navigate to Santa Clara"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/locations/santa-clara"
           >
             Santa Clara
           </a>
           <a
             aria-label="Navigate to Mountain View"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/locations/mountain-view"
           >
             Mountain View
           </a>
           <a
             aria-label="Navigate to Palo Alto"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/locations/palo-alto"
           >
             Palo Alto
           </a>
           <a
             aria-label="Navigate to Berkeley"
-            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary transition-colors duration-150"
+            class="bg-surface-tertiary text-sm py-2 px-4 rounded-full cursor-pointer hover:bg-surface-secondary active:bg-surface-primary duration-150"
             href="/locations/berkeley"
           >
             Berkeley

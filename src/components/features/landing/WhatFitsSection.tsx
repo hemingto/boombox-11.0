@@ -16,10 +16,8 @@
  * - Used semantic layout patterns
  *
  * IMAGE OPTIMIZATION:
- * - ✅ CRITICAL: Replaced bg-slate-100 placeholder div with OptimizedImage component
- * - Uses lazy loading for better performance
+ * - Uses Next.js Image with lazy loading for better performance
  * - Proper aspect ratio (square) and responsive sizing
- * - Fallback support for failed image loads
  * - Descriptive alt text for accessibility
  *
  * ACCESSIBILITY IMPROVEMENTS:
@@ -35,14 +33,14 @@
  * - Same responsive behavior
  * - Same two-column desktop, stacked mobile layout
  *
- * @refactor Refactored to use design system, OptimizedImage component, improve accessibility, and align with boombox-11.0 structure.
+ * @refactor Refactored to use design system, improve accessibility, and align with boombox-11.0 structure.
  */
 
 'use client';
 
 import React from 'react';
 import Link from 'next/link';
-import { OptimizedImage } from '@/components/ui/primitives/OptimizedImage/OptimizedImage';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
 export interface WhatFitsSectionProps {
@@ -140,19 +138,15 @@ export function WhatFitsSection({
 
       {/* Right column: Image */}
       <div className="flex place-content-end basis-1/2">
-        <div className="w-full md:ml-8">
-          <OptimizedImage
+        <div className="relative w-full h-full md:ml-8 aspect-square rounded-md overflow-hidden">
+          <Image
             src={imageSrc}
             alt={imageAlt}
-            width={600}
-            height={600}
-            aspectRatio="square"
-            containerClassName="w-full rounded-md"
+            fill
             className="rounded-md object-cover"
             loading="lazy"
             quality={85}
             sizes="(max-width: 768px) 100vw, 50vw"
-            fallbackSrc="/placeholder.jpg"
           />
         </div>
       </div>

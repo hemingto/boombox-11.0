@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { ChevronLeftIcon } from '@heroicons/react/20/solid';
 
 export interface PaymentsHeroProps {
-  userId: string;
+ userId: string;
 }
 
 /**
@@ -22,17 +22,22 @@ export interface PaymentsHeroProps {
  * - Responsive spacing
  */
 export const PaymentsHero: React.FC<PaymentsHeroProps> = ({ userId }) => {
-  return (
-    <div className="flex flex-col mt-12 sm:mt-24 mb-12 lg:px-16 px-6 max-w-5xl w-full mx-auto">
-      <div className="flex items-center gap-2 lg:-ml-10">
-        <Link href={`/user-page/${userId}`} aria-label="Back to dashboard">
-          <ChevronLeftIcon 
-            className="w-8 cursor-pointer shrink-0 text-text-primary hover:text-text-secondary transition-colors"
-          />
-        </Link>
-        <h1 className="text-4xl font-semibold text-text-primary">Payments</h1>
-      </div>
-    </div>
-  );
+ return (
+  <div className="flex flex-col mt-12 sm:mt-24 mb-12 lg:px-16 px-6 max-w-5xl w-full mx-auto">
+   <div className="flex items-center gap-2 lg:-ml-10">
+    <Link 
+     href={`/customer/${userId}`} 
+     aria-label="Back to dashboard"
+     className="p-1 -mr-1 rounded-full hover:bg-surface-tertiary text-text-secondary hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2"
+    >
+     <ChevronLeftIcon 
+      className="w-8 h-8"
+      aria-hidden="true"
+     />
+    </Link>
+    <h1 className="text-4xl font-semibold text-text-primary">Payments</h1>
+   </div>
+  </div>
+ );
 };
 

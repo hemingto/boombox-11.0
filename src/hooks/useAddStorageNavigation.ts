@@ -26,28 +26,17 @@ export function useAddStorageNavigation(
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  // Initialize step from URL or default to step 1
+  // Always start at step 1 (URL persistence disabled)
   const getInitialStep = useCallback((): AddStorageStep => {
-    const stepParam = searchParams.get('step');
-    if (stepParam) {
-      const stepNumber = parseInt(stepParam, 10);
-      if (stepNumber >= 1 && stepNumber <= 4) {
-        return stepNumber as AddStorageStep;
-      }
-    }
-    return AddStorageStep.ADDRESS_AND_PLAN;
-  }, [searchParams]);
+    return AddStorageStep.ADDRESS_AND_PLAN; // Always start at step 1
+  }, []);
 
   const [currentStep, setCurrentStep] = useState<AddStorageStep>(getInitialStep);
 
-  // Update URL when step changes (shallow routing to maintain form state)
+  // No-op: URL persistence disabled
   const updateUrl = useCallback((step: AddStorageStep) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('step', step.toString());
-    
-    // App Router automatically optimizes navigation without page refresh
-    router.push(`?${params.toString()}`);
-  }, [router, searchParams]);
+    // No-op: URL persistence disabled
+  }, []);
 
   // Scroll to top when step changes (following original behavior)
   const scrollToTop = useCallback(() => {
@@ -58,8 +47,10 @@ export function useAddStorageNavigation(
    * Navigate to a specific step with validation
    */
   const goToStep = useCallback((step: AddStorageStep) => {
-    // Validate current step before proceeding if validator is provided
-    if (validateStep && !validateStep(currentStep)) {
+    // Only validate if moving forward (not backward)
+    // Users should always be able to go back to previous steps
+    const isMovingForward = step > currentStep;
+    if (isMovingForward && validateStep && !validateStep(currentStep)) {
       return false;
     }
 
@@ -212,15 +203,6 @@ export function useAddStorageNavigation(
     canProceedToNext: canProceedToNext(),
     canGoBack: canGoBack(),
   };
-
-  // Sync step with URL parameters on mount and when URL changes
-  useEffect(() => {
-    const urlStep = getInitialStep();
-    if (urlStep !== currentStep) {
-      setCurrentStep(urlStep);
-      onStepChange?.(urlStep);
-    }
-  }, [getInitialStep, currentStep, onStepChange]);
 
   return {
     currentStep,

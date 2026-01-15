@@ -20,8 +20,7 @@ import { BoomboxLogo } from "@/components/icons/BoomboxLogo";
 import Link from 'next/link';
 import { MoverMenuPopover } from "./MoverMenuPopover";
 import { MoverMobileMenu } from "./MoverMobileMenu";
-// Note: NotificationBell import needs to be updated based on new structure
-// import NotificationBell from "../notifications/notification-bell";
+import { NotificationBell } from "./NotificationBell";
 
 interface MoverNavbarProps {
   theme?: 'dark' | 'light';
@@ -31,7 +30,7 @@ interface MoverNavbarProps {
 
 export const MoverNavbar: React.FC<MoverNavbarProps> = ({ theme = 'dark', userType, userId }) => {
   const isDarkTheme = theme === 'dark';
-  const baseUrl = userType === "driver" ? `/driver-account-page/${userId}` : `/mover-account-page/${userId}`;
+  const baseUrl = userType === "driver" ? `/service-provider/driver/${userId}` : `/service-provider/mover/${userId}`;
 
   return (
     <header role="banner">
@@ -53,14 +52,13 @@ export const MoverNavbar: React.FC<MoverNavbarProps> = ({ theme = 'dark', userTy
           </ul>
 
           <ul className="md:basis-1/2 flex justify-end items-center grow gap-3">
-            {/* 
             <li>
               <NotificationBell 
                 recipientId={parseInt(userId)} 
                 recipientType={userType === "driver" ? "DRIVER" : "MOVER"} 
+                isDarkTheme={isDarkTheme}
               />
             </li>
-            */}
 
             <li>
               <MoverMenuPopover className="hidden sm:block" theme={theme} userType={userType} userId={userId} />

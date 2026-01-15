@@ -7,7 +7,7 @@
 'use client';
 
 import { SubPageHero } from '@/components/features/service-providers/account/SubPageHero';
-import { VehicleInfoTable } from '@/components/features/service-providers/vehicle/VehicleInfoTable';
+import AddedVehicle from '@/components/features/service-providers/vehicle/AddedVehicle';
 import { use } from 'react';
 
 // Define a type for the resolved params for clarity
@@ -26,14 +26,12 @@ export default function DriverVehiclePage({
   return (
     <>
       <SubPageHero
-        title="Vehicles"
-        description="Manage your vehicles"
+        title="Vehicle information"
+        description="Add vehicle or update insurance information"
         userType="driver"
         userId={driverId}
       />
-      <div className="lg:px-16 px-6 max-w-5xl mx-auto">
-        <VehicleInfoTable driverId={driverId} />
-      </div>
+      <AddedVehicle userId={driverId} userType="driver" />
     </>
   );
 }

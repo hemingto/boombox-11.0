@@ -1,0 +1,68 @@
+/**
+ * @fileoverview Onfleet webhook signature validation utility
+ * @description Validates incoming Onfleet webhook requests using HMAC-SHA512
+ * to ensure authenticity and prevent tampering
+ */
+
+import { NextRequest } from 'next/server';
+import crypto from 'crypto';
+import { config } from '@/lib/config/environment';
+
+/**
+ * Validates the Onfleet webhook signature using HMAC-SHA512
+ * 
+ * @param request - The incoming Next.js request object
+ * @param rawBody - The raw request body as a string (must be read before parsing)
+ * @returns Promise<boolean> - Whether the signature is valid
+ * 
+ * @example
+ * ```typescript
+ * const rawBody = await req.text();
+ * if (!await validateOnfleetSignature(req, rawBody)) {
+ *   return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+ * }
+ * const webhookData = JSON.parse(rawBody);
+ * ```
+ */
+export async function validateOnfleetSignature(
+  request: NextRequest, 
+  rawBody: string
+): Promise<boolean> {
+  // Skip validation in development for easier testing
+  if (config.app.isDevelopment) {
+    console.log('[Webhook] Skipping signature validation in development');
+    return true;
+  }
+  
+  const signature = request.headers.get('X-Onfleet-Signature');
+  const secret = config.onfleet.webhookSecret;
+  
+  if (!signature) {
+    console.error('[Webhook] Missing X-Onfleet-Signature header');
+    return false;
+  }
+  
+  if (!secret) {
+    console.error('[Webhook] Missing ONFLEET_WEBHOOK_SECRET environment variable');
+    return false;
+  }
+  
+  // Compute HMAC-SHA512 hash of the raw body
+  const hmac = crypto
+    .createHmac('sha512', secret)
+    .update(rawBody)
+    .digest('hex');
+    
+  // Use timing-safe comparison to prevent timing attacks
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(signature),
+      Buffer.from(hmac)
+    );
+  } catch (error) {
+    // timingSafeEqual throws if buffers have different lengths
+    console.error('[Webhook] Signature length mismatch');
+    return false;
+  }
+}
+

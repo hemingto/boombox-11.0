@@ -66,10 +66,28 @@ export async function PATCH(
     // 2. Has an Onfleet team ID
     // 3. Has at least one approved driver
     if (mover.isApproved && mover.onfleetTeamId && mover.approvedDrivers.length > 0) {
+      // If transitioning to ACTIVE and activeMessageShown is true, reset it
+      // This allows the message to show again when status returns to ACTIVE
+      const shouldResetMessage = mover.status !== MovingPartnerStatus.ACTIVE && mover.activeMessageShown;
+      
       const updatedMover = await prisma.movingPartner.update({
         where: { id: moverIdNum },
         data: {
-          status: MovingPartnerStatus.ACTIVE
+          status: MovingPartnerStatus.ACTIVE,
+          ...(shouldResetMessage && { activeMessageShown: false })
+        }
+      });
+
+      return NextResponse.json(updatedMover);
+    }
+
+    // If status is currently ACTIVE but criteria are no longer met, deactivate and reset flag
+    if (mover.status === MovingPartnerStatus.ACTIVE) {
+      const updatedMover = await prisma.movingPartner.update({
+        where: { id: moverIdNum },
+        data: {
+          status: MovingPartnerStatus.INACTIVE,
+          activeMessageShown: false
         }
       });
 

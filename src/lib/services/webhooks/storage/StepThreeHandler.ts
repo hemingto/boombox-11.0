@@ -8,25 +8,8 @@ import {
   findAppointmentByOnfleetTask,
   updateAppointmentStatus
 } from '@/lib/utils/webhookQueries';
+import { AppointmentPayoutService } from '@/lib/services/payments/AppointmentPayoutService';
 import type { OnfleetWebhookPayload } from '@/lib/validations/api.validations';
-
-// @REFACTOR-P9-TEMP: Replace with migrated payout service when API_005 completes  
-// Priority: High | Est: 2h | Dependencies: API_005_DRIVERS_DOMAIN
-const processAppointmentPayout = async (appointmentId: number) => {
-  console.log('PLACEHOLDER: processAppointmentPayout called for appointment', appointmentId);
-  return { 
-    success: false, 
-    error: 'Placeholder implementation',
-    amount: 0,
-    transferId: 'placeholder-transfer-id'
-  };
-};
-
-// @REFACTOR-P9-TEMP: Replace with migrated SMS notification when API_005 completes
-// Priority: High | Est: 30min | Dependencies: API_005_DRIVERS_DOMAIN
-const sendPayoutNotificationSMS = async (appointmentId: number, amount: number, appointment: any) => {
-  console.log('PLACEHOLDER: sendPayoutNotificationSMS called for appointment', appointmentId, 'amount:', amount);
-};
 
 export class StepThreeHandler {
   /**
@@ -34,55 +17,63 @@ export class StepThreeHandler {
    * Updates appointment status and processes driver payout
    */
   static async handleTaskCompleted(webhookData: OnfleetWebhookPayload): Promise<void> {
+    console.log('=== [StepThreeHandler] handleTaskCompleted START ===');
+    
     const { data } = webhookData;
     const taskDetails = data?.task;
 
+    console.log(`[StepThreeHandler] taskDetails exists: ${!!taskDetails}`);
+
     if (!taskDetails) {
+      console.error('[StepThreeHandler] ERROR: No task details found');
       throw new Error('No task details found in webhook data');
     }
 
-    console.log('Processing Step 3 completion webhook with shortId:', taskDetails.shortId);
+    console.log(`[StepThreeHandler] Task shortId: ${taskDetails.shortId}`);
 
     // Find appointment with necessary includes
+    console.log(`[StepThreeHandler] Looking up appointment (stepNumber: 3)`);
     const appointment = await findAppointmentByOnfleetTask(
       taskDetails.shortId,
       { stepNumber: 3 }
     );
 
     if (!appointment) {
-      console.log('No appointment found for task:', taskDetails.shortId);
+      console.log(`[StepThreeHandler] WARNING: No appointment found for task: ${taskDetails.shortId}`);
       return;
     }
 
+    console.log(`[StepThreeHandler] Appointment found: ${appointment.id}`);
+
     // Update appointment status to awaiting admin check-in
+    console.log(`[StepThreeHandler] Updating appointment ${appointment.id} status to "Awaiting Admin Check In"`);
     await updateAppointmentStatus(appointment.id, 'Awaiting Admin Check In');
-    
-    console.log('Updated appointment status to Awaiting Admin Check In');
+    console.log('[StepThreeHandler] Appointment status updated successfully');
 
     // Process payout for the completed job (full job compensation)
+    console.log('[StepThreeHandler] Processing job payout...');
     await this.processJobPayout(appointment);
+
+    console.log('=== [StepThreeHandler] handleTaskCompleted COMPLETE ===');
   }
 
   /**
    * Process driver payout for completed job
-   * @REFACTOR-P9-TEMP: This will be replaced when API_005_DRIVERS_DOMAIN is completed
+   * Uses AppointmentPayoutService which handles Stripe transfer and SMS notification
    */
   private static async processJobPayout(appointment: any): Promise<void> {
+    console.log(`[StepThreeHandler:Payout] Starting payout processing for appointment: ${appointment.id}`);
+    
     try {
-      console.log(`Processing payout for completed job - Appointment: ${appointment.id}`);
-      
-      const payoutResult = await processAppointmentPayout(appointment.id);
+      const payoutResult = await AppointmentPayoutService.processAppointmentPayout(appointment.id);
       
       if (payoutResult.success) {
-        console.log(`Payout completed for appointment ${appointment.id}: $${payoutResult.amount} (Transfer ID: ${payoutResult.transferId})`);
-        
-        // Send SMS notification to worker with earnings
-        await sendPayoutNotificationSMS(appointment.id, payoutResult.amount!, appointment);
+        console.log(`[StepThreeHandler:Payout] SUCCESS: Payout completed for appointment ${appointment.id}: $${payoutResult.amount} (Transfer ID: ${payoutResult.transferId})`);
       } else {
-        console.error(`Payout failed for appointment ${appointment.id}:`, payoutResult.error);
+        console.error(`[StepThreeHandler:Payout] FAILED: Payout failed for appointment ${appointment.id}:`, payoutResult.error);
       }
     } catch (payoutError) {
-      console.error('Error processing payout for completed job:', appointment.id, payoutError);
+      console.error(`[StepThreeHandler:Payout] ERROR: Exception processing payout for appointment ${appointment.id}:`, payoutError);
       // Don't fail the entire webhook if payout fails
     }
   }

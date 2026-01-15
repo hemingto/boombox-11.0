@@ -158,11 +158,12 @@ export class AssignStorageUnitService {
         trailerPhotos
       );
 
-      // Update Onfleet tasks with storage unit assignments
+      // Update Onfleet tasks with storage unit assignments and driver verification
       await updateOnfleetTasksWithStorageUnits(
         appointmentId,
         unitIndex,
-        validation.availableUnits
+        validation.availableUnits,
+        driverMatches
       );
 
       // Create admin log entry

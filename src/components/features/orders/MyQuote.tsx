@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * @fileoverview Unified MyQuote component for order pricing display with responsive design
  * @source boombox-10.0/src/app/components/getquote/myquote.tsx
@@ -19,6 +21,7 @@
 import React, { useMemo } from 'react';
 import { GoogleMap, Marker } from '@react-google-maps/api';
 import { Tooltip } from '@/components/ui/primitives/Tooltip/Tooltip';
+import { Button } from '@/components/ui/primitives/Button/Button';
 import { HelpIcon } from '@/components/icons';
 import SendQuoteEmail from '@/components/forms/SendQuoteEmailModal';
 import { InsuranceOption } from '@/types/insurance';
@@ -60,6 +63,9 @@ interface MyQuoteProps {
   originalTotal?: number;
   showPriceComparison?: boolean;
   editModeTitle?: string;
+  
+  // Button state props
+  isButtonDisabled?: boolean;
 }
 
 const containerStyle = {
@@ -99,6 +105,9 @@ export function MyQuote({
   originalTotal,
   showPriceComparison = false,
   editModeTitle,
+  
+  // Button state props
+  isButtonDisabled = false,
 }: MyQuoteProps) {
   // Use custom hook for quote state management and calculations
   const {
@@ -224,9 +233,9 @@ export function MyQuote({
               {mapCenter && <Marker position={mapCenter} />}
             </GoogleMap>
           </div>
-          <p className="text-sm text-text-secondary mb-1">Address</p>
+          <p className="text-sm text-text-tertiary mb-1">Address</p>
           <p id="address-input" className="mb-4 text-text-primary">{address || '---'}</p>
-          <p className="text-sm text-text-secondary mb-1">Date and Time</p>
+          <p className="text-sm text-text-tertiary mb-1">Date and Time</p>
           <p id="date-time-input" className="text-text-primary">{formatVerboseDate(scheduledDate)} {scheduledTimeSlot ? `between ${scheduledTimeSlot}` : ''}</p>
         </div>
         <h3 className="text-xl font-semibold mb-4 text-text-primary">Price details</h3>
@@ -237,7 +246,7 @@ export function MyQuote({
               <p className="text-text-primary">
                 {boomboxPrice !== null ? (
                   <>
-                    <span className="text-text-secondary line-through text-xs mr-1">
+                    <span className="text-text-tertiary line-through text-xs mr-1">
                       {formatStorageUnitPrice(boomboxPrice, storageUnitCount).strikethroughPrice}
                     </span> 
                     {formatStorageUnitPrice(boomboxPrice, storageUnitCount).price}
@@ -257,7 +266,7 @@ export function MyQuote({
           <div className="flex justify-between mb-4">
             <p className="text-text-primary">{selectedPlanName || 'Loading Help'}</p>
             <p className="text-text-primary">
-              <span className="text-text-secondary text-xs mr-1">{loadingHelpDescription}</span> 
+              <span className="text-text-tertiary text-xs mr-1">{loadingHelpDescription}</span> 
               {loadingHelpPrice || '--- '}
             </p>
           </div>
@@ -277,8 +286,8 @@ export function MyQuote({
           )}
         </div>
         <div className="flex justify-between mb-2">
-          <p className="text-text-secondary mr-1">Due Today</p>
-          <p className="text-text-secondary mr-1">$0</p>
+          <p className="text-text-tertiary mr-1">Due Today</p>
+          <p className="text-text-tertiary mr-1">$0</p>
         </div>
         <div className="flex justify-between mb-8">
           <div className="flex items-center">
@@ -296,7 +305,7 @@ export function MyQuote({
                 <p className={`text-sm mt-1 ${
                   priceComparison.type === 'increase' ? 'text-status-warning' :
                   priceComparison.type === 'decrease' ? 'text-status-success' :
-                  'text-text-secondary'
+                  'text-text-tertiary'
                 }`}>
                   {priceComparison.message}
                 </p>
@@ -308,19 +317,20 @@ export function MyQuote({
               {pricing.total > 0 ? `$${pricing.total}` : '---'}
             </p>
             {isEditMode && originalTotal && originalTotal !== pricing.total && (
-              <p className="text-sm text-text-secondary line-through">
+              <p className="text-sm text-text-tertiary line-through">
                 ${originalTotal.toFixed(2)}
               </p>
             )}
           </div>
         </div>
-        <button
-          className="btn-primary w-full disabled:bg-surface-disabled disabled:cursor-not-allowed disabled:text-text-tertiary"
+        <Button
+          variant="primary"
+          fullWidth
           onClick={handleSubmit}
-          disabled={isAccessStorage && accessStorageUnitCount === 0}
+          disabled={isButtonDisabled || (isAccessStorage && accessStorageUnitCount === 0)}
         >
           {buttonTexts?.[currentStep] || (currentStep === 2 ? "Add Moving Help" : currentStep === 3 ? "Confirm Appointment" : "Reserve Appointment")}
-        </button>
+        </Button>
       </div>
 
       {/* Mobile Layout */}
@@ -472,9 +482,14 @@ export function MyQuote({
               <button
                 className="btn-secondary disabled:bg-surface-disabled disabled:cursor-not-allowed disabled:text-text-tertiary"
                 onClick={handleSubmit}
-                disabled={isAccessStorage && accessStorageUnitCount === 0}
+                disabled={isButtonDisabled || (isAccessStorage && accessStorageUnitCount === 0)}
               >
-                {buttonTexts?.[currentStep] || "Reserve"}
+                {(() => {
+                  const text = buttonTexts?.[currentStep] || (currentStep === 2 ? "Add Help" : currentStep === 3 ? "Confirm" : "Reserve");
+                  if (text === "Schedule Appointment") return "Schedule";
+                  if (text === "Reserve Appointment") return "Reserve";
+                  return text;
+                })()}
               </button>
             </div>
           </div>

@@ -63,30 +63,30 @@ export const RadioCards: React.FC<RadioCardsProps> = ({
   return (
     <label
       htmlFor={id}
-      className={`mb-2 rounded-md flex flex-col justify-between cursor-pointer transition-all duration-200 focus-within:outline-none focus-within:ring-2 focus-within:ring-border-focus focus-within:ring-offset-2
+      className={`mb-2 rounded-md flex flex-col justify-between cursor-pointer
         ${hasError 
-          ? 'ring-border-error bg-status-bg-error ring-2'
+          ? 'ring-border-error bg-red-50 ring-2'
           : checked 
             ? 'ring-primary ring-2 bg-surface-primary'
-            : 'ring-border ring-2 bg-surface-tertiary hover:bg-surface-secondary' 
+            : 'ring-slate-100 ring-2 bg-slate-100' 
         }`}
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >
-      <div className={`flex flex-col items-center border-b-2 transition-colors duration-200
+      <div className={`flex flex-col items-center border-b-2
         ${hasError 
           ? 'border-border-error' 
           : checked 
             ? 'border-primary' 
-            : 'border-surface-primary' 
+            : 'border-white' 
         }`}
       >
-        <div className="p-4 h-16 sm:h-20 flex items-center justify-center" aria-hidden="true">
+        <div className="p-4 h-16 sm:h-20" aria-hidden="true">
           {icon}
         </div>
         <div className="pb-4 w-full text-center">
-          <p className={`px-4 pt-4 text-sm font-medium transition-colors duration-200 ${
-            hasError ? 'text-status-error' : 'text-text-primary'
+          <p className={`px-4 pt-4 text-sm ${
+            hasError ? 'text-status-error' : ''
           }`}>
             {title}
           </p>
@@ -94,16 +94,16 @@ export const RadioCards: React.FC<RadioCardsProps> = ({
       </div>
       
       <div className="p-4 flex justify-between items-center">
-        <div className="flex-1">
-          <p className={`text-sm font-semibold transition-colors duration-200 ${
-            hasError ? 'text-status-error' : 'text-text-primary'
+        <div>
+          <p className={`text-sm ${
+            hasError ? 'text-status-error' : ''
           }`}>
             {plan}
           </p>
           <p 
             id={`${id}-description`}
-            className={`text-xs transition-colors duration-200 ${
-              hasError ? 'text-status-text-error' : 'text-text-secondary'
+            className={`text-xs ${
+              hasError ? 'text-red-300' : 'text-text-tertiary'
             }`}
           >
             {description}
@@ -116,7 +116,7 @@ export const RadioCards: React.FC<RadioCardsProps> = ({
           name="storageOption"
           checked={checked}
           onChange={handleChange}
-          className={`w-5 h-5 transition-colors duration-200 focus:ring-2 focus:ring-border-focus focus:ring-offset-2 ${
+          className={`w-5 h-5 ${
             hasError 
               ? 'accent-status-error' 
               : 'accent-primary'

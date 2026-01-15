@@ -34,7 +34,7 @@ const RATE_LIMIT_WINDOW = 60 * 1000; // 60 seconds
 
 export async function POST(req: NextRequest) {
   try {
-    const { phoneNumber, email } = await req.json();
+    const { phoneNumber, email, skipAccountCheck } = await req.json();
     
     // Validate that at least one contact method is provided
     if (!phoneNumber && !email) {
@@ -71,10 +71,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Find accounts across all tables
-    const accounts = await findAccounts(formattedPhoneNumber, email);
+    // Find accounts across all tables (skip for phone number updates)
+    const accounts = skipAccountCheck ? [] : await findAccounts(formattedPhoneNumber, email);
     
-    if (accounts.length === 0) {
+    // Only require account existence for login flows (when skipAccountCheck is false)
+    if (!skipAccountCheck && accounts.length === 0) {
       return NextResponse.json(
         { message: "No account found with these credentials" },
         { status: 404 }
@@ -94,7 +95,8 @@ export async function POST(req: NextRequest) {
       await sendEmailVerificationCode(email, verificationCode);
     }
 
-    // Return the accounts found (either single or multiple)
+    // Return the accounts found (either single or multiple) for login flows
+    // For verification flows (skipAccountCheck = true), return simple success
     return NextResponse.json({
       message: "Verification code sent successfully",
       multipleAccounts: accounts.length > 1,
@@ -211,7 +213,13 @@ async function findAccounts(phoneNumber: string | null, email: string | null) {
     }
   }
 
-  return accounts;
+  // Deduplicate accounts by id+type combination
+  // This handles cases where same account is found by both phone and email
+  const uniqueAccounts = accounts.filter((account, index, self) =>
+    index === self.findIndex((a) => a.id === account.id && a.type === account.type)
+  );
+
+  return uniqueAccounts;
 }
 
 // Store verification code in the database

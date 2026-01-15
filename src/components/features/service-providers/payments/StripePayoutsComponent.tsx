@@ -21,9 +21,9 @@
  * - Old: /api/stripe/connect/balance → New: /api/payments/connect/balance
  * 
  * DESIGN SYSTEM UPDATES:
- * - Replaced bg-slate-100 with semantic surface colors (bg-surface-secondary)
+ * - Replaced bg-slate-100 with semantic surface colors (bg-surface-tertiary)
  * - Applied status badge classes (badge-success, badge-error, badge-warning)
- * - Replaced text-zinc-400 with semantic text colors (text-text-secondary)
+ * - Replaced text-zinc-400 with semantic text colors (text-text-tertiary)
  * - Updated error colors (bg-red-100, text-red-500 → bg-status-error/10, text-status-error)
  * - Applied hover states with semantic colors (hover:bg-surface-hover)
  * 
@@ -58,7 +58,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   ArrowPathIcon,
-  CalendarIcon,
+  BanknotesIcon,
 } from '@heroicons/react/24/outline';
 import { formatCurrency } from '@/lib/utils/currencyUtils';
 import { useClickOutside } from '@/hooks/useClickOutside';
@@ -260,28 +260,28 @@ export function StripePayoutsComponent({
         role="region"
         aria-label="Balance summary"
       >
-        <div className="bg-surface-secondary rounded-md p-4">
-          <h3 className="text-sm text-text-secondary mb-1">Total balance</h3>
+        <div className="bg-surface-tertiary rounded-md p-4">
+          <h3 className="text-sm text-text-tertiary mb-1">Total balance</h3>
           <p className="text-2xl font-semibold">
             {formatCurrency(balanceInfo.total)}
           </p>
         </div>
-        <div className="bg-surface-secondary rounded-md p-4">
-          <h3 className="text-sm text-text-secondary mb-1">
+        <div className="bg-surface-tertiary rounded-md p-4">
+          <h3 className="text-sm text-text-tertiary mb-1">
             Available to pay out
           </h3>
           <p className="text-2xl font-semibold">
             {formatCurrency(balanceInfo.available)}
           </p>
         </div>
-        <div className="bg-surface-secondary rounded-md p-4">
-          <h3 className="text-sm text-text-secondary mb-1">Available soon</h3>
+        <div className="bg-surface-tertiary rounded-md p-4">
+          <h3 className="text-sm text-text-tertiary mb-1">Available soon</h3>
           <p className="text-2xl font-semibold">
             {formatCurrency(balanceInfo.pending)}
           </p>
         </div>
-        <div className="bg-surface-secondary rounded-md p-4">
-          <h3 className="text-sm text-text-secondary mb-1">
+        <div className="bg-surface-tertiary rounded-md p-4">
+          <h3 className="text-sm text-text-tertiary mb-1">
             In transit to bank
           </h3>
           <p className="text-2xl font-semibold">
@@ -359,7 +359,7 @@ export function StripePayoutsComponent({
             className={`relative w-fit rounded-full px-3 py-2 cursor-pointer ${
               isFilterOpen
                 ? 'ring-2 ring-border bg-white'
-                : 'ring-1 ring-border bg-surface-secondary'
+                : 'ring-1 ring-border bg-surface-tertiary'
             }`}
             onClick={() => hasStripeAccount && setIsFilterOpen(!isFilterOpen)}
             disabled={!hasStripeAccount}
@@ -399,10 +399,14 @@ export function StripePayoutsComponent({
               role="listbox"
               aria-label="View options"
             >
-              {viewOptions.map((option) => (
+              {viewOptions.map((option, index) => (
                 <div
                   key={option.value}
-                  className="flex justify-between items-center p-3 cursor-pointer hover:bg-surface-hover"
+                  className={`flex justify-between items-center p-3 cursor-pointer hover:bg-surface-tertiary active:bg-surface-secondary ${
+                    index === 0 ? 'rounded-t-md' : ''
+                  } ${
+                    index === viewOptions.length - 1 ? 'rounded-b-md' : ''
+                  }`}
                   onClick={() => {
                     handleViewChange(option.value);
                     setIsFilterOpen(false);
@@ -427,14 +431,14 @@ export function StripePayoutsComponent({
           role="status"
           aria-live="polite"
         >
-          <CalendarIcon
-            className="w-12 h-12 mx-auto text-text-disabled mb-4"
+          <BanknotesIcon
+            className="w-12 h-12 mx-auto text-text-secondary mb-4"
             aria-hidden="true"
           />
-          <h3 className="text-lg font-medium mb-2">
+          <h3 className="text-lg text-text-tertiary font-medium mb-2">
             {!hasStripeAccount ? 'Please set up your account' : 'No payments yet'}
           </h3>
-          <p className="text-text-secondary">
+          <p className="text-text-tertiary">
             {!hasStripeAccount
               ? 'Set up your Stripe account to start receiving payments.'
               : 'Your payment history will appear here after you receive payments.'}
@@ -444,16 +448,16 @@ export function StripePayoutsComponent({
         <div className="bg-white rounded-md" role="table" aria-label={`${selectedView === 'payouts' ? 'Payouts' : 'Payments'} history`}>
           {/* Table Header */}
           <div className="grid grid-cols-4 border-b border-border py-3 px-4" role="row">
-            <div className="text-sm font-medium text-text-secondary" role="columnheader">
+            <div className="text-sm font-medium text-text-tertiary" role="columnheader">
               {selectedView === 'payouts' ? 'Date' : 'Date'}
             </div>
-            <div className="text-sm font-medium text-text-secondary" role="columnheader">
+            <div className="text-sm font-medium text-text-tertiary" role="columnheader">
               {selectedView === 'payouts' ? 'Destination' : 'Description'}
             </div>
-            <div className="text-sm font-medium text-text-secondary" role="columnheader">
+            <div className="text-sm font-medium text-text-tertiary" role="columnheader">
               Status
             </div>
-            <div className="text-sm font-medium text-text-secondary text-right" role="columnheader">
+            <div className="text-sm font-medium text-text-tertiary text-right" role="columnheader">
               Amount
             </div>
           </div>
@@ -468,7 +472,7 @@ export function StripePayoutsComponent({
               <div role="cell">
                 <p className="font-medium mb-1">{item.date}</p>
               </div>
-              <div className="text-sm text-text-secondary" role="cell">
+              <div className="text-sm text-text-tertiary" role="cell">
                 {selectedView === 'payouts'
                   ? (item as Payout).destination
                   : (item as Payment).description}
@@ -500,7 +504,7 @@ export function StripePayoutsComponent({
           <button
             onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
-            className={`absolute left-0 rounded-full bg-surface-secondary active:bg-surface-hover p-2 ${
+            className={`absolute left-0 rounded-full bg-surface-tertiary active:bg-surface-hover p-2 ${
               currentPage === 1
                 ? 'opacity-50 cursor-not-allowed'
                 : 'cursor-pointer hover:bg-surface-hover'
@@ -520,7 +524,7 @@ export function StripePayoutsComponent({
               setCurrentPage((prev) => Math.min(prev + 1, totalPages))
             }
             disabled={currentPage === totalPages}
-            className={`absolute right-0 rounded-full bg-surface-secondary active:bg-surface-hover p-2 ${
+            className={`absolute right-0 rounded-full bg-surface-tertiary active:bg-surface-hover p-2 ${
               currentPage === totalPages
                 ? 'opacity-50 cursor-not-allowed'
                 : 'cursor-pointer hover:bg-surface-hover'

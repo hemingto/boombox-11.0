@@ -49,7 +49,7 @@ export function StorageCalculatorHero() {
         >
           Storage Calculator
         </h1>
-        <p className="text-text-secondary">
+        <p className="text-text-primary">
           know exactly how much storage space you&apos;ll need
         </p>
       </div>

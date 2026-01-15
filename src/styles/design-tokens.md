@@ -31,27 +31,27 @@ Based on semantic meaning rather than specific colors:
 ```css
 /* Success (green) */
 bg-status-success, text-status-success
-bg-status-bg-success, text-status-text-success (for badges)
+bg-status-bg-success (for badge backgrounds)
 
 /* Warning (amber) */
 bg-status-warning, text-status-warning
-bg-status-bg-warning, text-status-text-warning (for badges)
+bg-status-bg-warning (for badge backgrounds)
 
 /* Error (red) */
 bg-status-error, text-status-error
-bg-status-bg-error, text-status-text-error (for badges)
+bg-status-bg-error (for badge backgrounds)
 
 /* Info (blue) */
 bg-status-info, text-status-info
-bg-status-bg-info, text-status-text-info (for badges)
+bg-status-bg-info (for badge backgrounds)
 
 /* Pending (amber) */
 bg-status-pending, text-status-pending
-bg-status-bg-pending, text-status-text-pending (for badges)
+bg-status-bg-pending (for badge backgrounds)
 
 /* Processing (blue) */
 bg-status-processing, text-status-processing
-bg-status-bg-processing, text-status-text-processing (for badges)
+bg-status-bg-processing (for badge backgrounds)
 ```
 
 ### Surface Colors

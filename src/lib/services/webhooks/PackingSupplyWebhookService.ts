@@ -11,6 +11,7 @@ import {
   packingSupplyCompletedTemplate,
   packingSupplyFailedTemplate
 } from '@/lib/messaging/templates/sms/booking';
+import { systemFailureTemplate } from '@/lib/messaging/templates/email/admin';
 import {
   getMetadataValue,
   getWorkerName,
@@ -21,14 +22,8 @@ import {
   findPackingSupplyOrderById,
   updatePackingSupplyOrderStatus
 } from '@/lib/utils/webhookQueries';
+import { PackingSupplyPayoutService } from '@/lib/services/payments/PackingSupplyPayoutService';
 import type { OnfleetWebhookPayload } from '@/lib/validations/api.validations';
-
-// @REFACTOR-P9-TEMP: Replace with migrated packing supply payout when API_006 completes
-// Priority: High | Est: 4h | Dependencies: API_006_MOVING_PARTNERS_DOMAIN
-const processPackingSupplyPayout = async (orderId: number) => {
-  console.log('PLACEHOLDER: processPackingSupplyPayout called for order', orderId);
-  return { success: false, error: 'Placeholder implementation' };
-};
 
 export class PackingSupplyWebhookService {
   /**
@@ -45,18 +40,24 @@ export class PackingSupplyWebhookService {
       orderStatus: string;
     };
   }> {
+    console.log('=== [PackingSupplyWebhook] Starting processing ===');
+    
     try {
       const { taskId, time, triggerName, data } = webhookData;
       const taskDetails = data?.task;
       const metadata = taskDetails?.metadata;
 
-      console.log(`Processing packing supply webhook - Trigger: ${triggerName}, Task: ${taskDetails?.shortId}`);
+      console.log(`[PackingSupplyWebhook] triggerName: ${triggerName}`);
+      console.log(`[PackingSupplyWebhook] taskId: ${taskId}`);
+      console.log(`[PackingSupplyWebhook] Task shortId: ${taskDetails?.shortId}`);
+      console.log(`[PackingSupplyWebhook] Metadata:`, JSON.stringify(metadata, null, 2));
 
       // Extract order ID from metadata
       const orderId = getMetadataValue(metadata, 'order_id');
+      console.log(`[PackingSupplyWebhook] Extracted order_id: ${orderId}`);
 
       if (!orderId) {
-        console.error('No order ID found in packing supply task metadata:', metadata);
+        console.error('[PackingSupplyWebhook] ERROR: No order ID found in packing supply task metadata');
         return { 
           success: false, 
           error: 'No order ID found',
@@ -65,10 +66,11 @@ export class PackingSupplyWebhookService {
       }
 
       // Get the packing supply order with all includes
+      console.log(`[PackingSupplyWebhook] Looking up PackingSupplyOrder: ${orderId}`);
       const order = await findPackingSupplyOrderById(parseInt(orderId));
 
       if (!order) {
-        console.error(`Packing supply order ${orderId} not found`);
+        console.error(`[PackingSupplyWebhook] ERROR: Packing supply order ${orderId} not found`);
         return { 
           success: false, 
           error: 'Order not found',
@@ -76,30 +78,46 @@ export class PackingSupplyWebhookService {
         };
       }
 
-      console.log(`Found order ${order.id}, current status: ${order.status}`);
+      console.log(`[PackingSupplyWebhook] Order found:`, {
+        id: order.id,
+        status: order.status,
+        contactPhone: order.contactPhone,
+        assignedDriverId: order.assignedDriver?.id
+      });
 
       // Handle different webhook triggers
+      console.log(`[PackingSupplyWebhook] Routing to handler for trigger: ${triggerName}`);
+      
       switch (triggerName) {
         case 'taskStarted':
+          console.log('[PackingSupplyWebhook] >>> Calling handleTaskStarted()');
           await this.handleTaskStarted(order, taskDetails, data?.worker);
+          console.log('[PackingSupplyWebhook] handleTaskStarted() completed');
           break;
 
         case 'taskArrival':
+          console.log('[PackingSupplyWebhook] >>> Calling handleTaskArrival()');
           await this.handleTaskArrival(order, taskDetails, data?.worker);
+          console.log('[PackingSupplyWebhook] handleTaskArrival() completed');
           break;
 
         case 'taskCompleted':
+          console.log('[PackingSupplyWebhook] >>> Calling handleTaskCompleted()');
           await this.handleTaskCompleted(order, taskDetails, data?.worker);
+          console.log('[PackingSupplyWebhook] handleTaskCompleted() completed');
           break;
 
         case 'taskFailed':
+          console.log('[PackingSupplyWebhook] >>> Calling handleTaskFailed()');
           await this.handleTaskFailed(order, taskDetails, data?.worker);
+          console.log('[PackingSupplyWebhook] handleTaskFailed() completed');
           break;
 
         default:
-          console.log(`Unhandled packing supply webhook trigger: ${triggerName}`);
+          console.log(`[PackingSupplyWebhook] Unhandled trigger: ${triggerName}`);
       }
 
+      console.log('=== [PackingSupplyWebhook] Processing complete - SUCCESS ===');
       return { 
         success: true, 
         message: 'Packing supply webhook processed successfully',
@@ -111,7 +129,8 @@ export class PackingSupplyWebhookService {
       };
 
     } catch (error) {
-      console.error('Error processing packing supply webhook:', error);
+      console.error('[PackingSupplyWebhook] ERROR during processing:', error);
+      console.error('[PackingSupplyWebhook] Error stack:', error instanceof Error ? error.stack : 'No stack');
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -171,7 +190,7 @@ export class PackingSupplyWebhookService {
 
   /**
    * Handle taskCompleted event for packing supply delivery
-   * @REFACTOR-P9-TEMP: Full payout processing will be restored when API_006 completes
+   * Processes customer notification and driver payout
    */
   private static async handleTaskCompleted(order: any, taskDetails: any, worker: any): Promise<void> {
     // Update order status
@@ -196,19 +215,91 @@ export class PackingSupplyWebhookService {
       console.error(`Failed to send completion SMS for order ${order.id}:`, smsResult.error);
     }
 
-    // Process payout (placeholder implementation)
+    // Process payout using PackingSupplyPayoutService
     try {
       console.log(`Processing payout for completed packing supply order ${order.id}`);
-      const payoutResult = await processPackingSupplyPayout(order.id);
+      const payoutResult = await PackingSupplyPayoutService.processPackingSupplyPayout(order.id);
       
       if (payoutResult.success) {
-        console.log(`Payout processed for packing supply order ${order.id}`);
+        console.log(`Payout processed for packing supply order ${order.id}: $${payoutResult.amount}`);
       } else {
         console.error(`Payout failed for order ${order.id}:`, payoutResult.error);
+        // Send admin email notification on payout failure
+        await this.sendPayoutFailureNotification(order, driverName, payoutResult.error || 'Unknown error');
       }
     } catch (payoutError) {
       console.error('Error processing packing supply payout:', order.id, payoutError);
+      // Send admin email notification on payout exception
+      const errorMessage = payoutError instanceof Error ? payoutError.message : 'Unknown error';
+      await this.sendPayoutFailureNotification(order, driverName, errorMessage);
       // Don't fail the entire webhook if payout fails
+    }
+  }
+
+  /**
+   * Send admin email notification when payout fails
+   */
+  private static async sendPayoutFailureNotification(
+    order: any,
+    driverName: string,
+    errorMessage: string
+  ): Promise<void> {
+    try {
+      console.log(`Sending payout failure notification for order ${order.id}`);
+
+      const adminEmails = process.env.ADMIN_EMAILS?.split(',') || [
+        'admin@boomboxstorage.com',
+      ];
+
+      const payoutAmount = order.driverPayoutAmount 
+        ? `$${parseFloat(order.driverPayoutAmount).toFixed(2)}` 
+        : 'Unknown';
+
+      const templateVariables = {
+        systemName: 'Packing Supply Driver Payout',
+        formattedDate: new Date().toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        }),
+        timestamp: new Date().toLocaleString(),
+        errorMessage: `Payout failed for order #${order.id}. Driver: ${driverName}. Amount: ${payoutAmount}. Error: ${errorMessage}`,
+        impactDescription: `The driver payout for packing supply order #${order.id} failed to process. The driver has not been paid for this delivery and manual intervention is required.`,
+        nextStepsText: `1. Review the order in the admin dashboard
+2. Check Stripe Connect account status for the driver
+3. Manually process the payout via Stripe dashboard
+4. Contact the driver if there are issues with their payment setup`,
+        nextStepsSection: `<ol style="margin: 0; padding-left: 20px;">
+          <li style="margin-bottom: 6px;">Review the order in the admin dashboard</li>
+          <li style="margin-bottom: 6px;">Check Stripe Connect account status for driver: ${driverName}</li>
+          <li style="margin-bottom: 6px;">Manually process the payout (${payoutAmount}) via Stripe dashboard</li>
+          <li style="margin-bottom: 6px;">Contact the driver if there are issues with their payment setup</li>
+        </ol>`,
+        dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL}/admin/packing-supply-orders/${order.id}`,
+        executionTime: 'N/A',
+      };
+
+      for (const email of adminEmails) {
+        const result = await MessageService.sendEmail(
+          email.trim(),
+          systemFailureTemplate,
+          templateVariables
+        );
+
+        if (!result.success) {
+          console.error(
+            `Failed to send payout failure notification to ${email}:`,
+            result.error
+          );
+        }
+      }
+
+      console.log(
+        `Payout failure notification sent to ${adminEmails.length} admin recipients for order ${order.id}`
+      );
+    } catch (error) {
+      console.error('Failed to send payout failure notification:', error);
     }
   }
 

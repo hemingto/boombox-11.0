@@ -14,7 +14,6 @@ export * from './layouts';
 
 // Form Components
 export * from './forms';
-export { default as FirstNameInput } from './forms/FirstNameInput';
 
 // Feature Components (will be added during Phase 5)
 export * from './features';

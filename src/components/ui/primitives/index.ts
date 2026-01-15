@@ -13,10 +13,10 @@ export * from './TextButton';
 export * from './Input';
 export * from './TextArea';
 export * from './Select';
+export * from './FilterDropdown';
 export * from './FileUpload';
 
 // Media primitives
-export * from './OptimizedImage';
 export * from './ProfilePicture';
 
 // Layout primitives

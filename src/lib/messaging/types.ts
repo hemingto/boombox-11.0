@@ -9,6 +9,7 @@ export interface MessageTemplate {
   text: string;
   html?: string; // For emails
   requiredVariables: string[];
+  optionalVariables?: string[]; // Optional template variables
   channel: MessageChannel;
   domain: MessageDomain;
   description?: string;
@@ -36,6 +37,7 @@ export interface TemplateContext {
 export type MessageDomain =
   | 'auth'
   | 'booking'
+  | 'appointment'
   | 'logistics'
   | 'payment'
   | 'admin';

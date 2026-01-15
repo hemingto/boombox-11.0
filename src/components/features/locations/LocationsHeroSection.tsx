@@ -38,6 +38,7 @@ import { MapPinIcon } from '@heroicons/react/20/solid';
 import { GoogleMap, Marker, Polygon } from '@react-google-maps/api';
 import { MapIcon } from '@/components/icons/MapIcon';
 import { Button } from '@/components/ui';
+import { Input } from '@/components/ui/primitives/Input/Input';
 import { mapStyles } from '@/app/mapstyles';
 import { zipCodePrices } from '@/data/zipcodeprices';
 import { bayAreaCoordinates } from '@/data/bayareaserviceareacoordinates';
@@ -90,8 +91,6 @@ export function LocationsHeroSection({
   
   // Input state
   const [zipCode, setZipCode] = useState<string>('');
-  const [isFocused, setIsFocused] = useState<boolean>(false);
-  const [hasValue, setHasValue] = useState<boolean>(false);
   
   // Validation state
   const [message, setMessage] = useState<string | null>(null);
@@ -102,27 +101,54 @@ export function LocationsHeroSection({
   
   /**
    * Geocodes a zip code and centers the map on its location
+   * Note: This function only updates the map center, not the validation state
    */
   const getCoordinatesForZip = async (zip: string) => {
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    
+    // Debug logging
+    console.log('🗺️ Geocoding Debug:', {
+      zip,
+      hasApiKey: !!apiKey,
+      apiKeyLength: apiKey?.length || 0,
+      apiKeyPrefix: apiKey ? apiKey.substring(0, 10) + '...' : 'undefined'
+    });
+    
+    if (!apiKey) {
+      console.warn('⚠️ Google Maps API key is not configured. Skipping geocoding.');
+      return;
+    }
+    
     try {
-      const response = await fetch(
-        `${GEOCODE_API_URL}?address=${zip}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
-      );
+      const url = `${GEOCODE_API_URL}?address=${zip}&key=${apiKey}`;
+      console.log('📍 Fetching geocode for:', zip);
+      
+      const response = await fetch(url);
       const data = await response.json();
+      
+      console.log('📊 Geocode API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: data
+      });
       
       if (data.results && data.results.length > 0) {
         const location = data.results[0].geometry.location;
+        console.log('✅ Geocoding successful, centering map at:', location);
         setMapCenter({ lat: location.lat, lng: location.lng });
         setMapZoom(12);
       } else {
-        setMessage('Unable to find location for the zip code.');
-        setHasError(true);
-        setMessageType('error');
+        console.warn('⚠️ Geocoding failed:', data.status || 'No results found');
+        if (data.error_message) {
+          console.error('Error details:', data.error_message);
+        }
       }
+      // If geocoding fails, we don't override the validation state
+      // The zip code validation already succeeded, we just can't center the map
     } catch (error) {
-      setMessage('Error fetching location data.');
-      setHasError(true);
-      setMessageType('error');
+      // Silently fail - geocoding is a nice-to-have feature
+      // The zip code validation already succeeded
+      console.warn('❌ Geocoding error:', error);
     }
   };
   
@@ -160,62 +186,50 @@ export function LocationsHeroSection({
   
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
+      e.preventDefault(); // Prevent form submission if inside a form
       handleCheckZipCode();
     }
   };
   
-  const handleFocus = () => {
-    setIsFocused(true);
-    setMessage(null);
-    setHasError(false);
-    setMessageType(null);
-  };
-  
-  const handleBlur = () => {
-    setIsFocused(false);
-  };
-  
   const handleZipChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setZipCode(e.target.value);
-    setHasValue(e.target.value.length > 0);
+    const newValue = e.target.value;
+    setZipCode(newValue);
+    // Clear validation messages when user modifies input
+    if (message || hasError || messageType) {
+      handleClearError();
+    }
+  };
+  
+  const handleClearError = () => {
     setMessage(null);
     setHasError(false);
     setMessageType(null);
   };
   
-  // Dynamic input styling based on validation state
-  const inputClassName = cn(
-    'pl-8 py-2.5 px-3 min-w-80 mb-2 rounded-md focus:outline-none placeholder:text-sm cursor-pointer',
-    {
-      'ring-emerald-500 ring-2 bg-emerald-100 placeholder:text-emerald-500 text-emerald-500':
-        messageType === 'success',
-      'ring-red-500 ring-2 bg-red-100 placeholder:text-red-500 text-red-500':
-        hasError && messageType === 'error',
-      'bg-surface-tertiary focus:placeholder:text-text-primary focus-within:ring-2 focus-within:ring-primary focus:bg-surface-primary placeholder:text-text-secondary':
-        !messageType,
+  // Custom styling for success and error states with !important to override Input component styles
+  const getInputClassName = () => {
+    if (messageType === 'success') {
+      return '!ring-status-success !ring-2 !bg-status-bg-success !border-status-success placeholder:!text-status-success !text-status-success';
     }
-  );
-  
-  const mapPinIconClass = cn({
-    'text-emerald-500': messageType === 'success',
-    'text-red-500': hasError && messageType === 'error',
-    'text-text-primary': (isFocused || hasValue) && !messageType,
-    'text-text-secondary': !isFocused && !hasValue && !messageType,
-  });
+    if (messageType === 'error') {
+      return '!ring-status-error !ring-2 !bg-status-bg-error !border-status-error';
+    }
+    return '';
+  };
   
   // Polygon styling based on validation state
   const polygonOptions = messageType === 'success'
     ? {
-        fillColor: '#10b981',
+        fillColor: 'rgb(16 185 129)', // status-success
         fillOpacity: 0.2,
-        strokeColor: '#10b981',
+        strokeColor: 'rgb(16 185 129)', // status-success
         strokeOpacity: 1,
         strokeWeight: 2,
       }
     : {
-        fillColor: '#a1a1aa',
+        fillColor: 'rgb(161 161 170)', // zinc-400 (text-secondary)
         fillOpacity: 0.2,
-        strokeColor: '#3f3f46',
+        strokeColor: 'rgb(63 63 70)', // zinc-700 (primary-active)
         strokeOpacity: 1,
         strokeWeight: 2,
       };
@@ -236,42 +250,27 @@ export function LocationsHeroSection({
           Locations
         </h1>
         
-        <p className="mb-4">
-          Check if your zip code is within our service area
-        </p>
-        
-        <div className="relative mb-10">
-          <label htmlFor="zip-code-input" className="sr-only">
-            Enter your zip code
-          </label>
-          
-          <input
+        <div className="mb-12">
+          <Input
             id="zip-code-input"
-            className={inputClassName}
             type="text"
             placeholder="Enter your zip"
+            label="Check if your zip code is within our service area"
             value={zipCode}
             onChange={handleZipChange}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
             onKeyDown={handleKeyDown}
-            aria-describedby={message ? 'zip-validation-message' : undefined}
-            aria-invalid={hasError}
+            icon={<MapPinIcon className={cn('w-5 h-5', messageType === 'success' && 'text-status-success')} />}
+            iconPosition="left"
+            size="md"
+            error={hasError && messageType === 'error' ? message || undefined : undefined}
+            className={cn('max-w-80 placeholder:text-sm', getInputClassName())}
           />
           
-          <MapPinIcon 
-            className={cn('absolute inset-y-3 left-2 w-5 h-5', mapPinIconClass)} 
-            aria-hidden="true"
-          />
-          
-          {message && (
+          {/* Success message (not handled by Input primitive) */}
+          {messageType === 'success' && message && (
             <p 
-              id="zip-validation-message"
-              className={cn('text-sm', {
-                'text-emerald-500': messageType === 'success',
-                'text-red-500': messageType === 'error',
-              })}
-              role={messageType === 'error' ? 'alert' : 'status'}
+              className="text-sm font-medium text-status-success mt-2"
+              role="status"
               aria-live="polite"
             >
               {message}
@@ -282,7 +281,7 @@ export function LocationsHeroSection({
         <Button
           onClick={() => handleCheckZipCode(zipCode)}
           variant="primary"
-          size="lg"
+          size="md"
           borderRadius="md"
           className="font-semibold"
         >

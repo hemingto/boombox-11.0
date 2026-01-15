@@ -48,7 +48,11 @@ export default async function FeedbackPage({
     // Find the appointment by ID
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
-      include: {
+      select: {
+        userId: true,
+        appointmentType: true,
+        date: true,
+        invoiceTotal: true,
         movingPartner: {
           select: {
             name: true,
@@ -155,6 +159,7 @@ export default async function FeedbackPage({
             appointment.movingPartner?.imageSrc ?? undefined
           }
           invoiceTotal={appointment.invoiceTotal ?? 0}
+          userId={String(appointment.userId)}
           drivers={drivers}
         />
       </div>

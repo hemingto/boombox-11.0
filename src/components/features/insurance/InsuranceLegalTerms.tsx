@@ -21,10 +21,10 @@
 export function InsuranceLegalTerms() {
   return (
     <section className="lg:px-16 px-6 rounded-md">
-      <div className="card mb-8"> 
+      <div className="p-6 border border-border rounded-md mb-8"> 
         <h2 className="mb-4">Legal terms</h2>
         
-        <div className="space-y-4 text-text-secondary">
+        <div className="space-y-4 text-text-primary">
           <p>
             Capitalized terms not defined in this Limited Security Warranty Policy have the meaning given to them in Boombox&apos;s Terms of Use, (the &quot;Agreement&quot;), which are incorporated herein by reference.
           </p>

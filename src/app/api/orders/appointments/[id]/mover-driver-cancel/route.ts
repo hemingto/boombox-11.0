@@ -41,6 +41,8 @@ import {
   recordMoverCancellation,
   type AvailableDriver,
 } from '@/lib/utils/cancellationUtils';
+import { deleteDriverTimeSlotBooking } from '@/lib/utils/driverAssignmentUtils';
+import { TimeSlotBookingService } from '@/lib/services/TimeSlotBookingService';
 
 // NOTE: This route contains extensive business logic from boombox-10.0 that has been preserved
 // The original route was 560+ lines and contained complex mover replacement logic that is
@@ -197,6 +199,14 @@ async function handleDriverCancellation(
     cancellationReason,
   });
 
+  // Delete DriverTimeSlotBooking record to free up the time slot
+  try {
+    await deleteDriverTimeSlotBooking(appointment.id);
+  } catch (bookingError) {
+    console.error('Error deleting DriverTimeSlotBooking:', bookingError);
+    // Don't fail the cancellation if booking deletion fails
+  }
+
   // Group affected units for reassignment
   const unitsAffectedByCancellation = new Set<number>();
   for (const task of tasksAssignedToCancelingDriver) {
@@ -307,6 +317,14 @@ async function handleMoverCancellation(
     appointmentId: appointment.id,
     cancellationReason,
   });
+
+  // Delete TimeSlotBooking record to free up the mover's time slot
+  try {
+    await TimeSlotBookingService.deleteBooking(appointment.id);
+  } catch (bookingError) {
+    console.error('Error deleting TimeSlotBooking:', bookingError);
+    // Don't fail the cancellation if booking deletion fails
+  }
 
   // Update appointment to remove moving partner
   await prisma.appointment.update({

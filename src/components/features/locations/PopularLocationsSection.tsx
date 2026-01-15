@@ -42,166 +42,166 @@ import { popularLocations, type PopularLocation } from '@/data/popularlocations'
 import { cn } from '@/lib/utils/cn';
 
 export interface PopularLocationsSectionProps {
-  /**
-   * Section heading text
-   * @default 'Popular storage locations'
-   */
-  heading?: string;
-  
-  /**
-   * Array of locations to display (defaults to all popular locations)
-   */
-  locations?: PopularLocation[];
-  
-  /**
-   * Number of locations to show per page on mobile
-   * @default 3
-   */
-  locationsPerPage?: number;
-  
-  /**
-   * Additional CSS classes for the container
-   */
-  className?: string;
-  
-  /**
-   * Additional CSS classes for the heading container
-   */
-  headingContainerClassName?: string;
-  
-  /**
-   * Additional CSS classes for the grid container
-   */
-  gridClassName?: string;
+ /**
+  * Section heading text
+  * @default 'Popular storage locations'
+  */
+ heading?: string;
+ 
+ /**
+  * Array of locations to display (defaults to all popular locations)
+  */
+ locations?: PopularLocation[];
+ 
+ /**
+  * Number of locations to show per page on mobile
+  * @default 3
+  */
+ locationsPerPage?: number;
+ 
+ /**
+  * Additional CSS classes for the container
+  */
+ className?: string;
+ 
+ /**
+  * Additional CSS classes for the heading container
+  */
+ headingContainerClassName?: string;
+ 
+ /**
+  * Additional CSS classes for the grid container
+  */
+ gridClassName?: string;
 }
 
 export function PopularLocationsSection({
-  heading = 'Popular storage locations',
-  locations = popularLocations,
-  locationsPerPage = 3,
-  className,
-  headingContainerClassName,
-  gridClassName,
+ heading = 'Popular storage locations',
+ locations = popularLocations,
+ locationsPerPage = 3,
+ className,
+ headingContainerClassName,
+ gridClassName,
 }: PopularLocationsSectionProps) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isMobile, setIsMobile] = useState(false);
-  
-  // Detect mobile screen size
-  useEffect(() => {
-    const checkIfMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkIfMobile();
-    window.addEventListener('resize', checkIfMobile);
-    
-    return () => window.removeEventListener('resize', checkIfMobile);
-  }, []);
-  
-  // Calculate pagination
-  const totalPages = Math.ceil(locations.length / locationsPerPage);
-  const startIndex = (currentPage - 1) * locationsPerPage;
-  const endIndex = startIndex + locationsPerPage;
-  const currentLocations = isMobile ? locations.slice(startIndex, endIndex) : locations;
-  
-  const handlePreviousPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
+ const [currentPage, setCurrentPage] = useState(1);
+ const [isMobile, setIsMobile] = useState(false);
+ 
+ // Detect mobile screen size
+ useEffect(() => {
+  const checkIfMobile = () => {
+   setIsMobile(window.innerWidth < 768);
   };
   
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
+  checkIfMobile();
+  window.addEventListener('resize', checkIfMobile);
   
-  const hasPrevPage = currentPage > 1;
-  const hasNextPage = currentPage < totalPages;
-  
-  return (
-    <section
-      className={cn('mt-12 sm:mt-24 lg:px-12 px-6 sm:mb-48 mb-24', className)}
-      aria-labelledby="popular-locations-heading"
-    >
-      {/* Header with pagination controls */}
-      <div
-        className={cn(
-          'flex flex-col sm:flex-row w-full justify-between items-left sm:items-center mb-10',
-          headingContainerClassName
-        )}
+  return () => window.removeEventListener('resize', checkIfMobile);
+ }, []);
+ 
+ // Calculate pagination
+ const totalPages = Math.ceil(locations.length / locationsPerPage);
+ const startIndex = (currentPage - 1) * locationsPerPage;
+ const endIndex = startIndex + locationsPerPage;
+ const currentLocations = isMobile ? locations.slice(startIndex, endIndex) : locations;
+ 
+ const handlePreviousPage = () => {
+  if (currentPage > 1) {
+   setCurrentPage(currentPage - 1);
+  }
+ };
+ 
+ const handleNextPage = () => {
+  if (currentPage < totalPages) {
+   setCurrentPage(currentPage + 1);
+  }
+ };
+ 
+ const hasPrevPage = currentPage > 1;
+ const hasNextPage = currentPage < totalPages;
+ 
+ return (
+  <section
+   className={cn('mt-12 sm:mt-24 lg:px-12 px-6 sm:mb-48 mb-24', className)}
+   aria-labelledby="popular-locations-heading"
+  >
+   {/* Header with pagination controls */}
+   <div
+    className={cn(
+     'flex flex-col sm:flex-row w-full justify-between items-left sm:items-center mb-10',
+     headingContainerClassName
+    )}
+   >
+    <h1 id="popular-locations-heading" className="mr-2">
+     {heading}
+    </h1>
+    
+    {/* Mobile-only pagination controls */}
+    {isMobile && totalPages > 1 && (
+     <nav
+      aria-label="Popular locations pagination"
+      className="flex mt-4 sm:mt-0"
+     >
+      <button
+       onClick={handlePreviousPage}
+       disabled={!hasPrevPage}
+       className={cn(
+        'rounded-full mr-1 p-2 bg-surface-tertiary active:bg-surface-disabled',
+        {
+         'opacity-50 cursor-not-allowed': !hasPrevPage,
+         'cursor-pointer hover:bg-surface-disabled': hasPrevPage,
+        }
+       )}
+       aria-label="Previous page of locations"
       >
-        <h1 id="popular-locations-heading" className="mr-2">
-          {heading}
-        </h1>
-        
-        {/* Mobile-only pagination controls */}
-        {isMobile && totalPages > 1 && (
-          <nav
-            aria-label="Popular locations pagination"
-            className="flex mt-4 sm:mt-0"
-          >
-            <button
-              onClick={handlePreviousPage}
-              disabled={!hasPrevPage}
-              className={cn(
-                'rounded-full mr-1 p-2 transition-colors bg-surface-tertiary active:bg-surface-disabled',
-                {
-                  'opacity-50 cursor-not-allowed': !hasPrevPage,
-                  'cursor-pointer hover:bg-surface-disabled': hasPrevPage,
-                }
-              )}
-              aria-label="Previous page of locations"
-            >
-              <ArrowLeftIcon className="w-6" aria-hidden="true" />
-            </button>
-            
-            <button
-              onClick={handleNextPage}
-              disabled={!hasNextPage}
-              className={cn(
-                'rounded-full p-2 transition-colors bg-surface-tertiary active:bg-surface-disabled',
-                {
-                  'opacity-50 cursor-not-allowed': !hasNextPage,
-                  'cursor-pointer hover:bg-surface-disabled': hasNextPage,
-                }
-              )}
-              aria-label="Next page of locations"
-            >
-              <ArrowRightIcon className="w-6" aria-hidden="true" />
-            </button>
-            
-            <div role="status" aria-live="polite" className="sr-only">
-              Page {currentPage} of {totalPages}
-            </div>
-          </nav>
-        )}
-      </div>
+       <ArrowLeftIcon className="w-6" aria-hidden="true" />
+      </button>
       
-      {/* Location cards grid */}
-      <div
-        className={cn(
-          'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4',
-          gridClassName
-        )}
-        role="list"
-        aria-label="Popular storage locations"
+      <button
+       onClick={handleNextPage}
+       disabled={!hasNextPage}
+       className={cn(
+        'rounded-full p-2 bg-surface-tertiary active:bg-surface-disabled',
+        {
+         'opacity-50 cursor-not-allowed': !hasNextPage,
+         'cursor-pointer hover:bg-surface-disabled': hasNextPage,
+        }
+       )}
+       aria-label="Next page of locations"
       >
-        {currentLocations.map((location, index) => (
-          <div key={index} role="listitem">
-            <Card
-              imageSrc={location.imageSrc}
-              imageAlt={location.imageAlt}
-              location={location.location}
-              customerCount={location.customerCount}
-              description={location.description}
-              link={location.link}
-              ariaLabel={`View storage services in ${location.location} - ${location.customerCount} ${location.description}`}
-            />
-          </div>
-        ))}
+       <ArrowRightIcon className="w-6" aria-hidden="true" />
+      </button>
+      
+      <div role="status" aria-live="polite" className="sr-only">
+       Page {currentPage} of {totalPages}
       </div>
-    </section>
-  );
+     </nav>
+    )}
+   </div>
+   
+   {/* Location cards grid */}
+   <div
+    className={cn(
+     'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4',
+     gridClassName
+    )}
+    role="list"
+    aria-label="Popular storage locations"
+   >
+    {currentLocations.map((location, index) => (
+     <div key={index} role="listitem">
+      <Card
+       imageSrc={location.imageSrc}
+       imageAlt={location.imageAlt}
+       location={location.location}
+       customerCount={location.customerCount}
+       description={location.description}
+       link={location.link}
+       ariaLabel={`View storage services in ${location.location} - ${location.customerCount} ${location.description}`}
+      />
+     </div>
+    ))}
+   </div>
+  </section>
+ );
 }
 

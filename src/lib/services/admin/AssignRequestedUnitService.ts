@@ -26,6 +26,12 @@ import {
   createRequestedUnitAssignmentLog
 } from '@/lib/utils/adminTaskUtils';
 
+/**
+ * Appointment statuses that should be excluded from task generation
+ * Completed and Canceled/Cancelled appointments should not generate tasks
+ */
+const EXCLUDED_APPOINTMENT_STATUSES = ['Completed', 'Cancelled', 'Canceled'];
+
 // Requested unit assignment task interface
 export interface AssignRequestedUnitTask {
   id: string;
@@ -231,29 +237,53 @@ export class AssignRequestedUnitService {
   /**
    * Get all requested units that need assignment for task listing
    * Helper method for AdminTaskListingService
+   * Excludes canceled and completed appointments
+   * 
+   * NOTE: This task shows when a requested storage unit has NOT had pickup photos uploaded yet.
+   * The pickup photos are uploaded when the "Assign Requested Unit" task is completed.
+   * This is separate from the "Prep Units for Delivery" task which checks unitsReady flag.
+   * 
+   * Workflow:
+   * 1) "Prep Units for Delivery" task - Admin forklifts unit to staging area (sets unitsReady=true)
+   * 2) "Assign Requested Unit" task - Driver arrives, admin verifies driver and uploads trailer photo
+   *    (sets requestedUnitPickupPhotos)
    */
   async getAllRequestedUnitsNeedingAssignment() {
     try {
+      const today = new Date();
+      const twoDaysFromNow = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
+
       const appointments = await prisma.appointment.findMany({
         where: {
           appointmentType: {
             in: ['Storage Unit Access', 'End Storage Plan']
           },
+          date: {
+            gte: today,
+            lt: twoDaysFromNow
+          },
+          // Must have at least one requested storage unit
+          // We filter for empty requestedUnitPickupPhotos in JavaScript below
+          // because Prisma's isEmpty doesn't work reliably with PostgreSQL arrays
           requestedStorageUnits: {
-            some: {
-              unitsReady: false
-            }
+            some: {}
+          },
+          // Exclude canceled and completed appointments
+          status: {
+            notIn: EXCLUDED_APPOINTMENT_STATUSES
           }
         },
         select: {
           id: true,
           jobCode: true,
+          date: true,
+          status: true,
+          appointmentType: true,
           requestedStorageUnits: {
-            where: {
-              unitsReady: false
-            },
             select: {
               id: true,
+              storageUnitId: true,
+              requestedUnitPickupPhotos: true,
               storageUnit: {
                 select: {
                   storageUnitNumber: true
@@ -264,14 +294,21 @@ export class AssignRequestedUnitService {
         }
       });
 
-      return appointments.flatMap(appointment => 
-        appointment.requestedStorageUnits.map((unit, index) => ({
+      // Filter to only include requested units where the assign task hasn't been completed
+      // (no pickup photos uploaded yet)
+      return appointments.flatMap(appointment => {
+        // Filter to units that don't have pickup photos yet (assign task not completed)
+        const unassignedUnits = appointment.requestedStorageUnits.filter(
+          unit => unit.requestedUnitPickupPhotos.length === 0
+        );
+
+        return unassignedUnits.map((unit, index) => ({
           appointmentId: appointment.id,
           jobCode: appointment.jobCode ?? '',
           requestedUnitNumber: unit.storageUnit.storageUnitNumber,
           unitIndex: index + 1
-        }))
-      );
+        }));
+      });
     } catch (error) {
       console.error('Error getting all requested units needing assignment:', error);
       return [];

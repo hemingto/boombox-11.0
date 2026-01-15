@@ -6,7 +6,7 @@
 
 'use client';
 
-import { SubPageHero } from '@/components/features/service-providers/account/SubPageHero';
+import { DriverSignupHero } from '@/components/features/drivers/DriverSignupHero';
 import { AddVehicleForm } from '@/components/features/drivers/AddVehicleForm';
 import { use } from 'react';
 
@@ -25,11 +25,9 @@ export default function DriverAddVehiclePage({
 
   return (
     <>
-      <SubPageHero
-        title="Add Vehicle"
-        description="Add a new vehicle to your account"
-        userType="driver"
-        userId={driverId}
+      <DriverSignupHero 
+        title="Add Vehicle" 
+        description="Add a vehicle to your driver profile" 
       />
       <AddVehicleForm userId={driverId} userType="driver" />
     </>

@@ -45,10 +45,13 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { IdentificationIcon, ArrowPathIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { Modal } from '@/components/ui/primitives/Modal/Modal';
-import { useClickOutside } from '@/hooks/useClickOutside';
+import { Button } from '@/components/ui/primitives/Button/Button';
+import { FilterDropdown } from '@/components/ui/primitives/FilterDropdown/FilterDropdown';
+import { Badge } from '@/components/ui/primitives/Badge/Badge';
+import { formatPhoneNumberForDisplay } from '@/lib/utils/phoneUtils';
 
 interface Driver {
   id: number;
@@ -70,14 +73,14 @@ export interface MoverPartnerDriverProps {
   className?: string;
 }
 
-type FilterOption = 'all' | 'approved' | 'unapproved' | 'newest';
+type FilterOptionValue = 'all' | 'approved' | 'unapproved' | 'newest';
 
-const filterLabels: Record<FilterOption, string> = {
-  all: 'All Drivers',
-  approved: 'Approved',
-  unapproved: 'Unapproved',
-  newest: 'Newest First',
-};
+const filterOptions = [
+  { value: 'all', label: 'All Drivers' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'unapproved', label: 'Unapproved' },
+  { value: 'newest', label: 'Newest First' },
+];
 
 export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
   moverId,
@@ -87,16 +90,12 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filterOption, setFilterOption] = useState<FilterOption>('all');
+  const [filterOption, setFilterOption] = useState<FilterOptionValue>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const itemsPerPage = 10;
-
-  const filterRef = useRef<HTMLDivElement>(null);
-  useClickOutside(filterRef, () => setIsFilterOpen(false));
 
   const fetchDrivers = useCallback(async () => {
     try {
@@ -208,18 +207,20 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
   // Error State
   if (error) {
     return (
-      <div className={`bg-status-bg-error p-4 border border-status-border-error rounded-md ${className}`}>
+      <div className={`bg-status-bg-error p-4 border border-status--error rounded-md ${className}`}>
         <p className="text-sm text-status-error mb-2" role="alert">
           {error}
         </p>
-        <button
+        <Button
           onClick={handleRetry}
-          className="flex items-center space-x-2 px-4 py-2 bg-surface-tertiary hover:bg-surface-disabled active:bg-surface-disabled transition-colors duration-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-border-focus"
+          variant="secondary"
+          size="sm"
+          icon={<ArrowPathIcon className="w-4 h-4" aria-hidden="true" />}
+          iconPosition="left"
           aria-label="Retry loading drivers"
         >
-          <ArrowPathIcon className="w-4 h-4" aria-hidden="true" />
-          <span>Retry</span>
-        </button>
+          Retry
+        </Button>
       </div>
     );
   }
@@ -228,9 +229,9 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
   if (drivers.length === 0) {
     return (
       <div className={`bg-surface-primary rounded-md shadow-custom-shadow p-8 text-center ${className}`}>
-        <IdentificationIcon className="w-12 h-12 mx-auto text-text-tertiary mb-4" aria-hidden="true" />
-        <h3 className="text-lg font-medium text-text-primary mb-2">No drivers yet</h3>
-        <p className="text-text-secondary">
+        <IdentificationIcon className="w-12 h-12 mx-auto text-text-secondary mb-4" aria-hidden="true" />
+        <h3 className="text-lg font-medium text-text-tertiary mb-2">No drivers yet</h3>
+        <p className="text-text-tertiary">
           Your drivers will appear here after they have signed up and are approved
         </p>
       </div>
@@ -246,125 +247,142 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
           <input
             type="text"
             placeholder="Search drivers..."
-            className="px-4 py-2 w-full sm:w-64 rounded-md focus:outline-none bg-surface-tertiary placeholder:text-text-secondary placeholder:text-sm focus:bg-surface-primary focus:ring-2 focus:ring-border-focus transition-colors duration-200"
+            className="px-4 py-2 w-full sm:w-64 rounded-md focus:outline-none bg-surface-tertiary focus:placeholder:text-text-primary placeholder:text-text-secondary placeholder:text-sm focus:bg-surface-primary focus:ring-2 focus:ring-border-focus"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             aria-label="Search drivers by name"
           />
 
           {/* Filter Dropdown */}
-          <div className="relative" ref={filterRef}>
-            <button
-              type="button"
-              className={`relative w-fit rounded-full px-4 py-2 cursor-pointer transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-border-focus ${
-                isFilterOpen
-                  ? 'ring-2 ring-border bg-surface-primary'
-                  : 'ring-1 ring-border bg-surface-tertiary'
-              }`}
-              onClick={() => setIsFilterOpen(!isFilterOpen)}
-              aria-label="Filter drivers"
-              aria-expanded={isFilterOpen}
-              aria-haspopup="true"
-            >
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-text-primary whitespace-nowrap">
-                  {filterLabels[filterOption]}
-                </span>
-                <svg
-                  className={`shrink-0 w-3 h-3 text-text-primary ml-2 transition-transform duration-200 ${
-                    isFilterOpen ? 'rotate-180' : ''
-                  }`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </button>
-
-            {isFilterOpen && (
-              <div
-                className="absolute w-fit min-w-[144px] left-0 z-10 mt-2 border border-border rounded-md bg-surface-primary shadow-custom-shadow"
-                role="menu"
-                aria-label="Filter options"
-              >
-                {(Object.keys(filterLabels) as FilterOption[]).map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    className="flex justify-between items-center p-3 w-full cursor-pointer hover:bg-surface-tertiary transition-colors duration-200 text-left focus:outline-none focus:bg-surface-tertiary"
-                    onClick={() => {
-                      setFilterOption(option);
-                      setIsFilterOpen(false);
-                      setCurrentPage(1); // Reset to first page on filter change
-                    }}
-                    role="menuitem"
-                  >
-                    <span className="text-sm text-text-primary">{filterLabels[option]}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <FilterDropdown
+            options={filterOptions}
+            value={filterOption}
+            onChange={(value) => {
+              setFilterOption(value as FilterOptionValue);
+              setCurrentPage(1); // Reset to first page on filter change
+            }}
+            ariaLabel="Filter drivers"
+            size="md"
+          />
         </div>
       </div>
 
-      {/* Drivers Table */}
+      {/* Drivers Table/List */}
       <div className="bg-surface-primary rounded-md shadow-custom-shadow overflow-hidden" role="region" aria-label="Drivers list">
-        <div role="table" aria-label="Drivers table">
+        {/* Desktop Table View (hidden on mobile/tablet) */}
+        <div className="hidden md:block" role="table" aria-label="Drivers table">
           {/* Table Header */}
-          <div className="grid grid-cols-5 border-b border-border py-3 px-4" role="row">
-          <div className="text-sm font-medium text-text-secondary" role="columnheader">Name</div>
-          <div className="text-sm font-medium text-text-secondary" role="columnheader">Email</div>
-          <div className="text-sm font-medium text-text-secondary" role="columnheader">Phone</div>
-          <div className="text-sm font-medium text-text-secondary" role="columnheader">Status</div>
-          <div className="text-sm font-medium text-text-secondary text-right" role="columnheader">Actions</div>
+          <div className="grid gap-4 border-b border-border py-3 px-4" style={{ gridTemplateColumns: 'minmax(150px, 1fr) minmax(200px, 1.5fr) minmax(120px, 1fr) minmax(140px, 1fr) minmax(100px, 0.8fr)' }} role="row">
+            <div className="text-sm text-text-tertiary" role="columnheader">Name</div>
+            <div className="text-sm text-text-tertiary" role="columnheader">Email</div>
+            <div className="text-sm text-text-tertiary" role="columnheader">Phone</div>
+            <div className="text-sm text-text-tertiary" role="columnheader">Status</div>
+            <div className="text-sm text-text-tertiary text-right" role="columnheader">Actions</div>
+          </div>
+
+          {/* Table Content */}
+          {paginatedDrivers.length === 0 ? (
+            <div className="py-8 px-4 text-center text-text-secondary">
+              No drivers found matching your search.
+            </div>
+          ) : (
+            paginatedDrivers.map((driver) => (
+              <div
+                key={driver.id}
+                className="grid gap-4 items-center py-4 border-b border-border last:border-none px-4"
+                style={{ gridTemplateColumns: 'minmax(150px, 1fr) minmax(200px, 1.5fr) minmax(120px, 1fr) minmax(140px, 1fr) minmax(100px, 0.8fr)' }}
+                role="row"
+              >
+                <div role="cell" className="min-w-0">
+                  <p className="font-medium text-text-primary truncate">
+                    {driver.firstName} {driver.lastName}
+                  </p>
+                </div>
+                <div className="text-sm text-text-primary min-w-0" role="cell">
+                  <span className="truncate block" title={driver.email}>{driver.email}</span>
+                </div>
+                <div className="text-sm text-text-primary min-w-0" role="cell">
+                  <span className="truncate block">{formatPhoneNumberForDisplay(driver.phoneNumber)}</span>
+                </div>
+                <div role="cell" className="min-w-0">
+                  <Badge
+                    label={driver.isApproved ? "Approved" : "Pending Approval"}
+                    variant={driver.isApproved ? "success" : "warning"}
+                    size="md"
+                  />
+                </div>
+                <div className="text-right min-w-0" role="cell">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setShowDeleteConfirmation(driver.id)}
+                    aria-label={`Remove ${driver.firstName} ${driver.lastName}`}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
-        {/* Table Content */}
-        {paginatedDrivers.length === 0 ? (
-          <div className="py-8 px-4 text-center text-text-secondary">
-            No drivers found matching your search.
-          </div>
-        ) : (
-          paginatedDrivers.map((driver) => (
-            <div
-              key={driver.id}
-              className="grid grid-cols-5 items-center py-4 border-b border-border last:border-none px-4 hover:bg-surface-secondary transition-colors duration-200"
-              role="row"
-            >
-              <div role="cell">
-                <p className="font-medium text-text-primary">
-                  {driver.firstName} {driver.lastName}
-                </p>
-              </div>
-              <div className="text-sm text-text-primary" role="cell">{driver.email}</div>
-              <div className="text-sm text-text-primary" role="cell">{driver.phoneNumber}</div>
-              <div role="cell">
-                {driver.isApproved ? (
-                  <span className="inline-flex px-3 py-1 text-status-success bg-status-bg-success rounded-md text-xs font-medium">
-                    Approved
-                  </span>
-                ) : (
-                  <span className="inline-flex px-3 py-1 text-status-warning bg-status-bg-warning rounded-md text-xs font-medium">
-                    Pending Approval
-                  </span>
-                )}
-              </div>
-              <div className="text-right" role="cell">
-                <button
-                  className="rounded-md py-1.5 px-3 text-sm font-inter font-semibold bg-surface-tertiary hover:bg-surface-disabled active:bg-surface-disabled transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-border-focus"
-                  onClick={() => setShowDeleteConfirmation(driver.id)}
-                  aria-label={`Remove ${driver.firstName} ${driver.lastName}`}
-                >
-                  Remove
-                </button>
-              </div>
+        {/* Mobile/Tablet Card View (visible on mobile and tablet) */}
+        <div className="md:hidden">
+          {paginatedDrivers.length === 0 ? (
+            <div className="py-8 px-4 text-center text-text-secondary">
+              No drivers found matching your search.
             </div>
-          ))
-        )}
+          ) : (
+            <div className="divide-y divide-border">
+              {paginatedDrivers.map((driver) => (
+                <div
+                  key={driver.id}
+                  className="p-4 space-y-3"
+                  role="article"
+                  aria-label={`Driver: ${driver.firstName} ${driver.lastName}`}
+                >
+                  {/* Name and Status Row */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-medium text-text-primary text-base">
+                        {driver.firstName} {driver.lastName}
+                      </h3>
+                    </div>
+                    <Badge
+                      label={driver.isApproved ? "Approved" : "Pending Approval"}
+                      variant={driver.isApproved ? "success" : "warning"}
+                      size="sm"
+                    />
+                  </div>
+
+                  {/* Contact Information */}
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-2">
+                      <span className="text-xs text-text-tertiary font-medium min-w-[60px]">Email:</span>
+                      <span className="text-sm text-text-primary break-all">{driver.email}</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-xs text-text-tertiary font-medium min-w-[60px]">Phone:</span>
+                      <span className="text-sm text-text-primary">{formatPhoneNumberForDisplay(driver.phoneNumber)}</span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="pt-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setShowDeleteConfirmation(driver.id)}
+                      aria-label={`Remove ${driver.firstName} ${driver.lastName}`}
+                      className="w-full"
+                    >
+                      Remove Driver
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -376,7 +394,7 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
         size="md"
       >
         <div className="mb-6">
-          <p className="text-text-secondary">
+          <p className="text-text-primary">
             Are you sure you want to remove{' '}
             {selectedDriver && (
               <span className="font-semibold text-text-primary">
@@ -387,22 +405,25 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
           </p>
         </div>
         <div className="flex justify-end space-x-3">
-          <button
-            className="px-4 py-2 text-sm text-text-primary underline-offset-4 underline hover:text-text-secondary transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-border-focus rounded"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setShowDeleteConfirmation(null)}
             disabled={isDeleting}
             aria-label="Cancel removing driver"
           >
             Cancel
-          </button>
-          <button
-            className="rounded-md py-2.5 px-6 font-semibold bg-primary text-text-inverse hover:bg-primary-hover active:bg-primary-active transition-colors duration-200 font-inter focus:outline-none focus:ring-2 focus:ring-border-focus disabled:opacity-50 disabled:cursor-not-allowed"
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
             onClick={() => showDeleteConfirmation && handleRemoveDriver(showDeleteConfirmation)}
             disabled={isDeleting}
+            loading={isDeleting}
             aria-label="Confirm removing driver"
           >
-            {isDeleting ? 'Removing...' : 'Remove'}
-          </button>
+            Remove
+          </Button>
         </div>
       </Modal>
 
@@ -410,15 +431,17 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
       {totalPages > 1 && (
         <nav className="relative flex justify-center items-center mt-8" aria-label="Drivers pagination">
           <button
+            type="button"
             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
-            className={`absolute left-0 rounded-full bg-surface-tertiary active:bg-surface-disabled p-2 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-border-focus ${
-              currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-surface-disabled'
-            }`}
             aria-label="Previous page"
-            aria-disabled={currentPage === 1}
+            className={`absolute left-0 rounded-full bg-surface-tertiary hover:bg-surface-secondary active:bg-surface-pressed p-2 flex items-center justify-center ${
+              currentPage === 1
+                ? 'opacity-50 cursor-not-allowed'
+                : 'cursor-pointer'
+            }`}
           >
-            <ChevronLeftIcon className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+            <ChevronLeftIcon className="w-4 h-4 text-text-primary" />
           </button>
 
           <span className="text-sm text-text-primary" aria-current="page" aria-live="polite">
@@ -426,15 +449,17 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
           </span>
 
           <button
+            type="button"
             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
             disabled={currentPage === totalPages}
-            className={`absolute right-0 rounded-full bg-surface-tertiary active:bg-surface-disabled p-2 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-border-focus ${
-              currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-surface-disabled'
-            }`}
             aria-label="Next page"
-            aria-disabled={currentPage === totalPages}
+            className={`absolute right-0 rounded-full bg-surface-tertiary hover:bg-surface-secondary active:bg-surface-pressed p-2 flex items-center justify-center ${
+              currentPage === totalPages
+                ? 'opacity-50 cursor-not-allowed'
+                : 'cursor-pointer'
+            }`}
           >
-            <ChevronRightIcon className="w-4 h-4 text-text-secondary" aria-hidden="true" />
+            <ChevronRightIcon className="w-4 h-4 text-text-primary" />
           </button>
         </nav>
       )}

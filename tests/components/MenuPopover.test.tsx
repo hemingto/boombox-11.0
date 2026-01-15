@@ -187,7 +187,7 @@ describe('MenuPopover', () => {
         update: jest.fn(),
       });
       
-      mockGetAccountPageUrl.mockReturnValue('/user-page/123');
+      mockGetAccountPageUrl.mockReturnValue('/customer/123');
       mockGetAccountPageText.mockReturnValue('Account Page');
       
       render(<MenuPopover />);
@@ -199,7 +199,7 @@ describe('MenuPopover', () => {
         expect(mockGetAccountPageText).toHaveBeenCalledWith(mockUser);
         
         const accountLink = screen.getByText('Account Page').closest('a');
-        expect(accountLink).toHaveAttribute('href', '/user-page/123');
+        expect(accountLink).toHaveAttribute('href', '/customer/123');
       });
     });
   });

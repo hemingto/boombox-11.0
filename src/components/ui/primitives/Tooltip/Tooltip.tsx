@@ -17,12 +17,6 @@
  * @refactor Enhanced simple tooltip with Headless UI for comprehensive accessibility
  */
 
-import { Fragment } from 'react';
-import { 
-  Description, 
-  Field, 
-  Label,
-} from '@headlessui/react';
 import { QuestionMarkCircleIcon } from '@heroicons/react/20/solid';
 import { cn } from '@/lib/utils/cn';
 
@@ -106,28 +100,27 @@ const Tooltip: React.FC<TooltipProps> = ({
   );
 
   return (
-    <Field className="relative inline-flex items-center">
-      <div className="group relative">
-        {/* Trigger element */}
-        {children ? (
-          <div 
-            className={cn('inline-flex items-center', className)}
-            aria-describedby="tooltip-content"
-            aria-label="More information"
-          >
-            {children}
-          </div>
-        ) : (
-          <div 
-            className="inline-flex items-center"
-            role="button"
-            tabIndex={0}
-            aria-describedby="tooltip-content"
-            aria-label="More information"
-          >
-            {defaultTrigger}
-          </div>
-        )}
+    <div className="group relative inline-flex items-center">
+      {/* Trigger element */}
+      {children ? (
+        <div 
+          className={cn('inline-flex items-center', className)}
+          aria-describedby="tooltip-content"
+          aria-label="More information"
+        >
+          {children}
+        </div>
+      ) : (
+        <div 
+          className="inline-flex items-center"
+          role="button"
+          tabIndex={0}
+          aria-describedby="tooltip-content"
+          aria-label="More information"
+        >
+          {defaultTrigger}
+        </div>
+      )}
 
         {/* Tooltip content */}
         <div
@@ -136,7 +129,7 @@ const Tooltip: React.FC<TooltipProps> = ({
           aria-label={text}
           className={cn(
             'absolute z-50 w-max max-w-xs pointer-events-none opacity-0 transition-opacity duration-200',
-            'p-3 text-sm text-zinc-950 bg-surface-secondary rounded-md shadow-custom-shadow',
+            'p-3 text-sm text-zinc-950 bg-surface-primary rounded-md shadow-custom-shadow',
             'group-hover:opacity-100 group-focus-within:opacity-100',
             positionClasses[position],
             showOnHover ? 'group-hover:opacity-100' : '',
@@ -146,9 +139,9 @@ const Tooltip: React.FC<TooltipProps> = ({
             transitionDelay: showOnHover ? `${delay}ms` : '0ms',
           }}
         >
-          <Description className="text-sm">
+          <p className="text-sm">
             {text}
-          </Description>
+          </p>
           
           {/* Arrow pointer */}
           <div
@@ -163,8 +156,7 @@ const Tooltip: React.FC<TooltipProps> = ({
             )}
           />
         </div>
-      </div>
-    </Field>
+    </div>
   );
 };
 

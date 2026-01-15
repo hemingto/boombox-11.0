@@ -25,132 +25,132 @@ import { Bars3Icon, XMarkIcon } from '@heroicons/react/20/solid';
 import { signOut } from "next-auth/react";
 
 interface UserMobileMenuProps {
-  userId: string;
-  className?: string;
-  theme?: 'dark' | 'light';
+ userId: string;
+ className?: string;
+ theme?: 'dark' | 'light';
 }
 
 export const UserMobileMenu: React.FC<UserMobileMenuProps> = ({ userId, className, theme = 'dark' }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
-  const isDarkTheme = theme === 'dark';
-  const pathname = usePathname();
-  const router = useRouter();
-  const menuOptions = [
-    { name: "Home", href: `/user-page/${userId}` }, // Fixed template literal
-    { name: "Add storage unit", href: `/user-page/${userId}/add-storage` }, // Dynamically include userId
-    { name: "Access storage", href: `/user-page/${userId}/access-storage` },
-    { name: "Packing supplies", href: `/user-page/${userId}/packing-supplies` },
-    { name: "Payments", href: `/user-page/${userId}/payments` },
-    { name: "Account info", href: `/user-page/${userId}/account-info` },
-  ];
+ const [isOpen, setIsOpen] = useState(false);
+ const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
+ const isDarkTheme = theme === 'dark';
+ const pathname = usePathname();
+ const router = useRouter();
+ const menuOptions = [
+  { name: "Home", href: `/customer/${userId}` },
+  { name: "Add storage unit", href: `/customer/${userId}/add-storage` },
+  { name: "Access storage", href: `/customer/${userId}/access-storage` },
+  { name: "Packing supplies", href: `/customer/${userId}/packing-supplies` },
+  { name: "Payments", href: `/customer/${userId}/payments` },
+  { name: "Account info", href: `/customer/${userId}/account-info` },
+ ];
 
-  useEffect(() => {
-    const handleRouteChange = () => {
-      setIsOpen(false);
-      document.body.style.overflow = '';
-    };
-
-    handleRouteChange();
-
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [pathname]);
-
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isOpen]);
-
-  const toggleMenu = () => {
-    setIsOpen(!isOpen);
+ useEffect(() => {
+  const handleRouteChange = () => {
+   setIsOpen(false);
+   document.body.style.overflow = '';
   };
 
-  const handleLogout = async () => {
-    try {
-      setIsLoggingOut(true);
-      await signOut({ redirect: false });
-      router.push('/');
-      setIsLoggingOut(false);
-    } catch (error) {
-      console.error('Logout failed:', error);
-      alert('Failed to log out. Please try again.');
-      setIsLoggingOut(false);
-    }
-  };
+  handleRouteChange();
 
-  return (
-    <div className={`relative ${className}`}>
+  return () => {
+   document.body.style.overflow = '';
+  };
+ }, [pathname]);
+
+ useEffect(() => {
+  if (isOpen) {
+   document.body.style.overflow = 'hidden';
+  } else {
+   document.body.style.overflow = '';
+  }
+
+  return () => {
+   document.body.style.overflow = '';
+  };
+ }, [isOpen]);
+
+ const toggleMenu = () => {
+  setIsOpen(!isOpen);
+ };
+
+ const handleLogout = async () => {
+  try {
+   setIsLoggingOut(true);
+   await signOut({ redirect: false });
+   router.push('/');
+   setIsLoggingOut(false);
+  } catch (error) {
+   console.error('Logout failed:', error);
+   alert('Failed to log out. Please try again.');
+   setIsLoggingOut(false);
+  }
+ };
+
+ return (
+  <div className={`relative ${className}`}>
+   <button
+    onClick={toggleMenu}
+    className={`flex text-sm cursor-pointer items-center gap-1 py-2.5 px-2.5 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+     isDarkTheme
+      ? 'bg-primary-hover text-text-inverse active:bg-primary-active focus-visible:ring-text-inverse'
+      : 'text-text-primary active:bg-surface-tertiary focus-visible:ring-primary'
+    }`}
+    aria-label="Toggle user navigation menu"
+    aria-expanded={isOpen}
+    aria-controls="user-mobile-navigation-menu"
+   >
+    {isOpen ? (
+     <XMarkIcon className="w-5" aria-hidden="true" />
+    ) : (
+     <Bars3Icon className="w-5" aria-hidden="true" />
+    )}
+   </button>
+
+   <div
+    id="user-mobile-navigation-menu"
+    role="dialog"
+    aria-modal="true"
+    aria-label="User mobile navigation menu"
+    className={`fixed inset-0 top-16 bg-surface-primary flex z-20 transition-all duration-500 overflow-hidden ${
+     isOpen ? 'max-h-screen' : 'max-h-0'
+    }`}
+   >
+    <nav className="text-text-primary w-full" role="navigation" aria-label="User mobile navigation">
+     <ul className="mt-2" role="list">
+      {menuOptions.map((option) => (
+       <li key={option.name} role="listitem">
+        <Link 
+         href={option.href}
+         className="group flex space-x-4 items-center p-6 text-nowrap cursor-pointer border-b border-border hover:bg-surface-tertiary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+         aria-label={`Navigate to ${option.name}`}
+        >
+         <p className="text-text-primary text-3xl group-hover:text-primary">{option.name}</p>
+        </Link>
+       </li>
+      ))}
+     </ul>
+     <div className="flex p-6 mt-2 gap-2">
       <button
-        onClick={toggleMenu}
-        className={`flex text-sm cursor-pointer items-center gap-1 py-2.5 px-2.5 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
-          isDarkTheme
-            ? 'bg-primary-hover text-text-inverse active:bg-primary-active focus-visible:ring-text-inverse'
-            : 'text-text-primary active:bg-surface-tertiary focus-visible:ring-primary'
-        }`}
-        aria-label="Toggle user navigation menu"
-        aria-expanded={isOpen}
-        aria-controls="user-mobile-navigation-menu"
+       onClick={handleLogout}
+       disabled={isLoggingOut}
+       aria-label={isLoggingOut ? 'Logging out' : 'Log out of your account'}
+       className="basis-1/2 rounded-full w-full border-2 py-2.5 px-3 font-semibold border-primary bg-surface-primary text-text-primary text-md font-inter hover:bg-surface-tertiary active:bg-surface-disabled focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       >
-        {isOpen ? (
-          <XMarkIcon className="w-5" aria-hidden="true" />
-        ) : (
-          <Bars3Icon className="w-5" aria-hidden="true" />
-        )}
+       {isLoggingOut ? 'Logging out...' : 'Log Out'}
       </button>
 
-      <div
-        id="user-mobile-navigation-menu"
-        role="dialog"
-        aria-modal="true"
-        aria-label="User mobile navigation menu"
-        className={`fixed inset-0 top-16 bg-surface-primary flex z-20 transition-all duration-500 overflow-hidden ${
-          isOpen ? 'max-h-screen' : 'max-h-0'
-        }`}
-      >
-        <nav className="text-text-primary w-full" role="navigation" aria-label="User mobile navigation">
-          <ul className="mt-2" role="list">
-            {menuOptions.map((option) => (
-              <li key={option.name} role="listitem">
-                <Link 
-                  href={option.href}
-                  className="group flex space-x-4 items-center p-6 text-nowrap cursor-pointer border-b border-border hover:bg-surface-tertiary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset transition-colors"
-                  aria-label={`Navigate to ${option.name}`}
-                >
-                  <p className="text-text-primary text-3xl group-hover:text-primary transition-colors">{option.name}</p>
-                </Link>
-              </li>
-            ))}
-          </ul>
-          <div className="flex p-6 mt-2 gap-2">
-            <button
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              aria-label={isLoggingOut ? 'Logging out' : 'Log out of your account'}
-              className="basis-1/2 rounded-full w-full border-2 py-2.5 px-3 font-semibold border-primary bg-surface-primary text-text-primary text-md font-inter hover:bg-surface-tertiary active:bg-surface-disabled focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-colors"
-            >
-              {isLoggingOut ? 'Logging out...' : 'Log Out'}
-            </button>
-
-            <Link href="/getquote" className="basis-1/2">
-              <button
-                className="rounded-full py-2.5 px-3 font-semibold w-full text-md border-2 border-primary bg-primary text-text-inverse active:bg-primary-active font-inter hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-text-inverse focus-visible:ring-offset-2 transition-colors"
-                aria-label="Add a new storage unit"
-              >
-                Add Storage
-              </button>
-            </Link>
-          </div>
-        </nav>
-      </div>
-    </div>
-  );
+      <Link href="/getquote" className="basis-1/2">
+       <button
+        className="rounded-full py-2.5 px-3 font-semibold w-full text-md border-2 border-primary bg-primary text-text-inverse active:bg-primary-active font-inter hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-text-inverse focus-visible:ring-offset-2"
+        aria-label="Add a new storage unit"
+       >
+        Add Storage
+       </button>
+      </Link>
+     </div>
+    </nav>
+   </div>
+  </div>
+ );
 };

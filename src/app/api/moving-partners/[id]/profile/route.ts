@@ -30,6 +30,7 @@ import {
   UpdateMovingPartnerProfileRequestSchema,
   MovingPartnerProfileResponseSchema 
 } from '@/lib/validations/api.validations';
+import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
 
 // GET handler to fetch moving partner profile information
 export async function GET(
@@ -145,10 +146,18 @@ export async function PATCH(
       processedData.description = validatedData.description;
     }
     if ('phoneNumber' in validatedData && validatedData.phoneNumber !== undefined) {
-      processedData.phoneNumber = validatedData.phoneNumber;
-      // If phone number is being updated, set verifiedPhoneNumber to false
-      if (validatedData.phoneNumber !== existingPartner.phoneNumber) {
-        processedData.verifiedPhoneNumber = false;
+      try {
+        const normalizedPhone = normalizePhoneNumberToE164(validatedData.phoneNumber);
+        processedData.phoneNumber = normalizedPhone;
+        // If phone number is being updated, set verifiedPhoneNumber to false
+        if (normalizedPhone !== existingPartner.phoneNumber) {
+          processedData.verifiedPhoneNumber = false;
+        }
+      } catch (error) {
+        return NextResponse.json(
+          { error: 'Invalid phone number format' },
+          { status: 400 }
+        );
       }
     }
     if ('email' in validatedData && validatedData.email !== undefined) {

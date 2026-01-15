@@ -24,8 +24,9 @@
 
 import React, { useState } from 'react';
 import { ChevronLeftIcon } from '@heroicons/react/20/solid';
-import { Modal, Button } from '@/components/ui/primitives';
-import { useAccessStorageFormState, useAccessStorageForm_RHF, useAccessStorageContext } from './AccessStorageProvider';
+import { Modal } from '@/components/ui/primitives/Modal';
+import { TextArea } from '@/components/ui/primitives/TextArea';
+import { useAccessStorageForm_RHF } from './AccessStorageProvider';
 
 interface AccessStorageConfirmAppointmentProps {
   goBackToStep1: () => void;
@@ -38,8 +39,6 @@ function AccessStorageConfirmAppointment({
   goBackToStep2,
   selectedPlanName,
 }: AccessStorageConfirmAppointmentProps) {
-  const { formState } = useAccessStorageFormState();
-  const { isEditMode, appointmentId } = useAccessStorageContext();
   const form = useAccessStorageForm_RHF();
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
@@ -65,137 +64,107 @@ function AccessStorageConfirmAppointment({
       <div className="max-w-lg mx-auto md:mx-0 md:ml-auto">
         {/* Header with Back Button */}
         <header className="mb-12">
-          {isEditMode && (
-            <div className="mb-4">
-              <div className="inline-flex items-center px-3 py-1 rounded-full bg-surface-tertiary border border-border text-text-secondary text-sm font-medium">
-                <span className="w-2 h-2 bg-status-warning rounded-full mr-2" aria-hidden="true"></span>
-                Editing Appointment {appointmentId && `#${appointmentId}`}
-              </div>
-            </div>
-          )}
           <div className="flex items-center gap-2 lg:-ml-10">
             <button
               type="button"
               onClick={handleBackClick}
-              className="w-8 cursor-pointer shrink-0 text-text-primary hover:text-primary focus:text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
+              className="p-1 rounded-full hover:bg-surface-tertiary text-text-secondary hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2"
               aria-label="Go back to previous step"
             >
               <ChevronLeftIcon className="w-8" />
             </button>
             <h1 className="text-4xl text-text-primary">
-              {isEditMode ? 'Confirm appointment changes' : 'Confirm appointment'}
+              Confirm appointment
             </h1>
           </div>
-          {isEditMode && (
-            <p className="text-text-secondary text-lg mt-2 ml-10">
-              Review your changes below. Your appointment will be updated when you submit.
-            </p>
-          )}
         </header>
 
         {/* Description Section */}
-        <section className="form-group" aria-labelledby="description-heading">
-          <h2 id="description-heading" className="form-label">
+        <fieldset className="mb-4">
+          <legend className="mb-4 mt-10 text-text-primary">
             Provide relevant information about your delivery
-          </h2>
-          
-          <div className="mt-4">
-            <label htmlFor="delivery-description" className="sr-only">
-              Additional delivery information
-            </label>
-            <textarea
-              id="delivery-description"
+          </legend>
+          <div>
+            <TextArea
               value={description}
               onChange={handleDescriptionChange}
               placeholder="Let us know if there are stairs, narrow hallways, or tough parking conditions..."
-              className="input-field h-36 sm:h-32 resize-none"
-              aria-describedby="description-help"
+              className="h-36 sm:h-32"
+              fullWidth
+              resize="none"
               rows={4}
+              aria-label="Delivery details and special instructions"
+              aria-describedby="description-help"
             />
-            <div id="description-help" className="form-helper">
-              Optional: Provide additional information about your delivery location or special requirements
+            <div 
+              id="description-help" 
+              className="sr-only"
+            >
+              Optional field to provide additional details about your delivery that may help with the appointment
             </div>
           </div>
-        </section>
+        </fieldset>
 
         {/* Payment Information */}
-        <section className="form-group" aria-labelledby="payment-info-heading">
-          <h2 id="payment-info-heading" className="sr-only">Payment Information</h2>
-          
-          <div className="card p-4 max-w-fit">
-            <p className="text-sm text-text-secondary mb-3">
-              {isEditMode 
-                ? "Changes to your appointment may affect pricing. Any additional charges will be processed on your default payment method."
-                : "You won't be charged anything today. Your payment will be processed on the default card on file."
-              }
+        <section 
+          className="flex-col gap-2"
+          role="region"
+          aria-labelledby="payment-info-heading"
+        >
+          <h2 
+            id="payment-info-heading" 
+            className="sr-only"
+          >
+            Payment Information
+          </h2>
+          <div className="mt-4 p-3 sm:mb-4 mb-2 border border-border bg-surface-primary rounded-md max-w-fit">
+            <p className="text-xs text-text-primary">
+              You won&apos;t be charged anything today. Your payment will be processed on the default card on file.
+              <br />
+              <br />
             </p>
             
             {/* Payment Details Modal */}
-            <Button 
-              variant="ghost" 
-              size="sm"
+            <button
+              type="button"
               onClick={() => setIsPaymentModalOpen(true)}
-              className="text-text-primary p-0 h-auto font-normal hover:text-primary focus:text-primary"
-              aria-describedby="payment-modal-description"
+              className="text-xs underline cursor-pointer text-primary font-semibold bg-transparent border-none p-0 underline-offset-2 decoration-dotted hover:decoration-solid"
+              aria-label="Learn more about when you will be charged"
             >
-              <span className="text-sm underline">
-                {isEditMode ? "How do appointment changes affect billing?" : "When will I be charged?"}
-              </span>
-            </Button>
-            
-            <div id="payment-modal-description" className="sr-only">
-              Opens a dialog with detailed information about payment timing and cancellation policies
-            </div>
+              When will I be charged?
+            </button>
+
             
             <Modal
               open={isPaymentModalOpen}
               onClose={() => setIsPaymentModalOpen(false)}
-              title={isEditMode ? "How do appointment changes affect billing?" : "When will I be charged?"}
+              title="When will I be charged?"
               size="md"
-              showCloseButton={true}
-              closeOnOverlayClick={true}
+              aria-labelledby="payment-modal-title"
+              aria-describedby="payment-modal-content"
             >
-              <div className="space-y-4 text-sm text-text-secondary">
-                {isEditMode ? (
-                  <>
-                    <p className="leading-relaxed">
-                      When you update your appointment, we&apos;ll calculate any price differences based on your changes. If the new total is higher, the difference will be charged to your default payment method. If it&apos;s lower, you&apos;ll receive a credit or refund.
-                    </p>
-                    
-                    <div>
-                      <h4 className="font-medium text-text-primary mb-2">
-                        What changes affect pricing?
-                      </h4>
-                      <p className="leading-relaxed">
-                        Changes to your storage units, labor selection, or appointment date may affect the total cost. The updated pricing will be shown in your quote before you confirm the changes.
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <h4 className="font-medium text-text-primary mb-2">
-                        Cancellation policy still applies
-                      </h4>
-                      <p className="leading-relaxed">
-                        Please make changes at least 48 hours in advance to avoid cancellation fees. Same-day changes may incur additional charges.
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <p className="leading-relaxed">
-                      Reserving is free! You&apos;ll only be charged for your first month of storage and the pickup fee after your appointment is completed. We&apos;ll run a pre-authorization check 7 days before your appointment to ensure there are enough funds. If your appointment is in less than 7 days, we&apos;ll do the check right after booking. This hold will be released once the check is done.
-                    </p>
-                    
-                    <div>
-                      <h4 className="font-medium text-text-primary mb-2">
-                        What if I need to reschedule?
-                      </h4>
-                      <p className="leading-relaxed">
-                        Please reschedule or cancel at least 48 hours in advance to avoid a $100 fee. If you cancel on the day of your appointment, the fee increases to $200. It&apos;s easy to make changes online!
-                      </p>
-                    </div>
-                  </>
-                )}
+              <div 
+                className="space-y-4"
+                id="payment-modal-content"
+              >
+                <p className="text-sm text-text-primary leading-5">
+                  Reserving is free! You&apos;ll only be charged for your first month of storage and the pickup fee after your appointment is completed. We&apos;ll run a pre-authorization check 7 days before your appointment to ensure there are enough funds. If your appointment is in less than 7 days, we&apos;ll do the check right after booking. This hold will be released once the check is done.
+                </p>
+                
+                <div className="border-t border-border pt-4 pb-6">
+                  <h2 
+                    className="text-xl font-semibold text-text-primary mb-4"
+                    id="reschedule-heading"
+                  >
+                    What if I need to reschedule?
+                  </h2>
+                  <p 
+                    className="text-sm text-text-primary leading-5"
+                    aria-labelledby="reschedule-heading"
+                  >
+                    Please reschedule or cancel at least 48 hours in advance to avoid a $100 fee. If you cancel on the day of your appointment, the fee increases to $200. It&apos;s easy to make changes online!
+                  </p>
+                </div>
               </div>
             </Modal>
           </div>

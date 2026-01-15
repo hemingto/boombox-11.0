@@ -13,19 +13,18 @@
  * - Enhanced button with proper type and accessibility attributes
  * 
  * IMAGE OPTIMIZATION:
- * - Uses OptimizedImage component from primitives for better performance and SEO
- * - Implements Next.js Image with lazy loading and responsive sizing
+ * - Uses Next.js Image component for better performance and SEO
+ * - Implements lazy loading and responsive sizing
  * - Aspect ratio preserved for layout stability (square aspect ratio)
- * - Skeleton loading state while image loads
  * 
- * @refactor Migrated to features/howitworks with design system integration, accessibility improvements, and OptimizedImage integration
+ * @refactor Migrated to features/howitworks with design system integration, accessibility improvements, and Next.js Image
  */
 
 'use client';
 
 import React from 'react';
 import Link from 'next/link';
-import { OptimizedImage } from '@/components/ui/primitives/OptimizedImage/OptimizedImage';
+import Image from 'next/image';
 
 /**
  * Get Quote How It Works section props
@@ -51,9 +50,9 @@ export function GetQuoteHowItWorks({ className = '' }: GetQuoteHowItWorksProps) 
     >
       {/* Left column: Content */}
       <div className="place-content-center basis-1/2 mb-8">
-        <h2 id="get-quote-heading" className="mb-8">
+        <h1 id="get-quote-heading" className="mb-8">
           Say goodbye to self storage
-        </h2>
+        </h1>
         <p className="mb-10 w-4/6 text-text-primary">
           Get a quote in as little as 2 minutes
         </p>
@@ -68,17 +67,16 @@ export function GetQuoteHowItWorks({ className = '' }: GetQuoteHowItWorksProps) 
 
       {/* Right column: Image */}
       <div className="flex place-content-end basis-1/2">
-        <OptimizedImage
-          src="/placeholder.jpg"
-          alt="Boombox storage service - convenient mobile storage solution"
-          width={500}
-          height={500}
-          aspectRatio="square"
-          containerClassName="w-full md:ml-8 rounded-md"
-          className="object-cover rounded-md"
-          loading="lazy"
-          sizes="(max-width: 768px) 100vw, 50vw"
-        />
+        <div className="relative w-full h-full md:ml-8 aspect-square rounded-md overflow-hidden">
+          <Image
+            src="/placeholder.jpg"
+            alt="Boombox storage service - convenient mobile storage solution"
+            fill
+            className="object-cover rounded-md"
+            loading="lazy"
+            sizes="(max-width: 768px) 100vw, 50vw"
+          />
+        </div>
       </div>
     </section>
   );

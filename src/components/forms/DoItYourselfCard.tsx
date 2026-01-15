@@ -99,21 +99,21 @@ export const DoItYourselfCard: React.FC<DoItYourselfCardProps> = ({
 
   // Build CSS classes using design system tokens
   const cardClasses = `
-    mb-4 p-4 rounded-md flex justify-between cursor-pointer transition-all duration-200
+    mb-4 p-4 rounded-md flex justify-between cursor-pointer
     ${hasError
       ? 'ring-border-error bg-status-bg-error ring-2'
       : checked
       ? 'ring-border-focus ring-2 bg-surface-primary'
-      : 'ring-border ring-2 bg-surface-secondary hover:bg-surface-tertiary'
+      : 'ring-border ring-2 bg-surface-tertiary'
     }
-    ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-md'}
+    ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2
     ${className}
   `.trim();
 
   const iconContainerClasses = `
-    relative w-28 h-28 flex flex-none justify-center items-center rounded-md mr-3 transition-colors duration-200
-    ${hasError ? 'bg-status-bg-error' : 'bg-surface-tertiary'}
+    relative w-28 h-28 flex flex-none justify-center items-center rounded-md mr-3
+    ${hasError ? 'bg-status-bg-error' : 'bg-slate-200'}
   `.trim();
 
   return (
@@ -143,7 +143,7 @@ export const DoItYourselfCard: React.FC<DoItYourselfCardProps> = ({
           
           <p 
             id="do-it-yourself-description"
-            className="text-sm flex-grow text-text-secondary leading-relaxed"
+            className="text-sm flex-grow text-text-primary leading-relaxed"
           >
             Feeling strong? Save money by loading your Boombox yourself
           </p>
@@ -152,7 +152,7 @@ export const DoItYourselfCard: React.FC<DoItYourselfCardProps> = ({
             id="do-it-yourself-price"
             className="font-semibold text-text-primary mt-2"
           >
-            Free! <span className="text-sm font-normal text-text-tertiary">1st hour</span>
+            Free! <span className="text-sm font-normal text-text-primary">1st hour</span>
           </p>
         </div>
       </div>

@@ -4,18 +4,11 @@
  * 
  * COMPONENT FUNCTIONALITY:
  * - Displays job history for movers and drivers
- * - Fetches both regular appointments and packing supply delivery routes
  * - Provides filtering (all, completed, upcoming, newest)
  * - Includes search functionality across job types and addresses
  * - Implements pagination for large datasets
  * - Shows job details with star ratings and feedback
  * - Integrates with JobHistoryPopup for detailed view
- * 
- * API ROUTES UPDATED:
- * - Old: /api/drivers/${userId}/jobs → New: /api/drivers/[id]/jobs
- * - Old: /api/movers/${userId}/jobs → New: /api/moving-partners/[id]/jobs
- * - Old: /api/drivers/${userId}/packing-supply-routes → New: /api/drivers/[id]/packing-supply-routes
- * - Old: /api/movers/${userId}/packing-supply-routes → New: /api/moving-partners/[id]/packing-supply-routes
  * 
  * DESIGN SYSTEM UPDATES:
  * - Replaced hardcoded colors (text-zinc-950, text-slate-100, bg-slate-100) with semantic tokens
@@ -28,68 +21,29 @@
  * - Used existing useClickOutside hook from @/hooks
  * - Extracted star rating component to reusable utility
  * 
- * @refactor Extracted utilities to centralized locations, applied design system colors,
- * improved accessibility with proper ARIA labels, updated API routes to new structure
+ * @refactor Data fetching moved to parent page via useJobsPageData hook.
+ * Component now accepts jobs as props for coordinated page-level loading.
  */
 
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { ClipboardDocumentListIcon, ArrowPathIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { useState, useRef } from 'react';
+import { ClipboardDocumentListIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { formatDateTime } from '@/lib/utils/dateUtils';
 import { JobHistoryPopup } from './JobHistoryPopup';
+import { Button } from '@/components/ui/primitives/Button/Button';
+import type { HistoryJob } from '@/hooks/useJobsPageData';
 
-interface Job {
-  id: number;
-  address: string;
-  date: string;
-  time: string;
-  appointmentType: string;
-  numberOfUnits: number;
-  planType: string;
-  insuranceCoverage?: string;
-  requestedStorageUnits?: {
-    unitType: string;
-    quantity: number;
-  }[];
-  serviceStartTime?: string; // Unix timestamp in milliseconds
-  serviceEndTime?: string; // Unix timestamp in milliseconds
-  user?: {
-    firstName: string;
-    lastName: string;
-  };
-  driver?: {
-    firstName: string;
-    lastName: string;
-  };
-  feedback?: {
-    rating: number;
-    comment: string;
-    tipAmount: number;
-  };
-  // Packing supply route specific fields
-  routeId?: string;
-  routeStatus?: string;
-  totalStops?: number;
-  completedStops?: number;
-  estimatedMiles?: number;
-  estimatedDurationMinutes?: number;
-  estimatedPayout?: number;
-  payoutStatus?: string;
-  orders?: any[];
-  routeMetrics?: {
-    totalDistance?: number;
-    totalTime?: number;
-    startTime?: Date;
-    endTime?: Date;
-  };
-}
+// Re-export type for convenience
+export type { HistoryJob };
 
 interface JobHistoryProps {
   userType: 'mover' | 'driver';
   userId: string;
+  /** Job history data to display */
+  jobs: HistoryJob[];
 }
 
 type FilterOption = 'all' | 'completed' | 'upcoming' | 'newest';
@@ -113,10 +67,7 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-export function JobHistory({ userType, userId }: JobHistoryProps) {
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export function JobHistory({ userType, userId, jobs }: JobHistoryProps) {
   const [filterOption, setFilterOption] = useState<FilterOption>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -127,50 +78,7 @@ export function JobHistory({ userType, userId }: JobHistoryProps) {
   const filterRef = useRef<HTMLDivElement>(null);
   useClickOutside(filterRef, () => setIsFilterOpen(false));
 
-  const fetchJobs = useCallback(async () => {
-    try {
-      // Determine API base path based on user type
-      const apiBase = userType === 'mover' ? 'moving-partners' : 'drivers';
-      
-      // Fetch regular jobs
-      const jobsResponse = await fetch(`/api/${apiBase}/${userId}/jobs`);
-      if (!jobsResponse.ok) {
-        throw new Error('Failed to fetch jobs');
-      }
-      const jobsData = await jobsResponse.json();
-      
-      // Fetch packing supply routes
-      let packingSupplyRoutes = [];
-      try {
-        const routesResponse = await fetch(`/api/${apiBase}/${userId}/packing-supply-routes`);
-        if (routesResponse.ok) {
-          const routesData = await routesResponse.json();
-          // Convert routes to job format
-          packingSupplyRoutes = routesData.map((route: any) => ({
-            ...route,
-            date: route.date || new Date().toISOString(),
-            time: route.time || route.date || new Date().toISOString(),
-          }));
-        }
-      } catch (routeError) {
-        console.warn('Failed to fetch packing supply routes:', routeError);
-      }
-      
-      // Combine jobs and routes
-      const combinedJobs = [...jobsData, ...packingSupplyRoutes];
-      setJobs(combinedJobs);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch jobs');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [userType, userId]);
-
-  useEffect(() => {
-    fetchJobs();
-  }, [fetchJobs]);
-
-  const isPackingSupplyRoute = (job: Job) => {
+  const isPackingSupplyRoute = (job: HistoryJob) => {
     return job.appointmentType === 'Packing Supply Delivery' && job.routeId;
   };
 
@@ -207,51 +115,12 @@ export function JobHistory({ userType, userId }: JobHistoryProps) {
     currentPage * itemsPerPage
   );
 
-  if (isLoading) {
-    return (
-      <div>
-        <div className="bg-surface-primary rounded-md">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="flex items-center justify-between py-4 border-b border-border px-4">
-              <div className="flex items-center space-x-4">
-                <div>
-                  <div className="h-4 w-40 bg-surface-tertiary rounded animate-pulse mb-2"></div>
-                  <div className="h-3 w-24 bg-surface-tertiary rounded animate-pulse"></div>
-                </div>
-              </div>
-              <div className="flex items-center space-x-4">
-                <div className="h-4 w-16 bg-surface-tertiary rounded animate-pulse"></div>
-                <div className="h-4 w-20 bg-surface-tertiary rounded animate-pulse"></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-status-bg-error p-3 mb-4 border border-border-error rounded-md">
-        <p className="text-sm text-status-error">{error}</p>
-        <button 
-          onClick={() => window.location.reload()}
-          className="flex items-center space-x-2 px-4 py-2 mt-2 bg-surface-tertiary hover:bg-surface-disabled active:bg-surface-disabled rounded-md text-sm transition-colors"
-          aria-label="Retry loading jobs"
-        >
-          <ArrowPathIcon className="w-4 h-4" />
-          <span>Retry</span>
-        </button>
-      </div>
-    );
-  }
-
   if (jobs.length === 0) {
     return (
       <div className="bg-surface-primary rounded-md p-8 text-center">
-        <ClipboardDocumentListIcon className="w-12 h-12 mx-auto text-text-tertiary mb-4" />
-        <h3 className="text-lg font-medium mb-2 text-text-primary">No completed jobs yet</h3>
-        <p className="text-text-secondary">
+        <ClipboardDocumentListIcon className="w-12 h-12 mx-auto text-text-secondary mb-4" />
+        <h3 className="text-lg font-semibold mb-2 text-text-tertiary">No completed jobs yet</h3>
+        <p className="text-text-tertiary">
           Your job history will appear here once you start completing jobs
         </p>
       </div>
@@ -273,7 +142,7 @@ export function JobHistory({ userType, userId }: JobHistoryProps) {
           <div className="relative" ref={filterRef}>
             <button
               type="button"
-              className={`relative w-fit rounded-full px-3 py-2 cursor-pointer transition-colors ${
+              className={`relative w-fit rounded-full px-3 py-2 cursor-pointer ${
                 isFilterOpen 
                   ? 'ring-2 ring-border bg-surface-primary' 
                   : 'ring-1 ring-border bg-surface-tertiary hover:bg-surface-disabled'
@@ -286,9 +155,9 @@ export function JobHistory({ userType, userId }: JobHistoryProps) {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-text-primary text-nowrap">
                   {filterOption === 'all' ? 'All Jobs' :
-                   filterOption === 'completed' ? 'Completed' :
-                   filterOption === 'upcoming' ? 'Upcoming' :
-                   'Newest First'}
+                    filterOption === 'completed' ? 'Completed' :
+                    filterOption === 'upcoming' ? 'Upcoming' :
+                    'Newest First'}
                 </span>
                 <svg
                   className="shrink-0 w-3 h-3 text-text-primary ml-1"
@@ -313,7 +182,7 @@ export function JobHistory({ userType, userId }: JobHistoryProps) {
                   <button
                     key={option}
                     type="button"
-                    className="flex justify-between items-center p-3 w-full cursor-pointer hover:bg-surface-tertiary transition-colors text-left"
+                    className="flex justify-between items-center p-3 w-full cursor-pointer hover:bg-surface-tertiary text-left"
                     onClick={() => {
                       setFilterOption(option as FilterOption);
                       setIsFilterOpen(false);
@@ -377,14 +246,14 @@ export function JobHistory({ userType, userId }: JobHistoryProps) {
               )}
             </div>
             <div className="text-right">
-              <button
-                type="button"
-                className="btn-secondary"
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => setShowDetailsPopup(job.id)}
                 aria-label={`View details for ${job.appointmentType}`}
               >
                 More Details
-              </button>
+              </Button>
             </div>
           </div>
         ))}
@@ -397,7 +266,7 @@ export function JobHistory({ userType, userId }: JobHistoryProps) {
             type="button"
             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
-            className={`absolute left-0 rounded-full bg-surface-tertiary active:bg-surface-disabled p-2 transition-colors ${
+            className={`absolute left-0 rounded-full bg-surface-tertiary active:bg-surface-disabled p-2 ${
               currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-surface-disabled'
             }`}
             aria-label="Previous page"
@@ -413,7 +282,7 @@ export function JobHistory({ userType, userId }: JobHistoryProps) {
             type="button"
             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
             disabled={currentPage === totalPages}
-            className={`absolute right-0 rounded-full bg-surface-tertiary active:bg-surface-disabled p-2 transition-colors ${
+            className={`absolute right-0 rounded-full bg-surface-tertiary active:bg-surface-disabled p-2 ${
               currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-surface-disabled'
             }`}
             aria-label="Next page"
@@ -434,4 +303,3 @@ export function JobHistory({ userType, userId }: JobHistoryProps) {
     </div>
   );
 }
-

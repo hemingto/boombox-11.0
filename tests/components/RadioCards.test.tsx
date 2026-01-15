@@ -70,7 +70,7 @@ describe('RadioCards', () => {
 
       expect(title).toHaveClass('text-status-error');
       expect(plan).toHaveClass('text-status-error');
-      expect(description).toHaveClass('text-status-text-error');
+      expect(description).toHaveClass('text-status-error');
     });
 
     it('applies error accent color to radio input when hasError is true', () => {

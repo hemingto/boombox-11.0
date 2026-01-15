@@ -96,7 +96,8 @@ export async function GET(
             stepNumber: true,
             unitNumber: true,
             driverId: true,
-            driverNotificationStatus: true
+            driverNotificationStatus: true,
+            estimatedCost: true
           }
         },
         ...(userExists ? {

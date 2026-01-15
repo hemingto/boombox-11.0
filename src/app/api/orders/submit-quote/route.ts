@@ -34,6 +34,7 @@ import { MessageService } from '@/lib/messaging/MessageService';
 import { welcomeEmailNewCustomer } from '@/lib/messaging/templates/email/booking';
 import { welcomeSmsNewCustomer } from '@/lib/messaging/templates/sms/booking/welcomeSmsNewCustomer';
 import { CreateSubmitQuoteRequestSchema } from '@/lib/validations/api.validations';
+import { NotificationService } from '@/lib/services/NotificationService';
 
 /**
  * Send welcome email using centralized template system
@@ -252,6 +253,20 @@ export async function POST(req: NextRequest) {
           appointmentDate: appointmentShortDate,
           appointmentTime: appointmentDisplayTime,
           address: appointment.address,
+        }
+      );
+
+      // Create in-app notification for appointment confirmation
+      await NotificationService.notifyAppointmentConfirmed(
+        user.id,
+        {
+          appointmentId: appointment.id,
+          appointmentType: appointment.appointmentType,
+          date: appointment.date,
+          time: appointment.time,
+          address: appointment.address,
+          zipCode: appointment.zipcode,
+          numberOfUnits: appointment.numberOfUnits || 1
         }
       );
     } catch (notificationError: unknown) {

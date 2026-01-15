@@ -15,7 +15,8 @@ import {
   CheckCircleIcon,
   XCircleIcon,
 } from '@heroicons/react/24/outline';
-import { calculateDriverPayment } from '@/lib/payments/calculator';
+import { calculateDriverPayment } from '@/lib/services/payment-calculator';
+import { Button } from '@/components/ui/primitives/Button/Button';
 
 // Define stagger time in minutes (consistent with driver-assign route)
 const UNIT_STAGGER_MINUTES = 45;
@@ -43,6 +44,17 @@ interface OfferData {
   onfleetTaskId?: string;
 }
 
+interface OnfleetTaskData {
+  id: number;
+  taskId: string;
+  shortId: string;
+  stepNumber: number;
+  unitNumber: number;
+  driverId?: number | null;
+  driverNotificationStatus?: string | null;
+  estimatedCost?: number | null;
+}
+
 interface AppointmentData {
   id: number;
   date: string;
@@ -54,6 +66,7 @@ interface AppointmentData {
   driverName?: string;
   appointmentType?: string;
   totalEstimatedCost?: number;
+  onfleetTasks?: OnfleetTaskData[];
 }
 
 export default function DriverOfferPage() {
@@ -89,7 +102,7 @@ export default function DriverOfferPage() {
         }
 
         // Step 1: Verify Token
-        const tokenResponse = await fetch(`/api/driver/verify-token?token=${token}`);
+        const tokenResponse = await fetch(`/api/auth/driver-verify-token?token=${token}`);
         const tokenResponseData = await tokenResponse.json();
 
         if (!tokenResponse.ok) {
@@ -140,7 +153,7 @@ export default function DriverOfferPage() {
           localTokenData?.appointmentId
         ) {
           const appointmentResponse = await fetch(
-            `/api/appointments/${localTokenData.appointmentId}/driverJobDetails`
+            `/api/orders/appointments/${localTokenData.appointmentId}/driver-job-details`
           );
 
           if (!appointmentResponse.ok) {
@@ -159,19 +172,31 @@ export default function DriverOfferPage() {
             };
             setAppointment(fullAppointmentData);
 
-            // Calculate payment estimate
+            // Calculate payment estimate for THIS SPECIFIC UNIT (not the total appointment)
+            // Important: For multi-unit appointments, each driver is only offered ONE unit's worth of work
             if (
               fullAppointmentData.address &&
               fullAppointmentData.appointmentType
             ) {
               try {
                 let paymentEstimateText = '';
-                if (
-                  fullAppointmentData.totalEstimatedCost &&
-                  fullAppointmentData.totalEstimatedCost > 0
-                ) {
-                  paymentEstimateText = `$${Math.round(fullAppointmentData.totalEstimatedCost)}`;
+                
+                // Sum estimated costs for only THIS unit's tasks (Step 1, 2, 3 for this unitNumber)
+                // This matches the calculation used in SMS notifications and pending-offers API
+                const unitTasks = fullAppointmentData.onfleetTasks?.filter(
+                  (task: OnfleetTaskData) => task.unitNumber === localTokenData.unitNumber
+                ) || [];
+                
+                const unitTaskCostSum = unitTasks.reduce(
+                  (sum: number, task: OnfleetTaskData) => sum + (task.estimatedCost || 0), 
+                  0
+                );
+                
+                if (unitTaskCostSum > 0) {
+                  // Use sum of this unit's task costs (matches SMS estimate)
+                  paymentEstimateText = `$${Math.round(unitTaskCostSum)}`;
                 } else {
+                  // Fall back to calculating fresh for a single unit
                   const paymentBreakdown = await calculateDriverPayment(
                     fullAppointmentData.address,
                     fullAppointmentData.appointmentType
@@ -214,7 +239,7 @@ export default function DriverOfferPage() {
         return;
       }
 
-      const response = await fetch('/api/driver-assign', {
+      const response = await fetch('/api/onfleet/driver-assign', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -271,7 +296,7 @@ export default function DriverOfferPage() {
             <ExclamationTriangleIcon className="text-red-500 w-16 h-16" />
           </div>
           <h2 className="text-xl font-bold text-zinc-950 mb-4">Error</h2>
-          <div className="bg-red-100 border-red-500 border-2 rounded-md p-4">
+          <div className="bg-red-100 border-2 rounded-md p-4">
             <p className="text-red-500">{error}</p>
           </div>
           <div className="flex justify-center">
@@ -373,13 +398,15 @@ export default function DriverOfferPage() {
       : 'Unknown time';
 
   // Get job description based on appointmentType
+  // NOTE: Database stores 'Storage Unit Access' not 'Access Storage'
   const getJobDescription = (type: string): string => {
     switch (type) {
       case 'Initial Pickup':
         return 'Tow a Boombox storage unit to the customers location. Customer or mover loads the unit. Take a photo of the unit with door open. Customer secures the unit with their padlock. Drive back to the warehouse.';
       case 'Additional Storage':
         return 'Tow a Boombox storage unit to the customers location. Customer or mover loads the unit. Take a photo of the unit with door open. Customer secures the unit with their padlock. Drive back to the warehouse.';
-      case 'Access Storage':
+      case 'Storage Unit Access':
+      case 'Access Storage': // Legacy fallback
         return 'Tow a Boombox storage unit to the customers location. Customer or mover unloads the unit. Take a photo of the unit with door open. Customer secures the unit with their padlock. Drive back to the warehouse.';
       case 'End Storage Term':
         return 'Tow a Boombox storage unit to the customers location. Customer or mover unloads everything from the unit. Take a photo of the unit with door open. Remove padlock and secure door. Drive back to the warehouse.';
@@ -396,8 +423,8 @@ export default function DriverOfferPage() {
             <CalendarDaysIcon className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">
-              {appointment.appointmentType || 'Unknown'} request
+            <h1 className="text-xl font-semibold text-white">
+              {appointment.appointmentType || 'Unknown'} Job Offer
             </h1>
             <p className="text-sm text-white">
               {tokenData?.action === 'reconfirm'
@@ -420,47 +447,51 @@ export default function DriverOfferPage() {
         )}
 
         <div className="py-6 px-2">
-          <h2 className="text-lg font-bold text-gray-800 mb-4 border-b border-gray-200 pb-2">
+          <h2 className="text-lg font-semibold text-text-primary mb-4 border-b border-slate-100 pb-2">
             Details
           </h2>
           <div className="space-y-3 pb-4">
             <div>
-              <p className="text-sm text-slate-500 mb-1">Pay Est.</p>
-              <p className="text-lg text-zinc-900">{paymentEstimate}</p>
+              <p className="text-sm text-text-tertiary mb-1">Pay Est.</p>
+              <p className="text-lg text-text-primary">{paymentEstimate}</p>
             </div>
             <div>
-              <p className="text-sm text-slate-500 mb-1">Date</p>
-              <p className="text-lg text-zinc-900">{formattedDate}</p>
+              <p className="text-sm text-text-tertiary mb-1">Date</p>
+              <p className="text-lg text-text-primary">{formattedDate}</p>
             </div>
             <div>
-              <p className="text-sm text-slate-500 mb-1">Start Time</p>
-              <p className="text-lg text-zinc-900">{adjustedTime}</p>
+              <p className="text-sm text-text-tertiary mb-1">Start Time</p>
+              <p className="text-lg text-text-primary">{adjustedTime}</p>
             </div>
             <div>
-              <p className="text-sm text-slate-500 mb-1">Customer Location</p>
-              <p className="text-lg text-zinc-900">
+              <p className="text-sm text-text-tertiary mb-1">Customer Location</p>
+              <p className="text-lg text-text-primary">
                 {appointment.address || 'Address not available'}
               </p>
             </div>
             <div>
-              <p className="text-sm text-slate-500 mb-1">Job description</p>
-              <p className="text-zinc-900">
+              <p className="text-sm text-text-tertiary mb-1">Job description</p>
+              <p className="text-text-primary">
                 {getJobDescription(appointment.appointmentType || '')}
               </p>
             </div>
           </div>
           <div className="flex space-x-3 mt-6">
-            <button
+            <Button
+              variant="secondary"
               onClick={() => handleAction('decline')}
               disabled={declineInProgress || jobAlreadyAccepted}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-50 font-semibold"
+              loading={declineInProgress}
+              className="flex-1"
             >
               {declineInProgress ? 'Declining...' : 'Decline'}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="primary"
               onClick={() => handleAction('accept')}
               disabled={acceptInProgress || jobAlreadyAccepted}
-              className="flex-1 px-4 py-2 bg-zinc-950 text-white rounded-md hover:bg-zinc-800 disabled:opacity-50 font-semibold"
+              loading={acceptInProgress}
+              className="flex-1"
             >
               {acceptInProgress
                 ? tokenData?.action === 'reconfirm'
@@ -469,10 +500,10 @@ export default function DriverOfferPage() {
                 : tokenData?.action === 'reconfirm'
                   ? 'Reconfirm'
                   : 'Accept'}
-            </button>
+            </Button>
           </div>
-          <div className="mt-4 p-3 border border-slate-100 bg-white rounded-md max-w-fit">
-            <p className="text-sm text-zinc-500">
+          <div className="mt-4 p-3 border border-slate-100 bg-white rounded-md w-full">
+            <p className="text-sm text-text-tertiary">
               This request will expire in 2 hours from when it was sent.
             </p>
           </div>

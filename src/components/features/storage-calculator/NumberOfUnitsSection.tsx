@@ -76,7 +76,7 @@ export function NumberOfUnitsSection() {
     >
       <h1 
         id="units-by-size-heading"
-        className="text-center mb-12 text-3xl font-bold text-text-primary"
+        className="text-center mb-12 text-text-primary"
       >
         Generally speaking
       </h1>
@@ -86,7 +86,7 @@ export function NumberOfUnitsSection() {
           Number of Boombox storage units needed by home size
         </caption>
         
-        <thead className="border-b-2 border-border">
+        <thead className="border-b border-border">
           <tr className="text-right">
             <th 
               scope="col" 
@@ -98,14 +98,14 @@ export function NumberOfUnitsSection() {
               scope="col" 
               className="py-4 text-text-primary"
             >
-              <h2 className="text-xl sm:text-2xl font-semibold">
+              <h2 className="sm:text-2xl font-medium">
                 # of Boomboxes
               </h2>
             </th>
           </tr>
         </thead>
         
-        <tbody className="border-b-2 border-border">
+        <tbody className="border-b border-border">
           {storageData.map((item, index) => {
             const IconComponent = item.icon;
             

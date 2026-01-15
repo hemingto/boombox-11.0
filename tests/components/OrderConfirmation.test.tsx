@@ -83,7 +83,7 @@ describe('OrderConfirmation', () => {
       expect(screen.getByText('Same day!')).toBeInTheDocument();
       const badge = screen.getByText('Same day!');
       expect(badge).toHaveClass('bg-status-bg-success');
-      expect(badge).toHaveClass('text-status-text-success');
+      expect(badge).toHaveClass('text-status-success');
     });
 
     it('should not display "Same day!" badge when isSameDay is false', () => {

@@ -7,7 +7,7 @@
 'use client';
 
 import { SubPageHero } from '@/components/features/service-providers/account/SubPageHero';
-import { BestPracticesContent } from '@/components/features/service-providers/resources/BestPracticesContent';
+import { BestPracticesContent } from '@/components/features/service-providers/best-practices/BestPracticesContent';
 import { use } from 'react';
 
 // Define a type for the resolved params for clarity
@@ -31,7 +31,7 @@ export default function MoverBestPracticesPage({
         userType="mover"
         userId={moverId}
       />
-      <BestPracticesContent userType="mover" userId={moverId} />
+      <BestPracticesContent />
     </>
   );
 }

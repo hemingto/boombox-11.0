@@ -16,7 +16,7 @@
  * DESIGN SYSTEM UPDATES:
  * - Applied design system colors (primary, surface, text, status)
  * - Used design system utility classes (btn-primary, btn-secondary)
- * - Integrated with Modal and OptimizedImage primitives
+ * - Integrated with Modal primitive and Next.js Image
  * - Added proper focus states and accessibility
  * 
  * @refactor Promoted to UI primitive with business logic extracted to services and hooks,
@@ -26,11 +26,10 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import Image from 'next/image';
 import { UserCircleIcon, CameraIcon, TrashIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { cn } from '@/lib/utils/cn';
-import { Modal } from '../Modal/Modal';
-import { OptimizedImage } from '../OptimizedImage/OptimizedImage';
 import { Skeleton } from '../Skeleton/Skeleton';
 import { useProfilePicture } from '@/hooks/useProfilePicture';
 import type { UserType } from '@/lib/services/profilePictureService';
@@ -197,13 +196,11 @@ const ProfilePicture: React.FC<ProfilePictureProps> = ({
               sizeClasses[size].container,
               "relative bg-surface-tertiary rounded-lg overflow-hidden"
             )}>
-              <OptimizedImage 
+              <Image 
                 src={profilePicture} 
                 alt="Profile Picture" 
                 fill 
                 className="object-cover"
-                aspectRatio="square"
-                showSkeleton={false}
               />
             </div>
             <button
@@ -211,10 +208,9 @@ const ProfilePicture: React.FC<ProfilePictureProps> = ({
               disabled={disabled}
               className={cn(
                 "-mt-4 flex items-center gap-1 bg-surface-primary rounded-md shadow-custom-shadow z-10",
-                "text-text-primary hover:bg-surface-secondary active:bg-surface-tertiary",
+                "text-text-primary active:bg-surface-secondary hover:bg-surface-tertiary",
                 "focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2",
                 "disabled:opacity-50 disabled:cursor-not-allowed",
-                "transition-colors duration-200",
                 sizeClasses[size].button
               )}
               aria-label="Edit profile picture"
@@ -228,8 +224,8 @@ const ProfilePicture: React.FC<ProfilePictureProps> = ({
 
     return (
       <div className="flex flex-col justify-start">
-        <div className="w-fit bg-status-bg-warning border border-status-warning rounded-md p-4 mb-6">
-          <p className="text-status-text-warning text-sm">
+        <div className="w-fit bg-status-bg-warning border border-border-warning rounded-md p-4 mb-6">
+          <p className="text-status-warning text-sm">
             {userType === 'mover' 
               ? 'Please upload a company picture or logo to activate your account'
               : 'Please upload a profile picture to activate your account'
@@ -250,10 +246,9 @@ const ProfilePicture: React.FC<ProfilePictureProps> = ({
               disabled={disabled}
               className={cn(
                 "-mt-4 flex items-center gap-1 bg-surface-primary rounded-md shadow-custom-shadow z-10",
-                "text-text-primary hover:bg-surface-secondary active:bg-surface-tertiary",
+                "text-text-primary active:bg-surface-secondary hover:bg-surface-tertiary",
                 "focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2",
                 "disabled:opacity-50 disabled:cursor-not-allowed",
-                "transition-colors duration-200",
                 sizeClasses[size].button
               )}
               aria-label="Add profile picture"
@@ -266,116 +261,118 @@ const ProfilePicture: React.FC<ProfilePictureProps> = ({
     );
   };
 
-  // Render modal content
+  // Render modal content (following PhotoUploads pattern)
   const renderModalContent = () => {
+    if (!isModalOpen) return null;
+
     return (
-      <div className="bg-surface-primary rounded-lg shadow-xl w-full max-w-xl">
-        <div className="flex justify-between items-center p-4 border-b border-border">
-          <h3 className="text-lg font-medium text-text-primary">
-            {profilePicture ? 'Update Profile Picture' : 'Add Profile Picture'}
-          </h3>
-          <button
-            onClick={handleCloseModal}
-            className="w-8 h-8 flex items-center justify-center rounded-full transition-colors text-text-primary hover:bg-surface-tertiary active:bg-surface-disabled"
-            aria-label="Close modal"
-          >
-            <XMarkIcon className="w-5 h-5" />
-          </button>
-        </div>
-        
-        {!selectedFile ? (
-          <div 
-            className="p-8 m-4 border-2 h-64 border-dashed border-border rounded-md text-center flex flex-col items-center justify-center hover:border-border-focus hover:bg-surface-secondary transition-colors"
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-            role="button"
-            tabIndex={0}
-            aria-label="Upload area"
-            onClick={handleBrowseClick}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleBrowseClick();
-              }
-            }}
-          >
-            <div className="flex justify-center items-center mb-4">
-              <PhotoIcon className="w-16 h-16 text-text-secondary mb-1" />
-            </div>
-            <h4 className="text-lg font-medium text-text-primary mb-2">Drag and drop</h4>
-            <p className="text-sm text-text-secondary mb-4">or browse for photos</p>
+      <div className="fixed inset-0 bg-overlay-primary flex items-center justify-center z-50">
+        <div className="bg-surface-primary rounded-lg shadow-custom-shadow w-full max-w-xl" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+          <div className="flex justify-between items-center p-4 border-b border-border">
+            <h3 id="modal-title" className="text-lg font-medium text-text-primary">
+              {profilePicture ? 'Update Profile Picture' : 'Add Profile Picture'}
+            </h3>
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleBrowseClick();
-              }}
-              className="btn-primary"
-              type="button"
+              onClick={handleCloseModal}
+              className="w-8 h-8 flex items-center justify-center rounded-full text-text-primary hover:bg-surface-tertiary active:bg-surface-disabled focus-visible"
+              aria-label="Close modal"
             >
-              Browse
+              <XMarkIcon className="w-5 h-5" />
             </button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileSelect}
-              accept="image/*"
-              className="sr-only"
-              aria-hidden="true"
-            />
           </div>
-        ) : (
-          <div className="p-4">
-            <div className="relative w-full h-64 bg-surface-tertiary rounded-md overflow-hidden">
-              {previewUrl && (
-                <>
-                  <OptimizedImage
-                    src={previewUrl}
-                    alt="Selected profile picture"
-                    fill
-                    className="object-cover"
-                    aspectRatio="landscape"
-                    showSkeleton={false}
-                  />
-                  <button
-                    onClick={() => {
-                      setSelectedFile(null);
-                      setPreviewUrl(null);
-                    }}
-                    className="absolute top-4 right-4 w-8 h-8 bg-overlay-secondary rounded-full flex items-center justify-center text-text-inverse hover:bg-overlay-primary transition-colors"
-                    aria-label="Remove selected image"
-                  >
-                    <TrashIcon className="w-5 h-5" />
-                  </button>
-                </>
+          
+          {!selectedFile ? (
+            <div 
+              className="p-8 m-4 border-2 h-64 border-dashed border-border rounded-md text-center flex flex-col items-center justify-center hover:border-slate-200"
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              role="button"
+              tabIndex={0}
+              aria-label="Upload area"
+              onClick={handleBrowseClick}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleBrowseClick();
+                }
+              }}
+            >
+              <div className="flex justify-center items-center mb-2">
+                <PhotoIcon className="w-16 h-16 text-text-secondary" />
+              </div>
+              <h4 className="text-lg font-medium text-text-primary mb-2">Drag and drop</h4>
+              <p className="text-sm text-text-tertiary mb-4">or browse for photos</p>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleBrowseClick();
+                }}
+                className="btn-primary focus-visible"
+                type="button"
+              >
+                Browse
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                accept="image/*"
+                className="sr-only"
+                aria-hidden="true"
+              />
+            </div>
+          ) : (
+            <div className="p-4">
+              <div className="relative w-full h-64 bg-surface-tertiary rounded-md overflow-hidden">
+                {previewUrl && (
+                  <>
+                    <Image
+                      src={previewUrl}
+                      alt="Selected profile picture"
+                      fill
+                      className="object-cover"
+                    />
+                    <button
+                      onClick={() => {
+                        setSelectedFile(null);
+                        setPreviewUrl(null);
+                      }}
+                      className="absolute top-4 right-4 w-8 h-8 bg-overlay-secondary rounded-full flex items-center justify-center text-text-inverse hover:bg-overlay-primary focus-visible"
+                      aria-label="Remove selected image"
+                    >
+                      <TrashIcon className="w-5 h-5" />
+                    </button>
+                  </>
+                )}
+              </div>
+              {error && (
+                <div className="px-4 mt-2" role="alert">
+                  <p className="text-sm text-status-error">{error}</p>
+                </div>
               )}
             </div>
-            {error && (
-              <p className="mt-2 text-sm text-status-text-error" role="alert">
-                {error}
-              </p>
-            )}
+          )}
+          
+          <div className="flex justify-between items-center p-4 border-t border-border">
+            <button
+              onClick={handleCloseModal}
+              className="btn-secondary focus-visible"
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleUploadClick}
+              disabled={!selectedFile || isUploading}
+              className={cn(
+                "btn-primary focus-visible",
+                (!selectedFile || isUploading) && "opacity-50 cursor-not-allowed"
+              )}
+              type="button"
+            >
+              {isUploading ? 'Uploading...' : 'Upload'}
+            </button>
           </div>
-        )}
-        
-        <div className="flex justify-between items-center p-4 border-t border-border">
-          <button
-            onClick={handleCloseModal}
-            className="btn-secondary"
-            type="button"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleUploadClick}
-            disabled={!selectedFile || isUploading}
-            className={cn(
-              "btn-primary",
-              (!selectedFile || isUploading) && "opacity-50 cursor-not-allowed"
-            )}
-            type="button"
-          >
-            {isUploading ? 'Uploading...' : 'Upload'}
-          </button>
         </div>
       </div>
     );
@@ -384,15 +381,7 @@ const ProfilePicture: React.FC<ProfilePictureProps> = ({
   return (
     <div className={className}>
       {renderProfilePicture()}
-      
-      <Modal
-        open={isModalOpen}
-        onClose={handleCloseModal}
-        size="lg"
-        showCloseButton={false}
-      >
-        {renderModalContent()}
-      </Modal>
+      {renderModalContent()}
     </div>
   );
 };

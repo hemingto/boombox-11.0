@@ -23,7 +23,6 @@ interface UseFormPersistenceParams {
 const STORAGE_KEY = 'accessStorageForm';
 const URL_PARAMS_TO_PERSIST = [
   'zipCode',
-  'step',
   'deliveryReason',
   'address',
   'selectedPlan'
@@ -135,15 +134,11 @@ export function useFormPersistence(params: UseFormPersistenceParams): UseFormPer
   // ===== URL SYNCHRONIZATION =====
 
   const syncWithUrl = useCallback((
-    step: AccessStorageStep, 
     state?: Partial<AccessStorageFormState>
   ) => {
     if (!enableUrlSync) return;
 
     const params = new URLSearchParams(searchParams.toString());
-    
-    // Always update step
-    params.set('step', step.toString());
     
     // Update other parameters if state is provided
     if (state) {
@@ -164,8 +159,8 @@ export function useFormPersistence(params: UseFormPersistenceParams): UseFormPer
       }
     }
 
-    // Use shallow routing to avoid page refresh
-    router.push(`?${params.toString()}`, { shallow: true });
+    // Use router.push to update URL without page refresh
+    router.push(`?${params.toString()}`);
   }, [enableUrlSync, router, searchParams]);
 
   const loadStateFromUrl = useCallback((): Partial<AccessStorageFormState> | null => {
@@ -173,16 +168,6 @@ export function useFormPersistence(params: UseFormPersistenceParams): UseFormPer
 
     const urlState: Partial<AccessStorageFormState> = {};
     let hasData = false;
-
-    // Extract step
-    const stepParam = searchParams.get('step');
-    if (stepParam) {
-      const stepNumber = parseInt(stepParam, 10);
-      if (stepNumber >= 1 && stepNumber <= 4) {
-        urlState.currentStep = stepNumber as AccessStorageStep;
-        hasData = true;
-      }
-    }
 
     // Extract zip code
     const zipCode = searchParams.get('zipCode');
@@ -291,7 +276,7 @@ export function useFormPersistence(params: UseFormPersistenceParams): UseFormPer
     if (enableUrlSync) {
       // Clear URL parameters
       const params = new URLSearchParams();
-      router.push(`?${params.toString()}`, { shallow: true });
+      router.push(`?${params.toString()}`);
     }
   }, [clearPersistedState, enableUrlSync, router]);
 

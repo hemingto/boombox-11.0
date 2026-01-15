@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * @fileoverview Select component with design system integration
  * @source boombox-10.0/src/app/components/reusablecomponents/selectiondropdown.tsx
@@ -104,6 +106,11 @@ export interface SelectProps
   id?: string;
 
   /**
+   * Use compact label styling
+   */
+  compactLabel?: boolean;
+
+  /**
    * Display mode for different option layouts
    */
   displayMode?: 'simple' | 'rich' | 'compact';
@@ -138,6 +145,7 @@ const Select = forwardRef<HTMLDivElement, SelectProps>(
       disabled = false,
       name,
       id,
+      compactLabel = false,
       displayMode = 'simple',
       renderOption,
       renderSelected,
@@ -147,6 +155,7 @@ const Select = forwardRef<HTMLDivElement, SelectProps>(
   ) => {
     const [selectedValue, setSelectedValue] = useState<string>(value || '');
     const [isOpen, setIsOpen] = useState(false);
+    const [isFocused, setIsFocused] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const hasError = Boolean(error);
 
@@ -191,9 +200,9 @@ const Select = forwardRef<HTMLDivElement, SelectProps>(
                 <option.icon className={cn(
                   'flex-shrink-0',
                   {
-                    'w-4 h-4': size === 'sm',
-                    'w-5 h-5': size === 'md', 
-                    'w-6 h-6': size === 'lg',
+                    'w-6 h-6': size === 'sm',
+                    'w-7 h-7': size === 'md', 
+                    'w-8 h-8': size === 'lg',
                   }
                 )} />
               )}
@@ -215,9 +224,9 @@ const Select = forwardRef<HTMLDivElement, SelectProps>(
               <option.icon className={cn(
                 'flex-shrink-0',
                 {
-                  'w-4 h-4': size === 'sm',
-                  'w-5 h-5': size === 'md',
-                  'w-6 h-6': size === 'lg',
+                  'w-6 h-6': size === 'sm',
+                  'w-7 h-7': size === 'md',
+                  'w-8 h-8': size === 'lg',
                 }
               )} />
             )}
@@ -245,9 +254,9 @@ const Select = forwardRef<HTMLDivElement, SelectProps>(
                 <option.icon className="w-6 h-6 text-text-primary flex-shrink-0" />
               )}
               <div className="flex flex-col">
-                <span className="text-sm text-text-primary">{option.label}</span>
+                <span className="text-sm font-medium text-text-primary">{option.label}</span>
                 {option.description && (
-                  <span className="text-xs text-text-secondary">{option.description}</span>
+                  <span className="text-xs text-text-tertiary">{option.description}</span>
                 )}
               </div>
             </div>
@@ -279,10 +288,12 @@ const Select = forwardRef<HTMLDivElement, SelectProps>(
       // Base styling matching input-field pattern
       'relative rounded-md cursor-pointer',
       'flex justify-between items-center',
+      // Remove browser default focus outline
+      'outline-none',
 
       // Size variants
       {
-        'py-2 px-2.5 text-sm': size === 'sm',
+        'p-3 text-sm font-medium': size === 'sm',
         'py-2.5 px-3 text-base': size === 'md',
         'py-3 px-4 text-lg': size === 'lg',
       },
@@ -291,10 +302,10 @@ const Select = forwardRef<HTMLDivElement, SelectProps>(
       {
         // Error state
         'border-border-error ring-2 ring-border-error bg-red-50 text-status-error': hasError && !disabled,
-        // Open state (focused) - matching input focus state
-        'border-transparent ring-2 ring-border-focus bg-surface-primary': isOpen && !hasError && !disabled,
+        // Focused or open state - matching input focus state
+        'border-transparent ring-2 ring-border-focus bg-surface-primary': (isFocused || isOpen) && !hasError && !disabled,
         // Default state - matching input default state
-        'border-border bg-surface-tertiary': !isOpen && !hasError && !disabled,
+        'border-border bg-surface-tertiary': !isFocused && !isOpen && !hasError && !disabled,
         // Disabled state - matching input-field disabled styling
         'bg-surface-disabled cursor-not-allowed border-border text-text-secondary': disabled,
       },
@@ -308,11 +319,10 @@ const Select = forwardRef<HTMLDivElement, SelectProps>(
     );
 
     const chevronClasses = cn(
-      'transition-colors',
       {
-        'w-4 h-4': size === 'sm',
-        'w-5 h-5': size === 'md',
-        'w-6 h-6': size === 'lg',
+        'w-5 h-5': size === 'sm',
+        'w-6 h-6': size === 'md',
+        'w-7 h-7': size === 'lg',
         // Icon color states matching text states
         'text-status-error': hasError && !disabled,
         'text-text-secondary': disabled || (!hasError && !disabled && !selectedValue), // disabled or placeholder state
@@ -321,17 +331,15 @@ const Select = forwardRef<HTMLDivElement, SelectProps>(
     );
 
     const dropdownClasses = cn(
-      'absolute z-50 w-full mt-2 rounded-md bg-white shadow-lg max-h-60 overflow-auto',
-      'border border-gray-200'
+      'absolute z-50 w-full mt-2 rounded-md bg-white shadow-custom-shadow max-h-60 overflow-auto'
     );
 
     return (
       <div className={cn('form-group', fullWidth && 'w-full')} ref={ref} {...props}>
         {/* Label */}
         {label && (
-          <label className="form-label">
+          <label className={compactLabel ? 'form-label-compact' : 'form-label'}>
             {label}
-            {required && <span className="text-red-500 ml-1">*</span>}
           </label>
         )}
 
@@ -372,6 +380,8 @@ const Select = forwardRef<HTMLDivElement, SelectProps>(
             aria-invalid={hasError ? 'true' : 'false'}
             tabIndex={disabled ? -1 : 0}
             id={id}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -383,11 +393,11 @@ const Select = forwardRef<HTMLDivElement, SelectProps>(
           >
             <div
               className={cn(
-                'flex-1 min-w-0', // Allow content to shrink and handle overflow
+                'flex-1 min-w-0 font-medium', // Allow content to shrink and handle overflow
                 {
                   'text-status-error': hasError && !disabled,
-                  'text-text-secondary': disabled || (!selectedValue && !hasError), // disabled or placeholder
-                  'text-text-primary': selectedValue && !hasError && !disabled, // selected state
+                  'text-text-secondary': disabled || (!hasError && !selectedValue && !isOpen && !isFocused), // disabled or unfocused placeholder
+                  'text-text-primary': !hasError && !disabled && (selectedValue || isOpen || isFocused), // selected state OR focused (including placeholder)
                 }
               )}
             >
@@ -403,7 +413,7 @@ const Select = forwardRef<HTMLDivElement, SelectProps>(
                 <div
                   key={option.value}
                   className={cn(
-                    'cursor-pointer hover:bg-slate-100 transition-colors',
+                    'cursor-pointer hover:bg-slate-100',
                     {
                       // Dynamic padding based on display mode
                       'px-4 py-2': displayMode === 'simple',

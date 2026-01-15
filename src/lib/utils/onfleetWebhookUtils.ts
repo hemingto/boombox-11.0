@@ -9,28 +9,29 @@ import crypto from 'crypto';
 import { sign } from 'jsonwebtoken';
 
 // Types for webhook processing
+// Note: These types match what Onfleet actually sends in webhooks
 export interface WebhookTaskDetails {
   shortId: string;
-  estimatedArrivalTime?: string;
-  trackingURL?: string;
+  estimatedArrivalTime?: string | number | null;
+  trackingURL?: string | null;
   completionDetails?: {
-    photoUploadId?: string;
-    photoUploadIds?: string[];
+    photoUploadId?: string | null;
+    photoUploadIds?: string[] | null;
     unavailableAttachments?: Array<{
       attachmentType: string;
       attachmentId?: string;
-    }>;
-    drivingDistance?: number;
-    drivingTime?: number;
-    time?: number;
-  };
+    }> | null;
+    drivingDistance?: number | null;
+    drivingTime?: number | null;
+    time?: number | null;
+  } | null;
   metadata?: Array<{
     name: string;
-    value: string;
-  }>;
-  worker?: {
+    value: string | number | boolean | null;
+  }> | null;
+  worker?: string | {
     name?: string;
-  };
+  } | null;
 }
 
 export interface WebhookWorkerData {
@@ -65,6 +66,37 @@ export function extractDeliveryPhotoUrl(taskDetails: WebhookTaskDetails): string
   }
   
   return null;
+}
+
+/**
+ * Extracts ALL delivery photo URLs from task completion details
+ * Returns an array of all photo URLs (first photo becomes mainImage, rest are additional)
+ * Uses the same CloudFront URL format as extractDeliveryPhotoUrl
+ */
+export function extractAllDeliveryPhotoUrls(taskDetails: WebhookTaskDetails): string[] {
+  const completionDetails = taskDetails.completionDetails || {};
+  const photoUrls: string[] = [];
+  
+  // Handle photoUploadIds array (preferred - multiple photos)
+  if (completionDetails.photoUploadIds && completionDetails.photoUploadIds.length > 0) {
+    for (const id of completionDetails.photoUploadIds) {
+      photoUrls.push(`https://d15p8tr8p0vffz.cloudfront.net/${id}/800x.png`);
+    }
+  }
+  // Handle single photoUploadId
+  else if (completionDetails.photoUploadId) {
+    photoUrls.push(`https://d15p8tr8p0vffz.cloudfront.net/${completionDetails.photoUploadId}/800x.png`);
+  }
+  // Fallback: unavailableAttachments (timing issue workaround)
+  else if (completionDetails.unavailableAttachments && completionDetails.unavailableAttachments.length > 0) {
+    for (const att of completionDetails.unavailableAttachments) {
+      if (att.attachmentType === 'PHOTO' && att.attachmentId) {
+        photoUrls.push(`https://d15p8tr8p0vffz.cloudfront.net/${att.attachmentId}/800x.png`);
+      }
+    }
+  }
+  
+  return photoUrls;
 }
 
 /**
@@ -149,9 +181,11 @@ export function convertWebhookTimestamp(time: number): Date {
 
 /**
  * Gets worker name from various sources
+ * Note: worker can be a string (worker ID), an object with name, or null/undefined
  */
-export function getWorkerName(worker?: WebhookWorkerData, assignedDriver?: any): string {
-  if (worker?.name) {
+export function getWorkerName(worker?: string | WebhookWorkerData | null, assignedDriver?: any): string {
+  // If worker is an object with a name property
+  if (worker && typeof worker === 'object' && 'name' in worker && worker.name) {
     return worker.name;
   }
   
@@ -164,12 +198,20 @@ export function getWorkerName(worker?: WebhookWorkerData, assignedDriver?: any):
 
 /**
  * Extracts metadata value by name from task metadata
+ * Note: Onfleet metadata values can be string, number, boolean, or null
  */
-export function getMetadataValue(metadata: Array<{ name: string; value: string }> | undefined, name: string): string | null {
+export function getMetadataValue(
+  metadata: Array<{ name: string; value: string | number | boolean | null }> | undefined | null, 
+  name: string
+): string | null {
   if (!metadata) return null;
   
   const item = metadata.find(m => m.name === name);
-  return item?.value || null;
+  if (!item || item.value === null || item.value === undefined) {
+    return null;
+  }
+  // Convert to string regardless of original type
+  return String(item.value);
 }
 
 /**
@@ -182,8 +224,7 @@ export async function updateTaskCompletionPhoto(taskDetails: WebhookTaskDetails)
     where: { shortId: taskDetails.shortId },
     data: { 
       completionPhotoUrl: completionPhotoUrl,
-      completedAt: new Date(),
-      needsPhotoProcessing: false
+      completedAt: new Date()
     }
   });
 }

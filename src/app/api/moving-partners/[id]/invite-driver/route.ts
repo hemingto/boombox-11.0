@@ -5,7 +5,7 @@
  * 
  * ROUTE FUNCTIONALITY:
  * POST endpoint that creates driver invitations for moving partners.
- * Generates unique tokens, creates database records, and sends invitation emails.
+ * Now delegates to Server Action for consistency and automatic cache revalidation.
  * 
  * USED BY (boombox-10.0 files):
  * - Moving partner driver recruitment interface
@@ -17,20 +17,17 @@
  * - Requires authentication session validation
  * - Finds moving partner by email from session
  * - Requires { email, expiresInDays? } in request body
- * - Generates crypto-secure token for invitation
- * - Creates driverInvitation database record
- * - Sends invitation email via SendGrid integration
+ * - Delegates to inviteDriver Server Action
  * - Default expiration: 15 days
  * 
- * @refactor Uses centralized messaging service from @/lib/messaging
+ * @refactor Uses Server Action from @/lib/services/driverInvitationService
  */
 
 import { NextResponse, NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/nextAuthConfig";
 import { prisma } from '@/lib/database/prismaClient';
-import { randomBytes } from "crypto";
-import { sendDriverInvitationEmail } from "@/lib/messaging";
+import { inviteDriver } from '@/lib/services/driverInvitationService';
 
 export async function POST(req: NextRequest) {
   try {
@@ -63,21 +60,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Generate a unique token
-    const token = randomBytes(32).toString("hex");
-
-    // Create the invitation
-    const invitation = await prisma.driverInvitation.create({
-      data: {
-        token,
-        movingPartnerId: movingPartner.id,
-        email,
-        expiresAt: new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000), // Convert days to milliseconds
-      },
-    });
-
-    // Send invitation email
-    await sendDriverInvitationEmail(email, token, movingPartner.name);
+    // Delegate to Server Action for consistency and automatic cache revalidation
+    const invitation = await inviteDriver(movingPartner.id, email, expiresInDays);
 
     return NextResponse.json({
       message: "Invitation sent successfully",

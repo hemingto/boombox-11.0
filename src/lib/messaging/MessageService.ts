@@ -18,6 +18,11 @@ import {
   MessageChannel,
 } from './types';
 
+// Initialize SendGrid with API key
+if (process.env.SENDGRID_API_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+}
+
 export class MessageService {
   /**
    * Render template with variables using template literal syntax

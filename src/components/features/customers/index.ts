@@ -55,3 +55,5 @@ export type { ContactInfoTableProps } from './ContactInfoTable';
 
 export { CompleteUserPage } from './CompleteUserPage';
 export type { CompleteUserPageProps } from './CompleteUserPage';
+
+export { CustomerHomePageSkeleton } from './CustomerHomePageSkeleton';

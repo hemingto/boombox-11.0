@@ -102,7 +102,7 @@ export const LongText: Story = {
 export const CustomStyling: Story = {
   args: {
     text: 'This example shows custom styling applied to the component.',
-    className: 'border-status-warning bg-status-bg-warning',
+    className: 'border-border-warning bg-status-bg-warning',
   },
   parameters: {
     docs: {

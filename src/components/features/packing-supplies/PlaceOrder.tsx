@@ -32,8 +32,6 @@ import { useState, useEffect } from 'react';
 import { ChevronLeftIcon } from '@heroicons/react/20/solid';
 import { StripeElementChangeEvent } from '@stripe/stripe-js';
 import {
-  FirstNameInput,
-  LastNameInput,
   EmailInput,
   PhoneNumberInput,
   CardNumberInput,
@@ -42,6 +40,7 @@ import {
   AddressInput,
   PaymentMethodDropdown,
 } from '@/components/forms';
+import { Input } from '@/components/ui/primitives/Input';
 import { StripeLogo } from '@/components/icons/PoweredByStripeIcon';
 
 interface CartItem {
@@ -145,8 +144,7 @@ export const PlaceOrder: React.FC<PlaceOrderProps> = ({
     if (!initialSelectedPaymentMethod && savedCards.length > 0) {
       const defaultCard = savedCards.find((card) => card.isDefault);
       if (defaultCard) {
-        const cardDisplay = `${defaultCard.brand.toUpperCase()} •••• ${defaultCard.last4}`;
-        onPaymentMethodChange(cardDisplay);
+        onPaymentMethodChange(defaultCard.stripePaymentMethodId);
         setShowNewCardForm(false);
       }
     } else if (!initialSelectedPaymentMethod && savedCards.length === 0) {
@@ -175,7 +173,7 @@ export const PlaceOrder: React.FC<PlaceOrderProps> = ({
   // Create dropdown options for saved cards
   const paymentOptions = [
     ...savedCards.map((card) => ({
-      value: `${card.brand.toUpperCase()} •••• ${card.last4}`,
+      value: card.stripePaymentMethodId, // Use unique Stripe PM ID as value
       display: `${card.brand.toUpperCase()} •••• ${card.last4}`,
       brand: card.brand,
       isAddNew: false,
@@ -237,26 +235,32 @@ export const PlaceOrder: React.FC<PlaceOrderProps> = ({
     <div className="w-full">
       <div className="max-w-lg mx-auto md:mx-0 md:ml-auto">
         <div className="flex items-center gap-2 mb-12 lg:-ml-10">
-          <ChevronLeftIcon
-            className="w-8 cursor-pointer shrink-0 text-text-primary hover:text-text-secondary"
+          <button
             onClick={handleBackClick}
             aria-label="Go back"
-          />
-          <h1 className="text-4xl text-text-primary font-bold">Place order</h1>
+            className="p-1 -mr-1 rounded-full hover:bg-surface-tertiary text-text-secondary hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2"
+          >
+            <ChevronLeftIcon
+              className="w-8 h-8"
+              aria-hidden="true"
+            />
+            <span className="sr-only">Go back</span>
+          </button>
+          <h1 className="text-4xl font-semibold text-text-primary">Place order</h1>
         </div>
 
         {/* Delivery time notification */}
         {isAfter12pmPST ? (
-          <div className="bg-status-bg-warning p-3 mb-4 -mt-8 border border-border-warning rounded-md max-w-fit">
-            <p className="text-xs text-status-warning">
+          <div className="bg-status-bg-warning p-3 mb-4 -mt-8 rounded-md max-w-fit">
+            <p className="text-sm text-status-warning">
               Orders placed after 12pm are scheduled for next day delivery. Your
               delivery is estimated to be delivered before{' '}
               <span className="font-semibold">7pm tomorrow</span>.
             </p>
           </div>
         ) : (
-          <div className="bg-status-bg-success p-3 mb-4 -mt-8 border border-border-success rounded-md max-w-fit">
-            <p className="text-xs text-status-success">
+          <div className="bg-status-bg-success p-3 mb-4 -mt-8 rounded-md max-w-fit">
+            <p className="text-sm text-status-success">
               Orders placed before 12pm are scheduled for same day delivery.
               Your delivery is estimated to be delivered before{' '}
               <span className="font-semibold">7pm today</span>.
@@ -265,151 +269,176 @@ export const PlaceOrder: React.FC<PlaceOrderProps> = ({
         )}
 
         {/* Delivery address section */}
-        <p className="mb-4 text-text-primary">
-          Where are we delivering your packing supplies?
-        </p>
-
-        <AddressInput
-          value={address}
-          onAddressChange={onAddressChange}
-          hasError={!!addressError}
-          onClearError={clearAddressError}
-        />
-        {addressError && (
-          <div className="flex items-center mb-4 -mt-4">
-            <p className="ml-1 text-sm text-status-error" role="alert">
-              {addressError}
-            </p>
-          </div>
-        )}
+        <div className="mb-4 sm:mb-8">
+          <AddressInput
+            label="Where are we delivering your packing supplies?"
+            value={address}
+            onAddressChange={onAddressChange}
+            hasError={!!addressError}
+            onClearError={clearAddressError}
+          />
+        </div>
 
         {/* Contact information section */}
         <p className="mb-4 mt-6 text-text-primary">
-          Please provide your contact information
+          Provide your contact information
         </p>
 
-        <div className="flex-col">
+        <div className="flex-col space-y-4">
+          {/* Name inputs */}
           <div className="flex-col sm:flex sm:flex-row gap-2">
-            <FirstNameInput
-              hasError={!!firstNameError}
-              errorMessage={firstNameError || ''}
-              onFirstNameChange={(firstName) => setFirstName(firstName)}
-              onClearError={() => setFirstNameError(null)}
-              value={firstName}
-            />
-            <LastNameInput
-              hasError={!!lastNameError}
-              errorMessage={lastNameError || ''}
-              onLastNameChange={(lastName) => setLastName(lastName)}
-              onClearError={() => setLastNameError(null)}
-              value={lastName}
-            />
+            <div className="basis-1/2 mb-4 sm:mb-0">
+              <Input
+                id="firstName"
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                onClearError={() => setFirstNameError(null)}
+                placeholder="First Name"
+                error={firstNameError || undefined}
+                required
+                aria-label="First name (required)"
+                autoComplete="given-name"
+                fullWidth
+              />
+            </div>
+            
+            {/* Last Name Input */}
+            <div className="basis-1/2">
+              <Input
+                id="lastName"
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                onClearError={() => setLastNameError(null)}
+                placeholder="Last Name"
+                error={lastNameError || undefined}
+                required
+                aria-label="Last name (required)"
+                autoComplete="family-name"
+                fullWidth
+              />
+            </div>
           </div>
 
-          <div>
-            <EmailInput
-              hasError={!!emailError}
-              errorMessage={emailError || ''}
-              onEmailChange={(newEmail) => setEmail(newEmail)}
-              onClearError={() => setEmailError(null)}
-              value={email}
-            />
+          {/* Email input */}
+          <EmailInput
+            hasError={!!emailError}
+            errorMessage={emailError || ''}
+            onEmailChange={(newEmail) => setEmail(newEmail)}
+            onClearError={() => setEmailError(null)}
+            value={email}
+            required
+            aria-label="Email address (required)"
+          />
 
-            <PhoneNumberInput
-              hasError={!!phoneError}
-              errorMessage={phoneError || ''}
-              onChange={(newPhone) => setPhoneNumber(newPhone)}
-              onClearError={() => setPhoneError(null)}
-              value={phoneNumber}
-            />
-          </div>
+          {/* Phone number input */}
+          <PhoneNumberInput
+            hasError={!!phoneError}
+            errorMessage={phoneError || ''}
+            onChange={(newPhone) => setPhoneNumber(newPhone)}
+            onClearError={() => setPhoneError(null)}
+            value={phoneNumber}
+            required
+            aria-label="Phone number (required)"
+          />
+        </div>
 
-          {/* Phone notification info */}
-          <div className="p-3 sm:mb-4 mb-2 border border-border bg-surface-primary rounded-md max-w-fit">
-            <p className="text-xs text-text-secondary">
-              You&apos;ll receive updates about the status of your delivery via
-              your phone number
-            </p>
-          </div>
-
-          {/* Payment method section */}
-          <p className="mb-4 mt-6 text-text-primary">
-            {showNewCardForm
-              ? 'Please add your new payment method'
-              : 'Please select your payment method'}
+        {/* Phone number information notice */}
+        <div className="p-3 sm:mb-4 mb-2 border border-border bg-surface-primary rounded-md max-w-fit mt-4">
+          <p className="text-xs text-text-primary">
+            You&apos;ll receive updates about the status of your delivery via
+            your phone number
           </p>
+        </div>
 
-          {savedCards.length > 0 && !showNewCardForm && (
-            <>
-              <div className="mb-4">
-                <PaymentMethodDropdown
-                  label="Select payment method"
-                  value={initialSelectedPaymentMethod}
-                  onOptionChange={handlePaymentMethodChange}
-                  options={paymentOptions}
-                />
-              </div>
-              <p className="text-xs mb-4 text-text-secondary">
+        {/* Payment method section */}
+        <p className="mb-4 mt-6 text-text-primary">
+          {showNewCardForm
+            ? 'Please add your new payment method'
+            : 'Please select your payment method'}
+        </p>
+
+        {savedCards.length > 0 && !showNewCardForm && (
+          <>
+            <div className="mb-4">
+              <PaymentMethodDropdown
+                value={initialSelectedPaymentMethod}
+                onOptionChange={handlePaymentMethodChange}
+                options={paymentOptions}
+              />
+            </div>
+            <div className="p-3 sm:mb-4 mb-2 border border-border bg-surface-primary rounded-md max-w-fit mt-4">
+              <p className="text-xs text-text-primary">
                 Want to use a new credit card?{' '}
-                <span
-                  className="underline font-bold cursor-pointer text-text-primary hover:text-primary"
-                  onClick={() => setShowNewCardForm(true)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setShowNewCardForm(true);
-                    }
-                  }}
-                  role="button"
-                  tabIndex={0}
-                >
-                  Add it here
-                </span>
-              </p>
-            </>
-          )}
-
-          {showNewCardForm && (
-            <div className="flex-col gap-2">
-              <div className="flex gap-2">
-                <div className="basis-2/3">
-                  <CardNumberInput onChange={handleCardNumberChange} />
-                </div>
-                <div className="relative w-full basis-1/6">
-                  <CardExpirationDateInput onChange={handleCardExpiryChange} />
-                </div>
-                <div className="relative w-full basis-1/6">
-                  <CardCvcInput onChange={handleCardCvcChange} />
-                </div>
-              </div>
-
-              {renderStripeErrors()}
-
-              {savedCards.length > 0 && (
-                <p className="text-xs mt-4 text-text-secondary">
-                  Want to use an existing credit card?{' '}
                   <span
                     className="underline font-bold cursor-pointer text-text-primary hover:text-primary"
-                    onClick={() => setShowNewCardForm(false)}
+                    onClick={() => {
+                      setShowNewCardForm(true);
+                      onPaymentMethodChange('Add new card');
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        setShowNewCardForm(false);
+                        setShowNewCardForm(true);
+                        onPaymentMethodChange('Add new card');
                       }
                     }}
                     role="button"
                     tabIndex={0}
                   >
-                    Click here
+                    Add it here
                   </span>
-                </p>
-              )}
-              <div className="mt-4 flex justify-end items-center h-7">
-                <StripeLogo />
+              </p>
+            </div>
+            
+          </>
+        )}
+
+        {showNewCardForm && (
+          <div className="flex-col gap-2">
+            <div className="flex gap-2">
+              <div className="basis-2/3">
+                <CardNumberInput onChange={handleCardNumberChange} />
+              </div>
+              <div className="relative w-full basis-1/6">
+                <CardExpirationDateInput onChange={handleCardExpiryChange} />
+              </div>
+              <div className="relative w-full basis-1/6">
+                <CardCvcInput onChange={handleCardCvcChange} />
               </div>
             </div>
-          )}
-        </div>
+
+            {renderStripeErrors()}
+
+            {savedCards.length > 0 && (
+              <p className="text-xs mt-4 text-text-secondary">
+                Want to use an existing credit card?{' '}
+                <span
+                  className="underline font-bold cursor-pointer text-text-primary hover:text-primary"
+                  onClick={() => {
+                    setShowNewCardForm(false);
+                    onPaymentMethodChange(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setShowNewCardForm(false);
+                      onPaymentMethodChange(null);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                >
+                  Click here
+                </span>
+              </p>
+            )}
+            <div className="mt-4 flex justify-end items-center h-7">
+              <StripeLogo />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

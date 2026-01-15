@@ -104,6 +104,7 @@ export function useEmailInput(options: UseEmailInputOptions = {}): UseEmailInput
   const [isFocused, setIsFocused] = useState<boolean>(false);
   const [hasError, setHasError] = useState<boolean>(initialHasError);
   const [errorMessage, setErrorMessage] = useState<string>(initialErrorMessage);
+  const [hasInteracted, setHasInteracted] = useState<boolean>(false);
 
   // Update error state when props change
   useEffect(() => {
@@ -182,14 +183,22 @@ export function useEmailInput(options: UseEmailInputOptions = {}): UseEmailInput
   const handleBlur = useCallback((value: string) => {
     setIsFocused(false);
     
-    // Validate on blur
-    validateEmail(value);
-  }, [validateEmail]);
+    // Only validate on blur if user has interacted with the field (typed something)
+    // This prevents "required" errors from showing when user just clicks in and out
+    if (hasInteracted) {
+      validateEmail(value);
+    }
+  }, [validateEmail, hasInteracted]);
 
   /**
    * Handle input change with optional real-time validation
    */
   const handleChange = useCallback((value: string) => {
+    // Mark as interacted once user starts typing
+    if (value.trim()) {
+      setHasInteracted(true);
+    }
+    
     // Real-time validation if enabled and value exists
     if (validateOnChange && value.trim()) {
       validateEmail(value);

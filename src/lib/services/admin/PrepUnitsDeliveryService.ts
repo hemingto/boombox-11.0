@@ -27,6 +27,12 @@ import {
   markUnitsReadyForDelivery
 } from '@/lib/utils/adminTaskUtils';
 
+/**
+ * Appointment statuses that should be excluded from task generation
+ * Completed and Canceled/Cancelled appointments should not generate tasks
+ */
+const EXCLUDED_APPOINTMENT_STATUSES = ['Completed', 'Cancelled', 'Canceled'];
+
 // Prep units delivery task interface
 export interface PrepUnitsDeliveryTask {
   id: string;
@@ -237,6 +243,7 @@ export class PrepUnitsDeliveryService {
    * Get all appointments that need unit delivery preparation
    * Helper method for task generation
    * @source boombox-10.0/src/app/api/admin/tasks/route.ts (lines 281-318)
+   * Excludes canceled and completed appointments
    */
   async getAllAppointmentsNeedingPrep() {
     try {
@@ -256,6 +263,10 @@ export class PrepUnitsDeliveryService {
             some: {
               unitsReady: false  // Only get appointments where units are not ready
             }
+          },
+          // Exclude canceled and completed appointments
+          status: {
+            notIn: EXCLUDED_APPOINTMENT_STATUSES
           }
         },
         select: {

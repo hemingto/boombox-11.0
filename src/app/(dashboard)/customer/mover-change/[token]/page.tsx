@@ -213,7 +213,7 @@ export default function MoverChangePage() {
     <div className="min-h-screen bg-surface-tertiary py-8 px-4">
       <div className="max-w-2xl mx-auto">
         <div className="bg-surface-primary rounded-lg shadow-lg overflow-hidden">
-          <div className="bg-status-bg-warning border-l-4 border-status-warning p-4">
+          <div className="bg-status-bg-warning border-l-4 border-border-warning p-4">
             <div className="flex">
               <ExclamationTriangleIcon className="h-5 w-5 text-status-warning" />
               <div className="ml-3">

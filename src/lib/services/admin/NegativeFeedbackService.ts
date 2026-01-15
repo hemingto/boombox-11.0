@@ -87,7 +87,14 @@ export class NegativeFeedbackService {
               id: true,
               jobCode: true,
               address: true,
-              date: true
+              date: true,
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  email: true
+                }
+              }
             }
           }
         }
@@ -113,9 +120,9 @@ export class NegativeFeedbackService {
             date: regularFeedback.appointment.date.toISOString(),
             appointmentType: 'Appointment',
             user: {
-              firstName: '',
-              lastName: '',
-              email: ''
+              firstName: regularFeedback.appointment.user.firstName,
+              lastName: regularFeedback.appointment.user.lastName,
+              email: regularFeedback.appointment.user.email
             }
           }
         };

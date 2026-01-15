@@ -59,7 +59,7 @@ export function HowItWorksHeroSection({
         >
           How it works
         </h1>
-        <p className="text-text-secondary">
+        <p className="text-text-primary">
           start storing in 4 easy steps
         </p>
       </div>

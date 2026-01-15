@@ -43,9 +43,9 @@ const protections: ProtectionItem[] = [
 export function InsuranceProtections() {
   return (
     <section className="lg:px-16 px-6 rounded-md mb-8">
-      <div className="card">   
+      <div className="p-6 border border-border rounded-md">   
         <h2 className="mb-4">What we protect against</h2>
-        <p className="mb-6 text-text-secondary">
+        <p className="mb-6 text-text-primary">
           We protect against the following list of damaging events
         </p>
         <ul className="space-y-2" role="list">
@@ -56,7 +56,7 @@ export function InsuranceProtections() {
             </li>
           ))}
         </ul>
-        <p className="mt-6 text-text-secondary">
+        <p className="mt-6 text-text-primary">
           Our base coverage covers up to $1000 worth of damages
         </p>
       </div>

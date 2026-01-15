@@ -42,9 +42,9 @@ const insurancePlans: InsurancePlan[] = [
 export function InsuranceRates() {
   return (
     <section className="lg:px-16 px-6 rounded-md mb-8">
-      <div className="card"> 
+      <div className="p-6 border border-border rounded-md"> 
         <h2 className="mb-4">Rates for insurance coverage</h2>
-        <p className="mb-6 text-text-secondary">
+        <p className="mb-6 text-text-primary">
           We offer insurance coverage at the following rates.
         </p>
         <div className="border-t border-border max-w-xl">
@@ -61,7 +61,7 @@ export function InsuranceRates() {
             </div>
           ))}
         </div>
-        <p className="mt-6 text-text-secondary">
+        <p className="mt-6 text-text-primary">
           All insurance plans must be purchased at the time of your original sign up. You can also opt out of insurance and use your own renter&apos;s insurance to cover your belongings.
         </p>
       </div>

@@ -71,4 +71,16 @@ export { ContentService } from './contentService';
 // Service provider data services
 export * from './serviceProviderDataService';
 export * from './accountSetupChecklistService';
-export * from './contactInfoService'; 
+export * from './accountSetupChecklistUtils';
+export * from './contactInfoService';
+export * from './contactInfoUtils';
+
+// Appointment and Onfleet services
+export * from './appointmentOnfleetService';
+export * from './onfleet/OnfleetTaskUpdateService';
+export * from './AppointmentUpdateOrchestrator';
+export * from './NotificationOrchestrator';
+
+// Notification services
+export { NotificationService } from './NotificationService';
+export { ApprovalNotificationService } from './ApprovalNotificationService'; 

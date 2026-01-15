@@ -23,25 +23,47 @@ export class StepOneHandler {
    * Updates appointment status to "In Transit" and sends customer notification
    */
   static async handleTaskStarted(webhookData: OnfleetWebhookPayload): Promise<void> {
+    console.log('=== [StepOneHandler] handleTaskStarted START ===');
+    
     const { time, data } = webhookData;
     const taskDetails = data?.task;
     const worker = taskDetails?.worker;
 
+    console.log(`[StepOneHandler] time: ${time}`);
+    console.log(`[StepOneHandler] taskDetails exists: ${!!taskDetails}`);
+    console.log(`[StepOneHandler] worker:`, worker);
+
     if (!taskDetails) {
+      console.error('[StepOneHandler] ERROR: No task details found in webhook data');
       throw new Error('No task details found in webhook data');
     }
 
-    console.log('Processing step 1 taskStarted webhook...');
+    console.log(`[StepOneHandler] Task shortId: ${taskDetails.shortId}`);
+    console.log(`[StepOneHandler] Task estimatedArrivalTime: ${taskDetails.estimatedArrivalTime}`);
 
     // Find appointment with all necessary includes
+    console.log(`[StepOneHandler] Looking up appointment by OnfleetTask shortId: ${taskDetails.shortId}`);
     const appointment = await findAppointmentByOnfleetTask(taskDetails.shortId);
 
     if (!appointment) {
-      console.log('No appointment found for task:', taskDetails.shortId);
+      console.log(`[StepOneHandler] WARNING: No appointment found for task: ${taskDetails.shortId}`);
+      console.log('[StepOneHandler] This could mean:');
+      console.log('  - The OnfleetTask is not linked to an appointment');
+      console.log('  - The shortId does not match any onfleetTasks.shortId in the database');
       return;
     }
 
+    console.log(`[StepOneHandler] Appointment found:`, {
+      id: appointment.id,
+      appointmentType: appointment.appointmentType,
+      status: appointment.status,
+      userId: appointment.user?.id,
+      userPhone: appointment.user?.phoneNumber,
+      movingPartnerName: appointment.movingPartner?.name
+    });
+
     // Generate tracking token and URL
+    console.log('[StepOneHandler] Generating tracking token...');
     const token = createTrackingToken({
       appointmentId: appointment.id,
       taskId: taskDetails.shortId,
@@ -49,19 +71,26 @@ export class StepOneHandler {
       eta: taskDetails.estimatedArrivalTime,
       triggerName: 'taskStarted'
     });
+    console.log(`[StepOneHandler] Token generated (first 50 chars): ${token.substring(0, 50)}...`);
 
     const trackingUrl = buildTrackingUrl(token);
+    console.log(`[StepOneHandler] Tracking URL: ${trackingUrl}`);
 
     try {
       // Update appointment status and tracking info
+      console.log(`[StepOneHandler] Updating appointment ${appointment.id} status to "In Transit"`);
       await updateAppointmentStatus(appointment.id, 'In Transit', {
         trackingToken: token,
         trackingUrl: trackingUrl
       });
+      console.log('[StepOneHandler] Appointment status updated successfully');
 
       // Send SMS notification to customer
       const driverName = getWorkerName(worker);
       const crewName = appointment.movingPartner?.name || driverName;
+      
+      console.log(`[StepOneHandler] Sending SMS to: ${appointment.user.phoneNumber}`);
+      console.log(`[StepOneHandler] SMS params - crewName: ${crewName}, trackingUrl: ${trackingUrl}`);
 
       const smsResult = await MessageService.sendSms(
         appointment.user.phoneNumber,
@@ -70,13 +99,16 @@ export class StepOneHandler {
       );
 
       if (smsResult.success) {
-        console.log(`Pickup started SMS sent for appointment ${appointment.id}`);
+        console.log(`[StepOneHandler] SUCCESS: Pickup started SMS sent for appointment ${appointment.id}`);
       } else {
-        console.error(`Failed to send pickup started SMS for appointment ${appointment.id}:`, smsResult.error);
+        console.error(`[StepOneHandler] FAILED: Could not send pickup started SMS for appointment ${appointment.id}:`, smsResult.error);
       }
 
+      console.log('=== [StepOneHandler] handleTaskStarted COMPLETE ===');
+
     } catch (error) {
-      console.error('Failed to update appointment or send SMS:', error);
+      console.error('[StepOneHandler] ERROR during processing:', error);
+      console.error('[StepOneHandler] Error stack:', error instanceof Error ? error.stack : 'No stack');
       throw error;
     }
   }

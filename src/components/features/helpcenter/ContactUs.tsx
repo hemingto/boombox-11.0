@@ -32,7 +32,7 @@
 'use client';
 
 import React from 'react';
-import { OptimizedImage } from '@/components/ui/primitives/OptimizedImage';
+import Image from 'next/image';
 import { PhoneIcon, EnvelopeIcon } from '@heroicons/react/20/solid';
 import { cn } from '@/lib/utils';
 
@@ -96,7 +96,7 @@ export function ContactUs({
   subtitle = 'No problem! Contact our support team',
   phone = '415-322-3135',
   email = 'help@boomboxstorage.com',
-  imageSrc = '/img/berkeley.png',
+  imageSrc = '/berkeley.png',
   imageAlt = 'Contact Us customer service representative',
   className,
   showImage = true,
@@ -109,12 +109,12 @@ export function ContactUs({
       <div className="flex flex-col sm:flex-row bg-white w-full h-full sm:min-h-[300px] rounded-md place-content-center m-12">
           {showImage && (
             <div className="relative sm:w-2/5 w-full aspect-video overflow-hidden rounded-tr-md sm:rounded-tr-none rounded-tl-md sm:rounded-bl-md">
-            <OptimizedImage 
+            <Image 
               src={imageSrc}
               alt={imageAlt}
               fill
+              className="object-cover"
               sizes="(max-width: 640px) 100vw, 40vw"
-              objectFit="cover"
               priority
             />
           </div>
@@ -125,7 +125,7 @@ export function ContactUs({
         )}>
           <div>
             <h2 className="mb-1">{title}</h2>
-            <p className="mt-1 mb-8 text-text-secondary">
+            <p className="mt-1 mb-8 text-text-primary">
               {subtitle}
             </p>
             
@@ -138,7 +138,7 @@ export function ContactUs({
                 />
                 <a 
                   href={`tel:${phone.replace(/\D/g, '')}`}
-                  className="text-text-primary hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
+                  className="text-text-primary"
                   aria-label={`Call us at ${phone}`}
                 >
                   {phone}
@@ -153,7 +153,7 @@ export function ContactUs({
                 />
                 <a 
                   href={`mailto:${email}`}
-                  className="text-text-primary hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
+                  className="text-text-primary"
                   aria-label={`Email us at ${email}`}
                 >
                   {email}

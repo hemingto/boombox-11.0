@@ -65,7 +65,8 @@ export async function GET(
             firstName: true,
             lastName: true,
             email: true,
-            phoneNumber: true
+            phoneNumber: true,
+            stripeCustomerId: true
           }
         },
         onfleetTasks: {
@@ -96,6 +97,12 @@ export async function GET(
             onfleetTeamId: true
           }
         },
+        thirdPartyMovingPartner: {
+          select: {
+            id: true,
+            title: true
+          }
+        },
         storageStartUsages: {
           include: {
             storageUnit: true
@@ -121,9 +128,58 @@ export async function GET(
       onfleetTasks: Array<{ driver: { firstName: string; lastName: string; phoneNumber: string | null; driverLicenseFrontPhoto: string | null } | null }>;
     };
     
+    // Transform the appointment data to match the expected response schema
+    // ensuring all required fields have proper values (with defaults for optional Prisma fields)
     const formattedAppointment = {
-      ...appointment,
-      driver: appointmentWithTasks.onfleetTasks?.length > 0 ? appointmentWithTasks.onfleetTasks[0].driver : null
+      id: appointment.id,
+      jobCode: appointment.jobCode,
+      userId: appointment.userId,
+      address: appointment.address,
+      zipcode: appointment.zipcode,
+      // Convert DateTime objects to ISO strings for JSON serialization
+      date: appointment.date instanceof Date ? appointment.date.toISOString() : String(appointment.date),
+      time: appointment.time instanceof Date ? appointment.time.toISOString() : String(appointment.time),
+      planType: appointment.planType ?? '',
+      deliveryReason: appointment.deliveryReason ?? '',
+      numberOfUnits: appointment.numberOfUnits ?? 0,
+      description: appointment.description,
+      appointmentType: appointment.appointmentType,
+      loadingHelpPrice: appointment.loadingHelpPrice ?? 0,
+      monthlyStorageRate: appointment.monthlyStorageRate ?? 0,
+      monthlyInsuranceRate: appointment.monthlyInsuranceRate ?? 0,
+      insuranceCoverage: appointment.insuranceCoverage ?? null,
+      quotedPrice: appointment.quotedPrice,
+      status: appointment.status,
+      // Include related data
+      user: appointment.user ? {
+        firstName: appointment.user.firstName,
+        lastName: appointment.user.lastName,
+        email: appointment.user.email,
+        phoneNumber: appointment.user.phoneNumber,
+        stripeCustomerId: appointment.user.stripeCustomerId ?? ''
+      } : undefined,
+      movingPartner: appointment.movingPartner ? {
+        id: appointment.movingPartner.id,
+        name: appointment.movingPartner.name,
+        hourlyRate: appointment.movingPartner.hourlyRate,
+        onfleetTeamId: appointment.movingPartner.onfleetTeamId ?? undefined
+      } : undefined,
+      thirdPartyMovingPartner: appointment.thirdPartyMovingPartner ? {
+        id: appointment.thirdPartyMovingPartner.id,
+        name: appointment.thirdPartyMovingPartner.title // Map title to name for API response
+      } : undefined,
+      requestedStorageUnits: appointment.requestedStorageUnits?.map(unit => ({
+        storageUnitId: unit.storageUnitId,
+        storageUnit: unit.storageUnit ? {
+          id: unit.storageUnit.id,
+          storageUnitNumber: unit.storageUnit.storageUnitNumber
+        } : null
+      })) ?? [],
+      additionalInfo: undefined, // Will be populated if needed
+      // Backward compatibility: include driver from onfleet tasks
+      driver: appointmentWithTasks.onfleetTasks?.length > 0 ? appointmentWithTasks.onfleetTasks[0].driver : null,
+      // Include additional raw data that components might need
+      storageStartUsages: appointment.storageStartUsages
     };
 
     // Response formatted for backward compatibility with existing components

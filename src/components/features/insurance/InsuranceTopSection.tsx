@@ -20,9 +20,9 @@
 export function InsuranceTopSection() {
   return (
     <section className="w-full lg:px-16 px-6 mb-8">
-      <div className="card">
+      <div className="p-6 border border-border rounded-md"> 
         <h2 className="mb-4">Protect your belongings</h2>
-        <p className="text-text-secondary">
+        <p className="text-text-primary">
           If your belongings are worth storing, they are worth protecting. While Boombox takes precautions to provide a safe and secure storage 
           environment, we are not responsible for damage or loss to your stored belongings. For that reason, we offer you comprehensive
           insurance, designed specifically for your belongings while stored at a Boombox Self-Storage facility

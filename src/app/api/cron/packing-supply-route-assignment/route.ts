@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
     // Call the batch optimization endpoint
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const optimizationResponse = await fetch(
-      `${baseUrl}/api/packing-supplies/batch-optimize`,
+      `${baseUrl}/api/onfleet/packing-supplies/batch-optimize`,
       {
         method: 'POST',
         headers: {
@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
           console.log(`Sending driver offer for route: ${routeId}`);
 
           const offerResponse = await fetch(
-            `${baseUrl}/api/packing-supplies/driver-offer`,
+            `${baseUrl}/api/onfleet/packing-supplies/driver-offer`,
             {
               method: 'POST',
               headers: {
@@ -276,7 +276,7 @@ async function sendFailureNotification(
 4. Consider manual route assignment
 5. Retry the optimization process if needed`,
       nextStepsSection: `<ol style="margin: 0; padding-left: 20px;">
-        <li style="margin-bottom: 6px;">Check the batch optimization endpoint: /api/packing-supplies/batch-optimize</li>
+        <li style="margin-bottom: 6px;">Check the batch optimization endpoint: /api/onfleet/packing-supplies/batch-optimize</li>
         <li style="margin-bottom: 6px;">Verify Onfleet integration status and API keys</li>
         <li style="margin-bottom: 6px;">Review pending packing supply orders requiring assignment</li>
         <li style="margin-bottom: 6px;">Consider manual route assignment for urgent deliveries</li>

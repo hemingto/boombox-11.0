@@ -4,8 +4,7 @@
  * @refactor Extracted step navigation and URL synchronization logic into dedicated hook
  */
 
-import { useState, useCallback, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useCallback } from 'react';
 import {
   AccessStorageStep,
   PlanType,
@@ -24,31 +23,18 @@ export function useAccessStorageNavigation(
   params: UseAccessStorageNavigationParams = {}
 ): UseAccessStorageNavigationReturn {
   const { planType, onStepChange, validateStep } = params;
-  const router = useRouter();
-  const searchParams = useSearchParams();
   
-  // Initialize step from URL or default to step 1
+  // Always start at step 1 (URL persistence disabled)
   const getInitialStep = useCallback((): AccessStorageStep => {
-    const stepParam = searchParams.get('step');
-    if (stepParam) {
-      const stepNumber = parseInt(stepParam, 10);
-      if (stepNumber >= 1 && stepNumber <= 4) {
-        return stepNumber as AccessStorageStep;
-      }
-    }
-    return AccessStorageStep.DELIVERY_PURPOSE;
-  }, [searchParams]);
+    return AccessStorageStep.DELIVERY_PURPOSE; // Always start at step 1
+  }, []);
 
   const [currentStep, setCurrentStep] = useState<AccessStorageStep>(getInitialStep);
 
-  // Update URL when step changes (shallow routing to maintain form state)
+  // No-op: URL persistence disabled
   const updateUrl = useCallback((step: AccessStorageStep) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('step', step.toString());
-    
-    // Use shallow routing to avoid page refresh and maintain form state
-    router.push(`?${params.toString()}`, { shallow: true });
-  }, [router, searchParams]);
+    // No-op: URL persistence disabled
+  }, []);
 
   // ===== NAVIGATION LOGIC =====
 
@@ -238,18 +224,8 @@ export function useAccessStorageNavigation(
       ];
     }
     
-    return ACCESS_STORAGE_STEPS;
+    return [...ACCESS_STORAGE_STEPS];
   }, [planType]);
-
-  // ===== URL SYNCHRONIZATION =====
-
-  // Listen for URL changes and update current step
-  useEffect(() => {
-    const stepFromUrl = getInitialStep();
-    if (stepFromUrl !== currentStep) {
-      setCurrentStep(stepFromUrl);
-    }
-  }, [searchParams, getInitialStep, currentStep]);
 
   return {
     // Current state

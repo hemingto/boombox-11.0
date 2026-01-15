@@ -15,6 +15,7 @@
  * - Updated text colors: `text-zinc-950` → `text-text-primary`, `text-gray-600` → `text-text-secondary`
  * - Applied semantic tokens for consistency
  * - Replaced custom shadow with design system shadow classes
+ * - Refactored to use FilterDropdown primitive component
  *
  * ACCESSIBILITY:
  * - Proper button roles for interactive elements
@@ -24,13 +25,14 @@
  * - Semantic HTML structure with proper headings
  *
  * @refactor Extracted video data to constants file, replaced useEffect click-outside with useClickOutside hook
+ * @refactor Replaced custom dropdown implementation with FilterDropdown primitive component
  */
 
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { ChevronRightIcon, ChevronLeftIcon } from '@heroicons/react/24/outline';
-import { useClickOutside } from '@/hooks/useClickOutside';
+import { FilterDropdown } from '@/components/ui/primitives';
 import {
   TRAINING_VIDEOS,
   VIDEO_FILTER_OPTIONS,
@@ -42,15 +44,8 @@ export function BestPracticesVideoGallery() {
   const [selectedFilter, setSelectedFilter] = useState<
     VideoFilterOption['value']
   >('all');
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const filterRef = useRef<HTMLDivElement>(null);
 
   const itemsPerPage = 3;
-
-  // Use the centralized useClickOutside hook
-  useClickOutside(filterRef, () => {
-    setIsFilterOpen(false);
-  });
 
   const filteredVideos = useMemo(() => {
     if (selectedFilter === 'all') return TRAINING_VIDEOS;
@@ -74,75 +69,22 @@ export function BestPracticesVideoGallery() {
     if (currentPage < totalPages) setCurrentPage(currentPage + 1);
   };
 
-  const handleFilterChange = (filter: VideoFilterOption['value']) => {
-    setSelectedFilter(filter);
+  const handleFilterChange = (filter: string) => {
+    setSelectedFilter(filter as VideoFilterOption['value']);
     setCurrentPage(1);
-    setIsFilterOpen(false);
   };
 
   return (
     <div>
       {/* Filter Controls */}
-      <div className="mb-4" ref={filterRef}>
-        <div className="relative">
-          <button
-            type="button"
-            className={`relative w-fit rounded-full px-3 py-2 cursor-pointer ${
-              isFilterOpen
-                ? 'ring-2 ring-border bg-surface-primary'
-                : 'ring-1 ring-border bg-surface-tertiary'
-            }`}
-            onClick={() => setIsFilterOpen(!isFilterOpen)}
-            aria-expanded={isFilterOpen}
-            aria-haspopup="listbox"
-            aria-label="Filter videos by category"
-          >
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-text-primary">
-                {VIDEO_FILTER_OPTIONS.find(
-                  (option) => option.value === selectedFilter
-                )?.label || 'Filter by'}
-              </span>
-              <svg
-                className="shrink-0 w-3 h-3 text-text-primary ml-1"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </div>
-          </button>
-
-          {isFilterOpen && (
-            <div
-              role="listbox"
-              className="absolute w-fit min-w-36 left-0 z-10 mt-2 border border-border rounded-md bg-surface-primary shadow-custom-shadow"
-            >
-              {VIDEO_FILTER_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  role="option"
-                  aria-selected={selectedFilter === option.value}
-                  className="w-full flex justify-between items-center p-3 cursor-pointer hover:bg-surface-tertiary text-left"
-                  onClick={() => handleFilterChange(option.value)}
-                >
-                  <span className="text-sm text-text-primary">
-                    {option.label}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+      <div className="mb-4">
+        <FilterDropdown
+          options={VIDEO_FILTER_OPTIONS}
+          value={selectedFilter}
+          onChange={handleFilterChange}
+          placeholder="Filter by"
+          ariaLabel="Filter videos by category"
+        />
       </div>
 
       {/* Video List */}
@@ -171,13 +113,13 @@ export function BestPracticesVideoGallery() {
             onClick={handlePreviousPage}
             disabled={currentPage === 1}
             aria-label="Previous page"
-            className={`absolute left-0 rounded-full bg-surface-tertiary active:bg-surface-disabled p-2 ${
+            className={`absolute left-0 rounded-full bg-surface-tertiary hover:bg-surface-secondary active:bg-surface-pressed p-2 flex items-center justify-center ${
               currentPage === 1
                 ? 'opacity-50 cursor-not-allowed'
                 : 'cursor-pointer'
             }`}
           >
-            <ChevronLeftIcon className="w-4 h-4 text-text-secondary" />
+            <ChevronLeftIcon className="w-4 h-4 text-text-primary" />
           </button>
           <span className="text-sm mx-4 text-text-primary">
             Page {currentPage} of {totalPages}
@@ -187,13 +129,13 @@ export function BestPracticesVideoGallery() {
             onClick={handleNextPage}
             disabled={currentPage === totalPages}
             aria-label="Next page"
-            className={`absolute right-0 rounded-full bg-surface-tertiary active:bg-surface-disabled p-2 ${
+            className={`absolute right-0 rounded-full bg-surface-tertiary hover:bg-surface-secondary active:bg-surface-pressed p-2 flex items-center justify-center ${
               currentPage === totalPages
                 ? 'opacity-50 cursor-not-allowed'
                 : 'cursor-pointer'
             }`}
           >
-            <ChevronRightIcon className="w-4 h-4 text-text-secondary" />
+            <ChevronRightIcon className="w-4 h-4 text-text-primary" />
           </button>
         </div>
       )}

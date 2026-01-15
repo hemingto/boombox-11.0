@@ -35,14 +35,15 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession, signOut, signIn } from 'next-auth/react';
-import { BuildingStorefrontIcon } from '@heroicons/react/24/solid';
 import EmailInput from '@/components/forms/EmailInput';
 import PhoneNumberInput from '@/components/forms/PhoneNumberInput';
 import { Input } from '@/components/ui/primitives/Input';
 import { Select, type SelectOption } from '@/components/ui/primitives/Select';
 import { Modal } from '@/components/ui/primitives/Modal';
 import { LoadingOverlay } from '@/components/ui/primitives/LoadingOverlay';
-import { isValidEmail, isValidURL } from '@/lib/utils/validationUtils';
+import { isValidEmail, normalizeWebsiteURL, isValidURL } from '@/lib/utils/validationUtils';
+import { convertEmployeeCountToNumber } from '@/lib/utils/movingPartnerClientUtils';
+import Link from 'next/link';
 
 /**
  * Employee count options for dropdown selection
@@ -96,7 +97,6 @@ export function MoverSignUpForm() {
   });
   
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isCompanyNameFocused, setIsCompanyNameFocused] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Session management state
@@ -126,7 +126,8 @@ export function MoverSignUpForm() {
     }
 
     // Website validation
-    if (!formData.website.trim() || !isValidURL(formData.website)) {
+    const normalizedWebsite = normalizeWebsiteURL(formData.website);
+    if (!normalizedWebsite || !isValidURL(normalizedWebsite)) {
       newErrors.website = 'Please enter a valid website URL';
     }
 
@@ -149,13 +150,24 @@ export function MoverSignUpForm() {
   const submitFormData = async (data: MoverSignUpFormData) => {
     try {
       setIsSubmitting(true);
+      
+      // Normalize the website URL to include protocol if missing
+      const normalizedWebsite = normalizeWebsiteURL(data.website);
+      
+      // Convert employee count range string to a representative number
+      const employeeCountNumber = convertEmployeeCountToNumber(data.employeeCount);
+      
       const response = await fetch('/api/moving-partners/list', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...data,
+          companyName: data.companyName,
+          email: data.email,
+          phoneNumber: data.phoneNumber,
+          website: normalizedWebsite,
+          employeeCount: employeeCountNumber,
           createDefaultAvailability: true,
         }),
       });
@@ -166,7 +178,7 @@ export function MoverSignUpForm() {
         // Automatically sign in the user
         const signInResult = await signIn('credentials', {
           contact: data.phoneNumber || data.email,
-          accountType: 'mover',
+          accountType: 'MOVER',
           redirect: false,
           skipVerification: true,
           userId: responseData.mover.id.toString(),
@@ -177,12 +189,12 @@ export function MoverSignUpForm() {
           setErrors({
             submit: 'Failed to sign in. Please try logging in manually.',
           });
-          window.location.href = `/login?from=/mover-account-page/${responseData.mover.id}`;
+          window.location.href = `/login?from=/service-provider/mover/${responseData.mover.id}`;
           return;
         }
 
         // If sign in successful, redirect to mover account page
-        window.location.href = `/mover-account-page/${responseData.mover.id}`;
+        window.location.href = `/service-provider/mover/${responseData.mover.id}`;
       } else {
         if (response.status === 409) {
           setErrors({
@@ -270,16 +282,6 @@ export function MoverSignUpForm() {
     setPendingSubmitData(null);
   };
 
-  /**
-   * Get icon color class based on state
-   */
-  const getIconColorClass = () => {
-    if (errors.companyName) return 'text-status-error';
-    if (formData.companyName) return 'text-primary';
-    if (isCompanyNameFocused) return 'text-primary';
-    return 'text-text-secondary';
-  };
-
   return (
     <>
       <div className="flex-col max-w-2xl bg-surface-primary rounded-md shadow-custom-shadow mx-4 sm:mx-auto p-6 sm:p-10 sm:mb-48 mb-24">
@@ -289,69 +291,64 @@ export function MoverSignUpForm() {
           message="Processing your application..."
         />
 
-        <h2 className="mb-4">Tell us about your company</h2>
+        <h2 className="mb-6">Tell us about your company</h2>
 
         {/* Company Name Input */}
-        <div className="form-group">
-          <div className="relative w-full">
-            <span className="absolute top-3 left-3 pointer-events-none" aria-hidden="true">
-              <BuildingStorefrontIcon
-                className={`w-5 h-5 transition-colors duration-200 ${getIconColorClass()}`}
-              />
-            </span>
-            <Input
-              type="text"
-              value={formData.companyName}
-              onChange={(e) => {
-                setFormData({ ...formData, companyName: e.target.value });
-                setErrors({ ...errors, companyName: undefined });
-              }}
-              onFocus={() => {
-                setIsCompanyNameFocused(true);
-                setErrors({ ...errors, companyName: undefined });
-              }}
-              onBlur={() => setIsCompanyNameFocused(false)}
-              placeholder="Enter your company name"
-              error={errors.companyName}
-              className="pl-10"
-              fullWidth
-              aria-label="Company name"
-              aria-invalid={!!errors.companyName}
-            />
-          </div>
+        <div className="mb-4">
+          <Input
+            type="text"
+            value={formData.companyName}
+            onChange={(e) => {
+              setFormData({ ...formData, companyName: e.target.value });
+              setErrors({ ...errors, companyName: undefined });
+            }}
+            onFocus={() => setErrors({ ...errors, companyName: undefined })}
+            label="Company Name"
+            placeholder="Enter your company name"
+            error={errors.companyName}
+            fullWidth
+            required
+            aria-label="Company name"
+            aria-invalid={!!errors.companyName}
+          />
         </div>
 
         {/* Email Input */}
-        <EmailInput
-          value={formData.email}
-          onEmailChange={(email) => {
-            setFormData({ ...formData, email });
-            setErrors({ ...errors, email: undefined });
-          }}
-          hasError={!!errors.email}
-          errorMessage={errors.email}
-          onClearError={() => setErrors({ ...errors, email: undefined })}
-          placeholder="Enter your email address"
-          required
-          validateOnChange={false}
-        />
+        <div className="mb-4">
+          <EmailInput
+            value={formData.email}
+            onEmailChange={(email) => {
+              setFormData({ ...formData, email });
+              setErrors({ ...errors, email: undefined });
+            }}
+            label="Email Address"
+            hasError={!!errors.email}
+            errorMessage={errors.email}
+            onClearError={() => setErrors({ ...errors, email: undefined })}
+            placeholder="Enter your email address"
+            required
+          />
+        </div>
 
         {/* Phone Number Input */}
-        <PhoneNumberInput
-          value={formData.phoneNumber}
-          onChange={(phoneNumber) => {
-            setFormData({ ...formData, phoneNumber });
-            setErrors({ ...errors, phoneNumber: undefined });
-          }}
-          hasError={!!errors.phoneNumber}
-          errorMessage={errors.phoneNumber}
-          onClearError={() => setErrors({ ...errors, phoneNumber: undefined })}
-          placeholder="Enter your phone number"
-          required
-        />
+        <div className="mb-4">
+          <PhoneNumberInput
+            value={formData.phoneNumber}
+            onChange={(phoneNumber) => {
+              setFormData({ ...formData, phoneNumber });
+              setErrors({ ...errors, phoneNumber: undefined });
+            }}
+            label="Phone Number"
+            hasError={!!errors.phoneNumber}
+            errorMessage={errors.phoneNumber}
+            onClearError={() => setErrors({ ...errors, phoneNumber: undefined })}
+            placeholder="Enter your phone number"
+            required
+          />
+        </div>
 
         {/* Employee Count Select */}
-        <div className="mb-4 mt-6">
+        <div className="mb-4 mt-10">
           <h2 className="mb-4">How big is your team?</h2>
           <Select
             options={EMPLOYEE_COUNT_OPTIONS}
@@ -367,6 +364,7 @@ export function MoverSignUpForm() {
             name="employeeCount"
             id="employeeCount"
             aria-label="Number of employees"
+            size="sm"
           />
         </div>
 
@@ -388,8 +386,11 @@ export function MoverSignUpForm() {
             aria-invalid={!!errors.website}
           />
           <div className="mt-4 p-3 sm:mb-4 mb-2 border border-border bg-surface-primary rounded-md max-w-fit">
-            <p className="text-sm text-text-secondary">
-              If you don&apos;t have a website, you can link your Google My Business Page
+            <p className="text-xs text-text-primary">
+              If you don&apos;t have a website, you can link your Google My Business Page by hitting the Share button and copying the URL.
+              <br />
+              <br />
+              Example: <Link href="https://share.google/ivjXgbxQkX4sIiFcA" className="font-semibold hover:underline" target="_blank" rel="noopener noreferrer">https://share.google/ivjXgbxQkX4sIiFcA</Link>
             </p>
           </div>
         </div>
@@ -397,11 +398,13 @@ export function MoverSignUpForm() {
         {/* Submit Error */}
         {errors.submit && (
           <div 
-            className="mb-4 p-3 bg-red-50 border border-border-error text-red-700 rounded"
+            className="mb-4 p-3 bg-red-50 text-red-500 rounded"
             role="alert"
             aria-live="polite"
           >
-            {errors.submit}
+            <p className="text-sm">
+              {errors.submit}
+            </p>
           </div>
         )}
 

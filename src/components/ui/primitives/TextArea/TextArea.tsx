@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * @fileoverview TextArea component with design system integration
  * @source boombox-10.0/src/app/components/reusablecomponents/textinput.tsx (textarea patterns)

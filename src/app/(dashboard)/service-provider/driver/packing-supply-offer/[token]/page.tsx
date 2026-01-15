@@ -101,7 +101,7 @@ export default function PackingSupplyOfferPage() {
 
         // Fetch route details
         const response = await fetch(
-          `/api/packing-supplies/route-details/${decodedToken.routeId}?token=${token}`
+          `/api/onfleet/packing-supplies/route-details/${decodedToken.routeId}?token=${token}`
         );
 
         if (!response.ok) {
@@ -169,7 +169,7 @@ export default function PackingSupplyOfferPage() {
         return;
       }
 
-      const response = await fetch('/api/packing-supplies/driver-response', {
+      const response = await fetch('/api/onfleet/packing-supplies/driver-response', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

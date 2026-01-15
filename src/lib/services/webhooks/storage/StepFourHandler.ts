@@ -16,29 +16,39 @@ export class StepFourHandler {
    * Updates appointment status to "Complete"
    */
   static async handleTaskCompleted(webhookData: OnfleetWebhookPayload): Promise<void> {
+    console.log('=== [StepFourHandler] handleTaskCompleted START ===');
+    
     const { data } = webhookData;
     const taskDetails = data?.task;
 
+    console.log(`[StepFourHandler] taskDetails exists: ${!!taskDetails}`);
+
     if (!taskDetails) {
+      console.error('[StepFourHandler] ERROR: No task details found');
       throw new Error('No task details found in webhook data');
     }
 
-    console.log('Processing Step 4 completion webhook with shortId:', taskDetails.shortId);
+    console.log(`[StepFourHandler] Task shortId: ${taskDetails.shortId}`);
 
     // Find appointment
+    console.log(`[StepFourHandler] Looking up appointment (stepNumber: 4)`);
     const appointment = await findAppointmentByOnfleetTask(
       taskDetails.shortId,
       { stepNumber: 4 }
     );
 
     if (!appointment) {
-      console.log('No appointment found for task:', taskDetails.shortId);
+      console.log(`[StepFourHandler] WARNING: No appointment found for task: ${taskDetails.shortId}`);
       return;
     }
 
+    console.log(`[StepFourHandler] Appointment found: ${appointment.id}`);
+
     // Update appointment status to complete
+    console.log(`[StepFourHandler] Updating appointment ${appointment.id} status to "Complete"`);
     await updateAppointmentStatus(appointment.id, 'Complete');
     
-    console.log('Updated appointment status to Complete for appointment:', appointment.id);
+    console.log(`[StepFourHandler] SUCCESS: Appointment ${appointment.id} status updated to Complete`);
+    console.log('=== [StepFourHandler] handleTaskCompleted COMPLETE ===');
   }
 } 

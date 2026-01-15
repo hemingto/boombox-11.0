@@ -26,7 +26,6 @@ import { ContactTable } from '@/components/features/service-providers/account/Co
 import { ProfilePicture } from '@/components/ui/primitives/ProfilePicture';
 import { DriversLicenseImages } from '@/components/features/service-providers/drivers';
 import { useServiceProviderData } from '@/hooks/useServiceProviderData';
-import { LoadingOverlay } from '@/components/ui/primitives/LoadingOverlay';
 
 interface AccountInfoContentProps {
   userType: 'driver' | 'mover';
@@ -47,7 +46,7 @@ export function AccountInfoContent({
       {/* Moving Partner Preview Card */}
       {userType === 'mover' && !isLoading && !error && providerData && (
         <>
-          <div className="mt-4 max-w-lg cursor-default">
+          <div className="mt-4 max-w-lg">
             <LaborRadioCard
               key={providerData.id}
               id={providerData.id.toString()}
@@ -62,18 +61,13 @@ export function AccountInfoContent({
             />
           </div>
           <div className="p-3 mb-4 border border-border-secondary rounded-md max-w-lg">
-            <p className="text-sm text-text-secondary">
-              <strong className="text-text-primary">Note:</strong> This is a
+            <p className="text-sm text-text-primary">
+              <strong>Note:</strong> This is a
               representation of how customers see your business while booking jobs on
               the Boombox platform
             </p>
           </div>
         </>
-      )}
-
-      {/* Loading State */}
-      {userType === 'mover' && isLoading && (
-        <LoadingOverlay visible={true} message="Loading account information..." />
       )}
 
       {/* Error State */}

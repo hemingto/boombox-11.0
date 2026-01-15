@@ -2,29 +2,32 @@
  * @fileoverview UserPageInfoCards component - Displays info cards for customer actions
  * @source boombox-10.0/src/app/components/user-page/userpageinfocards.tsx
  * @refactored Following REFACTOR_PRD.md and component-migration-checklist.md
+ *
+ * COMPONENT FUNCTIONALITY:
+ * - Receives appointments as props from parent (page-level data fetching)
+ * - Displays packing supplies order card for active appointments
+ * - Shows move details collection cards for scheduled appointments
+ * - Opens MoveDetailsForm modal for providing additional appointment info
+ *
+ * ARCHITECTURE:
+ * - Data is fetched at page level via useCustomerHomePageData hook
+ * - Component receives data as props, no internal data fetching
  */
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  getActiveCustomerAppointments, 
-  CustomerAppointmentDisplay 
-} from '@/lib/utils/customerUtils';
-import { addDateSuffix } from '@/lib/utils/dateUtils';
+import { CustomerAppointmentDisplay } from '@/lib/services/customerDataService';
+import { addDateSuffix } from '@/lib/utils';
 import { InfoCard } from '@/components/ui/primitives/InfoCard';
 import { ClipboardIcon } from '@/components/icons/ClipboardIcon';
 import { PackingSuppliesIcon } from '@/components/icons/PackingSuppliesIcon';
 import { MoveDetailsForm } from '@/components/features/customers';
-import { 
-  SkeletonCard, 
-  SkeletonTitle, 
-  SkeletonText 
-} from '@/components/ui/primitives/Skeleton';
 
 export interface UserPageInfoCardsProps {
   userId: string;
+  appointments: CustomerAppointmentDisplay[];
 }
 
 /**
@@ -34,36 +37,23 @@ export interface UserPageInfoCardsProps {
  * - Displays packing supplies order card for active appointments
  * - Shows move details collection cards for scheduled appointments
  * - Opens MoveDetailsForm modal for providing additional appointment info
- * - Uses skeleton primitives for loading state
  */
-export const UserPageInfoCards: React.FC<UserPageInfoCardsProps> = ({ userId }) => {
+export const UserPageInfoCards: React.FC<UserPageInfoCardsProps> = ({ 
+  userId,
+  appointments,
+}) => {
   const [activeAppointmentId, setActiveAppointmentId] = useState<number | null>(null);
-  const [appointments, setAppointments] = useState<CustomerAppointmentDisplay[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [showPackingSuppliesCard, setShowPackingSuppliesCard] = useState(true);
+  const [localAppointments, setLocalAppointments] = useState(appointments);
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      try {
-        const activeAppointments = await getActiveCustomerAppointments(userId);
-        setAppointments(activeAppointments);
-      } catch (error) {
-        console.error('Error fetching appointments:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchAppointments();
-  }, [userId]);
-
   // Filter for scheduled appointments without additional information
-  const scheduledAppointments = appointments.filter(
+  const scheduledAppointments = localAppointments.filter(
     (apt) => !['Complete', 'Canceled', 'Awaiting Admin Check In'].includes(apt.status) && !apt.hasAdditionalInfo
   );
 
   const handleUpdateAppointmentInfo = (appointmentId: number) => {
-    setAppointments(prev => 
+    setLocalAppointments(prev => 
       prev.map(apt => 
         apt.id === appointmentId ? { ...apt, hasAdditionalInfo: true } : apt
       )
@@ -75,27 +65,21 @@ export const UserPageInfoCards: React.FC<UserPageInfoCardsProps> = ({ userId }) 
   };
 
   const handlePackingSuppliesClick = () => {
-    router.push(`/user-page/${userId}/packing-supplies`);
+    router.push(`/customer/${userId}/packing-supplies`);
   };
 
   const handleFormClose = () => {
     setActiveAppointmentId(null);
   };
 
-  // Loading state with skeleton primitives
-  if (isLoading) {
-    return (
-      <div className="flex flex-col lg:px-16 px-6 max-w-5xl w-full mx-auto space-y-4">
-        <SkeletonCard className="h-40" />
-        <SkeletonCard className="h-40" />
-      </div>
-    );
-  }
+  const handleClosePackingSuppliesCard = () => {
+    setShowPackingSuppliesCard(false);
+  };
 
   return (
-    <div className="flex flex-col lg:px-16 px-6 max-w-5xl w-full mx-auto">
+    <div className="flex flex-col lg:px-16 px-6 max-w-5xl w-full mx-auto mb-8">
 
-      {appointments.some((apt) => 
+      {showPackingSuppliesCard && appointments.some((apt) => 
         !['Complete', 'Canceled', 'Awaiting Admin Check In'].includes(apt.status)
       ) && (
         <InfoCard
@@ -104,6 +88,7 @@ export const UserPageInfoCards: React.FC<UserPageInfoCardsProps> = ({ userId }) 
           buttonText="Order packing supplies"
           buttonIcon={<PackingSuppliesIcon className="w-5 h-5 text-primary" />}
           onButtonClick={handlePackingSuppliesClick}
+          onClose={handleClosePackingSuppliesCard}
           showCloseIcon={true}
           variant='info'
         />
@@ -127,7 +112,7 @@ export const UserPageInfoCards: React.FC<UserPageInfoCardsProps> = ({ userId }) 
                     const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
                     return `${weekday}, ${month} ${suffixDay}`;
                   })()}
-                </span>. This helps us ensure we've scheduled enough hours and movers for your job.
+                </span>. This helps us ensure we&apos;ve scheduled enough hours and movers for your job.
               </>
             }
             buttonText={`Tell us more about your ${appointment.appointmentType.toLowerCase()}`}
@@ -150,4 +135,3 @@ export const UserPageInfoCards: React.FC<UserPageInfoCardsProps> = ({ userId }) 
     </div>
   );
 };
-

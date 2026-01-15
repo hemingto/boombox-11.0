@@ -7,14 +7,6 @@
 import { prisma } from '@/lib/database/prismaClient';
 import { formatPhoneForOnfleet, mapVehicleTypeToOnfleet } from '@/lib/utils/driverUtils';
 
-// Map vehicle types to Onfleet vehicle types
-const VEHICLE_TYPE_MAP: Record<string, 'CAR' | 'TRUCK' | 'MOTORCYCLE' | 'BICYCLE'> = {
-  'car': 'CAR',
-  'truck': 'TRUCK',
-  'motorcycle': 'MOTORCYCLE',
-  'bicycle': 'BICYCLE',
-};
-
 // Service to team mapping
 const SERVICE_TEAM_MAP: Record<string, string> = {
   'Storage Unit Delivery': process.env.BOOMBOX_DELIVERY_NETWORK_TEAM_ID || '',
@@ -233,12 +225,22 @@ async function createOnfleetWorker(
   // Only include vehicle info for Boombox Delivery Network drivers
   if (!isMovingPartnerDriver && driver.vehicles.length) {
     const vehicle = driver.vehicles[0];
-    const vehicleType = VEHICLE_TYPE_MAP[vehicle.make.toLowerCase()] || 'CAR';
-    workerData.vehicle = {
-      type: vehicleType,
+    // Use mapVehicleTypeToOnfleet to convert driver's vehicleType to Onfleet format
+    // This maps values like "Pickup Truck" → 'TRUCK', "SUV" → 'CAR', etc.
+    const onfleetVehicleType = mapVehicleTypeToOnfleet(driver.vehicleType);
+    
+    // Only include licensePlate if it exists and is not empty
+    const vehicleData: any = {
+      type: onfleetVehicleType,
       description: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
-      licensePlate: vehicle.licensePlate || undefined,
     };
+    
+    // Add licensePlate only if it's a valid non-empty string
+    if (vehicle.licensePlate && vehicle.licensePlate.trim().length > 0) {
+      vehicleData.licensePlate = vehicle.licensePlate.trim();
+    }
+    
+    workerData.vehicle = vehicleData;
   }
 
   console.log('Onfleet payload:', JSON.stringify(workerData));
@@ -265,6 +267,9 @@ async function createOnfleetWorker(
       // If response is not JSON, use status text
       throw new Error(`Onfleet API request failed: ${onfleetAPIResponse.status} ${onfleetAPIResponse.statusText}`);
     }
+    
+    // Log the full error response for debugging
+    console.error('Full Onfleet error response:', JSON.stringify(errorData, null, 2));
     
     // Extract message from Onfleet's varied error structure
     const specificMessage = errorData?.message?.message || errorData?.message;

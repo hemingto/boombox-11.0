@@ -111,25 +111,26 @@ export function LoginStep2({
       {/* Account Selection Cards */}
       <div className="space-y-2" role="radiogroup" aria-label="Account type selection">
         {accounts.map((account) => {
-          const isSelected = selectedAccountId === account.id;
+          const accountKey = `${account.id}-${account.type}`;
+          const isSelected = selectedAccountId === accountKey;
           
           return (
             <div
-              key={account.id}
-              className={`flex cursor-pointer items-center justify-between rounded-xl border-2 p-6 transition-colors ${
+              key={accountKey}
+              className={`flex cursor-pointer items-center justify-between rounded-md border-2 p-6 ${
                 isSelected
                   ? 'border-primary bg-white'
-                  : 'border-surface-secondary bg-surface-secondary hover:bg-surface-tertiary'
+                  : 'border-surface-tertiary bg-surface-tertiary'
               }`}
-              onClick={() => onAccountSelect(account.id)}
+              onClick={() => onAccountSelect(accountKey)}
               role="radio"
               aria-checked={isSelected}
-              aria-labelledby={`account-${account.id}-label`}
+              aria-labelledby={`account-${accountKey}-label`}
               tabIndex={0}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  onAccountSelect(account.id);
+                  onAccountSelect(accountKey);
                 }
               }}
             >
@@ -142,10 +143,10 @@ export function LoginStep2({
                 
                 {/* Name and Type */}
                 <div>
-                  <p id={`account-${account.id}-label`} className="text-text-primary font-medium">
+                  <p id={`account-${accountKey}-label`} className="text-text-primary font-medium">
                     {account.name}
                   </p>
-                  <p className="text-sm text-text-secondary capitalize">
+                  <p className="text-sm text-text-primary">
                     {account.type}
                   </p>
                 </div>
@@ -156,7 +157,7 @@ export function LoginStep2({
                 <input
                   type="radio"
                   checked={isSelected}
-                  onChange={() => onAccountSelect(account.id)}
+                  onChange={() => onAccountSelect(accountKey)}
                   className={`h-5 w-5 ${
                     isSelected 
                       ? 'accent-primary' 
@@ -170,12 +171,6 @@ export function LoginStep2({
           );
         })}
       </div>
-      
-      {/* Helper Text */}
-      <p className="mb-8 mt-4 text-sm text-text-primary">
-        You have multiple account types connected to your phone number or email. 
-        Please select your preferred account.
-      </p>
     </div>
   );
 }

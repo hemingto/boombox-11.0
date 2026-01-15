@@ -65,40 +65,49 @@ export interface CreateOrderResponse {
 export function calculateDeliveryTimeWindow(): DeliveryTimeWindow {
   const now = new Date();
 
-  // Convert current time to PST/PDT
-  const pstOffset = -8; // PST is UTC-8
-  const pstNow = new Date(now.getTime() + pstOffset * 60 * 60 * 1000);
+  // Convert current time to Pacific Time (America/Los_Angeles)
+  // This properly handles PST/PDT transitions
+  const pstTimeString = now.toLocaleString('en-US', { 
+    timeZone: 'America/Los_Angeles' 
+  });
+  const pstNow = new Date(pstTimeString);
 
   // 12 PM PST cutoff for same-day delivery
-  const cutoffTime = new Date(pstNow);
-  cutoffTime.setHours(12, 0, 0, 0);
+  const cutoffHour = 12;
+  const currentHour = pstNow.getHours();
 
   let deliveryDate: Date;
   let isSameDay: boolean;
 
-  if (pstNow < cutoffTime) {
-    // Same-day delivery (12 PM - 7 PM PST)
+  if (currentHour < cutoffHour) {
+    // Same-day delivery (before 12 PM PST)
     deliveryDate = new Date(pstNow);
     isSameDay = true;
   } else {
-    // Next-day delivery
+    // Next-day delivery (after 12 PM PST)
     deliveryDate = new Date(pstNow);
     deliveryDate.setDate(deliveryDate.getDate() + 1);
     isSameDay = false;
   }
 
-  // Delivery window: 12 PM - 7 PM PST
+  // Delivery window: 12 PM - 7 PM PST on the delivery date
   const windowStart = new Date(deliveryDate);
   windowStart.setHours(12, 0, 0, 0);
 
   const windowEnd = new Date(deliveryDate);
   windowEnd.setHours(19, 0, 0, 0);
 
+  // Format delivery date as YYYY-MM-DD to avoid timezone issues
+  const year = deliveryDate.getFullYear();
+  const month = String(deliveryDate.getMonth() + 1).padStart(2, '0');
+  const day = String(deliveryDate.getDate()).padStart(2, '0');
+  const deliveryDateString = `${year}-${month}-${day}`;
+
   return {
     start: windowStart,
     end: windowEnd,
     isSameDay,
-    deliveryDate: deliveryDate.toISOString().split('T')[0],
+    deliveryDate: deliveryDateString,
   };
 }
 
@@ -540,20 +549,22 @@ export function formatPackingSupplyTrackingResponse(
 
 /**
  * Calculate route payout estimate
+ * Uses consistent formula with formatRouteMetrics: $15 per stop + $0.50 per mile
  * @source boombox-10.0 (legacy payout calculation logic)
- * @refactor Added function for calculating route payout estimates
+ * @refactor Updated to use consistent formula across SMS and dashboard displays
  */
-export function calculateRoutePayoutEstimate(routeData: any): number {
-  // @REFACTOR-P9-TEMP: Mock implementation
-  console.log('PLACEHOLDER: calculateRoutePayoutEstimate called', {
-    routeData,
-  });
-
-  const basePayment = 50; // Base payment per route
-  const perStopPayment = 5; // Payment per stop
-  const stopCount = routeData.stops?.length || 0;
-
-  return basePayment + stopCount * perStopPayment;
+export function calculateRoutePayoutEstimate(routeData: any): string {
+  const totalStops = routeData.totalStops ?? routeData.stops?.length ?? 0;
+  const totalDistance = routeData.totalDistance 
+    ? parseFloat(routeData.totalDistance.toString()) 
+    : 0;
+  
+  // Consistent formula: $15 per stop + $0.50 per mile
+  const basePayPerStop = 15;
+  const mileageRate = 0.50;
+  const estimatedPayout = Math.round((totalStops * basePayPerStop) + (totalDistance * mileageRate));
+  
+  return `$${estimatedPayout}`;
 }
 
 /**

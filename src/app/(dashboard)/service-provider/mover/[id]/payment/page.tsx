@@ -23,7 +23,7 @@ export default async function MoverPaymentPage({
   const moverId = resolvedParams.id;
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen mb-96 sm:mb-60">
       <SubPageHero
         title="Payments"
         description="Set up your stripe account to receive payments for completed jobs"

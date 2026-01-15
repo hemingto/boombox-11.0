@@ -19,20 +19,18 @@
  * - Applied semantic text colors (text-text-primary, text-text-secondary)
  * - Used btn-* utility classes for buttons
  * 
- * @refactor Migrated to admin/pages with design system compliance and UI primitives
+ * @refactor Migrated from react-big-calendar to FullCalendar, design system compliance and UI primitives
  */
 
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Calendar, dateFnsLocalizer, Views, EventProps, View, Components } from 'react-big-calendar';
-import { format } from 'date-fns/format';
-import { parse } from 'date-fns/parse';
-import { startOfWeek } from 'date-fns/startOfWeek';
-import { getDay } from 'date-fns/getDay';
-import { enUS } from 'date-fns/locale/en-US';
-import { addHours, subHours, setHours, setMinutes, setSeconds, setMilliseconds } from 'date-fns';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import FullCalendar from '@fullcalendar/react';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import interactionPlugin from '@fullcalendar/interaction';
+import { EventClickArg, EventContentArg } from '@fullcalendar/core';
+import { format, addHours, subHours } from 'date-fns';
 import { Modal } from '@/components/ui';
 import { Spinner } from '@/components/ui';
 
@@ -80,81 +78,41 @@ interface CalendarEvent {
   resource: AppointmentWithDetails;
 }
 
-const locales = {
-  'en-US': enUS,
-};
-
-const localizer = dateFnsLocalizer({
-  format,
-  parse,
-  startOfWeek,
-  getDay,
-  locales,
-});
-
 /**
  * Get semantic color classes based on appointment type
  * Using design system status colors instead of hardcoded colors
  */
-const getEventColor = (appointmentType: string | undefined): string => {
+const getEventColorClasses = (appointmentType: string | undefined): { bg: string; border: string } => {
   switch (appointmentType) {
     case 'Initial Pickup':
-      return 'bg-sky-100 border-sky-400'; // Cyan equivalent in semantic colors
+      return { bg: 'bg-sky-100', border: 'border-sky-400' };
     case 'Additional Storage': 
-      return 'bg-status-bg-success border-status-success'; // Success green
+      return { bg: 'bg-status-bg-success', border: 'border-status-success' };
     case 'End Storage Term':
-      return 'bg-status-bg-error border-status-error'; // Error red
+      return { bg: 'bg-status-bg-error', border: 'border-status-error' };
     case 'Storage Unit Access': 
-      return 'bg-status-bg-warning border-status-warning'; // Warning amber
+      return { bg: 'bg-status-bg-warning', border: 'border-border-warning' };
     default:
-      return 'bg-surface-tertiary border-border'; // Default surface gray
+      return { bg: 'bg-surface-tertiary', border: 'border-border' };
   }
 };
 
 /**
- * Custom event component for calendar - displays compact appointment info
+ * Get CSS color values for FullCalendar events
  */
-const CustomEvent: React.FC<EventProps<CalendarEvent>> = ({ event }) => {
-  const { resource } = event;
-  const userFullName = `${resource.user.firstName} ${resource.user.lastName}`;
-  const moverName = resource.movingPartner?.name ?? 'N/A';
-  const driverName = resource.driver?.name ?? 'Unassigned driver';
-
-  return (
-    <div className={`p-1 py-1 text-text-primary text-xs rounded-sm overflow-hidden min-w-[80px] ${getEventColor(resource.appointmentType)}`}>
-      <strong>{userFullName}</strong>
-      <div className="truncate">{resource.appointmentType}</div>
-      <div className="truncate">Mover: {moverName}</div>
-      <div className="truncate">Driver: {driverName}</div>
-      <div className="truncate">{resource.address}</div>
-      {resource.numberOfUnits !== null && <div className="truncate">Units: {resource.numberOfUnits}</div>}
-    </div>
-  );
-};
-
-/**
- * Custom popup component for overflow events ("+X more")
- */
-const CustomPopup = ({ event }: { event: CalendarEvent }) => {
-  const { resource } = event;
-  const userFullName = `${resource.user.firstName} ${resource.user.lastName}`;
-  const moverName = resource.movingPartner?.name ?? 'N/A';
-  const driverName = resource.driver?.name ?? 'Unassigned driver';
-
-  // Extract the border color class from getEventColor
-  const eventColorClasses = getEventColor(resource.appointmentType);
-  const borderColorClass = eventColorClasses.split(' ').find(cls => cls.startsWith('border-')) || 'border-border';
-
-  return (
-    <div className={`p-2 mb-1 text-sm rounded border-l-4 ${borderColorClass}`}>
-      <div className="font-semibold text-text-primary">{userFullName}</div>
-      <div className="text-text-secondary">{resource.appointmentType}</div>
-      <div className="text-text-secondary">Mover: {moverName}</div>
-      <div className="text-text-secondary">Driver: {driverName}</div>
-      <div className="text-text-secondary">{resource.address}</div>
-      {resource.numberOfUnits !== null && <div className="text-text-secondary">Units: {resource.numberOfUnits}</div>}
-    </div>
-  );
+const getEventColors = (appointmentType: string | undefined): { backgroundColor: string; borderColor: string } => {
+  switch (appointmentType) {
+    case 'Initial Pickup':
+      return { backgroundColor: '#e0f2fe', borderColor: '#38bdf8' }; // sky-100, sky-400
+    case 'Additional Storage': 
+      return { backgroundColor: '#dcfce7', borderColor: '#22c55e' }; // green-100, green-500
+    case 'End Storage Term':
+      return { backgroundColor: '#fee2e2', borderColor: '#ef4444' }; // red-100, red-500
+    case 'Storage Unit Access': 
+      return { backgroundColor: '#fef3c7', borderColor: '#f59e0b' }; // amber-100, amber-500
+    default:
+      return { backgroundColor: '#f1f5f9', borderColor: '#cbd5e1' }; // slate-100, slate-300
+  }
 };
 
 /**
@@ -177,9 +135,8 @@ const EventDetailModal = ({
   const moverName = resource.movingPartner?.name ?? 'N/A';
   const driverName = resource.driver?.name ?? 'Unassigned driver';
   
-  // Extract just the border color class from getEventColor
-  const colorClasses = getEventColor(resource.appointmentType);
-  const borderColorClass = colorClasses.split(' ').find(cls => cls.startsWith('border-')) || 'border-border';
+  // Get the border color class
+  const colorClasses = getEventColorClasses(resource.appointmentType);
   
   return (
     <Modal
@@ -189,7 +146,7 @@ const EventDetailModal = ({
       size="md"
       showCloseButton
     >
-      <div className={`border-t-8 ${borderColorClass} pt-4`}>
+      <div className={`border-t-8 ${colorClasses.border} pt-4`}>
         <div className="space-y-3 text-text-primary">
           <div>
             <span className="font-semibold">Appointment Type:</span>{' '}
@@ -233,19 +190,9 @@ export function AdminCalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<View>(Views.WEEK);
-  const [date, setDate] = useState<Date>(new Date());
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // Define the min and max times for the calendar view (7 AM - 7 PM)
-  const minTime = useMemo(() => {
-    return setHours(setMinutes(setSeconds(setMilliseconds(new Date(), 0), 0), 0), 7);
-  }, []);
-
-  const maxTime = useMemo(() => {
-    return setHours(setMinutes(setSeconds(setMilliseconds(new Date(), 0), 0), 0), 19);
-  }, []);
+  const calendarRef = useRef<FullCalendar>(null);
 
   useEffect(() => {
     const fetchAppointments = async () => {
@@ -301,15 +248,16 @@ export function AdminCalendarPage() {
 
     fetchAppointments();
   }, []);
-
-  const onNavigate = useCallback((newDate: Date) => setDate(newDate), []);
-  const onView = useCallback((newView: View) => setView(newView), []);
   
   // Handle event selection
-  const handleSelectEvent = useCallback((event: CalendarEvent) => {
-    setSelectedEvent(event);
-    setIsModalOpen(true);
-  }, []);
+  const handleEventClick = useCallback((clickInfo: EventClickArg) => {
+    const eventId = parseInt(clickInfo.event.id, 10);
+    const event = events.find(e => e.id === eventId);
+    if (event) {
+      setSelectedEvent(event);
+      setIsModalOpen(true);
+    }
+  }, [events]);
   
   // Close modal
   const handleCloseModal = useCallback(() => {
@@ -317,32 +265,47 @@ export function AdminCalendarPage() {
     setSelectedEvent(null);
   }, []);
 
-  const eventPropGetter = useCallback(
-    (event: CalendarEvent) => ({
-      className: `p-0 border-l-4 ${getEventColor(event.resource.appointmentType).split(' ')[1]}`,
-      style: {
-        backgroundColor: 'transparent',
-        borderRadius: '3px',
-        color: 'black',
-        cursor: 'pointer',
-        borderWidth: '0 0 0 4px',
-      },
-    }),
-    []
-  );
+  // Custom event content renderer
+  const renderEventContent = useCallback((eventInfo: EventContentArg) => {
+    const eventId = parseInt(eventInfo.event.id, 10);
+    const event = events.find(e => e.id === eventId);
+    
+    if (!event) return null;
+    
+    const { resource } = event;
+    const userFullName = `${resource.user.firstName} ${resource.user.lastName}`;
+    const moverName = resource.movingPartner?.name ?? 'N/A';
+    const driverName = resource.driver?.name ?? 'Unassigned driver';
+    const colorClasses = getEventColorClasses(resource.appointmentType);
 
-  const components: Components<CalendarEvent, object> = useMemo(() => ({ 
-    event: CustomEvent,
-    popup: ({ events }: { events: CalendarEvent[] }) => ( 
-      <div className="rbc-overlay rbc-overlay-popup p-2 bg-surface-primary shadow-lg rounded border border-border max-h-96 overflow-y-auto">
-        {events.map(event => <CustomPopup key={event.id} event={event} />)}
+    return (
+      <div className={`p-1 py-1 text-text-primary text-xs rounded-sm overflow-hidden min-w-[80px] h-full ${colorClasses.bg} border-l-4 ${colorClasses.border}`}>
+        <strong>{userFullName}</strong>
+        <div className="truncate">{resource.appointmentType}</div>
+        <div className="truncate">Mover: {moverName}</div>
+        <div className="truncate">Driver: {driverName}</div>
+        <div className="truncate">{resource.address}</div>
+        {resource.numberOfUnits !== null && <div className="truncate">Units: {resource.numberOfUnits}</div>}
       </div>
-    ),
-  }), []);
+    );
+  }, [events]);
 
-  const messages = useMemo(() => ({
-    showMore: (count: number) => `+${count} more`,
-  }), []);
+  // Convert events to FullCalendar format
+  const fullCalendarEvents = events.map(event => {
+    const colors = getEventColors(event.resource.appointmentType);
+    return {
+      id: String(event.id),
+      title: event.title,
+      start: event.start,
+      end: event.end,
+      backgroundColor: 'transparent',
+      borderColor: 'transparent',
+      textColor: '#1f2937',
+      extendedProps: {
+        resource: event.resource,
+      }
+    };
+  });
 
   if (loading) {
     return (
@@ -372,28 +335,154 @@ export function AdminCalendarPage() {
         </h1>
         
         <div className="bg-surface-primary rounded-lg shadow-lg p-4 h-[calc(100vh-200px)]">
-          <Calendar
-            localizer={localizer}
-            events={events}
-            startAccessor="start"
-            endAccessor="end"
-            style={{ height: '100%' }}
-            views={[Views.WEEK, Views.DAY]}
-            view={view}
-            date={date}
-            onNavigate={onNavigate}
-            onView={onView}
-            eventPropGetter={eventPropGetter}
-            components={components}
-            step={60}
-            timeslots={1}
-            popup={true}
-            messages={messages}
-            min={minTime}
-            max={maxTime}
-            dayLayoutAlgorithm="no-overlap"
-            onSelectEvent={handleSelectEvent}
-          />
+          <style jsx global>{`
+            /* FullCalendar Admin Calendar Styles */
+            .admin-calendar {
+              height: 100%;
+            }
+            
+            .admin-calendar .fc {
+              height: 100%;
+            }
+            
+            /* Toolbar styling */
+            .admin-calendar .fc .fc-toolbar {
+              margin-bottom: 16px;
+              flex-wrap: wrap;
+              gap: 8px;
+            }
+            
+            .admin-calendar .fc .fc-toolbar-title {
+              font-size: 1.25rem;
+              font-weight: 600;
+              color: var(--color-text-primary, #1f2937);
+            }
+            
+            /* Button styling */
+            .admin-calendar .fc .fc-button-group {
+              background-color: white;
+              border: 1px solid #e2e8f0;
+              border-radius: 0.5rem;
+              overflow: hidden;
+              padding: 4px;
+            }
+            
+            .admin-calendar .fc .fc-button {
+              color: #18181b !important;
+              font-size: 0.875rem !important;
+              font-weight: 600 !important;
+              border: none !important;
+              padding: 6px 12px !important;
+              background-color: transparent !important;
+              box-shadow: none !important;
+              border-radius: 0.375rem !important;
+              text-transform: capitalize;
+            }
+            
+            .admin-calendar .fc .fc-button:hover {
+              background-color: #f1f5f9 !important;
+            }
+            
+            .admin-calendar .fc .fc-button-active {
+              background-color: #e2e8f0 !important;
+            }
+            
+            .admin-calendar .fc .fc-button:focus {
+              box-shadow: none !important;
+            }
+            
+            /* Grid styling */
+            .admin-calendar .fc-theme-standard .fc-scrollgrid {
+              border: 1px solid var(--color-border, #e2e8f0);
+              border-radius: 0.5rem;
+              overflow: hidden;
+            }
+            
+            .admin-calendar .fc-theme-standard td,
+            .admin-calendar .fc-theme-standard th {
+              border-color: var(--color-border, #e2e8f0);
+            }
+            
+            /* Time slot styling */
+            .admin-calendar .fc .fc-timegrid-slot {
+              height: 4em;
+            }
+            
+            .admin-calendar .fc .fc-timegrid-slot-label {
+              color: var(--color-text-tertiary, #6b7280);
+              font-size: 0.75rem;
+            }
+            
+            /* Today highlighting */
+            .admin-calendar .fc .fc-timegrid-col.fc-day-today,
+            .admin-calendar .fc .fc-daygrid-day.fc-day-today {
+              background-color: #f8fafc;
+            }
+            
+            /* Event styling - make background transparent for custom content */
+            .admin-calendar .fc-event {
+              background-color: transparent !important;
+              border: none !important;
+              cursor: pointer;
+            }
+            
+            .admin-calendar .fc-event-main {
+              padding: 0;
+            }
+            
+            /* Now indicator */
+            .admin-calendar .fc .fc-timegrid-now-indicator-line {
+              border-color: #0891b2;
+              border-width: 2px;
+            }
+            
+            /* More link styling */
+            .admin-calendar .fc .fc-more-link {
+              color: var(--color-text-secondary, #6b7280);
+              font-weight: 500;
+            }
+            
+            .admin-calendar .fc .fc-more-link:hover {
+              color: var(--color-text-primary, #1f2937);
+            }
+          `}</style>
+          <div className="admin-calendar h-full">
+            <FullCalendar
+              ref={calendarRef}
+              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+              initialView="timeGridWeek"
+              headerToolbar={{
+                left: 'prev,next today',
+                center: 'title',
+                right: 'timeGridWeek,timeGridDay'
+              }}
+              buttonText={{
+                today: 'Today',
+                week: 'Week',
+                day: 'Day',
+              }}
+              events={fullCalendarEvents}
+              eventClick={handleEventClick}
+              eventContent={renderEventContent}
+              slotMinTime="07:00:00"
+              slotMaxTime="19:00:00"
+              slotDuration="01:00:00"
+              slotLabelFormat={{
+                hour: 'numeric',
+                minute: '2-digit',
+                omitZeroMinute: true,
+                meridiem: 'short'
+              }}
+              height="100%"
+              nowIndicator={true}
+              allDaySlot={false}
+              expandRows={true}
+              stickyHeaderDates={true}
+              dayMaxEvents={true}
+              eventDisplay="block"
+              slotEventOverlap={false}
+            />
+          </div>
         </div>
         
         {/* Event Detail Modal */}

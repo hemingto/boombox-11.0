@@ -7,7 +7,7 @@
 'use client';
 
 import { SubPageHero } from '@/components/features/service-providers/account/SubPageHero';
-import { CalendarUpcomingJobs } from '@/components/features/service-providers/calendar/CalendarUpcomingJobs';
+import { CalendarView } from '@/components/features/service-providers/calendar/CalendarView';
 import { use } from 'react';
 
 // Define a type for the resolved params for clarity
@@ -31,8 +31,14 @@ export default function MoverViewCalendarPage({
         userType="mover"
         userId={moverId}
       />
-      <CalendarUpcomingJobs userType="mover" userId={moverId} />
+      <div className="lg:px-16 px-6 max-w-5xl w-full mx-auto mb-10">
+        <CalendarView 
+          userType="mover" 
+          userId={moverId}
+          showEmptyWarning={true}
+          emptyWarningMessage="You currently have no upcoming jobs scheduled. Once a job has been accepted it will show on your calendar here."
+        />
+      </div>
     </>
   );
 }
-

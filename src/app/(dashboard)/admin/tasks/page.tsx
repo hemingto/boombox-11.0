@@ -268,7 +268,7 @@ export default function TasksPage() {
                       <h3 className="text-lg font-semibold text-gray-900">{task.title}</h3>
                       <p className="mt-1 text-sm text-gray-600">{task.description}</p>
                       {task.details && (
-                        <p className="mt-2 text-sm text-gray-700">{task.details}</p>
+                        <p className="mt-2 text-sm text-gray-700" dangerouslySetInnerHTML={{ __html: task.details }} />
                       )}
                     </div>
                     <Link

@@ -203,57 +203,10 @@ export async function updateStripeConnectStatus(userId: number, userType: 'drive
 
 /**
  * Get Stripe Connect account status display information
- * @source boombox-10.0/src/app/components/mover-account/stripeaccountstatus.tsx (getStatusDisplay)
- * @param accountData - Stripe account data with status fields
- * @returns Status display configuration with text, badge class, and text color
+ * @deprecated Moved to stripeDisplayUtils.ts for client-safe imports
+ * @see stripeDisplayUtils.ts
  */
-export function getStripeAccountStatusDisplay(accountData: {
-  detailsSubmitted?: boolean;
-  payoutsEnabled?: boolean;
-  chargesEnabled?: boolean;
-} | null): {
-  text: string;
-  badgeClass: string;
-  textColor: string;
-} {
-  if (!accountData) {
-    return {
-      text: 'Unknown',
-      badgeClass: 'badge-info',
-      textColor: 'text-zinc-500',
-    };
-  }
-
-  if (!accountData.detailsSubmitted) {
-    return {
-      text: 'Incomplete',
-      badgeClass: 'badge-warning',
-      textColor: 'text-amber-600',
-    };
-  }
-
-  if (!accountData.payoutsEnabled) {
-    return {
-      text: 'Pending',
-      badgeClass: 'badge-info',
-      textColor: 'text-blue-600',
-    };
-  }
-
-  if (accountData.payoutsEnabled && accountData.chargesEnabled) {
-    return {
-      text: 'Active',
-      badgeClass: 'badge-success',
-      textColor: 'text-emerald-600',
-    };
-  }
-
-  return {
-    text: 'Limited',
-    badgeClass: 'badge-warning',
-    textColor: 'text-amber-600',
-  };
-}
+export { getStripeAccountStatusDisplay } from './stripeDisplayUtils';
 
 /**
  * Create Stripe Connect account for user

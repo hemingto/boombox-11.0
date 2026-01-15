@@ -17,13 +17,16 @@ import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { formatTime } from '@/lib/utils/dateUtils';
 import { prisma } from '@/lib/database/prismaClient';
-import { getOnfleetClient } from '@/lib/integrations/onfleetClient';
+import { deleteOnfleetTask } from '@/lib/integrations/onfleetClient';
 import { MessageService } from '@/lib/messaging/MessageService';
-import { customerCancellationNotificationSms } from '@/lib/messaging/templates/sms/appointment';
+import { customerCancellationNotificationSms } from '@/lib/messaging/templates/sms/appointment/customerCancellationNotification';
 import { 
   CustomerCancelAppointmentRequestSchema, 
   CustomerCancelAppointmentResponseSchema 
 } from '@/lib/validations/api.validations';
+import { NotificationService } from '@/lib/services/NotificationService';
+import { TimeSlotBookingService } from '@/lib/services/TimeSlotBookingService';
+import { deleteDriverTimeSlotBooking } from '@/lib/utils/driverAssignmentUtils';
 
 // Cancellation fee configuration
 const CANCELLATION_FEE = 65; // $65 fee for cancellations within 24 hours
@@ -143,6 +146,23 @@ export async function POST(
     // Notify assigned drivers and moving partners
     await notifyAssignedWorkersOfCancellation(appointment, cancellationReason);
 
+    // Create in-app notification for customer
+    try {
+      await NotificationService.notifyAppointmentCancelled(
+        appointment.userId,
+        {
+          appointmentId: appointment.id,
+          appointmentType: appointment.appointmentType,
+          date: appointment.date,
+          address: appointment.address,
+          cancellationReason
+        }
+      );
+    } catch (notificationError) {
+      console.error('Error creating in-app cancellation notification:', notificationError);
+      // Don't fail the cancellation if notification fails
+    }
+
     const response = {
       success: true,
       message: 'Appointment cancelled successfully',
@@ -197,20 +217,39 @@ async function processCancellation(
     }
   });
 
+  // Delete TimeSlotBooking record (for moving partner bookings)
+  try {
+    await TimeSlotBookingService.deleteBooking(appointment.id);
+  } catch (bookingError) {
+    console.error('Error deleting TimeSlotBooking:', bookingError);
+    // Don't fail the cancellation if booking deletion fails
+  }
+
+  // Delete DriverTimeSlotBooking record (for driver bookings)
+  try {
+    await deleteDriverTimeSlotBooking(appointment.id);
+  } catch (bookingError) {
+    console.error('Error deleting DriverTimeSlotBooking:', bookingError);
+    // Don't fail the cancellation if booking deletion fails
+  }
+
   // Update Onfleet tasks
   if (appointment.onfleetTasks && appointment.onfleetTasks.length > 0) {
-    const onfleetClient = await getOnfleetClient();
-    
     for (const task of appointment.onfleetTasks) {
       try {
-        // Delete task from Onfleet
-        await (onfleetClient as any).tasks.delete(task.taskId);
-        console.log(`Deleted Onfleet task ${task.taskId} for cancelled appointment ${appointment.id}`);
+        // Delete task from Onfleet using direct HTTP API
+        const deleteResult = await deleteOnfleetTask(task.taskId);
+        
+        if (deleteResult.success) {
+          console.log(`Deleted Onfleet task ${task.taskId} for cancelled appointment ${appointment.id}`);
+        } else {
+          console.error(`Failed to delete Onfleet task ${task.taskId}: ${deleteResult.error}`);
+        }
       } catch (onfleetError) {
         console.error(`Error deleting Onfleet task ${task.taskId}:`, onfleetError);
       }
 
-      // Update task status in database
+      // Update task status in database regardless of Onfleet deletion result
       await prisma.onfleetTask.update({
         where: { id: task.id },
         data: {

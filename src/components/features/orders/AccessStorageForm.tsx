@@ -23,52 +23,77 @@
 
 'use client';
 
-import React, { useEffect, useMemo } from 'react';
-import { useSearchParams } from 'next/navigation';
+import React, { useEffect, useMemo, useCallback } from 'react';
 import { MyQuote, ChooseLabor } from '@/components/features/orders';
-import { HelpIcon } from '@/components/icons';
 import { Scheduler } from '@/components/forms';
 import { LoadingOverlay } from '@/components/ui/primitives';
-import { AppointmentLoadingSkeleton } from '@/components/ui/loading';
-import { AppointmentErrorState, AppointmentErrorType } from '@/components/ui/error';
 import {
-  AccessStorageProvider,
-  useAccessStorageContext,
   useAccessStorageFormState,
   useAccessStorageNavigation_Context,
-  useAccessStorageUnits,
   useAccessStorageSubmission,
-  useAccessStorageAppointmentData
+  useAccessStorageAppointmentData,
+  useAccessStorageForm_RHF
 } from './AccessStorageProvider';
 import { AccessStorageStep, MY_QUOTE_BUTTON_TEXTS, MOBILE_MY_QUOTE_BUTTON_TEXTS } from '@/types/accessStorage.types';
 import AccessStorageStep1 from './AccessStorageStep1';
 import AccessStorageConfirmAppointment from './AccessStorageConfirmAppointment';
+import { parseAppointmentTime } from '@/lib/utils';
 
 // ===== MAIN FORM COMPONENT =====
 
-interface AccessStorageFormProps {
-  mode?: 'create' | 'edit';
-  appointmentId?: string;
-  initialZipCode?: string;
-  onSubmissionSuccess?: (appointmentId: number) => void;
-}
-
-function AccessStorageFormContent() {
+/**
+ * AccessStorageForm - Main form component for accessing storage units
+ * 
+ * This component must be wrapped with AccessStorageProvider at the page level.
+ * It uses context directly (matching the AddStorageForm pattern).
+ * 
+ * @example
+ * // In your page component:
+ * <AccessStorageProvider mode="create" userId={userId}>
+ *   <AccessStorageForm />
+ * </AccessStorageProvider>
+ */
+function AccessStorageForm() {
   // Access context hooks
-  const { formState, errors, isSubmitting } = useAccessStorageFormState();
-  const { currentStep, goToStep } = useAccessStorageNavigation_Context();
+  const { formState, errors, isSubmitting, setError, updateFormState } = useAccessStorageFormState();
+  const { currentStep, goToStep, goToNextStep } = useAccessStorageNavigation_Context();
+  const form = useAccessStorageForm_RHF(); // React Hook Form for direct value updates
   const { submitForm } = useAccessStorageSubmission();
   const { 
     isLoading: isLoadingAppointment, 
-    error: appointmentError, 
-    errorType: appointmentErrorType,
-    retry: retryAppointmentLoad,
-    canRetry,
-    isEditMode 
+    isEditMode,
+    appointmentId
   } = useAccessStorageAppointmentData();
+
+  // ===== COMBINED DATE TIME FOR LABOR SELECTION =====
   
-  // Get search params for error handling
-  const searchParams = useSearchParams();
+  // Combine scheduled date and time slot for moving partner search
+  const combinedDateTimeForLabor = useMemo(() => {
+    return formState.scheduledDate && formState.scheduledTimeSlot
+      ? parseAppointmentTime(
+          formState.scheduledDate,
+          formState.scheduledTimeSlot
+        )
+      : null;
+  }, [formState.scheduledDate, formState.scheduledTimeSlot]);
+
+  // ===== STABLE CALLBACKS FOR MYQUOTE =====
+  
+  // These callbacks need to be stable to prevent infinite loops in useQuote
+  const handleCalculateTotal = useCallback((total: number) => {
+    form.setValue('calculatedTotal', total, { shouldValidate: false });
+    updateFormState({ calculatedTotal: total });
+  }, [form, updateFormState]);
+
+  const handleSetMonthlyStorageRate = useCallback((rate: number) => {
+    form.setValue('monthlyStorageRate', rate, { shouldValidate: false });
+    updateFormState({ monthlyStorageRate: rate });
+  }, [form, updateFormState]);
+
+  const handleSetMonthlyInsuranceRate = useCallback((rate: number) => {
+    form.setValue('monthlyInsuranceRate', rate, { shouldValidate: false });
+    updateFormState({ monthlyInsuranceRate: rate });
+  }, [form, updateFormState]);
 
   // ===== STEP CONTENT RENDERING =====
 
@@ -83,12 +108,23 @@ function AccessStorageFormContent() {
             planType={formState.planType === 'Do It Yourself Plan' ? 'DIY' : 'FULL_SERVICE'}
             numberOfUnits={formState.selectedStorageUnits.length || 1}
             onDateTimeSelected={(date: Date, timeSlot: string) => {
-              // This will be handled by the form context
+              // Update React Hook Form (source of truth for validation)
+              form.setValue('scheduledDate', date, { shouldValidate: true });
+              form.setValue('scheduledTimeSlot', timeSlot, { shouldValidate: true });
+              // Also update custom hook state
+              updateFormState({
+                scheduledDate: date,
+                scheduledTimeSlot: timeSlot
+              });
             }}
             initialSelectedDate={formState.scheduledDate ?? undefined}
+            initialSelectedTimeSlot={formState.scheduledTimeSlot ?? undefined}
+            excludeAppointmentId={isEditMode ? appointmentId : undefined}
             goBackToStep1={() => goToStep(AccessStorageStep.DELIVERY_PURPOSE)}
             hasError={!!errors.scheduleError}
             errorMessage={errors.scheduleError}
+            isEditMode={isEditMode}
+            minimumDaysInAdvance={2}
           />
         );
         
@@ -100,24 +136,64 @@ function AccessStorageFormContent() {
           <ChooseLabor 
             goBackToStep1={() => goToStep(AccessStorageStep.SCHEDULING)}
             onLaborSelect={(id: string, price: string, title: string, onfleetTeamId?: string) => {
-              // This will be handled by the form context
+              const formattedPrice = `$${price}/hr`;
+              const parsedPrice = parseInt(price, 10) || 0;
+              
+              const selectedLabor = { id, price: formattedPrice, title, onfleetTeamId };
+              const planType = id === 'Do It Yourself Plan' ? 'Do It Yourself Plan' :
+                        id.startsWith('thirdParty-') ? 'Third Party Loading Help' :
+                        'Full Service Plan';
+              
+              // Determine moving partner IDs from labor selection
+              const movingPartnerId = id === 'Do It Yourself Plan' ? null :
+                                     id.startsWith('thirdParty-') ? null :
+                                     parseInt(id, 10);
+              const thirdPartyMovingPartnerId = id.startsWith('thirdParty-') ? 
+                parseInt(id.replace('thirdParty-', ''), 10) : null;
+              
+              // Update React Hook Form (source of truth for validation)
+              form.setValue('selectedLabor', selectedLabor, { shouldValidate: true });
+              form.setValue('planType', planType, { shouldValidate: true });
+              form.setValue('selectedPlanName', title, { shouldValidate: false });
+              form.setValue('loadingHelpPrice', formattedPrice, { shouldValidate: false });
+              form.setValue('parsedLoadingHelpPrice', parsedPrice, { shouldValidate: false });
+              form.setValue('movingPartnerId', movingPartnerId, { shouldValidate: false });
+              form.setValue('thirdPartyMovingPartnerId', thirdPartyMovingPartnerId, { shouldValidate: false });
+              
+              // Also update custom hook state
+              updateFormState({
+                selectedLabor,
+                parsedLoadingHelpPrice: parsedPrice,
+                loadingHelpPrice: formattedPrice,
+                selectedPlanName: title,
+                loadingHelpDescription: id === 'Do It Yourself Plan' ? 'No loading help' :
+                                      id.startsWith('thirdParty-') ? 'Third-party estimate' : 
+                                      'Full Service estimate',
+                planType,
+                selectedPlan: id === 'Do It Yourself Plan' ? 'option1' : 'option2',
+                movingPartnerId,
+                thirdPartyMovingPartnerId
+              });
             }}
             laborError={errors.laborError || errors.unavailableLaborError}
             clearLaborError={() => {
-              // This will be handled by the form context
+              setError('laborError', null);
+              setError('unavailableLaborError', null);
             }}
             selectedLabor={formState.selectedLabor}
             planType={formState.planType}
             cityName={formState.cityName}
-            selectedDateObject={formState.scheduledDate}
+            selectedDateObject={combinedDateTimeForLabor}
             onMovingPartnerSelect={(partnerId: number | null) => {
-              // This will be handled by the form context
+              form.setValue('movingPartnerId', partnerId, { shouldValidate: false });
+              updateFormState({ movingPartnerId: partnerId });
             }}
-            onPlanTypeChange={(planType: string) => {
-              // This will be handled by the form context
+            onPlanTypeChange={(newPlanType: string) => {
+              form.setValue('planType', newPlanType, { shouldValidate: true });
+              updateFormState({ planType: newPlanType });
             }}
             onUnavailableLaborChange={(hasError: boolean, message?: string) => {
-              // This will be handled by the form context
+              setError('unavailableLaborError', hasError ? (message || "Mover unavailable. Choose another.") : null);
             }}
             appointmentId={undefined}
           />
@@ -142,6 +218,19 @@ function AccessStorageFormContent() {
     }
   };
 
+  // ===== HANDLE SUBMIT OR PROCEED =====
+
+  const handleSubmitOrProceed = useCallback(() => {
+    // At the confirmation step, submit the form
+    if (currentStep === AccessStorageStep.CONFIRMATION) {
+      submitForm();
+      return;
+    }
+
+    // For other steps, navigate to the next step
+    goToNextStep();
+  }, [currentStep, submitForm, goToNextStep]);
+
   // ===== MY QUOTE PROPS =====
 
   const myQuoteTitle = formState.deliveryReason === "End storage term" 
@@ -159,33 +248,34 @@ function AccessStorageFormContent() {
     loadingHelpDescription: formState.loadingHelpDescription,
     zipCode: formState.zipCode,
     coordinates: formState.coordinates,
-    handleSubmit: submitForm,
+    handleSubmit: handleSubmitOrProceed,
     currentStep,
     accessStorageUnitCount: formState.selectedStorageUnits.length,
-    onCalculateTotal: (total: number) => {
-      // This will be handled by the form context
-    },
-    setMonthlyStorageRate: (rate: number) => {
-      // This will be handled by the form context
-    },
-    setMonthlyInsuranceRate: (rate: number) => {
-      // This will be handled by the form context
-    },
+    onCalculateTotal: handleCalculateTotal,
+    setMonthlyStorageRate: handleSetMonthlyStorageRate,
+    setMonthlyInsuranceRate: handleSetMonthlyInsuranceRate,
     isAccessStorage: true,
-    buttonTexts: isEditMode ? {
-      1: "Continue",
-      2: "Schedule Appointment", 
-      3: "Select Movers",
-      4: "Update Appointment"
-    } : MY_QUOTE_BUTTON_TEXTS,
+    buttonTexts: MY_QUOTE_BUTTON_TEXTS,
     deliveryReason: formState.deliveryReason,
     
-    // Edit mode specific props
-    isEditMode,
-    appointmentId: searchParams.get('appointmentId') || undefined,
-    originalTotal: formState.calculatedTotal || undefined,
-    showPriceComparison: isEditMode && !!formState.calculatedTotal,
-    editModeTitle: isEditMode ? `Edit ${myQuoteTitle}` : undefined,
+    // Disable button when required fields are not filled
+    // Use React Hook Form values directly to avoid stale custom hook state race conditions
+    isButtonDisabled: 
+      // Step 1: Require all fields
+      (currentStep === AccessStorageStep.DELIVERY_PURPOSE && (
+        !form.watch('deliveryReason') ||
+        !form.watch('address') ||
+        (form.watch('selectedStorageUnits') || []).length === 0 ||
+        !form.watch('selectedPlan')
+      )) ||
+      // Step 2: Require date and time
+      (currentStep === AccessStorageStep.SCHEDULING && (
+        !form.watch('scheduledDate') || !form.watch('scheduledTimeSlot')
+      )) ||
+      // Step 3: Require labor selection for Full Service
+      (currentStep === AccessStorageStep.LABOR_SELECTION && 
+        form.watch('planType') !== 'Do It Yourself Plan' && !form.watch('selectedLabor')
+      ),
   }), [
     myQuoteTitle,
     formState.address,
@@ -200,20 +290,16 @@ function AccessStorageFormContent() {
     formState.deliveryReason,
     formState.calculatedTotal,
     currentStep,
-    submitForm,
-    isEditMode,
-    searchParams
+    handleSubmitOrProceed,
+    handleCalculateTotal,
+    handleSetMonthlyStorageRate,
+    handleSetMonthlyInsuranceRate
   ]);
 
   const mobileMyQuoteProps = useMemo(() => ({
     ...myQuoteProps,
-    buttonTexts: isEditMode ? {
-      1: "Continue",
-      2: "Schedule", 
-      3: "Add Movers",
-      4: "Update"
-    } : MOBILE_MY_QUOTE_BUTTON_TEXTS,
-  }), [myQuoteProps, isEditMode]);
+    buttonTexts: MOBILE_MY_QUOTE_BUTTON_TEXTS,
+  }), [myQuoteProps]);
 
   // ===== SCROLL TO TOP ON STEP CHANGE =====
 
@@ -223,45 +309,23 @@ function AccessStorageFormContent() {
     }
   }, [currentStep]);
 
-  // Show loading skeleton while fetching appointment data in edit mode
-  if (isEditMode && isLoadingAppointment) {
-    return <AppointmentLoadingSkeleton />;
-  }
-
-  // Show enhanced error state if appointment data failed to load in edit mode
-  if (isEditMode && appointmentError) {
-    const appointmentId = searchParams.get('appointmentId') || undefined;
-    const userId = searchParams.get('userId') || undefined;
-    
-    return (
-      <AppointmentErrorState
-        errorType={appointmentErrorType || 'unknown_error'}
-        errorMessage={appointmentError}
-        appointmentId={appointmentId}
-        userId={userId}
-        onRetry={canRetry ? retryAppointmentLoad : undefined}
-        onGoHome={() => {
-          if (userId) {
-            window.location.href = `/user-page/${userId}`;
-          } else {
-            window.history.back();
-          }
-        }}
-      />
-    );
-  }
-
   return (
     <div className="md:flex gap-x-8 lg:gap-x-16 mt-12 sm:mt-24 lg:px-16 px-6 justify-center mb-10 sm:mb-64 items-start">
-      {/* Loading Overlay */}
-      {isSubmitting && currentStep === AccessStorageStep.CONFIRMATION && (
+      {/* Loading overlay for edit mode data fetch */}
+      {isEditMode && isLoadingAppointment && (
         <LoadingOverlay 
           visible={true}
-          message={isEditMode ? "Updating your appointment..." : "Processing your request..."}
-          className="fixed inset-0 bg-primary bg-opacity-50 flex flex-col items-center justify-center z-50"
-          aria-label={isEditMode ? "Updating appointment" : "Processing appointment request"}
+          message="Loading appointment details..."
+          spinnerSize="xl"
         />
       )}
+      
+      {/* Loading overlay for form submission */}
+      <LoadingOverlay 
+        visible={isSubmitting && currentStep === AccessStorageStep.CONFIRMATION}
+        message={isEditMode ? "Updating your appointment..." : "Processing your request..."}
+        spinnerSize="xl"
+      />
       
       {/* Step Content */}
       {renderStepContent()}
@@ -269,16 +333,6 @@ function AccessStorageFormContent() {
       {/* Quote Sidebar */}
       <div className="basis-1/2 md:mr-auto sticky top-5 max-w-md sm:h-[500px]">
         {/* Error Messages */}
-        {errors.scheduleError && currentStep === AccessStorageStep.SCHEDULING && (
-          <div 
-            className="text-status-error text-sm mb-2 text-center md:text-left" 
-            role="alert" 
-            aria-live="polite"
-          >
-            {errors.scheduleError}
-          </div>
-        )}
-        
         {(errors.laborError && currentStep === AccessStorageStep.LABOR_SELECTION && formState.planType !== 'Do It Yourself Plan') && (
           <div 
             className="text-status-error text-sm mb-2 text-center md:text-left" 
@@ -317,58 +371,11 @@ function AccessStorageFormContent() {
           <MyQuote {...mobileMyQuoteProps} />
         </div>
         
-        {/* Help Section */}
-        <div className="hidden px-4 pt-6 md:block">
-          {isEditMode && (
-            <div className="mb-4">
-              <button
-                onClick={() => {
-                  if (window.confirm('Are you sure you want to cancel editing? Any unsaved changes will be lost.')) {
-                    window.history.back();
-                  }
-                }}
-                className="btn-secondary w-full text-sm"
-                type="button"
-              >
-                Cancel Changes
-              </button>
-            </div>
-          )}
-          <div className="flex items-center">
-            <HelpIcon className="w-8 h-8 text-text-primary mr-4 shrink-0" />
-            <div>
-              <p className="text-xs text-text-secondary">
-                Need help? Send us an email at help@boomboxstorage.com if you have any questions
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
 }
 
-// ===== EXPORTED COMPONENT WITH PROVIDER =====
+// ===== EXPORT =====
 
-export default function AccessStorageForm({ 
-  mode = 'create',
-  appointmentId,
-  initialZipCode, 
-  onSubmissionSuccess 
-}: AccessStorageFormProps) {
-  const searchParams = useSearchParams();
-  const zipCodeFromUrl = searchParams.get('zipCode') || '';
-  const finalInitialZipCode = initialZipCode || zipCodeFromUrl;
-
-  return (
-    <AccessStorageProvider
-      mode={mode}
-      appointmentId={appointmentId}
-      initialZipCode={finalInitialZipCode}
-      onSubmissionSuccess={onSubmissionSuccess}
-      enablePersistence={mode === 'create'} // Only enable persistence in create mode
-    >
-      <AccessStorageFormContent />
-    </AccessStorageProvider>
-  );
-}
+export default AccessStorageForm;

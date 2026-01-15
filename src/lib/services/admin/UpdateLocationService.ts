@@ -207,7 +207,7 @@ export class UpdateLocationService {
           }
         },
         orderBy: {
-          createdAt: 'asc' // Oldest first for priority
+          usageStartDate: 'asc' // Oldest first for priority
         }
       });
     } catch (error) {
@@ -245,8 +245,7 @@ export class UpdateLocationService {
           admin: {
             select: {
               email: true,
-              firstName: true,
-              lastName: true
+              name: true
             }
           }
         },
@@ -325,8 +324,7 @@ export class UpdateLocationService {
           admin: {
             select: {
               email: true,
-              firstName: true,
-              lastName: true
+              name: true
             }
           }
         },

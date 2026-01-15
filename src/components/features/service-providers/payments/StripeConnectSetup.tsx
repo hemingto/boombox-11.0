@@ -26,7 +26,6 @@
  * - Old: /api/stripe/connect/create-account-link → New: /api/payments/connect/create-account-link
  * 
  * DESIGN SYSTEM UPDATES:
- * - Replaced bg-amber-100 with semantic warning surface color (bg-status-warning/10)
  * - Applied badge-warning class for warning states
  * - Updated text colors to consistent palette (text-amber-600 → text-amber-700)
  * - Replaced bg-red-100 with semantic error surface color (bg-status-error/10)
@@ -207,21 +206,21 @@ export function StripeConnectSetup({
   if (isLoading) {
     return (
       <div
-        className="bg-surface-secondary rounded-md p-6 animate-pulse"
+        className="bg-surface-tertiary rounded-md p-6 animate-pulse"
         role="status"
         aria-busy="true"
         aria-label="Loading Stripe account status"
       >
         <div className="flex items-center space-x-4 mb-4">
-          <div className="w-10 h-10 bg-surface-tertiary rounded-full"></div>
+          <div className="w-10 h-10 bg-surface-secondary rounded-full"></div>
           <div>
-            <div className="h-5 w-40 bg-surface-tertiary rounded mb-2"></div>
-            <div className="h-4 w-24 bg-surface-tertiary rounded"></div>
+            <div className="h-5 w-40 bg-surface-secondary rounded mb-2"></div>
+            <div className="h-4 w-24 bg-surface-secondary rounded"></div>
           </div>
         </div>
-        <div className="h-4 w-full bg-surface-tertiary rounded mb-3"></div>
-        <div className="h-4 w-3/4 bg-surface-tertiary rounded mb-6"></div>
-        <div className="h-10 w-40 bg-surface-tertiary rounded"></div>
+        <div className="h-4 w-full bg-surface-secondary rounded mb-3"></div>
+        <div className="h-4 w-3/4 bg-surface-secondary rounded mb-6"></div>
+        <div className="h-10 w-40 bg-surface-secondary rounded"></div>
       </div>
     );
   }
@@ -230,7 +229,7 @@ export function StripeConnectSetup({
   if (error) {
     return (
       <div
-        className="bg-status-error/10 border border-status-error rounded-md p-6"
+        className="bg-status-bg-error border border-status-error rounded-md p-6"
         role="alert"
       >
         <div className="flex items-center space-x-2 mb-4 text-status-error">
@@ -253,26 +252,26 @@ export function StripeConnectSetup({
   if (!accountStatus?.hasAccount) {
     return (
       <div
-        className="bg-status-warning/10 rounded-md border border-status-warning p-6"
+        className="bg-status-bg-warning rounded-md border border-border-warning p-6"
         role="status"
       >
         <div className="mb-4">
-          <h3 className="text-amber-700 font-semibold">
+          <h3 className="text-status-warning font-semibold">
             Stripe account setup
           </h3>
         </div>
-        <p className="text-amber-700 mb-6">
+        <p className="text-status-warning mb-6">
           To receive payments for completed jobs, you need to set up a stripe
           account. This is a one-time process that takes just a few minutes.
         </p>
         <button
           onClick={handleCreateAccount}
           disabled={isCreatingAccount}
-          className="py-2.5 px-6 font-semibold bg-amber-300 font-inter rounded-md hover:bg-amber-400 disabled:bg-amber-300 disabled:opacity-50 disabled:cursor-not-allowed text-md font-semibold w-fit"
+          className="py-2.5 px-6 font-semibold bg-amber-500 font-inter rounded-md hover:bg-amber-400 active:bg-amber-500 disabled:bg-amber-300 disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-fit"
           aria-label="Set up Stripe account to receive payments"
           aria-disabled={isCreatingAccount}
         >
-          <span className="text-amber-700 font-inter font-semibold">
+          <span className="text-white font-inter font-semibold">
             {isCreatingAccount
               ? 'Connecting to Stripe...'
               : 'Set Up Stripe Account'}
@@ -286,30 +285,28 @@ export function StripeConnectSetup({
   if (accountStatus.hasAccount && !accountStatus.detailsSubmitted) {
     return (
       <div
-        className="bg-status-warning/10 rounded-md border border-status-warning p-6"
+        className="bg-status-bg-warning rounded-md border border-border-warning p-6"
         role="status"
       >
         <div className="mb-4">
-          <h3 className="text-amber-700 font-semibold">
+          <h3 className="text-status-warning font-semibold">
             Complete your Stripe account setup
           </h3>
         </div>
-        <p className="text-amber-700 mb-2">
-          Your stripe account has been created, but you need to complete the
-          setup process to receive payments.
+        <p className="text-status-warning mb-2">
+          Your stripe account has been created, but you need to complete the setup process to receive payments.
         </p>
-        <p className="text-amber-700 mb-6">
-          This includes providing your banking information and verifying your
-          identity.
+        <p className="text-status-warning mb-6">
+          This includes providing your banking information and verifying your identity.
         </p>
         <button
           onClick={handleGenerateLink}
           disabled={isGeneratingLink}
-          className="py-2.5 px-6 font-semibold bg-amber-300 font-inter rounded-md hover:bg-amber-400 disabled:bg-amber-300 disabled:opacity-50 disabled:cursor-not-allowed text-md font-semibold w-fit"
+          className="py-2.5 px-6 font-semibold bg-amber-500 font-inter rounded-md hover:bg-amber-400 active:bg-amber-500 disabled:bg-amber-300 disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-fit"
           aria-label="Continue Stripe account setup process"
           aria-disabled={isGeneratingLink}
         >
-          <span className="text-amber-700 font-inter font-semibold">
+          <span className="text-white font-inter font-semibold">
             {isGeneratingLink
               ? 'Connecting to Stripe...'
               : 'Continue Account Setup'}
@@ -327,14 +324,14 @@ export function StripeConnectSetup({
   ) {
     return (
       <div
-        className="bg-status-warning/10 rounded-md border border-status-warning p-6"
+        className="bg-status-bg-warning rounded-md border border-border-warning p-6"
         role="status"
         aria-live="polite"
       >
         <div className="mb-4">
-          <h3 className="text-amber-700 font-semibold">Account under review</h3>
+          <h3 className="text-status-warning font-semibold">Account under review</h3>
         </div>
-        <p className="text-amber-700 mb-6">
+        <p className="text-status-warning mb-6">
           Your stripe account is currently under review. This typically takes
           1-2 business days. You&rsquo;ll be able to receive payments once the
           review is complete.
@@ -344,11 +341,11 @@ export function StripeConnectSetup({
           (accountStatus.requirements.currently_due.length > 0 ||
             accountStatus.requirements.past_due.length > 0) && (
             <div className="mb-6">
-              <p className="text-amber-700 font-semibold mb-2">
+              <p className="text-status-warning font-semibold mb-2">
                 Additional information required:
               </p>
               <ul
-                className="list-disc pl-5 text-amber-700 text-sm"
+                className="list-disc pl-5 text-status-warning text-sm"
                 role="list"
                 aria-label="Required information"
               >
@@ -368,11 +365,11 @@ export function StripeConnectSetup({
           <button
             onClick={handleGenerateLink}
             disabled={isGeneratingLink}
-            className="py-2.5 px-6 font-semibold bg-amber-300 font-inter rounded-md hover:bg-amber-400 disabled:bg-amber-300 disabled:opacity-50 disabled:cursor-not-allowed text-md font-semibold w-fit"
+            className="py-2.5 px-6 font-semibold bg-amber-500 font-inter rounded-md hover:bg-amber-400 active:bg-amber-500 disabled:bg-amber-300 disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-fit"
             aria-label="Update Stripe account information"
             aria-disabled={isGeneratingLink}
           >
-            <span className="text-amber-700 font-inter font-semibold">
+            <span className="text-white font-inter font-semibold">
               {isGeneratingLink
                 ? 'Connecting to Stripe...'
                 : 'Update Account Information'}
@@ -381,11 +378,11 @@ export function StripeConnectSetup({
 
           <button
             onClick={() => window.location.reload()}
-            className="py-2.5 px-6 font-semibold bg-amber-300 font-inter rounded-md hover:bg-amber-400 text-md font-semibold w-fit flex items-center space-x-2"
+            className="py-2.5 px-6 font-semibold bg-amber-500 font-inter rounded-md hover:bg-amber-400 active:bg-amber-500 disabled:bg-amber-300 disabled:opacity-50 disabled:cursor-not-allowed font-semibold w-fit flex items-center space-x-2"
             aria-label="Check current account status"
           >
             <ArrowPathIcon className="w-4 h-4" aria-hidden="true" />
-            <span className="text-amber-700 font-inter font-semibold">
+            <span className="text-white font-inter font-semibold">
               Check Status
             </span>
           </button>

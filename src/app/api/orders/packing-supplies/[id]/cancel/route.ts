@@ -27,6 +27,7 @@ import { formatCurrency } from '@/lib/utils/currencyUtils';
 import { cancelPackingSupplyOrderWithOnfleetCleanup } from '@/lib/integrations/onfleetClient';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { packingSupplyOrderCancellationSms } from '@/lib/messaging/templates/sms/booking/packingSupplyOrderCancellation';
+import { NotificationService } from '@/lib/services/NotificationService';
 
 export async function POST(
   request: NextRequest,
@@ -111,6 +112,24 @@ export async function POST(
         }
       );
       console.log(`✅ Cancellation confirmation SMS sent for order ${orderIdNum}`);
+      
+      // Create in-app notification for order cancellation
+      if (order.userId) {
+        try {
+          await NotificationService.createNotification({
+            recipientId: order.userId,
+            recipientType: 'USER',
+            type: 'ORDER_CANCELLED',
+            data: {
+              orderId: orderIdNum
+            },
+            orderId: orderIdNum
+          });
+        } catch (notificationError) {
+          console.error('Error creating in-app order cancelled notification:', notificationError);
+          // Don't fail if notification fails
+        }
+      }
     } catch (smsError) {
       console.error(`⚠️ Failed to send cancellation SMS for order ${orderIdNum}:`, smsError);
       // Continue with cancellation even if SMS fails

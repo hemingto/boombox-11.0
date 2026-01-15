@@ -47,7 +47,12 @@ const serviceAreaStyles: google.maps.PolygonOptions = {
   strokeWeight: 2,
 };
 
-export const CoverageAreaContent: React.FC = () => {
+export interface CoverageAreaContentProps {
+  userType?: 'mover' | 'driver';
+  userId?: string;
+}
+
+export const CoverageAreaContent: React.FC<CoverageAreaContentProps> = ({ userType, userId }) => {
   const [mapCenter] = useState<google.maps.LatLngLiteral>({ 
     lat: 37.59, 
     lng: -122.1 
@@ -70,7 +75,7 @@ export const CoverageAreaContent: React.FC = () => {
   }, []);
 
   return (
-    <div className="flex flex-col lg:px-16 px-6 max-w-5xl w-full mx-auto mb-10">
+    <div className="flex flex-col lg:px-16 px-6 max-w-5xl w-full mx-auto mb-96 sm:mb-60">
       {/* Map Container */}
       <div className="bg-surface-tertiary w-full aspect-video rounded-md">
         <GoogleMap

@@ -30,6 +30,8 @@ import {
   MapIcon,
 } from '@heroicons/react/24/outline';
 import { BoomboxLogo } from '@/components/icons/BoomboxLogo';
+import { useSessionMonitor } from '@/hooks/useSessionMonitor';
+import { SessionExpirationModal } from '@/components/ui/session/SessionExpirationModal';
 
 export default function AdminLayout({
   children,
@@ -39,6 +41,9 @@ export default function AdminLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
   const { data: session } = useSession();
+  
+  // Monitor session expiration
+  const { showWarning, secondsRemaining, isExpired, resetMonitor } = useSessionMonitor();
 
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: HomeIcon },
@@ -221,6 +226,14 @@ export default function AdminLayout({
           <div>{children}</div>
         </main>
       </div>
+      
+      {/* Session expiration modal */}
+      <SessionExpirationModal
+        open={showWarning}
+        secondsRemaining={secondsRemaining}
+        isExpired={isExpired}
+        onReauthenticated={resetMonitor}
+      />
     </div>
   );
 }

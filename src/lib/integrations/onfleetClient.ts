@@ -185,11 +185,13 @@ export async function createPackingSupplyTask(taskData: any): Promise<any> {
 }
 
 /**
- * Delete packing supply delivery task from Onfleet using direct HTTP request
+ * Delete an Onfleet task using direct HTTP request
+ * This works for any Onfleet task (appointments, packing supplies, etc.)
+ * 
  * @param taskId - The Onfleet task ID to delete
  * @returns Promise with success status and optional error message
  */
-export async function deletePackingSupplyTask(
+export async function deleteOnfleetTask(
   taskId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
@@ -210,7 +212,7 @@ export async function deletePackingSupplyTask(
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('Error deleting packing supply task:', errorData);
+      console.error('Error deleting Onfleet task:', errorData);
       return {
         success: false,
         error: `Onfleet API error (${response.status}): ${errorData}`,
@@ -220,7 +222,7 @@ export async function deletePackingSupplyTask(
     console.log(`Successfully deleted Onfleet task: ${taskId}`);
     return { success: true };
   } catch (error: any) {
-    console.error('Error deleting packing supply task:', error);
+    console.error('Error deleting Onfleet task:', error);
 
     // Don't throw error - log it and return failure status
     // This prevents cancellation from failing if Onfleet deletion fails
@@ -229,6 +231,18 @@ export async function deletePackingSupplyTask(
       error: error.message || 'Failed to delete Onfleet task',
     };
   }
+}
+
+/**
+ * Delete packing supply delivery task from Onfleet using direct HTTP request
+ * @param taskId - The Onfleet task ID to delete
+ * @returns Promise with success status and optional error message
+ * @deprecated Use deleteOnfleetTask instead - kept for backward compatibility
+ */
+export async function deletePackingSupplyTask(
+  taskId: string
+): Promise<{ success: boolean; error?: string }> {
+  return deleteOnfleetTask(taskId);
 }
 
 /**

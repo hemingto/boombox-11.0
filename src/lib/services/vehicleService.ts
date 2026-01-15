@@ -169,4 +169,42 @@ export class VehicleService {
   static async refreshVehicle(userId: string, userType: UserType): Promise<Vehicle | null> {
     return this.fetchVehicle(userId, userType);
   }
+
+  /**
+   * Fetch all vehicles for a moving partner (movers can have multiple vehicles)
+   * Returns an array of vehicles for the mover's fleet
+   */
+  static async fetchAllVehicles(userId: string): Promise<Vehicle[]> {
+    const endpoint = `/api/moving-partners/${userId}/vehicles`;
+    
+    const response = await fetch(endpoint);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch vehicles: ${response.status} ${response.statusText}`);
+    }
+    
+    return response.json();
+  }
+
+  /**
+   * Remove a specific vehicle by ID (for movers with multiple vehicles)
+   */
+  static async removeVehicleById(userId: string, userType: UserType, vehicleId: number): Promise<void> {
+    const endpoint = `${this.getApiBase(userType)}/${userId}/remove-vehicle?vehicleId=${vehicleId}`;
+    
+    const response = await fetch(endpoint, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to remove vehicle: ${response.status} ${response.statusText}`);
+    }
+  }
+
+  /**
+   * Refresh all vehicles for a mover after an operation
+   */
+  static async refreshAllVehicles(userId: string): Promise<Vehicle[]> {
+    return this.fetchAllVehicles(userId);
+  }
 }

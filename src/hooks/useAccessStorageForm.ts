@@ -30,6 +30,8 @@ import {
   validateAppointmentDateTime,
   validateLaborSelection
 } from '@/lib/validations/accessStorage.validations';
+import { UpdateAppointmentRequestSchema } from '@/lib/validations/api.validations';
+import { z } from 'zod';
 
 interface UseAccessStorageFormParams {
   initialZipCode?: string;
@@ -299,7 +301,9 @@ export function useAccessStorageForm(params: UseAccessStorageFormParams = {}): U
         break;
     }
 
+    console.log(`Validating step ${step} with data:`, stepData);
     const result = validator(stepData);
+    console.log(`Validation result for step ${step}:`, result);
     
     if (!result.isValid) {
       // Set errors from validation result
@@ -343,35 +347,74 @@ export function useAccessStorageForm(params: UseAccessStorageFormParams = {}): U
   // ===== FORM SUBMISSION =====
 
   const submitForm = useCallback(async (): Promise<void> => {
+    console.log('🚀 [submitForm] Starting form submission...');
+    console.log('🚀 [submitForm] Mode:', mode);
+    console.log('🚀 [submitForm] AppointmentId:', appointmentId);
+    console.log('🚀 [submitForm] UserId:', userId);
+    console.log('🚀 [submitForm] Form State:', formState);
+    
     // Validate all steps before submission
     clearAllErrors();
     
     // Validate Step 1: Delivery Purpose
+    console.log('🔍 [submitForm] Validating Step 1...');
     const step1Valid = validateStep(AccessStorageStep.DELIVERY_PURPOSE);
+    console.log('🔍 [submitForm] Step 1 valid:', step1Valid);
+    if (!step1Valid) {
+      console.error('❌ [submitForm] Step 1 validation failed. Cannot proceed to submission.');
+      // Don't return yet, validate all steps to show all errors
+    }
+    
+    console.log('🔍 [submitForm] Validating Step 2...');
     const step2Valid = validateStep(AccessStorageStep.SCHEDULING);
+    console.log('🔍 [submitForm] Step 2 valid:', step2Valid);
+    if (!step2Valid) {
+      console.error('❌ [submitForm] Step 2 validation failed. Cannot proceed to submission.');
+    }
+    
+    console.log('🔍 [submitForm] Validating Step 3...');
     const step3Valid = validateStep(AccessStorageStep.LABOR_SELECTION);
+    console.log('🔍 [submitForm] Step 3 valid:', step3Valid);
+    if (!step3Valid) {
+      console.error('❌ [submitForm] Step 3 validation failed. Cannot proceed to submission.');
+    }
     
     if (!step1Valid || !step2Valid || !step3Valid) {
-      return; // Validation errors are already set by validateStep
+      console.error('❌ [submitForm] Validation failed. Stopping submission.');
+      console.error('❌ [submitForm] Which steps failed:', JSON.stringify({ step1Valid, step2Valid, step3Valid }, null, 2));
+      // Note: errors state might not be updated yet due to async setState
+      // The actual errors are logged in the validateStep function above
+      setError('submitError', 'Please ensure all form fields are filled out correctly before submitting.');
+      return;
     }
+    
+    console.log('✅ [submitForm] All validations passed!');
+    console.log('✅ [submitForm] Validation summary:', JSON.stringify({ step1Valid, step2Valid, step3Valid }, null, 2));
 
+    console.log('🔍 [submitForm] Getting appointment date time...');
     const appointmentDateTime = getAppointmentDateTime();
+    console.log('🔍 [submitForm] Appointment date time:', appointmentDateTime);
+    
     if (!appointmentDateTime) {
+      console.error('❌ [submitForm] Invalid appointment date/time');
       setError('scheduleError', 'Invalid date or time. Please re-select.');
       return;
     }
 
     if (!userId) {
-      setError('submitError', 'User not authenticated');
+      console.error('❌ [submitForm] No userId found - session expired');
+      setError('submitError', 'Your session has expired. Please refresh the page to continue.');
       return;
     }
 
     // Additional validation for edit mode
     if (mode === 'edit' && !appointmentId) {
+      console.error('❌ [submitForm] Edit mode requires appointmentId');
       setError('submitError', 'Appointment ID is required for editing');
       return;
     }
 
+    console.log('✅ [submitForm] All validations passed. Setting isSubmitting flag...');
     setFlags(prev => ({ ...prev, isSubmitting: true }));
     clearError('submitError');
 
@@ -424,9 +467,39 @@ export function useAccessStorageForm(params: UseAccessStorageFormParams = {}): U
         stripeCustomerId: formState.stripeCustomerId || undefined
       } : baseSubmissionData;
 
-      // Validate submission data
-      const validationResult = validateAccessStorageSubmission(submissionData);
+      // Validate submission data using the appropriate schema based on mode
+      console.log('🔍 [submitForm] Validating submission data...');
+      console.log('🔍 [submitForm] Mode:', isEditMode ? 'edit' : 'create');
+      console.log('🔍 [submitForm] Submission data:', submissionData);
+      
+      let validationResult: { isValid: boolean; data: any; errors: Record<string, string> };
+      
+      if (isEditMode) {
+        // Use UpdateAppointmentRequestSchema for edit mode
+        try {
+          const validatedData = UpdateAppointmentRequestSchema.parse(submissionData);
+          validationResult = { isValid: true, data: validatedData, errors: {} };
+        } catch (error) {
+          if (error instanceof z.ZodError) {
+            const errors: Record<string, string> = {};
+            error.errors.forEach((err) => {
+              const field = err.path[0] as string;
+              errors[`${field}Error`] = err.message;
+            });
+            validationResult = { isValid: false, data: null, errors };
+          } else {
+            validationResult = { isValid: false, data: null, errors: { submitError: 'Form validation failed' } };
+          }
+        }
+      } else {
+        // Use accessStorageSubmissionSchema for create mode
+        validationResult = validateAccessStorageSubmission(submissionData);
+      }
+      
+      console.log('🔍 [submitForm] Validation result:', validationResult);
+      
       if (!validationResult.isValid) {
+        console.error('❌ [submitForm] Submission data validation failed:', validationResult.errors);
         Object.entries(validationResult.errors).forEach(([field, error]) => {
           setError(field as keyof AccessStorageFormErrors, error as string);
         });
@@ -440,6 +513,11 @@ export function useAccessStorageForm(params: UseAccessStorageFormParams = {}): U
         ? `/api/orders/appointments/${appointmentId}/edit`
         : '/api/orders/access-storage-unit';
       const method = isEditMode ? 'PUT' : 'POST';
+      
+      console.log('🌐 [submitForm] Making API request...');
+      console.log('🌐 [submitForm] URL:', apiUrl);
+      console.log('🌐 [submitForm] Method:', method);
+      console.log('🌐 [submitForm] Request body:', validationResult.data);
       
       // Create AbortController for request timeout
       const controller = new AbortController();
@@ -458,9 +536,17 @@ export function useAccessStorageForm(params: UseAccessStorageFormParams = {}): U
         });
         
         clearTimeout(timeoutId);
+        
+        console.log('🌐 [submitForm] Response received:', {
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok
+        });
 
       if (!response.ok) {
+        console.error('❌ [submitForm] API request failed with status:', response.status);
         const errorData = await response.json();
+        console.error('❌ [submitForm] Error data:', errorData);
         
         // Handle specific error cases for edit mode
         if (isEditMode) {
@@ -494,17 +580,25 @@ export function useAccessStorageForm(params: UseAccessStorageFormParams = {}): U
           }
           
           // Generic edit error
-          const errorMessage = errorData.message || 'Failed to update appointment. Please try again.';
+          // API may return error in 'error', 'message', or 'details' field
+          const errorMessage = errorData.error || errorData.message || 
+            (errorData.details ? (typeof errorData.details === 'string' ? errorData.details : JSON.stringify(errorData.details)) : null) ||
+            'Failed to update appointment. Please try again.';
           setError('submitError', errorMessage);
         } else {
           // Create mode error handling
-          const errorMessage = errorData.message || 'Failed to schedule access. Please try again.';
+          // API may return error in 'error', 'message', or 'details' field
+          const errorMessage = errorData.error || errorData.message || 
+            (errorData.details ? (typeof errorData.details === 'string' ? errorData.details : JSON.stringify(errorData.details)) : null) ||
+            'Failed to schedule access. Please try again.';
           setError('submitError', errorMessage);
         }
         return;
       }
 
+      console.log('✅ [submitForm] API request successful');
       const data = await response.json();
+      console.log('✅ [submitForm] Response data:', data);
       
       // Enhanced response processing for edit mode
       if (isEditMode && data.data) {
@@ -536,7 +630,7 @@ export function useAccessStorageForm(params: UseAccessStorageFormParams = {}): U
       }
 
       router.refresh();
-      router.push(`/user-page/${userId}`);
+      router.push(`/customer/${userId}`);
       
       } catch (fetchError: any) {
         clearTimeout(timeoutId);

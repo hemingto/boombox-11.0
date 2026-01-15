@@ -24,9 +24,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
-import { ListBulletIcon } from '@heroicons/react/24/solid';
-import CustomDatePicker from '@/components/forms/CustomDatePicker';
+import { AdminTable } from '@/components/features/admin/shared/table/AdminTable';
+import { AdminActionButton } from '@/components/features/admin/shared/buttons/AdminActionButton';
+import { RouteStatusBadge } from '@/components/features/admin/shared/buttons/RouteStatusBadge';
+import { PayoutStatusBadge } from '@/components/features/admin/shared/buttons/PayoutStatusBadge';
+import { FilterDropdown } from '@/components/features/admin/shared/filters/FilterDropdown';
+import { ColumnManagerDropdown } from '@/components/features/admin/shared/filters/ColumnManagerDropdown';
+import { AdminPageHeader } from '@/components/features/admin/shared/filters/AdminPageHeader';
+import { AdminDatePicker } from '@/components/features/admin/shared/AdminDatePicker';
 
 interface Driver {
   id: number;
@@ -341,34 +346,6 @@ export function AdminDeliveryRoutesPage() {
 
   const filteredAndSortedRoutes = getSortedRoutes(filteredRoutes);
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'in_progress':
-        return 'badge-info';
-      case 'completed':
-        return 'badge-success';
-      case 'failed':
-        return 'badge-error';
-      default:
-        return 'bg-surface-tertiary text-text-secondary';
-    }
-  };
-
-  const getPayoutStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return 'badge-warning';
-      case 'processing':
-        return 'badge-processing';
-      case 'completed':
-        return 'badge-success';
-      case 'failed':
-        return 'badge-error';
-      default:
-        return 'bg-surface-tertiary text-text-secondary';
-    }
-  };
-
   const formatDateTime = (date: string) => {
     return new Date(date).toLocaleString('en-US', {
       month: 'short',
@@ -440,328 +417,167 @@ export function AdminDeliveryRoutesPage() {
     fetchRoutes();
   }, [fetchRoutes]);
 
-  if (error) return <div className="p-4 text-status-error">Error: {error}</div>;
+  // Convert filters to FilterDropdown format
+  const statusFilterItems = Object.keys(statusFilters).map((status) => ({
+    id: status,
+    label: status.replace('_', ' '),
+    checked: statusFilters[status as StatusType],
+  }));
+
+  const payoutStatusFilterItems = Object.keys(payoutStatusFilters).map((status) => ({
+    id: status,
+    label: status,
+    checked: payoutStatusFilters[status as PayoutStatusType],
+  }));
+
+  const actionFilterItems = [
+    { id: 'unassigned_drivers', label: 'Unassigned Drivers', checked: actionFilters.unassigned_drivers },
+    { id: 'failed_payouts', label: 'Failed Payouts', checked: actionFilters.failed_payouts },
+  ];
 
   return (
-    <div className="m-4">
-      <div className="py-6 px-4 bg-primary rounded-t-lg flex justify-between items-center">
-        <h1 className="text-2xl font-semibold text-text-inverse">Delivery Routes</h1>
-        <div className="flex gap-2">
-          <div className="w-48 sm:-mb-4 -mb-2">
-            <CustomDatePicker
-              onDateChange={handleDateChange}
-              value={selectedDate}
-              allowPastDates={true}
-              smallText={true}
-            />
-          </div>
-          <div className="relative">
-            <button
-              onClick={() => setShowStatusFilter(!showStatusFilter)}
-              className="inline-flex items-center text-sm gap-x-1.5 rounded-md bg-surface-primary px-3 py-2.5 font-semibold text-text-primary shadow-sm ring-1 ring-inset ring-border hover:bg-surface-tertiary"
-            >
-              Status
-              <ChevronDownIcon className="-mr-1 h-5 w-5 text-text-secondary" />
-            </button>
-            {showStatusFilter && (
-              <div className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-surface-primary shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                <div className="py-1">
-                  <div className="px-4 py-2 border-b border-border">
-                    <label className="flex items-center space-x-3">
-                      <input
-                        type="checkbox"
-                        checked={allStatusesSelected}
-                        onChange={toggleAllStatuses}
-                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                      />
-                      <span className="text-sm text-text-primary">All Statuses</span>
-                    </label>
-                  </div>
-                  {Object.keys(statusFilters).map((status) => (
-                    <div key={status} className="px-4 py-2">
-                      <label className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          checked={statusFilters[status as StatusType]}
-                          onChange={() => toggleStatusFilter(status as StatusType)}
-                          className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                        />
-                        <span className="text-sm text-text-primary capitalize">{status.replace('_', ' ')}</span>
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="relative">
-            <button
-              onClick={() => setShowPayoutStatusFilter(!showPayoutStatusFilter)}
-              className="inline-flex items-center text-sm gap-x-1.5 rounded-md bg-surface-primary px-3 py-2.5 font-semibold text-text-primary shadow-sm ring-1 ring-inset ring-border hover:bg-surface-tertiary"
-            >
-              Payout Status
-              <ChevronDownIcon className="-mr-1 h-5 w-5 text-text-secondary" />
-            </button>
-            {showPayoutStatusFilter && (
-              <div className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-surface-primary shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                <div className="py-1">
-                  <div className="px-4 py-2 border-b border-border">
-                    <label className="flex items-center space-x-3">
-                      <input
-                        type="checkbox"
-                        checked={allPayoutStatusesSelected}
-                        onChange={toggleAllPayoutStatuses}
-                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                      />
-                      <span className="text-sm text-text-primary">All Payout Statuses</span>
-                    </label>
-                  </div>
-                  {Object.keys(payoutStatusFilters).map((status) => (
-                    <div key={status} className="px-4 py-2">
-                      <label className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          checked={payoutStatusFilters[status as PayoutStatusType]}
-                          onChange={() => togglePayoutStatusFilter(status as PayoutStatusType)}
-                          className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                        />
-                        <span className="text-sm text-text-primary capitalize">{status}</span>
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="relative">
-            <button
-              onClick={() => setShowActionsFilter(!showActionsFilter)}
-              className="inline-flex items-center text-sm gap-x-1.5 rounded-md bg-surface-primary px-3 py-2.5 font-semibold text-text-primary shadow-sm ring-1 ring-inset ring-border hover:bg-surface-tertiary"
-            >
-              Actions
-              <ChevronDownIcon className="-mr-1 h-5 w-5 text-text-secondary" />
-            </button>
-            {showActionsFilter && (
-              <div className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-surface-primary shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                <div className="py-1">
-                  <div className="px-4 py-2 border-b border-border">
-                    <label className="flex items-center space-x-3">
-                      <input
-                        type="checkbox"
-                        checked={allActionsSelected}
-                        onChange={toggleAllActions}
-                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                      />
-                      <span className="text-sm text-text-primary">All Actions</span>
-                    </label>
-                  </div>
-                  <div className="px-4 py-2">
-                    <label className="flex items-center space-x-3">
-                      <input
-                        type="checkbox"
-                        checked={actionFilters.unassigned_drivers}
-                        onChange={() => toggleActionFilter('unassigned_drivers')}
-                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                      />
-                      <span className="text-sm text-text-primary">Unassigned Drivers</span>
-                    </label>
-                  </div>
-                  <div className="px-4 py-2">
-                    <label className="flex items-center space-x-3">
-                      <input
-                        type="checkbox"
-                        checked={actionFilters.failed_payouts}
-                        onChange={() => toggleActionFilter('failed_payouts')}
-                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                      />
-                      <span className="text-sm text-text-primary">Failed Payouts</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="relative">
-            <button
-              onClick={() => setShowColumnMenu(!showColumnMenu)}
-              className="inline-flex items-center text-sm gap-x-1.5 rounded-md bg-surface-primary px-3 py-2.5 font-semibold text-text-primary shadow-sm ring-1 ring-inset ring-border hover:bg-surface-tertiary"
-            >
-              + Customize
-              <ChevronDownIcon className="-mr-1 h-5 w-5 text-text-secondary" />
-            </button>
-            {showColumnMenu && (
-              <div className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-surface-primary shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                <div className="py-1 max-h-96 overflow-y-auto">
-                  {columns.map((column) => (
-                    <div key={column.id} className="px-4 py-2">
-                      <label className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          checked={column.visible}
-                          onChange={() => toggleColumn(column.id)}
-                          className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                        />
-                        <span className="text-sm text-text-primary">{column.label}</span>
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+    <div>
+      <AdminPageHeader title="Delivery Routes">
+        <AdminDatePicker
+          onDateChange={handleDateChange}
+          value={selectedDate}
+          allowPastDates={true}
+        />
+        <FilterDropdown
+          label="Status"
+          filters={statusFilterItems}
+          isOpen={showStatusFilter}
+          onToggle={() => {
+            setShowStatusFilter(!showStatusFilter);
+            setShowPayoutStatusFilter(false);
+            setShowActionsFilter(false);
+            setShowColumnMenu(false);
+          }}
+          onToggleFilter={(id) => toggleStatusFilter(id as StatusType)}
+          onToggleAll={toggleAllStatuses}
+          allSelected={allStatusesSelected}
+          allLabel="All Statuses"
+        />
+        <FilterDropdown
+          label="Payout Status"
+          filters={payoutStatusFilterItems}
+          isOpen={showPayoutStatusFilter}
+          onToggle={() => {
+            setShowPayoutStatusFilter(!showPayoutStatusFilter);
+            setShowStatusFilter(false);
+            setShowActionsFilter(false);
+            setShowColumnMenu(false);
+          }}
+          onToggleFilter={(id) => togglePayoutStatusFilter(id as PayoutStatusType)}
+          onToggleAll={toggleAllPayoutStatuses}
+          allSelected={allPayoutStatusesSelected}
+          allLabel="All Payout Statuses"
+        />
+        <FilterDropdown
+          label="Actions"
+          filters={actionFilterItems}
+          isOpen={showActionsFilter}
+          onToggle={() => {
+            setShowActionsFilter(!showActionsFilter);
+            setShowStatusFilter(false);
+            setShowPayoutStatusFilter(false);
+            setShowColumnMenu(false);
+          }}
+          onToggleFilter={(id) => toggleActionFilter(id as ActionType)}
+          onToggleAll={toggleAllActions}
+          allSelected={allActionsSelected}
+          allLabel="All Actions"
+        />
+        <ColumnManagerDropdown
+          columns={columns}
+          isOpen={showColumnMenu}
+          onToggle={() => {
+            setShowColumnMenu(!showColumnMenu);
+            setShowStatusFilter(false);
+            setShowPayoutStatusFilter(false);
+            setShowActionsFilter(false);
+          }}
+          onToggleColumn={toggleColumn}
+        />
+      </AdminPageHeader>
 
-      {loading ? (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border">
-            <thead className="bg-surface-tertiary">
-              <tr>
-                {columns.map((column) => (
-                  column.visible && (
-                    <th
-                      key={column.id}
-                      scope="col"
-                      className="whitespace-nowrap py-1.5 pl-4 pr-3 text-left text-sm font-semibold text-text-primary sm:pl-6"
-                    >
-                      {column.label}
-                    </th>
-                  )
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {[...Array(5)].map((_, index) => (
-                <tr key={index} className="animate-pulse">
-                  {columns.map((column) => (
-                    column.visible && (
-                      <td key={column.id} className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
-                        <div className="h-4 bg-surface-tertiary rounded w-3/4"></div>
-                      </td>
+      <AdminTable
+        columns={columns.map(col => ({
+          ...col,
+          sortable: ['deliveryDate', 'routeStatus', 'payoutStatus', 'driver', 'totalStops', 'completedStops'].includes(col.id)
+        }))}
+        data={filteredAndSortedRoutes}
+        sortConfig={sortConfig}
+        onSort={handleSort}
+        loading={loading}
+        error={error}
+        emptyMessage="No delivery routes found"
+        onRetry={fetchRoutes}
+        renderRow={(route) => (
+          <tr key={route.id} className="hover:bg-slate-50">
+            {columns.map((column) => (
+              column.visible && (
+                <td
+                  key={column.id}
+                  className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6"
+                >
+                  {column.id === 'routeId' ? (
+                    route.routeId
+                  ) : column.id === 'driver' ? (
+                    route.driver ? (
+                      `${route.driver.firstName} ${route.driver.lastName}`
+                    ) : (
+                      <AdminActionButton variant="red" onClick={() => {}}>
+                        Unassigned
+                      </AdminActionButton>
                     )
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : filteredAndSortedRoutes.length === 0 ? (
-        <div className="flex flex-col items-center justify-center mt-12 sm:mt-24 py-12 bg-surface-primary rounded-b-lg">
-          <ListBulletIcon className="h-24 w-24 text-surface-tertiary mb-4" />
-          <p className="text-text-primary text-lg">No delivery routes found</p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border">
-            <thead className="bg-surface-tertiary">
-              <tr>
-                {columns.map((column) => (
-                  column.visible && (
-                    <th
-                      key={column.id}
-                      scope="col"
-                      className="whitespace-nowrap py-1.5 pl-4 pr-3 text-left text-sm font-semibold text-text-primary sm:pl-6"
-                    >
-                      {(column.id === 'deliveryDate' || column.id === 'routeStatus' || 
-                        column.id === 'payoutStatus' || column.id === 'driver' ||
-                        column.id === 'totalStops' || column.id === 'completedStops') ? (
-                        <button
-                          onClick={() => handleSort(column.id)}
-                          className="flex items-center gap-1 hover:bg-surface-secondary py-2 px-4 rounded-full"
-                        >
-                          {column.label}
-                          {sortConfig.column === column.id ? (
-                            sortConfig.direction === 'desc' ? (
-                              <ChevronUpIcon className="h-4 w-4" />
-                            ) : (
-                              <ChevronDownIcon className="h-4 w-4" />
-                            )
-                          ) : (
-                            <ChevronUpIcon className="h-4 w-4 text-text-secondary" />
-                          )}
-                        </button>
-                      ) : (
-                        column.label
-                      )}
-                    </th>
-                  )
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filteredAndSortedRoutes.map((route) => (
-                <tr key={route.id} className="hover:bg-surface-tertiary">
-                  {columns.map((column) => (
-                    column.visible && (
-                      <td
-                        key={column.id}
-                        className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6"
-                      >
-                        {column.id === 'routeId' ? (
-                          route.routeId
-                        ) : column.id === 'driver' ? (
-                          route.driver ? (
-                            `${route.driver.firstName} ${route.driver.lastName}`
-                          ) : (
-                            <span className="text-status-error">Unassigned</span>
-                          )
-                        ) : column.id === 'deliveryDate' ? (
-                          formatDateTime(route.deliveryDate)
-                        ) : column.id === 'routeStatus' ? (
-                          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-sm font-medium ${getStatusColor(route.routeStatus)}`}>
-                            {route.routeStatus.replace('_', ' ')}
-                          </span>
-                        ) : column.id === 'payoutStatus' ? (
-                          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-sm font-medium ${getPayoutStatusColor(route.payoutStatus)}`}>
-                            {route.payoutStatus}
-                          </span>
-                        ) : column.id === 'totalStops' ? (
-                          route.totalStops
-                        ) : column.id === 'completedStops' ? (
-                          route.completedStops
-                        ) : column.id === 'orders' ? (
-                          route.orders.length > 0 ? (
-                            <button
-                              onClick={() => handleViewOrders(route)}
-                              className="inline-flex items-center bg-status-bg-primary px-2.5 py-1 text-sm font-inter rounded-md font-medium text-status-primary ring-1 ring-inset ring-status-primary hover:bg-primary-hover"
-                            >
-                              View Records ({route.orders.length})
-                            </button>
-                          ) : '-'
-                        ) : column.id === 'totalDistance' ? (
-                          formatDistance(route.totalDistance)
-                        ) : column.id === 'totalTime' ? (
-                          formatTime(route.totalTime)
-                        ) : column.id === 'startTime' || column.id === 'endTime' ? (
-                          route[column.id] ? formatDateTime(route[column.id]!) : '-'
-                        ) : column.id === 'payoutAmount' ? (
-                          route.payoutAmount ? `$${Number(route.payoutAmount).toFixed(2)}` : '-'
-                        ) : column.id === 'payoutTransferId' ? (
-                          route.payoutTransferId || '-'
-                        ) : column.id === 'payoutProcessedAt' ? (
-                          route.payoutProcessedAt ? formatDateTime(route.payoutProcessedAt) : '-'
-                        ) : column.id === 'payoutFailureReason' ? (
-                          route.payoutFailureReason || '-'
-                        ) : column.id === 'onfleetOptimizationId' ? (
-                          route.onfleetOptimizationId || '-'
-                        ) : column.id === 'driverOfferSentAt' ? (
-                          route.driverOfferSentAt ? formatDateTime(route.driverOfferSentAt) : '-'
-                        ) : column.id === 'driverOfferExpiresAt' ? (
-                          route.driverOfferExpiresAt ? formatDateTime(route.driverOfferExpiresAt) : '-'
-                        ) : column.id === 'driverOfferStatus' ? (
-                          route.driverOfferStatus || '-'
-                        ) : column.id === 'createdAt' || column.id === 'updatedAt' ? (
-                          formatDateTime(route[column.id])
-                        ) : null}
-                      </td>
-                    )
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                  ) : column.id === 'deliveryDate' ? (
+                    formatDateTime(route.deliveryDate)
+                  ) : column.id === 'routeStatus' ? (
+                    <RouteStatusBadge status={route.routeStatus} />
+                  ) : column.id === 'payoutStatus' ? (
+                    <PayoutStatusBadge status={route.payoutStatus} />
+                  ) : column.id === 'totalStops' ? (
+                    route.totalStops
+                  ) : column.id === 'completedStops' ? (
+                    route.completedStops
+                  ) : column.id === 'orders' ? (
+                    route.orders.length > 0 ? (
+                      <AdminActionButton variant="indigo" onClick={() => handleViewOrders(route)}>
+                        View Records ({route.orders.length})
+                      </AdminActionButton>
+                    ) : '-'
+                  ) : column.id === 'totalDistance' ? (
+                    formatDistance(route.totalDistance)
+                  ) : column.id === 'totalTime' ? (
+                    formatTime(route.totalTime)
+                  ) : column.id === 'startTime' || column.id === 'endTime' ? (
+                    route[column.id] ? formatDateTime(route[column.id]!) : '-'
+                  ) : column.id === 'payoutAmount' ? (
+                    route.payoutAmount ? `$${Number(route.payoutAmount).toFixed(2)}` : '-'
+                  ) : column.id === 'payoutTransferId' ? (
+                    route.payoutTransferId || '-'
+                  ) : column.id === 'payoutProcessedAt' ? (
+                    route.payoutProcessedAt ? formatDateTime(route.payoutProcessedAt) : '-'
+                  ) : column.id === 'payoutFailureReason' ? (
+                    route.payoutFailureReason || '-'
+                  ) : column.id === 'onfleetOptimizationId' ? (
+                    route.onfleetOptimizationId || '-'
+                  ) : column.id === 'driverOfferSentAt' ? (
+                    route.driverOfferSentAt ? formatDateTime(route.driverOfferSentAt) : '-'
+                  ) : column.id === 'driverOfferExpiresAt' ? (
+                    route.driverOfferExpiresAt ? formatDateTime(route.driverOfferExpiresAt) : '-'
+                  ) : column.id === 'driverOfferStatus' ? (
+                    route.driverOfferStatus || '-'
+                  ) : column.id === 'createdAt' || column.id === 'updatedAt' ? (
+                    formatDateTime(route[column.id])
+                  ) : null}
+                </td>
+              )
+            ))}
+          </tr>
+        )}
+      />
 
       {/* Orders Modal */}
       {showViewModal && selectedRouteForOrders && (
@@ -789,7 +605,7 @@ export function AdminDeliveryRoutesPage() {
                     setSelectedOrder(null);
                     setSelectedRecordType(null);
                   }}
-                  className="mb-4 text-status-primary hover:text-primary-hover"
+                  className="mb-4 text-indigo-600 hover:text-indigo-700"
                 >
                   ← Back to Orders
                 </button>
@@ -802,7 +618,7 @@ export function AdminDeliveryRoutesPage() {
                 
                 <div className="space-y-4">
                   {selectedRecordType === 'orderDetails' && selectedOrder.orderDetails.map(detail => (
-                    <div key={detail.id} className="border border-border p-4 rounded-lg">
+                    <div key={detail.id} className="border border-gray-300 p-4 rounded-lg">
                       <p className="font-semibold">{detail.product.title}</p>
                       <p>Category: {detail.product.category}</p>
                       <p>Quantity: {detail.quantity}</p>
@@ -859,7 +675,7 @@ export function AdminDeliveryRoutesPage() {
                       {order.orderDetails.length > 0 && (
                         <button
                           onClick={() => handleViewOrderRecord(order, 'orderDetails')}
-                          className="inline-flex items-center bg-status-bg-info px-2.5 py-1 text-sm font-inter rounded-md font-medium text-status-info ring-1 ring-inset ring-status-info hover:bg-status-info-hover"
+                          className="inline-flex items-center bg-blue-50 px-2.5 py-1 text-sm font-inter rounded-md font-medium text-blue-600 ring-1 ring-inset ring-blue-600/20 hover:bg-blue-100"
                         >
                           View Details ({order.orderDetails.length})
                         </button>
@@ -875,7 +691,7 @@ export function AdminDeliveryRoutesPage() {
                       {order.feedback && (
                         <button
                           onClick={() => handleViewOrderRecord(order, 'feedback')}
-                          className="inline-flex items-center bg-status-bg-success px-2.5 py-1 text-sm font-inter rounded-md font-medium text-status-success ring-1 ring-inset ring-status-success hover:bg-status-success-hover"
+                          className="inline-flex items-center bg-green-50 px-2.5 py-1 text-sm font-inter rounded-md font-medium text-green-600 ring-1 ring-inset ring-green-600/20 hover:bg-green-100"
                         >
                           View Feedback
                         </button>
@@ -894,7 +710,7 @@ export function AdminDeliveryRoutesPage() {
                   setSelectedOrder(null);
                   setSelectedRecordType(null);
                 }}
-                className="btn-secondary"
+                className="inline-flex items-center gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
               >
                 Close
               </button>

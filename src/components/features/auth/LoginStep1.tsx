@@ -63,6 +63,16 @@ export interface LoginStep1Props {
    * Callback when email changes
    */
   onEmailChange: (email: string) => void;
+  
+  /**
+   * Callback to clear phone error
+   */
+  onClearPhoneError?: () => void;
+  
+  /**
+   * Callback to clear email error
+   */
+  onClearEmailError?: () => void;
 }
 
 /**
@@ -88,6 +98,8 @@ export function LoginStep1({
   emailError,
   onPhoneChange,
   onEmailChange,
+  onClearPhoneError,
+  onClearEmailError,
 }: LoginStep1Props) {
   return (
     <div className="w-full">
@@ -97,7 +109,7 @@ export function LoginStep1({
           onChange={onPhoneChange}
           hasError={!!phoneError}
           errorMessage={phoneError || ''}
-          onClearError={() => {}}
+          onClearError={onClearPhoneError}
           placeholder="Phone number"
           required
           aria-label="Phone number for login"
@@ -109,7 +121,7 @@ export function LoginStep1({
           onEmailChange={onEmailChange}
           hasError={!!emailError}
           errorMessage={emailError || ''}
-          onClearError={() => {}}
+          onClearError={onClearEmailError}
           placeholder="Enter your email address"
           required
           aria-label="Email address for login"

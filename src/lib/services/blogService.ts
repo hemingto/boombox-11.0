@@ -17,7 +17,7 @@
  */
 
 import { prisma } from '@/lib/database/prismaClient';
-import { BlogPost, BlogCategory, BlogStatus } from '@prisma/client';
+import { BlogPost, BlogCategory, BlogStatus, BlogContentBlockType } from '@prisma/client';
 
 // Extended types that include relations
 export interface BlogPostWithCategory extends BlogPost {
@@ -124,8 +124,16 @@ export class BlogService {
    * Get a single blog post by slug
    */
   static async getBlogPostBySlug(slug: string): Promise<BlogPostWithCategory | null> {
+    // Build where clause based on environment
+    const where: any = { slug };
+    
+    // Only show published posts in production
+    if (process.env.NODE_ENV === 'production') {
+      where.status = BlogStatus.PUBLISHED;
+    }
+
     const post = await prisma.blogPost.findUnique({
-      where: { slug },
+      where,
       include: {
         category: true,
         contentBlocks: {
@@ -143,6 +151,16 @@ export class BlogService {
     }
 
     return post;
+  }
+
+  /**
+   * Get all published blog post slugs (for static generation)
+   */
+  static async getAllPublishedSlugs(): Promise<{ slug: string }[]> {
+    return prisma.blogPost.findMany({
+      where: { status: BlogStatus.PUBLISHED },
+      select: { slug: true },
+    });
   }
 
   /**
@@ -337,5 +355,185 @@ export class BlogService {
     const categorySlug = categoryName.toLowerCase().replace(/\s+/g, '-');
     const category = await this.getBlogCategoryBySlug(categorySlug);
     return !!category;
+  }
+
+  /**
+   * ADMIN METHODS
+   * Methods for creating and managing blog posts through admin portal
+   */
+
+  /**
+   * Create a new blog post with content blocks
+   */
+  static async createBlogPost(data: {
+    title: string;
+    slug: string;
+    excerpt?: string;
+    featuredImage?: string;
+    featuredImageAlt?: string;
+    metaTitle?: string;
+    metaDescription?: string;
+    categoryId?: number;
+    status: BlogStatus;
+    publishedAt?: Date;
+    readTime?: number;
+    authorId: number;
+    authorName?: string;
+    authorImage?: string;
+    contentBlocks: {
+      type: BlogContentBlockType;
+      content: string;
+      metadata?: any;
+      order: number;
+    }[];
+  }) {
+    // Generate plain text content from blocks
+    const plainTextContent = this.generatePlainTextFromBlocks(data.contentBlocks);
+
+    return prisma.blogPost.create({
+      data: {
+        title: data.title,
+        slug: data.slug,
+        excerpt: data.excerpt,
+        content: plainTextContent, // Auto-generated from blocks
+        featuredImage: data.featuredImage,
+        featuredImageAlt: data.featuredImageAlt,
+        metaTitle: data.metaTitle,
+        metaDescription: data.metaDescription,
+        categoryId: data.categoryId,
+        status: data.status,
+        publishedAt: data.publishedAt,
+        readTime: data.readTime,
+        authorId: data.authorId,
+        authorName: data.authorName,
+        authorImage: data.authorImage,
+        contentBlocks: {
+          create: data.contentBlocks,
+        },
+      },
+      include: {
+        category: true,
+        contentBlocks: {
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+  }
+
+  /**
+   * Update an existing blog post
+   */
+  static async updateBlogPost(
+    id: number,
+    data: {
+      title?: string;
+      slug?: string;
+      excerpt?: string;
+      featuredImage?: string;
+      featuredImageAlt?: string;
+      metaTitle?: string;
+      metaDescription?: string;
+      categoryId?: number;
+      status?: BlogStatus;
+      publishedAt?: Date;
+      readTime?: number;
+      authorName?: string;
+      authorImage?: string;
+      contentBlocks?: {
+        type: BlogContentBlockType;
+        content: string;
+        metadata?: any;
+        order: number;
+      }[];
+    }
+  ) {
+    // If content blocks are being updated, regenerate plain text
+    const plainTextContent = data.contentBlocks
+      ? this.generatePlainTextFromBlocks(data.contentBlocks)
+      : undefined;
+
+    // If updating content blocks, delete existing ones first
+    if (data.contentBlocks) {
+      await prisma.blogContentBlock.deleteMany({
+        where: { blogPostId: id },
+      });
+    }
+
+    return prisma.blogPost.update({
+      where: { id },
+      data: {
+        ...(data.title && { title: data.title }),
+        ...(data.slug && { slug: data.slug }),
+        ...(data.excerpt !== undefined && { excerpt: data.excerpt }),
+        ...(plainTextContent && { content: plainTextContent }),
+        ...(data.featuredImage !== undefined && { featuredImage: data.featuredImage }),
+        ...(data.featuredImageAlt !== undefined && { featuredImageAlt: data.featuredImageAlt }),
+        ...(data.metaTitle !== undefined && { metaTitle: data.metaTitle }),
+        ...(data.metaDescription !== undefined && { metaDescription: data.metaDescription }),
+        ...(data.categoryId !== undefined && { categoryId: data.categoryId }),
+        ...(data.status && { status: data.status }),
+        ...(data.publishedAt !== undefined && { publishedAt: data.publishedAt }),
+        ...(data.readTime !== undefined && { readTime: data.readTime }),
+        ...(data.authorName !== undefined && { authorName: data.authorName }),
+        ...(data.authorImage !== undefined && { authorImage: data.authorImage }),
+        ...(data.contentBlocks && {
+          contentBlocks: {
+            create: data.contentBlocks,
+          },
+        }),
+      },
+      include: {
+        category: true,
+        contentBlocks: {
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+  }
+
+  /**
+   * Delete a blog post
+   */
+  static async deleteBlogPost(id: number) {
+    return prisma.blogPost.delete({
+      where: { id },
+    });
+  }
+
+  /**
+   * Generate plain text content from content blocks
+   * Used for SEO, search, and RSS feeds
+   */
+  private static generatePlainTextFromBlocks(
+    blocks: {
+      type: BlogContentBlockType;
+      content: string;
+      metadata?: any;
+      order: number;
+    }[]
+  ): string {
+    return blocks
+      .sort((a, b) => a.order - b.order)
+      .map((block) => {
+        switch (block.type) {
+          case BlogContentBlockType.HEADING:
+            return `\n\n${block.content}\n`;
+          case BlogContentBlockType.PARAGRAPH:
+            return block.content;
+          case BlogContentBlockType.QUOTE:
+            return `\n"${block.content}"\n`;
+          case BlogContentBlockType.LIST:
+            return `\n${block.content}\n`;
+          case BlogContentBlockType.CODE:
+            return `\n\`\`\`\n${block.content}\n\`\`\`\n`;
+          case BlogContentBlockType.IMAGE:
+            // For images, include alt text if available
+            return block.metadata?.alt ? `\n[Image: ${block.metadata.alt}]\n` : '';
+          default:
+            return block.content;
+        }
+      })
+      .join('\n')
+      .trim();
   }
 }

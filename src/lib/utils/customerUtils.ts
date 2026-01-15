@@ -19,12 +19,13 @@ export async function getUpcomingAppointments(userType: 'mover' | 'driver', user
   const now = new Date();
 
   // Fetch upcoming appointments based on user type
+  // Filter out canceled and completed appointments
   let whereClause: any = {
     date: {
       gte: now,
     },
     status: {
-      not: 'Canceled',
+      notIn: ['Canceled', 'Complete', 'Completed'],
     },
   };
 
@@ -584,7 +585,7 @@ export async function getActiveStorageUnits(userId: string | number): Promise<St
       storageUnit: {
         id: usage.storageUnit.id,
         storageUnitNumber: usage.storageUnit.storageUnitNumber,
-        mainImage: usage.mainImage || '/img/golden-gate.png', // Use mainImage from DB, fallback to default
+        mainImage: usage.mainImage || '/placeholder.jpg', // Use mainImage from DB, fallback to default
       },
       location: usage.startAppointment?.address || 'Not available',
       uploadedImages: usage.uploadedImages,

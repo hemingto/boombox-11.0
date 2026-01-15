@@ -45,7 +45,7 @@ export const PriceZipInput = () => {
         queryParams.append('zipCode', zipCode);
       }
 
-      await router.push(`/getquote${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
+      await router.push(`/get-quote${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
     } finally {
       setIsLoading(false);
     }

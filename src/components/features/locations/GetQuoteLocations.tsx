@@ -9,26 +9,25 @@
  * Used on location-specific pages to drive quote conversions.
  * 
  * DESIGN SYSTEM UPDATES:
- * - Replaced hardcoded bg-slate-100 with OptimizedImage component for image placeholder
+ * - Uses Next.js Image component for image placeholder
  * - Replaced inline button styles with design system Button component (variant="primary")
  * - Applied design system colors: bg-zinc-950 → bg-primary, hover:bg-zinc-800 → built into Button
  * - Enhanced accessibility with proper semantic HTML and ARIA labels
  * - Made button properly interactive with navigation to quote flow
  * 
  * IMAGE OPTIMIZATION:
- * - Replaced bg-slate-100 placeholder div with OptimizedImage component
- * - Uses placeholder.jpg with proper aspect ratio and responsive sizing
+ * - Uses Next.js Image with proper aspect ratio and responsive sizing
  * - Lazy loading for below-the-fold content
  * 
- * @refactor Simplified component with design system Button and OptimizedImage
+ * @refactor Simplified component with design system Button and Next.js Image
  */
 
 'use client';
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '@/components/ui';
-import { OptimizedImage } from '@/components/ui/primitives/OptimizedImage/OptimizedImage';
 import { cn } from '@/lib/utils/cn';
 
 export interface GetQuoteLocationsProps {
@@ -111,7 +110,7 @@ export const GetQuoteLocations: React.FC<GetQuoteLocationsProps> = ({
         >
           <Button
             variant="primary"
-            size="lg"
+            size="md"
             borderRadius="md"
             className="font-semibold"
           >
@@ -126,18 +125,17 @@ export const GetQuoteLocations: React.FC<GetQuoteLocationsProps> = ({
         role="img"
         aria-label={imageAlt}
       >
-        <OptimizedImage
-          src={imageSrc}
-          alt={imageAlt}
-          width={600}
-          height={600}
-          aspectRatio="square"
-          containerClassName="w-full md:ml-8 rounded-md"
-          className="object-cover rounded-md"
-          loading="lazy"
-          quality={85}
-          sizes="(max-width: 768px) 100vw, 50vw"
-        />
+        <div className="relative w-full md:ml-8 aspect-square rounded-md overflow-hidden">
+          <Image
+            src={imageSrc}
+            alt={imageAlt}
+            fill
+            className="object-cover rounded-md"
+            loading="lazy"
+            quality={85}
+            sizes="(max-width: 768px) 100vw, 50vw"
+          />
+        </div>
       </div>
     </section>
   );

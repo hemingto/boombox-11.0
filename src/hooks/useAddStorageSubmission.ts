@@ -15,13 +15,19 @@ import {
 import { validateSubmissionPayload } from '@/lib/validations/addStorage.validations';
 import { parseAppointmentTime } from '@/lib/utils';
 
-export function useAddStorageSubmission(): UseAddStorageSubmissionReturn {
+export function useAddStorageSubmission(
+  mode: 'create' | 'edit' = 'create',
+  appointmentId?: string,
+  originalStorageUnitCount?: number
+): UseAddStorageSubmissionReturn {
   const router = useRouter();
   
   const [submissionState, setSubmissionState] = useState<AddStorageSubmissionState>({
     isSubmitting: false,
     submitError: null,
   });
+  
+  const isEditMode = mode === 'edit';
 
   /**
    * Clear submission error
@@ -76,9 +82,17 @@ export function useAddStorageSubmission(): UseAddStorageSubmissionReturn {
       movingPartnerId: formState.movingPartnerId,
       thirdPartyMovingPartnerId: formState.thirdPartyMovingPartnerId,
     };
+    
+    // For edit mode, calculate additional units if storage count increased
+    if (isEditMode && originalStorageUnitCount) {
+      const additionalUnitsCount = formState.storageUnit.count - originalStorageUnitCount;
+      if (additionalUnitsCount > 0) {
+        (payload as any).additionalUnitsCount = additionalUnitsCount;
+      }
+    }
 
     return payload;
-  }, [createAppointmentDateTime]);
+  }, [createAppointmentDateTime, isEditMode, originalStorageUnitCount]);
 
   /**
    * Submit the form to the API
@@ -107,25 +121,41 @@ export function useAddStorageSubmission(): UseAddStorageSubmissionReturn {
         throw new Error(`Validation failed: ${errorMessages}`);
       }
 
-      // Submit to API (using new boombox-11.0 endpoint from api-routes-migration-tracking.md line 444)
-      const response = await fetch('/api/orders/add-additional-storage', {
-        method: 'POST',
+      // Choose API endpoint and method based on mode
+      const apiUrl = isEditMode && appointmentId
+        ? `/api/orders/appointments/${appointmentId}/edit`
+        : '/api/orders/add-additional-storage';
+      
+      const method = isEditMode ? 'PUT' : 'POST';
+      
+      // Add appointmentId to payload for edit mode
+      const finalPayload = isEditMode && appointmentId
+        ? { ...payload, appointmentId: parseInt(appointmentId, 10) }
+        : payload;
+
+      // Submit to API
+      const response = await fetch(apiUrl, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(finalPayload),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
         console.error('Submission failed:', errorData);
-        throw new Error(errorData.message || 'Failed to schedule additional storage. Please try again.');
+        // API may return error in 'error' or 'message' field, also check for 'details'
+        const errorMessage = errorData.error || errorData.message || 
+          (errorData.details ? (typeof errorData.details === 'string' ? errorData.details : JSON.stringify(errorData.details)) : null) ||
+          `Failed to ${isEditMode ? 'update' : 'schedule'} appointment. Please try again.`;
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
-      console.log('Appointment added successfully:', data);
+      console.log(`Appointment ${isEditMode ? 'updated' : 'added'} successfully:`, data);
 
       // Refresh and redirect to user page
       await router.refresh();
-      router.push(`/user-page/${userId}`);
+      router.push(`/customer/${userId}`);
 
       setSubmissionState({
         isSubmitting: false,
@@ -143,7 +173,7 @@ export function useAddStorageSubmission(): UseAddStorageSubmissionReturn {
       // Re-throw error so calling component can handle it if needed
       throw error;
     }
-  }, [buildSubmissionPayload, router]);
+  }, [buildSubmissionPayload, router, isEditMode, appointmentId]);
 
   /**
    * Validate form before submission

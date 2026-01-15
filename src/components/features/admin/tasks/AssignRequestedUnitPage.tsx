@@ -9,10 +9,10 @@
  * - Assigns requested storage unit to appointment
  * 
  * API ROUTES USED:
- * - GET /api/appointments/[id]/getAppointmentDetails - Fetch appointment data
- * - GET /api/appointments/[id]/getDriverByUnit - Fetch driver for specific unit
+ * - GET /api/orders/appointments/[id]/details - Fetch appointment data
+ * - GET /api/orders/appointments/[id]/driver-by-unit - Fetch driver for specific unit
  * - POST /api/upload/unit-pickup-photos - Upload trailer photos
- * - POST /api/admin/appointments/[id]/assign-requested-unit - Assign unit
+ * - POST /api/admin/tasks/assign-requested-unit/[appointmentId] - Assign unit
  * 
  * DESIGN SYSTEM UPDATES:
  * - Uses semantic color tokens (text-text-primary, bg-status-primary)
@@ -28,10 +28,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeftIcon, PhotoIcon, CubeIcon, ListBulletIcon } from '@heroicons/react/24/outline';
+import { Button } from '@/components/ui/primitives/Button';
 import YesOrNoRadio from '@/components/forms/YesOrNoRadio';
 import PhotoUploads from '@/components/forms/PhotoUploads';
-import { RequestedStorageUnitSelector } from '@/components/features/admin/shared';
-import { OptimizedImage } from '@/components/ui/primitives/OptimizedImage/OptimizedImage';
+import Image from 'next/image';
 
 interface AssignRequestedUnitPageProps {
   taskId: string;
@@ -69,7 +69,6 @@ export function AssignRequestedUnitPage({ taskId }: AssignRequestedUnitPageProps
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [driverMatch, setDriverMatch] = useState<string | null>(null);
-  const [selectedUnitId, setSelectedUnitId] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [trailerPhotos, setTrailerPhotos] = useState<File[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -110,7 +109,7 @@ export function AssignRequestedUnitPage({ taskId }: AssignRequestedUnitPageProps
       
       try {
         setIsLoading(true);
-        const response = await fetch(`/api/appointments/${appointmentId}/getAppointmentDetails`);
+        const response = await fetch(`/api/orders/appointments/${appointmentId}/details`);
         if (!response.ok) {
           throw new Error(`Failed to fetch appointment details: ${response.status}`);
         }
@@ -134,7 +133,7 @@ export function AssignRequestedUnitPage({ taskId }: AssignRequestedUnitPageProps
       if (!appointmentId || !unitIndex) return;
       
       try {
-        const response = await fetch(`/api/appointments/${appointmentId}/getDriverByUnit?unitNumber=${unitIndex}`);
+        const response = await fetch(`/api/orders/appointments/${appointmentId}/driver-by-unit?unitNumber=${unitIndex}`);
         if (!response.ok) {
           setCurrentUnitDriver(null);
           return;
@@ -155,19 +154,85 @@ export function AssignRequestedUnitPage({ taskId }: AssignRequestedUnitPageProps
     fetchDriverForUnit();
   }, [appointmentId, unitIndex, appointment]);
 
+  // Derive storageUnitId from appointment's requestedStorageUnits if not already set
   useEffect(() => {
-    if (storageUnitId) {
-      setSelectedUnitId(storageUnitId);
+    if (!storageUnitId && appointment?.requestedStorageUnits && appointment.requestedStorageUnits.length > 0) {
+      // Get the storage unit at the current unitIndex (1-based)
+      const targetIndex = unitIndex - 1;
+      if (targetIndex >= 0 && targetIndex < appointment.requestedStorageUnits.length) {
+        const unit = appointment.requestedStorageUnits[targetIndex];
+        if (unit.storageUnit?.id) {
+          setStorageUnitId(unit.storageUnit.id);
+        }
+      }
     }
-  }, [storageUnitId]);
-
-  const handleUnitSelect = (value: number) => {
-    setSelectedUnitId(value);
-  };
+  }, [appointment, unitIndex, storageUnitId]);
 
   const handlePhotoChange = (files: File[]) => {
     setTrailerPhotos(files);
     setPhotoError(null);
+  };
+
+  // Compress image to reduce file size before upload
+  const compressImage = async (file: File, maxSizeKB: number = 800): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const img = document.createElement('img');
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      img.onload = () => {
+        // Calculate new dimensions (max 1920px on longest side)
+        let { width, height } = img;
+        const maxDimension = 1920;
+        
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = (height / width) * maxDimension;
+            width = maxDimension;
+          } else {
+            width = (width / height) * maxDimension;
+            height = maxDimension;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Start with quality 0.8 and reduce if needed
+        let quality = 0.8;
+        const tryCompress = () => {
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error('Failed to compress image'));
+                return;
+              }
+              
+              // If still too large and quality > 0.3, reduce quality
+              if (blob.size > maxSizeKB * 1024 && quality > 0.3) {
+                quality -= 0.1;
+                tryCompress();
+                return;
+              }
+              
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            },
+            'image/jpeg',
+            quality
+          );
+        };
+        
+        tryCompress();
+      };
+      
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = URL.createObjectURL(file);
+    });
   };
 
   const uploadPhotos = async (): Promise<string[]> => {
@@ -180,12 +245,15 @@ export function AssignRequestedUnitPage({ taskId }: AssignRequestedUnitPageProps
     
     try {
       for (const photo of trailerPhotos) {
+        // Compress the image before uploading
+        const compressedPhoto = await compressImage(photo);
+        
         const formData = new FormData();
-        formData.append('file', photo);
+        formData.append('file', compressedPhoto);
         formData.append('entityType', 'trailer');
         formData.append('appointmentId', appointment?.id.toString() || '');
         
-        const uploadResponse = await fetch(`/api/upload/unit-pickup-photos?entityType=trailer&appointmentId=${appointment?.id}`, {
+        const uploadResponse = await fetch(`/api/uploads/unit-pickup-photos?entityType=trailer&appointmentId=${appointment?.id}`, {
           method: 'POST',
           body: formData,
         });
@@ -207,13 +275,7 @@ export function AssignRequestedUnitPage({ taskId }: AssignRequestedUnitPageProps
   };
 
   const handleAssignUnit = async () => {
-    if (!appointment) return;
-    
-    const unitIdToAssign = storageUnitId || selectedUnitId;
-    
-    if (!unitIdToAssign) {
-      return;
-    }
+    if (!appointment || !storageUnitId) return;
 
     if (trailerPhotos.length === 0) {
       setPhotoError("Please add a photo of the trailer on vehicle");
@@ -224,13 +286,13 @@ export function AssignRequestedUnitPage({ taskId }: AssignRequestedUnitPageProps
     try {
       const photoUrls = await uploadPhotos();
       
-      const response = await fetch(`/api/admin/appointments/${appointment.id}/assign-requested-unit`, {
+      const response = await fetch(`/api/admin/tasks/assign-requested-unit/${appointment.id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          storageUnitId: unitIdToAssign,
+          storageUnitId: storageUnitId,
           driverMatches: driverMatch === 'Yes',
           trailerPhotos: photoUrls,
           unitIndex: unitIndex
@@ -303,10 +365,10 @@ export function AssignRequestedUnitPage({ taskId }: AssignRequestedUnitPageProps
         <div className="bg-surface-primary">
           <div className="p-6 space-y-6">
             {/* Appointment Card */}
-            <div className="bg-status-primary rounded-lg p-6">
+            <div className="bg-indigo-500 rounded-lg p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="relative bg-status-primary-hover rounded-full h-12 w-12 flex items-center justify-center">
+                  <div className="relative bg-indigo-600 rounded-full h-12 w-12 flex items-center justify-center">
                     <ListBulletIcon className="h-6 w-6 text-white" />
                   </div>
                   <div>
@@ -327,7 +389,7 @@ export function AssignRequestedUnitPage({ taskId }: AssignRequestedUnitPageProps
                   </div>
                 </div>
                 <div className="flex items-center">
-                  <div className="relative bg-status-primary-hover rounded-full h-12 w-12 mr-3 flex items-center justify-center">
+                  <div className="relative bg-indigo-600 rounded-full h-12 w-12 mr-3 flex items-center justify-center">
                     <CubeIcon className="h-6 w-6 text-white" />
                   </div>
                   <div className="flex flex-col items-start text-white mr-4">
@@ -336,9 +398,10 @@ export function AssignRequestedUnitPage({ taskId }: AssignRequestedUnitPageProps
                     </span>
                     {appointment?.requestedStorageUnits && appointment.requestedStorageUnits.length > 0 && (
                       <span className="text-sm text-white/90 text-nowrap">
-                        {appointment.requestedStorageUnits.map(unit => 
-                          unit.storageUnit.storageUnitNumber
-                        ).join(', ')}
+                        {appointment.requestedStorageUnits
+                          .filter(unit => unit.storageUnit)
+                          .map(unit => unit.storageUnit.storageUnitNumber)
+                          .join(', ')}
                       </span>
                     )}
                   </div>
@@ -382,16 +445,16 @@ export function AssignRequestedUnitPage({ taskId }: AssignRequestedUnitPageProps
                 <h3 className="font-medium text-text-primary font-semibold">Driver Verification</h3>
                 
                 {driverLicensePhoto ? (
-                  <div className="mt-4">
-                    <OptimizedImage
-                      src={driverLicensePhoto}
-                      alt="Driver's License"
-                      width={400}
-                      height={200}
-                      containerClassName="w-[300px] h-[150px] md:w-[400px] md:h-[200px] rounded-md overflow-hidden"
-                      className="w-full h-full object-cover"
-                      loading="eager"
-                    />
+                  <>
+                    <div className="mt-4 relative w-[300px] h-[150px] md:w-[400px] md:h-[200px] rounded-md overflow-hidden">
+                      <Image
+                        src={driverLicensePhoto}
+                        alt="Driver's License"
+                        fill
+                        className="object-cover"
+                        priority
+                      />
+                    </div>
                     <div className="mt-4">
                       <p className="mb-2 text-sm text-text-primary">Does the driver match the driver's license picture?</p>
                       <YesOrNoRadio
@@ -400,7 +463,7 @@ export function AssignRequestedUnitPage({ taskId }: AssignRequestedUnitPageProps
                         hasError={false}
                       />
                     </div>
-                  </div>
+                  </>
                 ) : (
                   <div className="mt-4 text-sm text-text-secondary">
                     No driver's license photo available
@@ -410,7 +473,7 @@ export function AssignRequestedUnitPage({ taskId }: AssignRequestedUnitPageProps
             </div>
 
             {/* Photo Upload Section */}
-            <div className="space-y-4 border-b border-border pb-6">
+            <div className="space-y-4">
               <div>
                 <h3 className="font-medium text-text-primary font-semibold">Add photo of trailer on vehicle</h3>
                 <div className="mt-4 max-w-lg">
@@ -427,37 +490,19 @@ export function AssignRequestedUnitPage({ taskId }: AssignRequestedUnitPageProps
                   )}
                 </div>
               </div>
-            </div>
-
-            {/* Storage Unit Assignment Section */}
-            <div className="space-y-6">
-              <div>
-                <h3 className="font-medium text-text-primary font-semibold">Assign requested storage unit</h3>
-                <div className="mt-4 space-y-4 max-w-lg">
-                  <RequestedStorageUnitSelector
-                    label={`Select storage unit for step ${unitIndex} of ${appointment?.numberOfUnits || appointment.requestedStorageUnits?.length || 1}`}
-                    value={selectedUnitId}
-                    onChange={handleUnitSelect}
-                    appointmentId={appointment.id}
-                    disabled={isSubmitting}
-                  />
-                </div>
-              </div>
 
               {/* Submit Button */}
               <div className="flex justify-end pt-4">
-                <button
+                <Button
                   onClick={handleAssignUnit}
-                  disabled={
-                    isSubmitting || 
-                    !selectedUnitId ||
-                    trailerPhotos.length === 0
-                  }
-                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label="Assign storage unit"
+                  disabled={trailerPhotos.length === 0}
+                  loading={isSubmitting}
+                  variant="primary"
+                  className="!bg-indigo-500 hover:!bg-indigo-600 active:!bg-indigo-600 disabled:!bg-indigo-500"
+                  aria-label="Complete assignment"
                 >
-                  {isSubmitting ? 'Assigning...' : 'Assign Unit'}
-                </button>
+                  Complete Assignment
+                </Button>
               </div>
             </div>
           </div>

@@ -62,14 +62,6 @@ export default function PackingSupplies() {
     fetchUserData();
   }, [userId]);
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
-
   return (
     <>
       <Elements stripe={stripePromise}>

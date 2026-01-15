@@ -51,7 +51,7 @@ export function MoverAccountHero({
       >
         Hi {displayName},
       </h2>
-      <p className="mt-4 text-text-secondary">
+      <p className="mt-4 text-text-primary">
         {message}
       </p>
     </section>

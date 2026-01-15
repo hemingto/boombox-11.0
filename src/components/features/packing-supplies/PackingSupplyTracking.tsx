@@ -167,8 +167,20 @@ export function PackingSupplyTracking({
       case 'In Transit':
       case 'Driver Arrived':
         return 'In transit';
-      default:
+      case 'Dispatched':
         return 'Driver Assigned';
+      case 'Scheduled':
+        return 'Confirmed';
+      case 'Pending':
+        return 'Processing';
+      case 'Failed':
+        return 'Failed';
+      case 'Cancelled':
+        return 'Cancelled';
+      case 'Returned':
+        return 'Returned';
+      default:
+        return 'Processing';
     }
   };
 
@@ -177,11 +189,18 @@ export function PackingSupplyTracking({
       case 'Delivered':
         return 'text-status-success bg-status-bg-success';
       case 'In Transit':
-        return 'text-status-info bg-status-bg-info';
       case 'Driver Arrived':
+      case 'Dispatched':
         return 'text-status-info bg-status-bg-info';
+      case 'Scheduled':
+      case 'Pending':
+        return 'text-text-secondary bg-surface-tertiary';
+      case 'Failed':
+      case 'Cancelled':
+      case 'Returned':
+        return 'text-status-error bg-status-bg-error';
       default:
-        return 'text-status-info bg-status-bg-info';
+        return 'text-text-secondary bg-surface-tertiary';
     }
   };
 
@@ -192,7 +211,7 @@ export function PackingSupplyTracking({
       case 'in_transit':
         return 'bg-status-info animate-pulse';
       case 'pending':
-        return 'bg-text-tertiary';
+        return 'bg-zinc-400';
       default:
         return 'bg-surface-disabled';
     }
@@ -261,7 +280,7 @@ export function PackingSupplyTracking({
                   <div className="flex-1">
                     <h3
                       className={`text-sm font-medium ${
-                        step.status === 'pending' ? 'text-text-tertiary' : 'text-text-primary'
+                        step.status === 'pending' ? 'text-zinc-400' : 'text-text-primary'
                       }`}
                     >
                       {step.title}
@@ -307,10 +326,10 @@ export function PackingSupplyTracking({
                           disabled={step.status === 'pending' || !trackingUrl}
                           className={`mt-4 px-4 py-2 text-sm border rounded-full font-semibold inline-flex items-center gap-1 ${
                             step.status === 'pending' || !trackingUrl
-                              ? 'bg-surface-tertiary border-border text-text-tertiary cursor-not-allowed'
+                              ? 'bg-slate-100 border-slate-100 text-zinc-400 cursor-not-allowed'
                               : step.status === 'complete'
-                                ? 'bg-surface-primary border-primary text-text-primary'
-                                : 'bg-primary text-text-inverse'
+                                ? 'bg-white border-zinc-950 text-zinc-950'
+                                : 'bg-zinc-950 text-white'
                           }`}
                           aria-label="Track your delivery location in real-time"
                           aria-disabled={step.status === 'pending' || !trackingUrl}
@@ -331,8 +350,8 @@ export function PackingSupplyTracking({
                             disabled={step.status === 'pending' || !deliveryPhotoUrl}
                             className={`mt-4 px-4 py-2 text-sm border rounded-full font-semibold inline-flex items-center gap-1 ${
                               step.status === 'pending' || !deliveryPhotoUrl
-                                ? 'bg-surface-tertiary border-border text-text-tertiary cursor-not-allowed'
-                                : 'bg-surface-primary border-primary text-text-primary'
+                                ? 'bg-slate-100 border-slate-100 text-zinc-400 cursor-not-allowed'
+                                : 'bg-white border-zinc-950 text-zinc-950'
                             }`}
                             aria-label="View delivery photo proof"
                             aria-disabled={step.status === 'pending' || !deliveryPhotoUrl}
@@ -353,8 +372,8 @@ export function PackingSupplyTracking({
                             }
                             className={`mt-4 px-4 py-2 text-sm border rounded-full font-semibold inline-flex items-center gap-1 ${
                               step.status === 'pending' || !canLeaveFeedback || !feedbackToken
-                                ? 'bg-surface-tertiary border-border text-text-tertiary cursor-not-allowed'
-                                : 'bg-surface-primary border-primary text-text-primary'
+                                ? 'bg-slate-100 border-slate-100 text-zinc-400 cursor-not-allowed'
+                                : 'bg-white border-zinc-950 text-zinc-950'
                             }`}
                             aria-label="Share feedback about your delivery experience"
                             aria-disabled={
@@ -377,7 +396,7 @@ export function PackingSupplyTracking({
       {/* Order Details */}
       <div className="bg-surface-tertiary rounded-md mt-6 mb-6">
         <div className="px-6 pt-4">
-          <h3 className="text-lg font-semibold text-text-primary pb-2 border-b border-border">
+          <h3 className="text-lg font-semibold text-text-primary pb-2 border-b border-white">
             Order Details
           </h3>
         </div>
@@ -404,7 +423,7 @@ export function PackingSupplyTracking({
                   </div>
                 ))}
               </div>
-              <div className="flex justify-between items-center pt-2 mt-4 border-t border-border">
+              <div className="flex justify-between items-center pt-2 mt-4 border-t border-white">
                 <span className="font-semibold text-text-primary">Total</span>
                 <span className="font-semibold text-text-primary">${totalPrice.toFixed(2)}</span>
               </div>

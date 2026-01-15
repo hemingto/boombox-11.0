@@ -113,53 +113,43 @@ export default function AddStorageStep1({
         </header>
         
         {/* Address Input Section */}
-        <fieldset className="mb-8">
-          <legend className="mb-4 text-text-primary">Where are we delivering your Boombox?</legend>
+        <div className="mb-4 sm:mb-8">
           <AddressInput 
+            label="Where are we delivering your Boombox?"
             value={formState.addressInfo.address} 
             onAddressChange={handleAddressChange} 
             hasError={!!errors.addressError} 
             onClearError={() => onClearError('addressError')} 
           />
-          {errors.addressError && (
-            <div 
-              className="flex items-center mb-4 -mt-4"
-              role="alert"
-              aria-live="polite"
-            >
-              <p className="ml-1 text-sm text-status-error">{errors.addressError}</p>
-            </div>
-          )}
-        </fieldset>
+        </div>
 
         {/* Storage Unit Counter Section */}
-        <fieldset className="mb-8">
-          <legend className="sr-only">Select number of storage units</legend>
+        <div className="mb-4 sm:mb-8">
           <StorageUnitCounter 
             onCountChange={onStorageUnitChange} 
             initialCount={formState.storageUnit.count} 
           />
-        </fieldset>
-        
-        {/* Storage Calculator Link */}
-        <aside 
-          className="mt-4 p-3 mb-12 border border-border bg-surface-primary rounded-md max-w-fit"
-          role="complementary"
-          aria-label="Storage calculator help"
-        >
-          <p className="text-xs text-text-secondary">
-            If you are unsure how many units you need, check our storage calculator{' '}
-            <Link 
-              href="/storage-calculator" 
-              className="underline text-primary hover:text-primary-hover" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              aria-label="Open storage calculator in new tab"
-            >
-              here
-            </Link>
-          </p>
-        </aside>
+
+          {/* Storage Calculator Link */}
+          <aside 
+            className="mt-4 p-3 mb-12 border border-border bg-surface-primary rounded-md max-w-fit"
+            role="complementary"
+            aria-label="Storage calculator help"
+          >
+            <p className="text-xs text-text-primary">
+              If you are unsure how many units you need, check our storage calculator{' '}
+              <Link 
+                href="/storage-calculator" 
+                className="underline text-primary hover:text-primary-hover" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                aria-label="Open storage calculator in new tab"
+              >
+                here
+              </Link>
+            </p>
+          </aside>
+        </div>
 
         {/* Plan Selection Section */}
         <fieldset className="pb-4">
@@ -223,7 +213,7 @@ export default function AddStorageStep1({
           
           {/* Plan Details Toggle */}
           <div className="mt-4 p-3 sm:mb-4 mb-2 bg-surface-primary border border-border rounded-md max-w-fit">
-            <p className="text-xs text-text-secondary">
+            <p className="text-xs text-text-primary">
               To learn what&apos;s included in each plan click{' '}
               <button
                 type="button"
@@ -260,22 +250,12 @@ export default function AddStorageStep1({
 
         {/* Insurance Selection Section */}
         <fieldset className="mb-96 sm:mb-60">
-          <legend className="mb-4 mt-4 text-text-primary">Do you need additional insurance coverage?</legend>
           <InsuranceInput 
             value={formState.selectedInsurance?.value || null} 
             onInsuranceChange={handleInsuranceChange} 
             hasError={!!errors.insuranceError} 
             onClearError={() => onClearError('insuranceError')} 
           />
-          {errors.insuranceError && (
-            <div 
-              className="flex items-center mb-4 mt-3"
-              role="alert"
-              aria-live="polite"
-            >
-              <p className="ml-1 text-sm text-status-error">{errors.insuranceError}</p>
-            </div>
-          )}
         </fieldset>
       </div>
     </div>

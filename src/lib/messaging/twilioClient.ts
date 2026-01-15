@@ -7,14 +7,25 @@
 import Twilio from 'twilio';
 import { formatCurrency } from '@/lib/utils/currencyUtils';
 
-if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
-  throw new Error('Twilio environment variables are not set');
+// Initialize Twilio client only if credentials are available
+// This allows the app to run without Twilio in development
+const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID;
+const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
+
+// Only initialize Twilio if credentials are properly formatted
+const hasValidTwilioCredentials = 
+  twilioAccountSid && 
+  twilioAuthToken && 
+  twilioAccountSid.startsWith('AC') &&
+  twilioAccountSid.length > 30; // Real Twilio Account SIDs are 34 characters
+
+if (!hasValidTwilioCredentials) {
+  console.warn('Twilio credentials not properly configured. SMS functionality will be disabled.');
 }
 
-export const twilioClient = Twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
+export const twilioClient = hasValidTwilioCredentials
+  ? Twilio(twilioAccountSid, twilioAuthToken)
+  : null as any; // Allow app to start without throwing error
 
 export async function sendPackingSupplyOrderConfirmationSms(
   customerPhone: string,

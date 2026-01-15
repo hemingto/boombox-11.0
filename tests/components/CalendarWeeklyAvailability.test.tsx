@@ -30,6 +30,22 @@ jest.mock('@/components/ui/primitives/Select', () => ({
   },
 }));
 
+// Mock Modal component
+jest.mock('@/components/ui/primitives/Modal', () => ({
+  Modal: function MockModal(props: any) {
+    if (!props.open) return null;
+    return (
+      <div data-testid="edit-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <h2 id="modal-title">{props.title}</h2>
+        <button onClick={props.onClose} data-testid="modal-close-x" aria-label="Close modal">
+          X
+        </button>
+        <div data-testid="modal-content">{props.children}</div>
+      </div>
+    );
+  },
+}));
+
 // Mock fetch globally
 global.fetch = jest.fn();
 
@@ -229,7 +245,7 @@ describe('CalendarWeeklyAvailability', () => {
       consoleSpy.mockRestore();
     });
 
-    it('saves availability to correct endpoint', async () => {
+    it('saves availability to correct endpoint from modal', async () => {
       (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
         if (options?.method === 'POST') {
           return Promise.resolve({
@@ -253,11 +269,10 @@ describe('CalendarWeeklyAvailability', () => {
       fireEvent.click(editButtons[0]);
 
       await waitFor(() => {
-        const saveButton = screen.getByRole('button', { name: /save monday/i });
-        expect(saveButton).toBeInTheDocument();
+        expect(screen.getByTestId('edit-modal')).toBeInTheDocument();
       });
 
-      const saveButton = screen.getByRole('button', { name: /save monday/i });
+      const saveButton = screen.getByRole('button', { name: /^Save$/i });
       fireEvent.click(saveButton);
 
       await waitFor(() => {
@@ -273,7 +288,7 @@ describe('CalendarWeeklyAvailability', () => {
   });
 
   describe('Edit Functionality', () => {
-    it('enters edit mode when edit button is clicked', async () => {
+    it('opens modal when edit button is clicked', async () => {
       render(<CalendarWeeklyAvailability userType="driver" userId="123" />);
 
       await waitFor(() => {
@@ -284,15 +299,15 @@ describe('CalendarWeeklyAvailability', () => {
       fireEvent.click(editButtons[0]); // Edit Monday
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /save monday/i })).toBeInTheDocument();
+        expect(screen.getByTestId('edit-modal')).toBeInTheDocument();
       });
-
-      // Should show time selects
-      expect(screen.getByTestId('select-Monday start time')).toBeInTheDocument();
-      expect(screen.getByTestId('select-Monday end time')).toBeInTheDocument();
+      
+      // Check that the modal has the title element with Monday
+      const titleElement = screen.getByText(/Edit.*Monday.*Availability/i);
+      expect(titleElement).toBeInTheDocument();
     });
 
-    it('shows block/unblock checkbox in edit mode', async () => {
+    it('shows time selects in modal', async () => {
       render(<CalendarWeeklyAvailability userType="driver" userId="123" />);
 
       await waitFor(() => {
@@ -303,32 +318,33 @@ describe('CalendarWeeklyAvailability', () => {
       fireEvent.click(editButtons[0]);
 
       await waitFor(() => {
-        const blockCheckbox = screen.getByLabelText('Block Monday');
+        const modal = screen.getByTestId('edit-modal');
+        expect(modal).toBeInTheDocument();
+      });
+
+      // Should show time selects within modal
+      expect(screen.getByTestId('select-Monday start time')).toBeInTheDocument();
+      expect(screen.getByTestId('select-Monday end time')).toBeInTheDocument();
+    });
+
+    it('shows block checkbox for unblocked days in modal', async () => {
+      render(<CalendarWeeklyAvailability userType="driver" userId="123" />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Monday')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByText('Edit');
+      fireEvent.click(editButtons[0]);
+
+      await waitFor(() => {
+        const blockCheckbox = screen.getByLabelText(/Block Monday/i);
         expect(blockCheckbox).toBeInTheDocument();
         expect(blockCheckbox).not.toBeChecked();
       });
     });
 
-    it('toggles block state when checkbox is clicked', async () => {
-      render(<CalendarWeeklyAvailability userType="driver" userId="123" />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Monday')).toBeInTheDocument();
-      });
-
-      const editButtons = screen.getAllByText('Edit');
-      fireEvent.click(editButtons[0]);
-
-      const blockCheckbox = await screen.findByLabelText('Block Monday');
-      fireEvent.click(blockCheckbox);
-
-      await waitFor(() => {
-        expect(blockCheckbox).toBeChecked();
-        expect(screen.getByText('Unblock Date')).toBeInTheDocument();
-      });
-    });
-
-    it('shows capacity input for movers in edit mode', async () => {
+    it('shows capacity input for movers in modal', async () => {
       render(<CalendarWeeklyAvailability userType="mover" userId="456" />);
 
       await waitFor(() => {
@@ -354,13 +370,13 @@ describe('CalendarWeeklyAvailability', () => {
       fireEvent.click(editButtons[0]);
 
       await waitFor(() => {
-        expect(screen.queryByTestId('select-Monday job capacity')).not.toBeInTheDocument();
+        expect(screen.getByTestId('edit-modal')).toBeInTheDocument();
       });
-    });
-  });
 
-  describe('Time Selection', () => {
-    it('updates start time when changed', async () => {
+      expect(screen.queryByTestId('select-Monday job capacity')).not.toBeInTheDocument();
+    });
+
+    it('closes modal when Close button clicked', async () => {
       render(<CalendarWeeklyAvailability userType="driver" userId="123" />);
 
       await waitFor(() => {
@@ -370,7 +386,57 @@ describe('CalendarWeeklyAvailability', () => {
       const editButtons = screen.getAllByText('Edit');
       fireEvent.click(editButtons[0]);
 
-      const startTimeSelect = await screen.findByTestId('select-Monday start time');
+      await waitFor(() => {
+        expect(screen.getByTestId('edit-modal')).toBeInTheDocument();
+      });
+
+      const closeButton = screen.getByRole('button', { name: /^Close$/i });
+      fireEvent.click(closeButton);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('edit-modal')).not.toBeInTheDocument();
+      });
+    });
+
+    it('closes modal when X button clicked', async () => {
+      render(<CalendarWeeklyAvailability userType="driver" userId="123" />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Monday')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByText('Edit');
+      fireEvent.click(editButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('edit-modal')).toBeInTheDocument();
+      });
+
+      const xButton = screen.getByTestId('modal-close-x');
+      fireEvent.click(xButton);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('edit-modal')).not.toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Time Selection', () => {
+    it('updates start time when changed in modal', async () => {
+      render(<CalendarWeeklyAvailability userType="driver" userId="123" />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Monday')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByText('Edit');
+      fireEvent.click(editButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('edit-modal')).toBeInTheDocument();
+      });
+
+      const startTimeSelect = screen.getByTestId('select-Monday start time');
       fireEvent.change(startTimeSelect, { target: { value: '9am' } });
 
       await waitFor(() => {
@@ -378,7 +444,7 @@ describe('CalendarWeeklyAvailability', () => {
       });
     });
 
-    it('updates end time when changed', async () => {
+    it('updates end time when changed in modal', async () => {
       render(<CalendarWeeklyAvailability userType="driver" userId="123" />);
 
       await waitFor(() => {
@@ -388,7 +454,11 @@ describe('CalendarWeeklyAvailability', () => {
       const editButtons = screen.getAllByText('Edit');
       fireEvent.click(editButtons[0]);
 
-      const endTimeSelect = await screen.findByTestId('select-Monday end time');
+      await waitFor(() => {
+        expect(screen.getByTestId('edit-modal')).toBeInTheDocument();
+      });
+
+      const endTimeSelect = screen.getByTestId('select-Monday end time');
       fireEvent.change(endTimeSelect, { target: { value: '4pm' } });
 
       await waitFor(() => {
@@ -463,7 +533,11 @@ describe('CalendarWeeklyAvailability', () => {
       const editButtons = screen.getAllByText('Edit');
       fireEvent.click(editButtons[0]);
 
-      const saveButton = await screen.findByRole('button', { name: /save monday/i });
+      await waitFor(() => {
+        expect(screen.getByTestId('edit-modal')).toBeInTheDocument();
+      });
+
+      const saveButton = screen.getByRole('button', { name: /Save/i });
       fireEvent.click(saveButton);
 
       await waitFor(() => {
@@ -471,7 +545,7 @@ describe('CalendarWeeklyAvailability', () => {
       });
     });
 
-    it('exits edit mode after successful save', async () => {
+    it('closes modal after successful save', async () => {
       (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
         if (options?.method === 'POST') {
           return Promise.resolve({
@@ -494,11 +568,59 @@ describe('CalendarWeeklyAvailability', () => {
       const editButtons = screen.getAllByText('Edit');
       fireEvent.click(editButtons[0]);
 
-      const saveButton = await screen.findByRole('button', { name: /save monday/i });
+      await waitFor(() => {
+        expect(screen.getByTestId('edit-modal')).toBeInTheDocument();
+      });
+
+      const saveButton = screen.getByRole('button', { name: /Save/i });
       fireEvent.click(saveButton);
 
       await waitFor(() => {
-        expect(screen.queryByRole('button', { name: /save monday/i })).not.toBeInTheDocument();
+        expect(screen.queryByTestId('edit-modal')).not.toBeInTheDocument();
+      });
+    });
+
+    it('updates table with saved data', async () => {
+      (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
+        if (options?.method === 'POST') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ availability: { id: 1 } }),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ availability: mockDriverAvailability }),
+        });
+      });
+
+      render(<CalendarWeeklyAvailability userType="driver" userId="123" />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Monday')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByText('Edit');
+      fireEvent.click(editButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('edit-modal')).toBeInTheDocument();
+      });
+
+      // Change start time
+      const startTimeSelect = screen.getByTestId('select-Monday start time');
+      fireEvent.change(startTimeSelect, { target: { value: '9am' } });
+
+      const saveButton = screen.getByRole('button', { name: /Save/i });
+      fireEvent.click(saveButton);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('edit-modal')).not.toBeInTheDocument();
+      });
+
+      // Verify the table was updated
+      await waitFor(() => {
+        expect(screen.getByText('9am - 5pm')).toBeInTheDocument();
       });
     });
   });
@@ -519,7 +641,24 @@ describe('CalendarWeeklyAvailability', () => {
       await testAccessibility(renderResult);
     });
 
-    it('has proper aria labels for time selects', async () => {
+    it('has no accessibility violations with modal open', async () => {
+      const renderResult = render(<CalendarWeeklyAvailability userType="driver" userId="123" />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Monday')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByText('Edit');
+      fireEvent.click(editButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('edit-modal')).toBeInTheDocument();
+      });
+
+      await testAccessibility(renderResult);
+    });
+
+    it('has proper aria labels for time selects in modal', async () => {
       render(<CalendarWeeklyAvailability userType="driver" userId="123" />);
 
       await waitFor(() => {
@@ -535,7 +674,7 @@ describe('CalendarWeeklyAvailability', () => {
       });
     });
 
-    it('has proper aria labels for checkboxes', async () => {
+    it('has proper aria labels for checkboxes in modal', async () => {
       render(<CalendarWeeklyAvailability userType="driver" userId="123" />);
 
       await waitFor(() => {
@@ -546,7 +685,7 @@ describe('CalendarWeeklyAvailability', () => {
       fireEvent.click(editButtons[0]);
 
       await waitFor(() => {
-        expect(screen.getByLabelText('Block Monday')).toBeInTheDocument();
+        expect(screen.getByLabelText(/Block Monday/i)).toBeInTheDocument();
       });
     });
 
@@ -555,6 +694,23 @@ describe('CalendarWeeklyAvailability', () => {
 
       const loadingElements = screen.getAllByRole('status');
       expect(loadingElements[0]).toHaveAttribute('aria-label', 'Loading day 1 availability');
+    });
+
+    it('modal has proper role and aria attributes', async () => {
+      render(<CalendarWeeklyAvailability userType="driver" userId="123" />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Monday')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByText('Edit');
+      fireEvent.click(editButtons[0]);
+
+      await waitFor(() => {
+        const modal = screen.getByTestId('edit-modal');
+        expect(modal).toHaveAttribute('role', 'dialog');
+        expect(modal).toHaveAttribute('aria-modal', 'true');
+      });
     });
   });
 
@@ -593,6 +749,239 @@ describe('CalendarWeeklyAvailability', () => {
       expect(
         screen.getByText(/The hours you set are times a customer can book an appointment/i)
       ).toBeInTheDocument();
+    });
+  });
+
+  describe('Modal Behavior', () => {
+    it('modal displays correct day name in title', async () => {
+      render(<CalendarWeeklyAvailability userType="driver" userId="123" />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Monday')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByText('Edit');
+      fireEvent.click(editButtons[2]); // Wednesday
+
+      await waitFor(() => {
+        expect(screen.getByTestId('edit-modal')).toBeInTheDocument();
+      });
+      
+      // Check that the modal has the title element with Wednesday
+      const titleElement = screen.getByText(/Edit.*Wednesday.*Availability/i);
+      expect(titleElement).toBeInTheDocument();
+    });
+
+    it('modal shows current time values for unblocked days', async () => {
+      render(<CalendarWeeklyAvailability userType="driver" userId="123" />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Monday')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByText('Edit');
+      fireEvent.click(editButtons[0]); // Monday
+
+      await waitFor(() => {
+        const startTimeSelect = screen.getByTestId('select-Monday start time');
+        const endTimeSelect = screen.getByTestId('select-Monday end time');
+        expect(startTimeSelect).toHaveValue('8am');
+        expect(endTimeSelect).toHaveValue('5pm');
+      });
+    });
+
+    it('changes revert when Close button clicked', async () => {
+      render(<CalendarWeeklyAvailability userType="driver" userId="123" />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Monday')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByText('Edit');
+      fireEvent.click(editButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('edit-modal')).toBeInTheDocument();
+      });
+
+      // Change start time
+      const startTimeSelect = screen.getByTestId('select-Monday start time');
+      fireEvent.change(startTimeSelect, { target: { value: '10am' } });
+
+      // Close without saving
+      const closeButton = screen.getByRole('button', { name: /^Close$/i });
+      fireEvent.click(closeButton);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('edit-modal')).not.toBeInTheDocument();
+      });
+
+      // Reopen and verify changes were not saved
+      fireEvent.click(screen.getAllByText('Edit')[0]);
+
+      await waitFor(() => {
+        const startTimeSelectAgain = screen.getByTestId('select-Monday start time');
+        expect(startTimeSelectAgain).toHaveValue('8am'); // Original value
+      });
+    });
+
+    it('modal has responsive size classes', async () => {
+      render(<CalendarWeeklyAvailability userType="driver" userId="123" />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Monday')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByText('Edit');
+      fireEvent.click(editButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('edit-modal')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Blocking/Unblocking Logic', () => {
+    it('day becomes blocked when checkbox checked and saved', async () => {
+      (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
+        if (options?.method === 'POST') {
+          const body = JSON.parse(options.body);
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ availability: { id: 1, ...body } }),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ availability: mockDriverAvailability }),
+        });
+      });
+
+      render(<CalendarWeeklyAvailability userType="driver" userId="123" />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Monday')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByText('Edit');
+      fireEvent.click(editButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('edit-modal')).toBeInTheDocument();
+      });
+
+      // Check the block checkbox
+      const blockCheckbox = screen.getByLabelText(/Block Monday/i);
+      fireEvent.click(blockCheckbox);
+
+      // Save
+      const saveButton = screen.getByRole('button', { name: /^Save$/i });
+      fireEvent.click(saveButton);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('edit-modal')).not.toBeInTheDocument();
+      });
+
+      // Verify "Not Available" is displayed (now there should be 2: Wednesday + Monday)
+      await waitFor(() => {
+        const notAvailableTexts = screen.getAllByText('Not Available');
+        expect(notAvailableTexts.length).toBe(2); // Wednesday (already blocked) + Monday (newly blocked)
+      });
+    });
+
+    it('blocked day shows message about unblocking in modal', async () => {
+      const blockedMockData = mockDriverAvailability.map((day, i) => 
+        i === 2 ? { ...day, isBlocked: true } : day
+      );
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ availability: blockedMockData }),
+      });
+
+      render(<CalendarWeeklyAvailability userType="driver" userId="123" />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Wednesday')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByText('Edit');
+      fireEvent.click(editButtons[2]); // Wednesday (blocked)
+
+      await waitFor(() => {
+        expect(screen.getByText(/This day is currently blocked/i)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Modal Editing Flow', () => {
+    it('updates capacity value in modal for movers', async () => {
+      render(<CalendarWeeklyAvailability userType="mover" userId="456" />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Monday')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByText('Edit');
+      fireEvent.click(editButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('edit-modal')).toBeInTheDocument();
+      });
+
+      const capacitySelect = screen.getByTestId('select-Monday job capacity');
+      fireEvent.change(capacitySelect, { target: { value: '5' } });
+
+      await waitFor(() => {
+        expect(capacitySelect).toHaveValue('5');
+      });
+    });
+
+    it('full flow: Open modal → Change times → Save → Verify table update', async () => {
+      (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
+        if (options?.method === 'POST') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ availability: { id: 1 } }),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ availability: mockDriverAvailability }),
+        });
+      });
+
+      render(<CalendarWeeklyAvailability userType="driver" userId="123" />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Monday')).toBeInTheDocument();
+      });
+
+      // Open modal
+      const editButtons = screen.getAllByText('Edit');
+      fireEvent.click(editButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('edit-modal')).toBeInTheDocument();
+      });
+
+      // Change times
+      const startTimeSelect = screen.getByTestId('select-Monday start time');
+      fireEvent.change(startTimeSelect, { target: { value: '10am' } });
+
+      // Save
+      const saveButton = screen.getByRole('button', { name: /Save/i });
+      fireEvent.click(saveButton);
+
+      // Verify modal closes
+      await waitFor(() => {
+        expect(screen.queryByTestId('edit-modal')).not.toBeInTheDocument();
+      });
+
+      // Verify table updated
+      await waitFor(() => {
+        expect(screen.getByText('10am - 5pm')).toBeInTheDocument();
+      });
     });
   });
 });

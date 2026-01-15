@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * @fileoverview Time picker dropdown component for selecting predefined time ranges
  * @source boombox-10.0/src/app/components/reusablecomponents/timepicker.tsx
@@ -210,7 +212,6 @@ const TimePicker: React.FC<TimePickerProps> = ({
                 className={`
                   py-3 px-3 rounded-lg text-sm font-medium font-inter
                   focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 
-                  transition-colors duration-200
                   ${selectedTime?.display === slot.display 
                     ? 'bg-primary text-text-inverse' 
                     : slot.disabled 
@@ -224,9 +225,7 @@ const TimePicker: React.FC<TimePickerProps> = ({
               </button>
             ))}
           </div>
-          <p className="text-text-secondary text-sm px-4 pb-4 pt-2 font-inter">
-            This is the arrival window not how long the job will take.
-          </p>
+          
         </div>
       )}
     </div>

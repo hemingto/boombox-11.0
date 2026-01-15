@@ -3,8 +3,10 @@
  * @source boombox-10.0/src/app/components/login/verificationcodeinput.tsx
  * 
  * COMPONENT FUNCTIONALITY:
- * 4-digit code input with automatic focus progression and backspace navigation.
+ * Configurable-digit code input with automatic focus progression and backspace navigation.
  * Used for phone verification and email verification flows.
+ * Default: 4 digits (most login flows)
+ * Admin Login: 6 digits (enhanced security)
  * 
  * DESIGN SYSTEM UPDATES:
  * - Replaced hardcoded colors with semantic tokens
@@ -18,7 +20,7 @@ import React from 'react';
 
 export interface VerificationCodeProps {
   /**
-   * Current code as array of 4 digits
+   * Current code as array of digits
    */
   code: string[];
   
@@ -41,10 +43,16 @@ export interface VerificationCodeProps {
    * Callback to clear error
    */
   clearError: () => void;
+  
+  /**
+   * Number of digits in the verification code
+   * @default 4
+   */
+  codeLength?: number;
 }
 
 /**
- * VerificationCode component for 4-digit code entry
+ * VerificationCode component for configurable-digit code entry
  */
 export function VerificationCode({
   code,
@@ -52,6 +60,7 @@ export function VerificationCode({
   setCode,
   error,
   clearError,
+  codeLength = 4,
 }: VerificationCodeProps) {
   /**
    * Handle input change - only allow single digits
@@ -67,7 +76,7 @@ export function VerificationCode({
     setCode(newCode);
     
     // Auto-focus next input
-    if (value && index < 3) {
+    if (value && index < codeLength - 1) {
       const nextInput = document.getElementById(`code-input-${index + 1}`);
       nextInput?.focus();
     }
@@ -103,10 +112,10 @@ export function VerificationCode({
   
   return (
     <div className="flex flex-col">
-      <p className="mb-4 text-text-secondary">{description}</p>
+      <p className="mb-4 text-text-primary">{description}</p>
       
       {/* Code Inputs */}
-      <div className="mb-6 flex space-x-2 sm:space-x-4" role="group" aria-label="Verification code">
+      <div className="flex space-x-2 sm:space-x-4" role="group" aria-label="Verification code">
         {code.map((digit, index) => (
           <input
             key={index}
@@ -121,8 +130,8 @@ export function VerificationCode({
             onFocus={handleFocus}
             className={`aspect-square h-full min-h-12 w-full min-w-12 rounded-md text-center text-3xl focus:outline-none ${
               error
-                ? 'bg-status-error-bg text-status-error ring-2 ring-status-error placeholder:text-status-error'
-                : 'bg-surface-secondary focus:bg-white focus:ring-2 focus:ring-primary'
+                ? 'input-field--error'
+                : 'bg-surface-tertiary focus:bg-white focus:ring-2 focus:ring-primary'
             }`}
             aria-label={`Digit ${index + 1}`}
             aria-invalid={!!error}
@@ -133,7 +142,7 @@ export function VerificationCode({
       
       {/* Error Message */}
       {error && (
-        <p id="code-error" className="-mt-2 mb-3 text-sm text-status-error" role="alert">
+        <p id="code-error" className="mt-2 mb-3 form-error" role="alert">
           {error}
         </p>
       )}

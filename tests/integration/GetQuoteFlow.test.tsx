@@ -216,9 +216,9 @@ async function advanceToStep(stepNumber: number, user: ReturnType<typeof userEve
     const insuranceYes = screen.getByLabelText(/yes.*insurance/i);
     await user.click(insuranceYes);
     
-    // Continue to Step 2
-    const continueButton = screen.getByRole('button', { name: /continue to scheduling/i });
-    await user.click(continueButton);
+    // Click MyQuote button to advance to Step 2
+    const myQuoteButton = screen.getByRole('button', { name: /schedule appointment/i });
+    await user.click(myQuoteButton);
   }
   
   // Step 2: Scheduling
@@ -228,8 +228,11 @@ async function advanceToStep(stepNumber: number, user: ReturnType<typeof userEve
     });
     
     // Select date and time (mocked in component)
-    // This would normally interact with Scheduler component
-    // For integration test, we'll simulate the date/time selection callback
+    // User must click MyQuote button to advance (no auto-advancement)
+    if (stepNumber >= 3) {
+      const reserveButton = screen.getByRole('button', { name: /reserve appointment/i });
+      await user.click(reserveButton);
+    }
   }
   
   // Step 3: Labor selection (Full Service only)
@@ -237,6 +240,11 @@ async function advanceToStep(stepNumber: number, user: ReturnType<typeof userEve
     await waitFor(() => {
       expect(screen.getByText(/choose.*labor/i)).toBeInTheDocument();
     });
+    
+    if (stepNumber >= 4) {
+      const selectMoversButton = screen.getByRole('button', { name: /select movers/i });
+      await user.click(selectMoversButton);
+    }
   }
   
   // Step 4: Payment and contact
@@ -244,6 +252,11 @@ async function advanceToStep(stepNumber: number, user: ReturnType<typeof userEve
     await waitFor(() => {
       expect(screen.getByText(/confirm/i)).toBeInTheDocument();
     });
+    
+    if (stepNumber >= 5) {
+      const confirmButton = screen.getByRole('button', { name: /confirm appointment/i });
+      await user.click(confirmButton);
+    }
   }
   
   // Step 5: Phone verification
@@ -374,8 +387,9 @@ describe('GetQuoteFlow Integration Tests', () => {
       const insuranceYes = screen.getByLabelText(/yes.*insurance/i);
       await user.click(insuranceYes);
       
-      const continueButton = screen.getByRole('button', { name: /continue/i });
-      await user.click(continueButton);
+      // Click MyQuote button to advance
+      const myQuoteButton = screen.getByRole('button', { name: /schedule appointment/i });
+      await user.click(myQuoteButton);
       
       // Should advance to Step 2
       await waitFor(() => {
@@ -411,8 +425,9 @@ describe('GetQuoteFlow Integration Tests', () => {
       const insuranceNo = screen.getByLabelText(/no.*insurance/i);
       await user.click(insuranceNo);
       
-      const continueButton = screen.getByRole('button', { name: /continue/i });
-      await user.click(continueButton);
+      // Click MyQuote button to advance
+      const myQuoteButton = screen.getByRole('button', { name: /schedule appointment/i });
+      await user.click(myQuoteButton);
       
       // Advance through Step 2
       await waitFor(() => {
@@ -425,6 +440,40 @@ describe('GetQuoteFlow Integration Tests', () => {
   });
   
   // ===== PAYMENT & SUBMISSION =====
+  
+  describe('Step 2: Scheduler Behavior', () => {
+    it('should NOT auto-advance after selecting date and time', async () => {
+      render(<GetQuoteForm />);
+      
+      // Complete Step 1 first
+      const addressInput = screen.getByLabelText(/address/i);
+      await user.type(addressInput, '123 Test St, San Francisco, CA');
+      
+      const fullServiceCard = screen.getByLabelText(/full service/i);
+      await user.click(fullServiceCard);
+      
+      const insuranceYes = screen.getByLabelText(/yes.*insurance/i);
+      await user.click(insuranceYes);
+      
+      const myQuoteButton = screen.getByRole('button', { name: /schedule appointment/i });
+      await user.click(myQuoteButton);
+      
+      // Now on Step 2 - should remain here after selecting date/time
+      await waitFor(() => {
+        expect(screen.getByText(/step 2 of 5/i)).toBeInTheDocument();
+      });
+      
+      // Note: Actual date/time selection would happen here
+      // Since Scheduler is mocked, we just verify the button behavior
+      
+      // Should still be on Step 2 (no auto-advance)
+      expect(screen.getByText(/step 2 of 5/i)).toBeInTheDocument();
+      
+      // Must click MyQuote button (now "Reserve Appointment") to advance
+      const reserveButton = screen.getByRole('button', { name: /reserve appointment/i });
+      expect(reserveButton).toBeInTheDocument();
+    });
+  });
   
   describe('Step 4: Payment and Contact Information', () => {
     it('should validate contact fields before submission', async () => {

@@ -134,6 +134,10 @@ type GetQuoteAction =
   | { type: 'SET_LAST_NAME'; payload: string }
   | { type: 'SET_EMAIL'; payload: string }
   | { type: 'SET_PHONE_NUMBER'; payload: string }
+  | { type: 'SET_FIRST_NAME_ERROR'; payload: string | null }
+  | { type: 'SET_LAST_NAME_ERROR'; payload: string | null }
+  | { type: 'SET_EMAIL_ERROR'; payload: string | null }
+  | { type: 'SET_PHONE_ERROR'; payload: string | null }
   | { type: 'CLEAR_CONTACT_ERRORS' }
   
   // Payment
@@ -252,12 +256,37 @@ function getQuoteReducer(state: GetQuoteFormState, action: GetQuoteAction): GetQ
       const isDIY = id === 'Do It Yourself Plan';
       const isThirdParty = id.startsWith('thirdParty-');
       
+      // Parse moving partner ID safely
+      let movingPartnerId: number | null = null;
+      if (!isDIY && !isThirdParty) {
+        const parsedId = parseInt(id, 10);
+        movingPartnerId = isNaN(parsedId) ? null : parsedId;
+      }
+      
+      // Parse third party ID safely
+      let thirdPartyMovingPartnerId: number | null = null;
+      if (isThirdParty) {
+        const parsedThirdPartyId = parseInt(id.replace('thirdParty-', ''), 10);
+        thirdPartyMovingPartnerId = isNaN(parsedThirdPartyId) ? null : parsedThirdPartyId;
+      }
+      
       return {
         ...state,
-        selectedLabor: { id, price: formattedPrice, title, onfleetTeamId },
+        selectedLabor: { 
+          id, 
+          price: formattedPrice, 
+          title, 
+          // Ensure onfleetTeamId is undefined if null (Zod expects string | undefined, not null)
+          onfleetTeamId: onfleetTeamId || undefined,
+        },
         parsedLoadingHelpPrice: parsedPrice,
         loadingHelpPrice: formattedPrice,
-        selectedPlanName: title,
+        // Use the actual moving partner title for display
+        selectedPlanName: isDIY
+          ? 'Do It Yourself Plan'
+          : isThirdParty
+          ? title // Show third-party mover name (e.g., "Lugg", "Dolly", etc.)
+          : title, // Show Boombox partner name
         loadingHelpDescription: isDIY
           ? 'Free 1st hr'
           : isThirdParty
@@ -269,8 +298,8 @@ function getQuoteReducer(state: GetQuoteFormState, action: GetQuoteAction): GetQ
           ? 'Third Party Loading Help'
           : 'Full Service Plan',
         selectedPlan: isDIY ? 'option1' : 'option2',
-        movingPartnerId: isDIY ? null : isThirdParty ? null : parseInt(id, 10),
-        thirdPartyMovingPartnerId: isThirdParty ? parseInt(id.replace('thirdParty-', ''), 10) : null,
+        movingPartnerId,
+        thirdPartyMovingPartnerId,
         laborError: null,
       };
     }
@@ -298,6 +327,18 @@ function getQuoteReducer(state: GetQuoteFormState, action: GetQuoteAction): GetQ
     
     case 'SET_PHONE_NUMBER':
       return { ...state, phoneNumber: action.payload, phoneError: null };
+    
+    case 'SET_FIRST_NAME_ERROR':
+      return { ...state, firstNameError: action.payload };
+    
+    case 'SET_LAST_NAME_ERROR':
+      return { ...state, lastNameError: action.payload };
+    
+    case 'SET_EMAIL_ERROR':
+      return { ...state, emailError: action.payload };
+    
+    case 'SET_PHONE_ERROR':
+      return { ...state, phoneError: action.payload };
     
     case 'CLEAR_CONTACT_ERRORS':
       return {
@@ -495,9 +536,15 @@ function validateStep(step: number, state: GetQuoteFormState): { isValid: boolea
             parsedLoadingHelpPrice: state.parsedLoadingHelpPrice,
           };
           
+          console.log('[GetQuoteProvider] Validating step 3:', step3Data);
+          
           const result = laborSelectionSchema.safeParse(step3Data);
           
-          if (!result.success || !state.selectedLabor) {
+          if (!result.success) {
+            console.error('[GetQuoteProvider] Step 3 Zod validation failed:', result.error.format());
+            errors.laborError = 'Please select a moving partner';
+          } else if (!state.selectedLabor) {
+            console.error('[GetQuoteProvider] Step 3 validation failed: selectedLabor is null/undefined');
             errors.laborError = 'Please select a moving partner';
           }
         }
@@ -681,6 +728,22 @@ export function GetQuoteProvider({
       dispatch({ type: 'SET_PHONE_NUMBER', payload: phone });
     },
     
+    setFirstNameError: (error: string | null) => {
+      dispatch({ type: 'SET_FIRST_NAME_ERROR', payload: error });
+    },
+    
+    setLastNameError: (error: string | null) => {
+      dispatch({ type: 'SET_LAST_NAME_ERROR', payload: error });
+    },
+    
+    setEmailError: (error: string | null) => {
+      dispatch({ type: 'SET_EMAIL_ERROR', payload: error });
+    },
+    
+    setPhoneError: (error: string | null) => {
+      dispatch({ type: 'SET_PHONE_ERROR', payload: error });
+    },
+    
     clearContactErrors: () => {
       dispatch({ type: 'CLEAR_CONTACT_ERRORS' });
     },
@@ -756,7 +819,7 @@ export function GetQuoteProvider({
     resetForm: () => {
       dispatch({ type: 'RESET_FORM' });
     },
-  }), [dispatch, state]);
+  }), [dispatch]);
 
   // ==================== CONTEXT VALUE ====================
 

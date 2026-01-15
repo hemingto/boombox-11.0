@@ -22,9 +22,12 @@
  * maintaining all essential functionality and improving user experience.
  */
 
+"use client";
+
 import React, { forwardRef, useState, useCallback } from 'react';
-import { PhoneIcon } from '@heroicons/react/24/outline';
+import { PhoneIcon } from '@heroicons/react/20/solid';
 import { Input } from '@/components/ui/primitives/Input';
+import { cn } from '@/lib/utils/cn';
 import { isValidPhoneNumber, extractPhoneDigits } from '@/lib/utils/phoneUtils';
 
 export interface PhoneNumberInputProps {
@@ -205,6 +208,8 @@ const PhoneNumberInput = forwardRef<HTMLInputElement, PhoneNumberInputProps>(
       return hasError && !errorMessage ? 'Please enter a valid phone number' : undefined;
     }, [hasError, errorMessage, value]);
 
+    const hasValue = (value || '').length > 0;
+
     return (
       <Input
         ref={ref}
@@ -219,7 +224,15 @@ const PhoneNumberInput = forwardRef<HTMLInputElement, PhoneNumberInputProps>(
         disabled={disabled}
         error={getErrorMessage()}
         onClearError={onClearError}
-        icon={<PhoneIcon />}
+        icon={
+          <PhoneIcon 
+            className={cn(
+              'w-5 h-5',
+              hasError && 'text-status-error',
+              !hasError && hasValue && 'text-text-primary'
+            )} 
+          />
+        }
         iconPosition="left"
         fullWidth
         className={className}

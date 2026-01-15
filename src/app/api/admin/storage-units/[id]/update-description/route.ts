@@ -28,14 +28,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   const { description } = await req.json();
 
-  if (!description) {
+  if (description === undefined) {
     return NextResponse.json({ error: 'Description is required' }, { status: 400 });
   }
 
   try {
+    // Save empty strings as null so placeholder text can be shown
     const updatedStorageUnit = await prisma.storageUnitUsage.update({
       where: { id: parseInt(id) },
-      data: { description },
+      data: { description: description.trim() || null },
     });
 
     return NextResponse.json(updatedStorageUnit, { status: 200 });

@@ -13,10 +13,11 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
 
 // Define valid account types
-type AccountType = 'customer' | 'driver' | 'mover' | 'admin';
+type AccountType = 'USER' | 'DRIVER' | 'MOVER' | 'ADMIN';
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  adapter: PrismaAdapter(prisma) as any,
+  secret: process.env.NEXTAUTH_SECRET,
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -36,7 +37,7 @@ export const authOptions: NextAuthOptions = {
           credentials;
 
         // Validate account type
-        if (!['customer', 'driver', 'mover', 'admin'].includes(accountType)) {
+        if (!['USER', 'DRIVER', 'MOVER', 'ADMIN'].includes(accountType)) {
           throw new Error('Invalid account type');
         }
 
@@ -73,19 +74,19 @@ export const authOptions: NextAuthOptions = {
         // Find account by userId if provided (for direct login)
         let account = null;
         if (userId) {
-          if (accountType === 'customer') {
+          if (accountType === 'USER') {
             account = await prisma.user.findUnique({
               where: { id: parseInt(userId) },
             });
-          } else if (accountType === 'driver') {
+          } else if (accountType === 'DRIVER') {
             account = await prisma.driver.findUnique({
               where: { id: parseInt(userId) },
             });
-          } else if (accountType === 'mover') {
+          } else if (accountType === 'MOVER') {
             account = await prisma.movingPartner.findUnique({
               where: { id: parseInt(userId) },
             });
-          } else if (accountType === 'admin') {
+          } else if (accountType === 'ADMIN') {
             account = await prisma.admin.findUnique({
               where: { id: parseInt(userId) },
               select: {
@@ -98,7 +99,7 @@ export const authOptions: NextAuthOptions = {
           }
         } else {
           // Otherwise find by contact info
-          if (accountType === 'customer') {
+          if (accountType === 'USER') {
             account = await prisma.user.findFirst({
               where: {
                 OR: [
@@ -107,7 +108,7 @@ export const authOptions: NextAuthOptions = {
                 ],
               },
             });
-          } else if (accountType === 'driver') {
+          } else if (accountType === 'DRIVER') {
             account = await prisma.driver.findFirst({
               where: {
                 OR: [
@@ -116,7 +117,7 @@ export const authOptions: NextAuthOptions = {
                 ],
               },
             });
-          } else if (accountType === 'mover') {
+          } else if (accountType === 'MOVER') {
             account = await prisma.movingPartner.findFirst({
               where: {
                 OR: [
@@ -125,7 +126,7 @@ export const authOptions: NextAuthOptions = {
                 ],
               },
             });
-          } else if (accountType === 'admin') {
+          } else if (accountType === 'ADMIN') {
             account = await prisma.admin.findFirst({
               where: {
                 OR: [
@@ -152,13 +153,13 @@ export const authOptions: NextAuthOptions = {
           id: account.id.toString(),
           email: account.email || '',
           name:
-            accountType === 'mover'
-              ? account.name
-              : accountType === 'admin'
-                ? account.email
-                : `${account.firstName} ${account.lastName}`,
+            accountType === 'MOVER'
+              ? (account as any).name
+              : accountType === 'ADMIN'
+                ? (account as any).email
+                : `${(account as any).firstName} ${(account as any).lastName}`,
           accountType: accountType as AccountType,
-          role: accountType === 'admin' ? account.role : undefined,
+          role: accountType === 'ADMIN' ? (account as any).role : undefined,
         };
 
         return user;
@@ -197,6 +198,20 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
+      console.log('[session callback] session:', session ? 'exists' : 'null', 'token:', token ? 'exists' : 'null');
+      
+      // During logout or when session/token is not available
+      if (!session) {
+        console.log('[session callback] No session, returning undefined');
+        return undefined as any;
+      }
+
+      if (!token) {
+        console.log('[session callback] No token, returning session as-is');
+        return session;
+      }
+
+      // Safely check if session.user exists and extend it with custom properties
       if (session.user) {
         const customSession = session as any; // Type assertion for custom session properties
         const customUser = session.user as any; // Type assertion for custom user properties
@@ -210,6 +225,8 @@ export const authOptions: NextAuthOptions = {
           console.log('Setting role in session:', token.role);
         }
       }
+      
+      console.log('[session callback] Returning session with user:', session.user ? 'exists' : 'null');
       return session;
     },
     async signIn() {

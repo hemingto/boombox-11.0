@@ -21,14 +21,14 @@ describe('Skeleton Components', () => {
       
       const skeleton = screen.getByTestId('skeleton');
       expect(skeleton).toBeInTheDocument();
-      expect(skeleton).toHaveClass('rounded', 'animate-pulse', 'bg-shimmer', 'bg-cover', 'bg-no-repeat', 'animate-shimmer');
+      expect(skeleton).toHaveClass('rounded', 'animate-pulse', 'bg-slate-200');
     });
 
     it('applies custom className', () => {
       render(<Skeleton className="custom-skeleton w-48 h-4" data-testid="skeleton" />);
       
       const skeleton = screen.getByTestId('skeleton');
-      expect(skeleton).toHaveClass('rounded', 'animate-pulse', 'bg-shimmer', 'bg-cover', 'bg-no-repeat', 'animate-shimmer', 'custom-skeleton', 'w-48', 'h-4');
+      expect(skeleton).toHaveClass('rounded', 'animate-pulse', 'bg-slate-200', 'custom-skeleton', 'w-48', 'h-4');
     });
 
     it('renders children when provided', () => {
@@ -281,9 +281,9 @@ describe('Skeleton Components', () => {
         </div>
       );
       
-      // Verify all components render by checking for shimmer animation classes
-      expect(document.querySelector('.animate-shimmer')).toBeInTheDocument();
-      expect(document.querySelector('.bg-shimmer')).toBeInTheDocument();
+      // Verify all components render by checking for pulse animation classes
+      expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
+      expect(document.querySelector('.bg-slate-200')).toBeInTheDocument();
     });
 
     it('nested skeleton components work correctly', () => {
@@ -326,7 +326,7 @@ describe('Skeleton Components', () => {
       render(<Skeleton data-testid="skeleton" />);
       
       const skeleton = screen.getByTestId('skeleton');
-      expect(skeleton).toHaveClass('animate-pulse', 'bg-shimmer', 'bg-cover', 'bg-no-repeat', 'animate-shimmer');
+      expect(skeleton).toHaveClass('animate-pulse', 'bg-slate-200');
     });
 
     it('all skeleton variants include base skeleton class', () => {

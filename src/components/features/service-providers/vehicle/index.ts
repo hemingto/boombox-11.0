@@ -4,4 +4,4 @@
  */
 
 // Export vehicle components here as they are migrated
-export { VehicleInfoTable } from './VehicleInfoTable';
+export { default as AddedVehicle } from './AddedVehicle';

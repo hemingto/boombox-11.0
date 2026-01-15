@@ -5,8 +5,6 @@
 
 // Form input components
 export { default as AddressInput } from './AddressInput';
-export { BankAccountName } from './BankAccountName';
-export { default as FirstNameInput } from './FirstNameInput';
 export { default as LastNameInput } from './LastNameInput';
 export { default as CardCvcInput } from './CardCvcInput';
 export { default as CardExpirationDateInput } from './CardExpirationDateInput';

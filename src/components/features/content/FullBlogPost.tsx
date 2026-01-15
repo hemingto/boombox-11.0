@@ -6,35 +6,46 @@
  * - Layout component that combines blog content with sidebar
  * - Responsive two-column layout (content + recent posts sidebar)
  * - Maintains consistent spacing and proportions
- * - Updated to use new database-driven components
+ * - Server component that receives blog post data as props
  * 
  * API ROUTES UPDATED:
- * - No direct API calls (delegates to child components)
+ * - No direct API calls (receives data from parent page component)
  * 
  * DESIGN SYSTEM UPDATES:
  * - Uses consistent spacing tokens (gap-6, gap-12, gap-20)
  * - Applied responsive breakpoints (sm:, lg:)
  * - Uses page-container for consistent padding
  * 
- * @refactor Updated imports to use new database-driven components
+ * @refactor Converted to server component with prop-based data flow
  */
 
 import { BlogContent } from './BlogContent';
 import { RecentBlogPosts } from './RecentBlogPosts';
+import { BlogPostWithCategory } from '@/lib/services/blogService';
+import { BlogContentBlockType } from '@prisma/client';
 
 interface FullBlogPostProps {
-  /** Blog post slug for content fetching */
-  slug: string;
+  /** Blog post data with category and content blocks */
+  post: BlogPostWithCategory;
   /** Additional CSS classes for styling */
   className?: string;
 }
 
-export function FullBlogPost({ slug, className = '' }: FullBlogPostProps) {
+export function FullBlogPost({ post, className = '' }: FullBlogPostProps) {
+  // Convert content blocks to the correct type
+  const contentBlocks = (post.contentBlocks || []).map((block) => ({
+    id: block.id,
+    type: block.type as BlogContentBlockType,
+    content: block.content,
+    metadata: block.metadata,
+    order: block.order,
+  }));
+
   return (
     <div className={`flex flex-col sm:flex-row gap-6 sm:gap-12 lg:gap-20 lg:px-16 px-6 ${className}`}>
       {/* Main Content Area */}
       <main className="sm:basis-9/12" role="main">
-        <BlogContent slug={slug} />
+        <BlogContent contentBlocks={contentBlocks} />
       </main>
       
       {/* Sidebar */}

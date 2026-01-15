@@ -28,6 +28,7 @@ import { useRouter } from 'next/navigation';
 import { ChevronLeftIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { ArchiveBoxIcon } from '@heroicons/react/24/solid';
 import { useTask } from '@/hooks';
+import { Button } from '@/components/ui/primitives/Button/Button';
 import YesOrNoRadio from '@/components/forms/YesOrNoRadio';
 import { Transition } from '@headlessui/react';
 
@@ -181,10 +182,10 @@ export function PrepPackingSupplyOrderPage({ taskId }: PrepPackingSupplyOrderPag
         <div className="bg-surface-primary">
           <div className="p-6 space-y-6">
             {/* Order Header Card */}
-            <div className="bg-status-warning rounded-lg p-6">
+            <div className="bg-amber-900 rounded-lg p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="relative bg-status-warning-hover rounded-full h-12 w-12 flex items-center justify-center">
+                  <div className="relative bg-amber-800 rounded-full h-12 w-12 flex items-center justify-center">
                     <ArchiveBoxIcon className="h-6 w-6 text-white" aria-hidden="true" />
                   </div>
                   <div>
@@ -205,13 +206,13 @@ export function PrepPackingSupplyOrderPage({ taskId }: PrepPackingSupplyOrderPag
               <div className="md:border-r border-border pr-6">
                 <h3 className="font-medium text-text-primary font-semibold">Delivery Driver</h3>
                 <p className="mt-1 text-sm text-text-primary">
-                  {task.driver ? `${task.driver.firstName} ${task.driver.lastName}` : 'Unassigned'}
+                  {task.driverName || 'Unassigned'}
                 </p>
               </div>
               <div>
                 <h3 className="font-medium text-text-primary font-semibold">Address</h3>
                 <p className="mt-1 text-sm text-text-primary">
-                  {task.appointmentAddress}
+                  {task.deliveryAddress}
                 </p>
               </div>
             </div>
@@ -239,7 +240,7 @@ export function PrepPackingSupplyOrderPage({ taskId }: PrepPackingSupplyOrderPag
                               checked={checkedItems[detail.id] || false}
                               onChange={() => {}}
                               onClick={(e) => e.stopPropagation()}
-                              className="appearance-none border checked:border-status-warning h-5 w-5 border-border rounded focus:ring-status-warning checked:bg-status-warning hover:checked:bg-status-warning-hover"
+                              className="appearance-none border checked:border-amber-800 h-5 w-5 border-gray-300 rounded focus:ring-amber-800 checked:bg-amber-800 hover:checked:bg-amber-800"
                             />
                             {checkedItems[detail.id] && (
                               <CheckIcon className="h-4 w-4 text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
@@ -284,14 +285,16 @@ export function PrepPackingSupplyOrderPage({ taskId }: PrepPackingSupplyOrderPag
 
             {/* Submit Button */}
             <div className="flex justify-end pt-4">
-              <button
+              <Button
                 onClick={handleUpdateTask}
-                disabled={isSubmitting || isPrepped !== 'Yes' || !allItemsChecked}
-                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isPrepped !== 'Yes' || !allItemsChecked}
+                loading={isSubmitting}
+                variant="primary"
+                className="!bg-amber-900 hover:!bg-amber-800 active:!bg-amber-800 disabled:!bg-amber-900"
                 aria-label="Update task status"
               >
-                {isSubmitting ? 'Updating...' : 'Update Task'}
-              </button>
+                Update Task
+              </Button>
             </div>
           </div>
         </div>

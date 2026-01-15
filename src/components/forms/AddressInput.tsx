@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * @fileoverview Enhanced address input component with Google Places autocomplete
  * @source boombox-10.0/src/app/components/reusablecomponents/addressinputfield.tsx
@@ -67,6 +69,11 @@ export interface AddressInputProps {
   value?: string;
   
   /**
+   * Label text for the input
+   */
+  label?: string;
+  
+  /**
    * Placeholder text for the input
    */
   placeholder?: string;
@@ -108,6 +115,7 @@ const AddressInput: React.FC<AddressInputProps> = ({
   hasError = false,
   onClearError,
   value = '',
+  label,
   placeholder = 'Enter your delivery address',
   required = false,
   className,
@@ -127,11 +135,14 @@ const AddressInput: React.FC<AddressInputProps> = ({
   const autocompleteService = useRef<google.maps.places.AutocompleteService | null>(null);
   const placesService = useRef<google.maps.places.PlacesService | null>(null);
   const componentRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Sync external value changes
+  // Sync external value changes (only if different to prevent infinite loops)
   useEffect(() => {
-    setAddress(value);
-  }, [value]);
+    if (value !== address) {
+      setAddress(value);
+    }
+  }, [value]); // Only depend on value, not address
 
   // Sync initial zip code
   useEffect(() => {
@@ -304,25 +315,42 @@ const AddressInput: React.FC<AddressInputProps> = ({
   };
 
   const displayError = error || hasError;
-  const shouldShowSuggestions = suggestions.length > 0 && isFocused && !isLoading;
+  const shouldShowSuggestions = suggestions.length > 0 && isFocused;
+  const hasValue = address.length > 0;
 
   return (
     <div ref={componentRef} className={cn('relative w-full', className)}>
       {/* Main input field using Input primitive */}
       <div className="relative">
+        {/* Hidden decoy input to absorb Chrome's autofill */}
+        <input
+          type="text"
+          name="address"
+          autoComplete="street-address"
+          style={{
+            position: 'absolute',
+            opacity: 0,
+            height: 0,
+            width: 0,
+            pointerEvents: 'none',
+          }}
+          tabIndex={-1}
+          aria-hidden="true"
+        />
         <Input
           id={id}
           type="text"
-          name="address"
+          name="delivery_location_search"
           value={address}
           onChange={handleInputChange}
           onFocus={handleFocus}
           onBlur={handleBlur}
+          label={label}
           placeholder={placeholder}
           disabled={disabled}
           required={required}
           error={displayError ? (error || 'Please enter a valid address') : undefined}
-          icon={<MapPinIcon className="w-5 h-5" />}
+          icon={<MapPinIcon className={cn('w-5 h-5', (isFocused || hasValue) && 'text-text-primary')} />}
           iconPosition="left"
           fullWidth
           aria-label={ariaLabel}
@@ -332,17 +360,12 @@ const AddressInput: React.FC<AddressInputProps> = ({
           aria-haspopup="listbox"
           role="combobox"
           autoComplete="off"
+          data-form-type="other"
+          data-lpignore="true"
           autoCorrect="off"
           autoCapitalize="off"
           spellCheck="false"
         />
-        
-        {/* Loading indicator */}
-        {isLoading && (
-          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-            <div className="w-4 h-4 border-2 border-text-secondary border-t-primary rounded-full animate-spin" />
-          </div>
-        )}
       </div>
 
       {/* Address suggestions dropdown */}
@@ -355,8 +378,11 @@ const AddressInput: React.FC<AddressInputProps> = ({
           {suggestions.map((suggestion, index) => (
             <div
               key={suggestion.place_id}
-              onClick={() => handleSuggestionSelect(suggestion)}
-              className="px-3 py-2 hover:bg-surface-secondary cursor-pointer flex items-center transition-colors duration-150 border-b border-border last:border-b-0"
+              onMouseDown={(e) => {
+                e.preventDefault(); // Prevent input blur
+                handleSuggestionSelect(suggestion);
+              }}
+              className="px-3 py-2 hover:bg-surface-tertiary cursor-pointer flex items-center"
               role="option"
               aria-selected="false"
               tabIndex={0}
@@ -367,8 +393,8 @@ const AddressInput: React.FC<AddressInputProps> = ({
                 }
               }}
             >
-              <MapPinIcon className="w-4 h-4 mr-3 text-text-secondary flex-shrink-0" />
-              <span className="text-sm text-text-primary truncate">
+              <MapPinIcon className="w-4 h-4 mr-3 text-text-tertiary flex-shrink-0" />
+              <span className="text-base font-medium text-text-primary truncate">
                 {suggestion.description}
               </span>
             </div>

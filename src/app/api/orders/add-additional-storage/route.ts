@@ -9,7 +9,7 @@
  *
  * USED BY (boombox-10.0 files):
  * - src/app/components/additional-storage/* (Customer additional storage booking)
- * - src/app/user-page/[userId]/page.tsx (Customer dashboard additional storage booking)
+ * - src/app/customer/[userId]/page.tsx (Customer dashboard additional storage booking)
  * - src/app/components/edit-appointment/* (Appointment modification flows)
  *
  * INTEGRATION NOTES:
@@ -33,6 +33,7 @@ import { MessageService } from '@/lib/messaging/MessageService';
 import { additionalStorageConfirmationSms } from '@/lib/messaging/templates/sms/booking';
 import { formatDateForDisplay, formatTime } from '@/lib/utils/dateUtils';
 import { prisma } from '@/lib/database/prismaClient';
+import { NotificationService } from '@/lib/services/NotificationService';
 
 /**
  * Create additional storage appointment
@@ -99,6 +100,40 @@ export async function POST(req: NextRequest) {
     // Create the appointment using centralized utility
     const appointment = await createAdditionalStorageAppointment(appointmentData);
 
+    // Create TimeSlotBooking if moving partner is selected (blocks their schedule)
+    if (movingPartnerId) {
+      const numericMovingPartnerId = parseInt(String(movingPartnerId), 10);
+      const dayOfWeek = appointmentDate.toLocaleDateString("en-US", { 
+        weekday: "long" 
+      });
+      
+      // Calculate 3-hour window (1 hour before, appointment hour, 1 hour after)
+      const bookingStart = new Date(appointmentDate.getTime() - (60 * 60 * 1000));
+      const bookingEnd = new Date(appointmentDate.getTime() + (60 * 60 * 1000));
+
+      const availabilitySlot = await prisma.movingPartnerAvailability.findFirst({
+        where: {
+          movingPartnerId: numericMovingPartnerId,
+          dayOfWeek,
+          startTime: { not: '' },
+          endTime: { not: '' }
+        }
+      });
+
+      if (availabilitySlot) {
+        await prisma.timeSlotBooking.create({
+          data: {
+            movingPartnerAvailabilityId: availabilitySlot.id,
+            appointmentId: appointment.id,
+            bookingDate: bookingStart,
+            endDate: bookingEnd
+          }
+        });
+      } else {
+        console.warn(`No availability found for moving partner ${numericMovingPartnerId} on ${dayOfWeek}`);
+      }
+    }
+
     // Get user information for notifications
     const user = await prisma.user.findUnique({
       where: { id: numericUserId },
@@ -125,27 +160,66 @@ export async function POST(req: NextRequest) {
       if (!result.success) {
         console.error('Error sending confirmation SMS:', result.error);
       }
+
+      // Create in-app notification for appointment confirmation
+      await NotificationService.notifyAppointmentConfirmed(
+        user.id,
+        {
+          appointmentId: appointment.id,
+          appointmentType: appointment.appointmentType,
+          date: appointment.date,
+          time: appointment.time,
+          address: appointment.address,
+          zipCode: appointment.zipcode,
+          numberOfUnits: storageUnitCount || 1
+        }
+      );
     } catch (notificationError: any) {
       console.error('Error sending confirmation SMS:', notificationError.message);
       // Don't fail the appointment creation if SMS fails
     }
 
-    // Process Onfleet tasks and driver assignment asynchronously
+    // Create Onfleet tasks asynchronously (doesn't block response)
     processOnfleetAndAssignDriver(
       appointment.id,
       {
         userId: user.id,
         selectedInsurance,
-        stripeCustomerId: user.stripeCustomerId,
+        stripeCustomerId: user.stripeCustomerId ?? undefined,
         deliveryReason: 'Additional Storage'
       }
-    ).catch(error => {
-      console.error('ADD_STORAGE: DEBUG - Error in processOnfleetAndAssignDriver promise:', error);
+    ).then(async (taskResult) => {
+      // Handle driver assignment for DIY and Full Service plans after tasks are created
+      if (taskResult.success && (planType === 'Do It Yourself Plan' || planType === 'Full Service Plan')) {
+        try {
+          // Import driver assignment handler (safe to do in API route)
+          const { handleInitialAssignment } = await import('@/app/api/onfleet/driver-assign/route');
+          
+          // Refetch appointment with onfleetTasks included
+          const refreshedAppointment = await prisma.appointment.findUnique({
+            where: { id: appointment.id },
+            include: {
+              onfleetTasks: true,
+              user: true,
+            }
+          });
+          
+          if (refreshedAppointment) {
+            await handleInitialAssignment(refreshedAppointment);
+            console.log(`Successfully assigned driver for Appointment ID: ${appointment.id}`);
+          }
+        } catch (driverError) {
+          console.error('ADD_STORAGE: DEBUG - Error in driver assignment:', driverError);
+          // Continue - driver assignment can be retried later
+        }
+      }
+    }).catch(error => {
+      console.error('ADD_STORAGE: DEBUG - Error in Onfleet task creation:', error);
       // Continue without failing the response - this is asynchronous processing
     });
 
     // Revalidate user page for real-time updates
-    revalidatePath(`/user-page/${numericUserId}`);
+    revalidatePath(`/customer/${numericUserId}`);
 
     // Return success response with appointment and user data
     return NextResponse.json({

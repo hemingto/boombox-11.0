@@ -113,8 +113,12 @@ export async function POST(request: NextRequest) {
     const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
 
     // Get candidate drivers with comprehensive filtering
+    // Exclude drivers who have already been offered this route
+    const alreadyOfferedIds = route.offeredDriverIds || [];
+    
     const candidateDrivers = await prisma.driver.findMany({
       where: {
+        id: { notIn: alreadyOfferedIds }, // Exclude drivers already offered to
         isApproved: true,
         status: 'Active',
         applicationComplete: true,
@@ -368,11 +372,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update route with offer details
+    // Update route with offer details and track offered driver
     const expiresAt = new Date(Date.now() + OFFER_TIMEOUT_MINUTES * 60 * 1000);
     await prisma.packingSupplyRoute.update({
       where: { routeId },
       data: {
+        offeredDriverIds: { push: selectedDriver.id },
         driverOfferSentAt: new Date(),
         driverOfferExpiresAt: expiresAt,
         driverOfferStatus: 'sent',

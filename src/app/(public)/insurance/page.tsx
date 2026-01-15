@@ -33,8 +33,8 @@ export default function Insurance() {
     <>
       <InsuranceHeroSection />
       <InsuranceTopSection />
-      <InsuranceProtections />
       <InsuranceRates />
+      <InsuranceProtections />
       <InsuranceLegalTerms />
       <HelpCenterSection />
     </>

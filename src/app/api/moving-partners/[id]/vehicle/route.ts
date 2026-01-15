@@ -55,6 +55,7 @@ export async function GET(
 }
 
 // POST handler to create a new vehicle for a mover
+// Note: Moving partners can add multiple vehicles to their fleet
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -70,23 +71,9 @@ export async function POST(
     }
 
     const data = await request.json();
-    
-    // Check if a vehicle already exists for this mover
-    const existingVehicle = await prisma.vehicle.findFirst({
-      where: {
-        movingPartnerId: moverId,
-        driverId: null,
-      },
-    });
-
-    if (existingVehicle) {
-      return NextResponse.json(
-        { error: 'Vehicle already exists for this mover' },
-        { status: 400 }
-      );
-    }
 
     // Create a new vehicle for the mover
+    // Moving partners can have multiple vehicles in their fleet
     const newVehicle = await prisma.vehicle.create({
       data: {
         ...data,

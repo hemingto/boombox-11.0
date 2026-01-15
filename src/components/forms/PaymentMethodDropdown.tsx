@@ -5,26 +5,22 @@
  * COMPONENT FUNCTIONALITY:
  * Custom dropdown for selecting payment methods (saved cards or add new card).
  * Displays card brand icons (Visa, Mastercard, Amex, Discover, JCB, Apple Pay, Amazon Pay)
- * and formatted card details. Supports click-outside-to-close behavior.
+ * and formatted card details. Wraps Select component for consistent design system styling.
  * 
  * DESIGN SYSTEM UPDATES:
- * - Replaced slate-100 with surface-tertiary for background
- * - Replaced slate-200 with surface-secondary for selected state
- * - Replaced slate-400 with text-tertiary for default icons
- * - Replaced zinc-950 with text-primary for text
- * - Replaced zinc-400 with text-secondary for placeholder
- * - Replaced red-500/red-100 with status-error/status-bg-error for errors
- * - Applied proper focus states with primary color
+ * - Refactored to use Select component for consistent styling
+ * - Maintains card brand icon rendering via custom renderOption/renderSelected props
+ * - Delegates dropdown behavior to Select (click outside, keyboard handling, focus states)
+ * - All design system colors now handled by Select component
  * 
- * @refactor Migrated with design system compliance, enhanced accessibility,
- * preserved all card brand icon functionality
+ * @refactor Migrated to use Select component wrapper, preserved all card brand
+ * icon functionality while ensuring design system consistency
  */
 
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
 import { CreditCardIcon } from '@heroicons/react/24/outline';
-import { useClickOutside } from '@/hooks';
+import { Select, SelectOption } from '@/components/ui/primitives/Select';
 import { VisaIcon } from '@/components/icons/VisaIcon';
 import { MastercardIcon } from '@/components/icons/MastercardIcon';
 import { AmexIcon } from '@/components/icons/AmexIcon';
@@ -93,142 +89,59 @@ const getCardBrandIcon = (brand: string): React.JSX.Element => {
 };
 
 export const PaymentMethodDropdown: React.FC<PaymentMethodDropdownProps> = ({
-  label = 'Select payment method',
+  label = '',
   value = null,
   onOptionChange,
   hasError = false,
   onClearError,
   options,
 }) => {
-  const [selectedOption, setSelectedOption] = useState<string | null>(value);
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  // Transform PaymentMethodOption[] to SelectOption[] format
+  const selectOptions: SelectOption[] = options.map(opt => ({
+    value: opt.value,
+    label: opt.display,
+    metadata: { brand: opt.brand, isAddNew: opt.isAddNew }
+  }));
 
-  // Update selected option when value prop changes
-  useEffect(() => {
-    setSelectedOption(value);
-  }, [value]);
-
-  // Handle click outside to close dropdown
-  useClickOutside(dropdownRef, () => {
-    if (isOpen) {
-      setIsOpen(false);
-    }
-  });
-
-  const handleOptionClick = (option: PaymentMethodOption) => {
-    setSelectedOption(option.value);
-    setIsOpen(false);
-    onOptionChange(option.value);
+  // Custom renderOption to show card brand icons
+  const renderOption = (option: SelectOption) => {
+    const brand = option.metadata?.brand;
+    return (
+      <div className="flex items-center gap-3">
+        {brand && getCardBrandIcon(brand)}
+        <span>{option.label}</span>
+      </div>
+    );
   };
 
-  const handleToggle = () => {
-    setIsOpen(!isOpen);
-    if (onClearError) {
-      onClearError();
-    }
-  };
-
-  const getSelectedOptionDisplay = (): string => {
-    const selectedOpt = options.find(opt => opt.value === selectedOption);
-    return selectedOpt ? selectedOpt.display : label;
-  };
-
-  const getSelectedOptionIcon = (): React.JSX.Element | null => {
-    const selectedOpt = options.find(opt => opt.value === selectedOption);
-    if (!selectedOpt) return null;
-
-    if (selectedOpt.brand) {
-      return getCardBrandIcon(selectedOpt.brand);
-    }
-
-    return null;
+  // Custom renderSelected to show selected card icon
+  const renderSelected = (option: SelectOption) => {
+    const brand = option.metadata?.brand;
+    return (
+      <div className="flex items-center gap-3">
+        {brand && getCardBrandIcon(brand)}
+        <span>{option.label}</span>
+      </div>
+    );
   };
 
   return (
-    <div className="w-full relative mb-2 sm:mb-4" ref={dropdownRef}>
-      <div
-        className={`relative rounded-md py-2.5 px-3 cursor-pointer ${
-          hasError
-            ? 'text-status-error bg-status-bg-error ring-2 ring-status-error'
-            : isOpen
-            ? 'ring-2 ring-primary bg-surface-primary'
-            : 'ring-0 bg-surface-tertiary'
-        }`}
-        onClick={handleToggle}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handleToggle();
-          }
-        }}
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
-        aria-label={label}
-      >
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            {getSelectedOptionIcon()}
-            <span
-              className={`${
-                hasError
-                  ? 'text-sm text-status-error'
-                  : selectedOption
-                  ? 'text-base text-text-primary'
-                  : 'text-sm leading-6 text-text-secondary'
-              }`}
-            >
-              {getSelectedOptionDisplay()}
-            </span>
-          </div>
-          <svg
-            className={`w-5 h-5 ${hasError ? 'text-status-error' : 'text-text-secondary'}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
-        </div>
-      </div>
-
-      {isOpen && (
-        <div
-          className="absolute z-50 w-full mt-2 rounded-md bg-surface-primary shadow-custom-shadow max-h-60 overflow-auto"
-          role="listbox"
-        >
-          {options.map((option, idx) => (
-            <div
-              key={idx}
-              className={`px-4 py-2 cursor-pointer hover:bg-surface-tertiary flex items-center gap-3 ${
-                selectedOption === option.value ? 'bg-surface-secondary' : 'bg-surface-primary'
-              }`}
-              onClick={() => handleOptionClick(option)}
-              role="option"
-              aria-selected={selectedOption === option.value}
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  handleOptionClick(option);
-                }
-              }}
-            >
-              {option.brand ? getCardBrandIcon(option.brand) : null}
-              <span>{option.display}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    <Select
+      label={label}
+      value={value || ''}
+      onChange={onOptionChange || (() => {})}
+      error={hasError ? ' ' : undefined}
+      onClearError={onClearError}
+      options={selectOptions}
+      displayMode="compact"
+      placeholder="Select saved payment method"
+      renderOption={renderOption}
+      renderSelected={renderSelected}
+      fullWidth
+      id="payment-method-select"
+      name="paymentMethod"
+      size="sm"
+    />
   );
 };
 

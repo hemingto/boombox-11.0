@@ -5,7 +5,7 @@
  * 
  * ROUTE FUNCTIONALITY:
  * GET endpoint that returns all pending driver invitations for a specific moving partner.
- * Used to display current outstanding invites in the moving partner dashboard.
+ * Now delegates to Server Action for consistency and automatic cache revalidation.
  * 
  * USED BY (boombox-10.0 files):
  * - Moving partner dashboard interface
@@ -19,11 +19,11 @@
  * - Returns invite details without sensitive data
  * - Ordered by creation date (newest first)
  * 
- * @refactor No logic changes - direct port with updated imports
+ * @refactor Uses Server Action from @/lib/services/driverInvitationService
  */
 
 import { NextResponse, NextRequest } from 'next/server';
-import { prisma } from '@/lib/database/prismaClient';
+import { getDriverInvites } from '@/lib/services/driverInvitationService';
 
 export async function GET(
     request: NextRequest,
@@ -40,21 +40,8 @@ export async function GET(
             );
         }
 
-        const invites = await prisma.driverInvitation.findMany({
-            where: {
-                movingPartnerId: moverIdNum,
-                status: 'pending', // Only fetch pending invites
-            },
-            select: {
-                token: true,
-                email: true,
-                status: true,
-                createdAt: true,
-            },
-            orderBy: {
-                createdAt: 'desc',
-            },
-        });
+        // Delegate to Server Action
+        const invites = await getDriverInvites(moverIdNum);
 
         return NextResponse.json(invites);
     } catch (error) {

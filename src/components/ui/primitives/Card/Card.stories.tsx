@@ -79,7 +79,7 @@ export const Default: Story = {
 // Blog post card
 export const BlogPost: Story = {
   args: {
-    imageSrc: '/img/golden-gate.png',
+    imageSrc: '/placeholder.jpg',
     imageAlt: 'Golden Gate Bridge',
     blogtitle: 'Essential Moving Tips for San Francisco Residents',
     description: 'Navigate the unique challenges of moving in San Francisco with our expert guide',
@@ -114,7 +114,7 @@ export const Minimal: Story = {
 // External link card
 export const ExternalLink: Story = {
   args: {
-    imageSrc: '/img/golden-gate.png',
+    imageSrc: '/placeholder.jpg',
     imageAlt: 'Golden Gate Bridge',
     blogtitle: 'Moving Guide on External Blog',
     description: 'Comprehensive moving resources and tips',
@@ -153,7 +153,7 @@ export const CardVariants: Story = {
         link="/locations/san-francisco"
       />
       <Card
-        imageSrc="/img/golden-gate.png"
+        imageSrc="/placeholder.jpg"
         imageAlt="Golden Gate Bridge"
         blogtitle="Moving Tips for SF"
         description="Expert guide for city moves"

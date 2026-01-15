@@ -92,13 +92,20 @@ export async function POST(
       ? 'auto-insurance-photos' 
       : 'vehicle-photos';
 
+    // Determine allowed file types based on the field name
+    // Auto insurance photos can be images or PDFs (for policy documents)
+    // Vehicle photos should only be images
+    const allowedTypes = fieldName === 'autoInsurancePhoto' 
+      ? ['image/', 'application/pdf']
+      : ['image/'];
+
     // Upload vehicle photo to Cloudinary
     const uploadResult = await uploadFileToCloudinary({
       file: file,
       folder: folder,
       fileNamePrefix: fieldName,
       entityId: movingPartnerId,
-      allowedTypes: ['image/'] // Only allow image files for vehicle photos
+      allowedTypes: allowedTypes
     });
     
     return NextResponse.json({ 

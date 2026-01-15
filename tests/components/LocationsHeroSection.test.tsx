@@ -97,7 +97,7 @@ describe('LocationsHeroSection', () => {
       expect(mapWrapper).toBeInTheDocument();
     });
 
-    it('should announce validation errors with role="alert"', async () => {
+    it('should announce validation errors with accessible error message', async () => {
       render(<LocationsHeroSection />);
 
       const input = screen.getByRole('textbox', { name: /enter your zip code/i });
@@ -107,9 +107,9 @@ describe('LocationsHeroSection', () => {
       fireEvent.click(button);
 
       await waitFor(() => {
-        const errorMessage = screen.getByRole('alert');
-        expect(errorMessage).toBeInTheDocument();
-        expect(errorMessage).toHaveTextContent(/please enter a valid zip code/i);
+        // Error message is associated with input via aria-describedby
+        expect(input).toHaveAttribute('aria-invalid', 'true');
+        expect(screen.getByText(/please enter a valid zip code/i)).toBeInTheDocument();
       });
     });
 
@@ -285,7 +285,7 @@ describe('LocationsHeroSection', () => {
       await waitFor(() => {
         const successMessage = screen.queryByText(/zip code is in our service area/i);
         if (successMessage) {
-          expect(input).toHaveClass('ring-emerald-500', 'bg-emerald-100');
+          expect(input).toHaveClass('ring-emerald-500', 'ring-2', 'bg-emerald-50');
         }
       });
     });
@@ -300,7 +300,7 @@ describe('LocationsHeroSection', () => {
       fireEvent.click(button);
 
       await waitFor(() => {
-        expect(input).toHaveClass('ring-red-500', 'bg-red-100');
+        expect(input).toHaveClass('input-field--error');
       });
     });
 

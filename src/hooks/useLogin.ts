@@ -85,10 +85,31 @@ export interface UseLoginReturn {
   handleAccountSelect: (accountId: string) => void;
   handleContinueWithAccount: () => void;
   clearVerificationError: () => void;
+  clearPhoneNumberError: () => void;
+  clearEmailError: () => void;
   
   // Session warning actions
   handleSessionWarningClose: () => void;
   handleSessionWarningConfirm: () => Promise<void>;
+}
+
+/**
+ * Helper to create a composite account key from id and type
+ */
+function createAccountKey(id: string, type: string): string {
+  return `${id}-${type}`;
+}
+
+/**
+ * Helper to parse a composite account key into id and type
+ */
+function parseAccountKey(key: string): { id: string; type: string } | null {
+  const lastDashIndex = key.lastIndexOf('-');
+  if (lastDashIndex === -1) return null;
+  return {
+    id: key.substring(0, lastDashIndex),
+    type: key.substring(lastDashIndex + 1),
+  };
 }
 
 /**
@@ -229,10 +250,16 @@ export function useLogin(): UseLoginReturn {
         throw new Error('Missing required login information');
       }
       
+      // Convert lowercase account type to uppercase for authentication
+      const authAccountType = accountType === 'customer' ? 'USER'
+        : accountType === 'driver' ? 'DRIVER'
+        : accountType === 'mover' ? 'MOVER'
+        : accountType.toUpperCase();
+      
       const result = await signIn('credentials', {
         contact,
         code,
-        accountType,
+        accountType: authAccountType,
         redirect: false,
       });
       
@@ -246,10 +273,11 @@ export function useLogin(): UseLoginReturn {
         return;
       }
       
-      // Get user ID for redirection
-      const userId = selectedAccountId || accounts[0]?.id;
+      // Get user ID for redirection (parse from composite key if needed)
+      const parsedKey = selectedAccountId ? parseAccountKey(selectedAccountId) : null;
+      const userId = parsedKey?.id || accounts[0]?.id;
       
-      if (!accountType || !userId) {
+      if (!authAccountType || !userId) {
         setErrors((prevErrors) => ({
           ...prevErrors,
           verificationError: 'Failed to redirect. Please try again.',
@@ -260,11 +288,11 @@ export function useLogin(): UseLoginReturn {
       
       // Redirect based on account type
       const redirectPath = 
-        accountType === 'customer' 
-          ? `/user-page/${userId}`
-          : accountType === 'driver'
-          ? `/driver-account-page/${userId}`
-          : `/mover-account-page/${userId}`;
+        authAccountType === 'USER' 
+          ? `/customer/${userId}`
+          : authAccountType === 'DRIVER'
+          ? `/service-provider/driver/${userId}`
+          : `/service-provider/mover/${userId}`;
       
       // Force hard reload to ensure new session is picked up
       window.location.href = redirectPath;
@@ -307,9 +335,9 @@ export function useLogin(): UseLoginReturn {
               setAccounts(data.accounts);
               setShowAccountSelection(true);
             } else if (data.accounts && data.accounts.length === 1) {
-              // Single account found
+              // Single account found - use composite key
               setAccounts(data.accounts);
-              setSelectedAccountId(data.accounts[0].id);
+              setSelectedAccountId(createAccountKey(data.accounts[0].id, data.accounts[0].type));
               setIsCodeSent(true);
             } else {
               setErrors((prevErrors) => ({
@@ -356,7 +384,11 @@ export function useLogin(): UseLoginReturn {
         setErrors((prevErrors) => ({ ...prevErrors, verificationError: null }));
         
         const contact = hidePhoneInput ? formData.email : formData.phoneNumber;
-        const selectedAccount = accounts.find(acc => acc.id === selectedAccountId);
+        // Parse composite key to find the selected account
+        const parsedSelectedKey = selectedAccountId ? parseAccountKey(selectedAccountId) : null;
+        const selectedAccount = parsedSelectedKey 
+          ? accounts.find(acc => acc.id === parsedSelectedKey.id && acc.type === parsedSelectedKey.type)
+          : null;
         
         // Check for session conflict
         if (session?.user && (!selectedAccount || session.user.id !== selectedAccount.id)) {
@@ -381,7 +413,7 @@ export function useLogin(): UseLoginReturn {
               phoneNumber: hidePhoneInput ? undefined : formData.phoneNumber,
               email: hideEmailInput ? undefined : formData.email,
               code: verificationCode.join(''),
-              accountId: selectedAccountId,
+              accountId: parsedSelectedKey?.id || accounts[0]?.id,
               accountType: selectedAccount?.type || accounts[0]?.type,
             }),
           });
@@ -517,6 +549,26 @@ export function useLogin(): UseLoginReturn {
   }, []);
   
   /**
+   * Clear phone number error
+   */
+  const clearPhoneNumberError = useCallback(() => {
+    setErrors((prevErrors) => ({
+      ...prevErrors,
+      phoneNumberError: null,
+    }));
+  }, []);
+  
+  /**
+   * Clear email error
+   */
+  const clearEmailError = useCallback(() => {
+    setErrors((prevErrors) => ({
+      ...prevErrors,
+      emailError: null,
+    }));
+  }, []);
+  
+  /**
    * Handle session warning close
    */
   const handleSessionWarningClose = useCallback(() => {
@@ -586,6 +638,8 @@ export function useLogin(): UseLoginReturn {
     handleAccountSelect,
     handleContinueWithAccount,
     clearVerificationError,
+    clearPhoneNumberError,
+    clearEmailError,
     
     // Session warning actions
     handleSessionWarningClose,

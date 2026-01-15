@@ -15,136 +15,106 @@
  * - Toggle column visibility
  * - Sortable by all columns
  * 
- * DESIGN SYSTEM UPDATES:
- * - Uses shared AdminDataTable component
- * - Uses shared hooks (useAdminTable, useAdminDataFetch)
- * - Uses migrated specialized modals (OnfleetTasksModal, StorageUnitAssignmentModal, DriverAssignmentModal)
- * - 100% semantic color tokens
- * - Status badges with semantic colors
- * - Consistent with other management pages
+ * STYLING:
+ * - Uses boombox-10.0 admin portal styling (indigo header, color-coded rows)
+ * - Status-based row backgrounds (cyan, amber, purple, emerald, red)
+ * - Custom filter dropdowns with checkboxes
+ * - Date picker integration for appointment filtering
  * 
  * API ROUTES:
  * - GET /api/admin/jobs - Fetches all appointments
  * 
- * CODE REDUCTION:
- * - Original: 695 lines
- * - Refactored: ~450 lines (35% reduction)
- * - Eliminated duplicate state management
- * - Eliminated custom table implementation
- * - Uses migrated specialized modals
- * 
- * @refactor Extracted from inline page implementation, uses shared admin components
+ * @refactor Maintains boombox-10.0 admin styling patterns
  */
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import {
-  AdminDataTable,
-  ColumnManagerMenu,
-  SearchAndFilterBar,
-  OnfleetTasksModal,
-  StorageUnitAssignmentModal,
-  DriverAssignmentModal,
-  type Column,
-  type ActionFilter,
-} from '@/components/features/admin/shared';
-import { useAdminTable, useAdminDataFetch } from '@/hooks';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { OnfleetTasksModal } from '@/components/features/admin/shared/OnfleetTasksModal';
+import { StorageUnitAssignmentModal } from '@/components/features/admin/shared/StorageUnitAssignmentModal';
+import { DriverAssignmentModal } from '@/components/features/admin/shared/DriverAssignmentModal';
+import { AdminTable } from '@/components/features/admin/shared/table/AdminTable';
+import { AdminActionButton } from '@/components/features/admin/shared/buttons/AdminActionButton';
+import { AdminStatusBadge } from '@/components/features/admin/shared/buttons/AdminStatusBadge';
+import { FilterDropdown } from '@/components/features/admin/shared/filters/FilterDropdown';
+import { ColumnManagerDropdown } from '@/components/features/admin/shared/filters/ColumnManagerDropdown';
+import { AdminPageHeader } from '@/components/features/admin/shared/filters/AdminPageHeader';
+import { AdminDatePicker } from '@/components/features/admin/shared/AdminDatePicker';
+import { getRowColor } from '@/lib/utils/adminStyles';
+import { formatDateTimePST } from '@/lib/utils/adminDateUtils';
 
 interface OnfleetTaskItem {
-  taskId: string;
-  shortId: string;
-  stepNumber: number;
-  driver?: {
-    id: number;
-    firstName: string;
-    lastName: string;
-  } | null;
+ taskId: string;
+ shortId: string;
+ stepNumber: number;
+ driver?: {
+  id: number;
+  firstName: string;
+  lastName: string;
+ } | null;
 }
 
 interface Job {
-  id: number;
-  jobCode: string;
-  status: string;
-  date: string;
-  appointmentType: string;
-  user: {
-    firstName: string;
-    lastName: string;
+ id: number;
+ jobCode: string;
+ status: string;
+ date: string;
+ appointmentType: string;
+ user: {
+  firstName: string;
+  lastName: string;
+ };
+ address: string;
+ zipcode: string;
+ numberOfUnits?: number;
+ planType?: string;
+ insuranceCoverage?: string;
+ loadingHelpPrice?: number;
+ monthlyStorageRate?: number;
+ monthlyInsuranceRate?: number;
+ quotedPrice: number;
+ invoiceTotal?: number;
+ description?: string;
+ deliveryReason?: string;
+ trackingToken?: string;
+ trackingUrl?: string;
+ invoiceUrl?: string;
+ serviceStartTime?: string;
+ serviceEndTime?: string;
+ driver?: {
+  firstName: string;
+  lastName: string;
+ } | null;
+ movingPartner?: {
+  name: string;
+  email?: string;
+  phoneNumber?: string;
+ } | null;
+ thirdPartyMovingPartner?: {
+  title: string;
+ } | null;
+ onfleetTasks?: OnfleetTaskItem[];
+ storageStartUsages?: {
+  storageUnit: {
+   storageUnitNumber: string;
   };
-  address: string;
-  zipcode: string;
-  numberOfUnits?: number;
-  planType?: string;
-  insuranceCoverage?: string;
-  loadingHelpPrice?: number;
-  monthlyStorageRate?: number;
-  monthlyInsuranceRate?: number;
-  quotedPrice: number;
-  invoiceTotal?: number;
-  description?: string;
-  deliveryReason?: string;
-  trackingToken?: string;
-  trackingUrl?: string;
-  invoiceUrl?: string;
-  serviceStartTime?: string;
-  serviceEndTime?: string;
-  driver?: {
-    firstName: string;
-    lastName: string;
-  } | null;
-  movingPartner?: {
-    name: string;
-    email?: string;
-    phoneNumber?: string;
-  } | null;
-  thirdPartyMovingPartner?: {
-    title: string;
-  } | null;
-  onfleetTasks?: OnfleetTaskItem[];
-  storageStartUsages?: {
-    storageUnit: {
-      storageUnitNumber: string;
-    };
-  }[];
-  requestedStorageUnits?: {
-    storageUnit: {
-      storageUnitNumber: string;
-    };
-  }[];
+ }[];
+ requestedStorageUnits?: {
+  storageUnit: {
+   storageUnitNumber: string;
+  };
+ }[];
 }
 
-type ColumnId =
-  | 'jobCode'
-  | 'user'
-  | 'date'
-  | 'appointmentType'
-  | 'status'
-  | 'storageUnits'
-  | 'requestedStorageUnits'
-  | 'address'
-  | 'driver'
-  | 'partner'
-  | 'onfleetTasks'
-  | 'zipcode'
-  | 'numberOfUnits'
-  | 'planType'
-  | 'insuranceCoverage'
-  | 'loadingHelpPrice'
-  | 'monthlyStorageRate'
-  | 'monthlyInsuranceRate'
-  | 'quotedPrice'
-  | 'invoiceTotal'
-  | 'description'
-  | 'deliveryReason'
-  | 'trackingToken'
-  | 'trackingUrl'
-  | 'invoiceUrl'
-  | 'serviceStartTime'
-  | 'serviceEndTime'
-  | 'thirdPartyMovingPartner';
+type ColumnId = 'jobCode' | 'user' | 'date' | 'appointmentType' | 'status' | 'storageUnits' | 'requestedStorageUnits' | 'address' | 'driver' | 'partner' | 'onfleetTasks' | 'zipcode' | 'numberOfUnits' | 'planType' | 'insuranceCoverage' | 'loadingHelpPrice' | 'monthlyStorageRate' | 'monthlyInsuranceRate' | 'quotedPrice' | 'invoiceTotal' | 'description' | 'deliveryReason' | 'trackingToken' | 'trackingUrl' | 'invoiceUrl' | 'serviceStartTime' | 'serviceEndTime' | 'thirdPartyMovingPartner';
 
-const defaultColumns: Column<ColumnId>[] = [
+interface Column {
+  id: ColumnId;
+  label: string;
+  visible: boolean;
+}
+
+const defaultColumns: Column[] = [
   { id: 'jobCode', label: 'Job Code', visible: true },
   { id: 'user', label: 'Customer', visible: true },
   { id: 'date', label: 'Time', visible: true },
@@ -156,6 +126,10 @@ const defaultColumns: Column<ColumnId>[] = [
   { id: 'driver', label: 'Driver', visible: true },
   { id: 'partner', label: 'MovingPartner', visible: true },
   { id: 'onfleetTasks', label: 'Onfleet Tasks', visible: true },
+];
+
+const allColumns: Column[] = [
+  ...defaultColumns,
   { id: 'zipcode', label: 'Zip Code', visible: false },
   { id: 'numberOfUnits', label: '# of Units', visible: false },
   { id: 'planType', label: 'Plan Type', visible: false },
@@ -175,21 +149,12 @@ const defaultColumns: Column<ColumnId>[] = [
   { id: 'thirdPartyMovingPartner', label: 'Third Party Partner', visible: false },
 ];
 
-const actionFiltersConfig: ActionFilter[] = [
-  { id: 'unassigned_drivers', label: 'Unassigned Drivers', active: false },
-  { id: 'incomplete_assignments', label: 'Incomplete Assignments', active: false },
-];
+type StatusType = 'scheduled' | 'in transit' | 'awaiting admin check in' | 'complete' | 'canceled';
+type ActionType = 'unassigned_drivers' | 'incomplete_assignments';
 
-/**
- * Get status badge styling
- */
-const getStatusBadgeClass = (status: string) => {
-  const lowerStatus = status.toLowerCase();
-  if (lowerStatus === 'complete') return 'badge-success';
-  if (lowerStatus === 'canceled') return 'badge-error';
-  if (lowerStatus === 'in transit') return 'badge-processing';
-  if (lowerStatus === 'awaiting admin check in') return 'badge-warning';
-  return 'badge-info';
+type SortConfig = {
+  column: ColumnId | null;
+  direction: 'asc' | 'desc';
 };
 
 /**
@@ -202,273 +167,342 @@ const getStatusBadgeClass = (status: string) => {
  * ```
  */
 export function AdminJobsPage() {
-  // Shared hooks for table management
-  const {
-    columns,
-    toggleColumn,
-    sortConfig,
-    handleSort,
-    searchQuery,
-    setSearchQuery,
-    actionFilters,
-    toggleFilter,
-    getSortedAndFilteredData,
-  } = useAdminTable<ColumnId, Job>({
-    initialColumns: defaultColumns,
-    initialSort: { column: null, direction: 'asc' },
-    initialFilters: { unassigned_drivers: false, incomplete_assignments: false },
-  });
-
-  // Data fetching
-  const { data: jobs, loading, error, refetch } = useAdminDataFetch<Job[]>({
-    apiEndpoint: '/api/admin/jobs',
-  });
-
-  // Modal states
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [columns, setColumns] = useState<Column[]>(allColumns);
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
+  const [showStatusFilter, setShowStatusFilter] = useState(false);
+  const [showActionsFilter, setShowActionsFilter] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedJobForTasks, setSelectedJobForTasks] = useState<Job | null>(null);
   const [selectedJobForStorageUnits, setSelectedJobForStorageUnits] = useState<Job | null>(null);
   const [selectedJobForDriver, setSelectedJobForDriver] = useState<Job | null>(null);
-  const [showColumnMenu, setShowColumnMenu] = useState(false);
-  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [statusFilters, setStatusFilters] = useState<Record<StatusType, boolean>>({
+    'scheduled': true,
+    'in transit': true,
+    'awaiting admin check in': true,
+    'complete': true,
+    'canceled': true
+  });
+  const [actionFilters, setActionFilters] = useState<Record<ActionType, boolean>>({
+    'unassigned_drivers': false,
+    'incomplete_assignments': false
+  });
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ column: null, direction: 'asc' });
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+  const [searchQuery, setSearchQuery] = useState('');
 
-  /**
-   * Custom sort function for jobs
-   */
-  const customSortFn = (data: Job[], config: typeof sortConfig) => {
-    if (!config.column) return data;
+  const filteredJobs = jobs.filter(job => {
+    const statusMatch = statusFilters[job.status.toLowerCase() as StatusType];
+    const actionMatch = !actionFilters.unassigned_drivers && !actionFilters.incomplete_assignments ? true : (
+      (actionFilters.unassigned_drivers && !job.driver) ||
+      (actionFilters.incomplete_assignments && 
+        job.appointmentType === 'New Customer' &&
+        (!job.storageStartUsages?.length || job.storageStartUsages.length === 0))
+    );
+    const searchMatch = searchQuery === '' ? true : (
+      job.jobCode.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    return statusMatch && actionMatch && searchMatch;
+  });
 
-    return [...data].sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
+  const toggleStatusFilter = (status: StatusType) => {
+    setStatusFilters(prev => ({
+      ...prev,
+      [status]: !prev[status]
+    }));
+  };
 
-      if (config.column === 'date') {
-        aValue = new Date(a.date).getTime();
-        bValue = new Date(b.date).getTime();
-      } else if (config.column === 'user') {
-        aValue = `${a.user.firstName} ${a.user.lastName}`;
-        bValue = `${b.user.firstName} ${b.user.lastName}`;
-      } else if (config.column === 'driver') {
-        aValue = a.driver ? `${a.driver.firstName} ${a.driver.lastName}` : '';
-        bValue = b.driver ? `${b.driver.firstName} ${b.driver.lastName}` : '';
-      } else if (config.column === 'partner') {
-        aValue = a.movingPartner?.name || a.thirdPartyMovingPartner?.title || '';
-        bValue = b.movingPartner?.name || b.thirdPartyMovingPartner?.title || '';
-      } else if (config.column === 'storageUnits') {
-        aValue = a.storageStartUsages?.length || 0;
-        bValue = b.storageStartUsages?.length || 0;
-      } else if (config.column === 'requestedStorageUnits') {
-        aValue = a.requestedStorageUnits?.length || 0;
-        bValue = b.requestedStorageUnits?.length || 0;
-      } else if (config.column === 'onfleetTasks') {
-        aValue = a.onfleetTasks?.length || 0;
-        bValue = b.onfleetTasks?.length || 0;
-      } else {
-        aValue = a[config.column as keyof Job];
-        bValue = b[config.column as keyof Job];
-      }
+  const allStatusesSelected = Object.values(statusFilters).every(Boolean);
+  const toggleAllStatuses = () => {
+    const newValue = !allStatusesSelected;
+    setStatusFilters({
+      'scheduled': newValue,
+      'in transit': newValue,
+      'awaiting admin check in': newValue,
+      'complete': newValue,
+      'canceled': newValue
+    });
+  };
 
-      if (aValue === null || aValue === undefined) return config.direction === 'asc' ? -1 : 1;
-      if (bValue === null || bValue === undefined) return config.direction === 'asc' ? 1 : -1;
+  const toggleActionFilter = (action: ActionType) => {
+    setActionFilters(prev => ({
+      ...prev,
+      [action]: !prev[action]
+    }));
+  };
 
-      if (aValue < bValue) return config.direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return config.direction === 'asc' ? 1 : -1;
+  const allActionsSelected = Object.values(actionFilters).every(Boolean);
+  const toggleAllActions = () => {
+    const newValue = !allActionsSelected;
+    setActionFilters({
+      'unassigned_drivers': newValue,
+      'incomplete_assignments': newValue
+    });
+  };
+
+  const handleSort = (column: ColumnId) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.column === column && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ column, direction });
+  };
+
+  const getSortedJobs = (jobs: Job[]) => {
+    if (!sortConfig.column) return jobs;
+
+    const sortColumn = sortConfig.column;
+    return [...jobs].sort((a, b) => {
+      const aValue = getSortValue(a, sortColumn as ColumnId);
+      const bValue = getSortValue(b, sortColumn as ColumnId);
+
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
   };
 
-  /**
-   * Custom filter function for search and action filters
-   */
-  const customFilterFn = (data: Job[], query: string, filters: Record<string, boolean>) => {
-    let result = data;
-
-    // Apply search filter
-    if (query) {
-      const lowerQuery = query.toLowerCase();
-      result = result.filter(
-        (job) =>
-          job.jobCode.toLowerCase().includes(lowerQuery) ||
-          `${job.user.firstName} ${job.user.lastName}`.toLowerCase().includes(lowerQuery) ||
-          job.address.toLowerCase().includes(lowerQuery)
-      );
-    }
-
-    // Apply action filters
-    if (filters.unassigned_drivers) {
-      result = result.filter((job) => !job.driver);
-    }
-
-    if (filters.incomplete_assignments) {
-      result = result.filter(
-        (job) => job.appointmentType === 'New Customer' && (!job.storageStartUsages || job.storageStartUsages.length === 0)
-      );
-    }
-
-    return result;
-  };
-
-  /**
-   * Get sorted and filtered job data
-   */
-  const processedJobs = useMemo(
-    () => getSortedAndFilteredData(jobs || [], customSortFn, customFilterFn),
-    [jobs, sortConfig, searchQuery, actionFilters, getSortedAndFilteredData]
-  );
-
-  /**
-   * Render cell content based on column type
-   */
-  const renderCellContent = (job: Job, column: Column<ColumnId>): React.ReactNode => {
-    switch (column.id) {
-      case 'user':
-        return `${job.user.firstName} ${job.user.lastName}`;
-
+  const getSortValue = (job: Job, column: ColumnId) => {
+    switch (column) {
       case 'date':
-        return new Date(job.date).toLocaleString();
-
+        return new Date(job.date).getTime();
+      case 'appointmentType':
+        return job.appointmentType.toLowerCase();
       case 'status':
-        return <span className={`badge ${getStatusBadgeClass(job.status)}`}>{job.status}</span>;
-
-      case 'storageUnits':
-        return job.storageStartUsages?.length ? (
-          <button
-            onClick={() => setSelectedJobForStorageUnits(job)}
-            className="inline-flex items-center bg-primary/10 px-2.5 py-1 text-sm font-inter rounded-md font-medium text-primary ring-1 ring-inset ring-primary/20 hover:bg-primary/20 transition-colors"
-            aria-label={`Assign storage units for job ${job.jobCode}`}
-          >
-            {job.storageStartUsages.map((u) => u.storageUnit.storageUnitNumber).join(', ')}
-          </button>
-        ) : (
-          <button
-            onClick={() => setSelectedJobForStorageUnits(job)}
-            className="text-text-secondary hover:text-primary text-sm"
-            aria-label={`Assign storage units for job ${job.jobCode}`}
-          >
-            Assign Units
-          </button>
-        );
-
-      case 'requestedStorageUnits':
-        return job.requestedStorageUnits?.length
-          ? job.requestedStorageUnits.map((u) => u.storageUnit.storageUnitNumber).join(', ')
-          : '-';
-
-      case 'driver':
-        return job.driver ? (
-          <button
-            onClick={() => setSelectedJobForDriver(job)}
-            className="inline-flex items-center bg-primary/10 px-2.5 py-1 text-sm font-inter rounded-md font-medium text-primary ring-1 ring-inset ring-primary/20 hover:bg-primary/20 transition-colors"
-            aria-label={`Change driver for job ${job.jobCode}`}
-          >
-            {job.driver.firstName} {job.driver.lastName}
-          </button>
-        ) : (
-          <button
-            onClick={() => setSelectedJobForDriver(job)}
-            className="text-text-secondary hover:text-primary text-sm"
-            aria-label={`Assign driver for job ${job.jobCode}`}
-          >
-            Assign Driver
-          </button>
-        );
-
+        return job.status.toLowerCase();
       case 'partner':
-        return job.movingPartner?.name || job.thirdPartyMovingPartner?.title || '-';
-
-      case 'onfleetTasks':
-        return job.onfleetTasks?.length ? (
-          <button
-            onClick={() => setSelectedJobForTasks(job)}
-            className="inline-flex items-center bg-primary/10 px-2.5 py-1 text-sm font-inter rounded-md font-medium text-primary ring-1 ring-inset ring-primary/20 hover:bg-primary/20 transition-colors"
-            aria-label={`View Onfleet tasks for job ${job.jobCode}`}
-          >
-            View Tasks ({job.onfleetTasks.length})
-          </button>
-        ) : (
-          '-'
-        );
-
-      case 'loadingHelpPrice':
-      case 'monthlyStorageRate':
-      case 'monthlyInsuranceRate':
-      case 'quotedPrice':
-      case 'invoiceTotal':
-        const value = job[column.id];
-        return value ? `$${value.toFixed(2)}` : '-';
-
-      case 'trackingUrl':
-      case 'invoiceUrl':
-        const url = job[column.id];
-        return url ? (
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:underline"
-          >
-            View
-          </a>
-        ) : (
-          '-'
-        );
-
-      default: {
-        const val = job[column.id as keyof Job];
-        return typeof val === 'string' || typeof val === 'number' ? val : '-';
-      }
+        return job.movingPartner?.name?.toLowerCase() || '';
+      case 'requestedStorageUnits':
+        return job.requestedStorageUnits?.map(unit => unit.storageUnit.storageUnitNumber).join(', ') || '';
+      case 'storageUnits':
+        return job.storageStartUsages?.map(usage => usage.storageUnit.storageUnitNumber).join(', ') || '';
+      default:
+        return '';
     }
   };
+
+  const filteredAndSortedJobs = getSortedJobs(filteredJobs);
+
+  const fetchJobs = useCallback(async () => {
+    try {
+      let url = '/api/admin/jobs';
+      // Only add date parameter if there's no search query
+      if (selectedDate && !searchQuery) {
+        url += `?date=${selectedDate.toISOString()}`;
+      }
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch jobs');
+      const data = await response.json();
+      setJobs(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedDate, searchQuery]);
+
+  useEffect(() => {
+    fetchJobs();
+  }, [fetchJobs]);
+
+  const toggleColumn = (columnId: ColumnId) => {
+    setColumns(columns.map(col => 
+      col.id === columnId ? { ...col, visible: !col.visible } : col
+    ));
+  };
+
+  const handleAssignStorageUnits = async (job: Job) => {
+    setSelectedJobForStorageUnits(job);
+  };
+
+  const handleStorageUnitAssignmentComplete = async (unitNumbers: string[]) => {
+    if (!selectedJobForStorageUnits) return;
+
+    try {
+      const response = await fetch(`/api/admin/appointments/${selectedJobForStorageUnits.id}/assign-storage-units`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ storageUnitNumbers: unitNumbers }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to assign storage units');
+      }
+
+      // Refresh the jobs list
+      await fetchJobs();
+      setSelectedJobForStorageUnits(null);
+    } catch (error) {
+      console.error('Error assigning storage units:', error);
+      setError(error instanceof Error ? error.message : 'Failed to assign storage units');
+    }
+  };
+
+  const handleDateChange = (formattedDate: string, dateObject: Date | null) => {
+    setSelectedDate(dateObject);
+  };
+
+  // Convert filters to FilterDropdown format
+  const statusFilterItems = Object.keys(statusFilters).map((status) => ({
+    id: status,
+    label: status,
+    checked: statusFilters[status as StatusType],
+  }));
+
+  const actionFilterItems = [
+    { id: 'unassigned_drivers', label: 'Unassigned Drivers', checked: actionFilters.unassigned_drivers },
+    { id: 'incomplete_assignments', label: 'Unassigned Unit', checked: actionFilters.incomplete_assignments },
+  ];
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold text-text-primary">Jobs (Appointments)</h1>
-        <div className="flex gap-3">
-          <SearchAndFilterBar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            searchPlaceholder="Search jobs..."
-            actionFilters={actionFiltersConfig.map((f) => ({
-              ...f,
-              active: actionFilters[f.id] || false,
-            }))}
-            onToggleFilter={toggleFilter}
-            showFilterMenu={showFilterMenu}
-            onToggleFilterMenu={() => setShowFilterMenu(!showFilterMenu)}
-          />
-          <ColumnManagerMenu
-            columns={columns}
-            onToggleColumn={toggleColumn}
-            showMenu={showColumnMenu}
-            onToggleMenu={() => setShowColumnMenu(!showColumnMenu)}
+    <div>
+      <AdminPageHeader title="Jobs">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search job code..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="block w-full rounded-md border-0 py-2 pl-3 pr-10 text-zinc-950 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 font-semibold"
           />
         </div>
-      </div>
+        <AdminDatePicker
+          value={selectedDate}
+          onDateChange={handleDateChange}
+          allowPastDates={true}
+          placeholder="Date"
+          isOpen={showDatePicker}
+          onToggle={() => {
+            setShowDatePicker(!showDatePicker);
+            setShowStatusFilter(false);
+            setShowActionsFilter(false);
+            setShowColumnMenu(false);
+          }}
+        />
+        <FilterDropdown
+          label="Status"
+          filters={statusFilterItems}
+          isOpen={showStatusFilter}
+          onToggle={() => {
+            setShowStatusFilter(!showStatusFilter);
+            setShowActionsFilter(false);
+            setShowColumnMenu(false);
+            setShowDatePicker(false);
+          }}
+          onToggleFilter={(id) => toggleStatusFilter(id as StatusType)}
+          onToggleAll={toggleAllStatuses}
+          allSelected={allStatusesSelected}
+          allLabel="All Statuses"
+        />
+        <FilterDropdown
+          label="Actions"
+          filters={actionFilterItems}
+          isOpen={showActionsFilter}
+          onToggle={() => {
+            setShowActionsFilter(!showActionsFilter);
+            setShowStatusFilter(false);
+            setShowColumnMenu(false);
+            setShowDatePicker(false);
+          }}
+          onToggleFilter={(id) => toggleActionFilter(id as ActionType)}
+          onToggleAll={toggleAllActions}
+          allSelected={allActionsSelected}
+          allLabel="All Actions"
+        />
+        <ColumnManagerDropdown
+          columns={columns}
+          isOpen={showColumnMenu}
+          onToggle={() => {
+            setShowColumnMenu(!showColumnMenu);
+            setShowStatusFilter(false);
+            setShowActionsFilter(false);
+            setShowDatePicker(false);
+          }}
+          onToggleColumn={toggleColumn}
+        />
+      </AdminPageHeader>
 
-      {/* Table */}
-      <AdminDataTable
-        columns={columns.filter((c) => c.visible)}
-        data={processedJobs}
+      <AdminTable
+        columns={columns.map(col => ({
+          ...col,
+          sortable: ['date', 'appointmentType', 'status', 'partner', 'storageUnits', 'requestedStorageUnits'].includes(col.id)
+        }))}
+        data={filteredAndSortedJobs}
         sortConfig={sortConfig}
-        onSort={(columnId) => handleSort(columnId as ColumnId)}
+        onSort={handleSort}
         loading={loading}
         error={error}
-        emptyMessage="No jobs found"
+        emptyMessage="No jobs booked for today"
+        onRetry={fetchJobs}
         renderRow={(job) => (
-          <tr key={job.id} className="hover:bg-surface-tertiary transition-colors">
-            {columns
-              .filter((c) => c.visible)
-              .map((column) => (
-                <td key={column.id} className="px-3 py-4 text-sm text-text-primary whitespace-nowrap">
-                  {renderCellContent(job, column)}
+          <tr key={job.id} className={getRowColor(job.status)}>
+            {columns.map((column) => (
+              column.visible && (
+                <td
+                  key={column.id}
+                  className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6"
+                >
+                  {column.id === 'onfleetTasks' ? (
+                    job.onfleetTasks?.length ? (
+                      <AdminActionButton variant="indigo" onClick={() => setSelectedJobForTasks(job)}>
+                        View Records
+                      </AdminActionButton>
+                    ) : '-'
+                  ) : column.id === 'status' ? (
+                    <AdminStatusBadge status={job.status} />
+                  ) : column.id === 'user' ? (
+                    `${job.user.firstName} ${job.user.lastName}`
+                  ) : column.id === 'driver' ? (() => {
+                    const driver = job.onfleetTasks?.find(task => task.driver)?.driver;
+                    return driver ? (
+                      `${driver.firstName} ${driver.lastName}`
+                    ) : (
+                      <AdminActionButton variant="red" onClick={() => setSelectedJobForDriver(job)}>
+                        Driver Unassigned
+                      </AdminActionButton>
+                    );
+                  })() : column.id === 'partner' ? (
+                    job.movingPartner?.name || '-'
+                  ) : column.id === 'date' ? (
+                    formatDateTimePST(job.date)
+                  ) : column.id === 'thirdPartyMovingPartner' ? (
+                    job.thirdPartyMovingPartner?.title || '-'
+                  ) : column.id === 'storageUnits' ? (
+                    job.appointmentType === 'New Customer' ? (
+                      job.storageStartUsages?.length ? (
+                        job.storageStartUsages.length < (job.numberOfUnits || 0) ? (
+                          <AdminActionButton variant="amber" onClick={() => handleAssignStorageUnits(job)}>
+                            Incomplete
+                          </AdminActionButton>
+                        ) : (
+                          <AdminActionButton variant="green" onClick={() => handleAssignStorageUnits(job)}>
+                            {job.storageStartUsages.map(usage => usage.storageUnit.storageUnitNumber).join(', ')}
+                          </AdminActionButton>
+                        )
+                      ) : (
+                        <AdminActionButton variant="red" onClick={() => handleAssignStorageUnits(job)}>
+                          Assign Unit
+                        </AdminActionButton>
+                      )
+                    ) : '-'
+                  ) : column.id === 'requestedStorageUnits' ? (
+                    job.requestedStorageUnits?.length ? (
+                      job.requestedStorageUnits.map(unit => unit.storageUnit.storageUnitNumber).join(', ')
+                    ) : '-'
+                  ) : (
+                    String(job[column.id as keyof Job])
+                  )}
                 </td>
-              ))}
+              )
+            ))}
           </tr>
         )}
       />
 
-      {/* Onfleet Tasks Modal */}
       {selectedJobForTasks && (
         <OnfleetTasksModal
           isOpen={!!selectedJobForTasks}
@@ -477,29 +511,29 @@ export function AdminJobsPage() {
         />
       )}
 
-      {/* Storage Unit Assignment Modal */}
       {selectedJobForStorageUnits && (
         <StorageUnitAssignmentModal
           isOpen={!!selectedJobForStorageUnits}
           onClose={() => setSelectedJobForStorageUnits(null)}
           appointmentId={selectedJobForStorageUnits.id}
-          numberOfUnits={selectedJobForStorageUnits.numberOfUnits || 1}
-          currentAssignments={selectedJobForStorageUnits.storageStartUsages?.map(u => u.storageUnit.storageUnitNumber) || []}
-          onAssign={async (unitNumbers: string[]) => {
-            await refetch();
-            setSelectedJobForStorageUnits(null);
-          }}
+          numberOfUnits={selectedJobForStorageUnits.numberOfUnits || 0}
+          currentAssignments={selectedJobForStorageUnits.storageStartUsages?.map(usage => usage.storageUnit.storageUnitNumber) || []}
+          onAssign={handleStorageUnitAssignmentComplete}
         />
       )}
 
-      {/* Driver Assignment Modal */}
       {selectedJobForDriver && (
         <DriverAssignmentModal
           isOpen={!!selectedJobForDriver}
           onClose={() => setSelectedJobForDriver(null)}
-          movingPartner={(selectedJobForDriver.movingPartner as any) || null}
+          movingPartner={selectedJobForDriver.movingPartner ? {
+            name: selectedJobForDriver.movingPartner.name,
+            email: selectedJobForDriver.movingPartner.email || '',
+            phoneNumber: selectedJobForDriver.movingPartner.phoneNumber || ''
+          } : null}
           jobCode={selectedJobForDriver.jobCode}
           appointmentId={selectedJobForDriver.id}
+          planType={selectedJobForDriver.planType}
         />
       )}
     </div>

@@ -6,7 +6,7 @@
 
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef } from 'react';
 import { useForm, FormProvider, UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSearchParams } from 'next/navigation';
@@ -68,6 +68,7 @@ interface AccessStorageProviderProps {
   mode?: 'create' | 'edit';
   appointmentId?: string;
   initialZipCode?: string;
+  userId?: string;
   onStepChange?: (step: AccessStorageStep) => void;
   onSubmissionSuccess?: (appointmentId: number) => void;
   enablePersistence?: boolean;
@@ -80,11 +81,19 @@ export function AccessStorageProvider({
   mode = 'create',
   appointmentId,
   initialZipCode = '',
+  userId,
   onStepChange,
   onSubmissionSuccess,
   enablePersistence = true
 }: AccessStorageProviderProps) {
   const searchParams = useSearchParams();
+
+  console.log('🎪 [AccessStorageProvider] Initializing with:', {
+    mode,
+    appointmentId,
+    userId,
+    initialZipCode
+  });
 
   // Initialize React Hook Form with Zod validation
   const form = useForm<AccessStorageFormState>({
@@ -110,13 +119,61 @@ export function AccessStorageProvider({
     planType: form.watch('planType'),
     onStepChange,
     validateStep: (step) => {
-      // Use React Hook Form validation synchronously
-      return form.formState.isValid;
+      const formValues = form.getValues();
+      
+      switch (step) {
+        case AccessStorageStep.DELIVERY_PURPOSE:
+          // Validate step 1: delivery reason, address, storage units, and plan
+          if (!formValues.deliveryReason) {
+            formHook.setError('deliveryReasonError', 'Please select a delivery purpose');
+            return false;
+          }
+          if (!formValues.address || formValues.address.trim() === '') {
+            formHook.setError('addressError', 'Please enter a delivery address');
+            return false;
+          }
+          if (!formValues.selectedStorageUnits || formValues.selectedStorageUnits.length === 0) {
+            formHook.setError('storageUnitError', 'Please select at least one storage unit');
+            return false;
+          }
+          if (!formValues.selectedPlan) {
+            formHook.setError('planError', 'Please select a plan');
+            return false;
+          }
+          return true;
+          
+        case AccessStorageStep.SCHEDULING:
+          // Validate step 2: date and time must be selected
+          if (!formValues.scheduledDate || !formValues.scheduledTimeSlot) {
+            formHook.setError('scheduleError', 'Please select a date and time');
+            return false;
+          }
+          return true;
+          
+        case AccessStorageStep.LABOR_SELECTION:
+          // Validate step 3: labor selection (only for Full Service)
+          if (formValues.planType !== 'Do It Yourself Plan' && !formValues.selectedLabor) {
+            formHook.setError('laborError', 'Please select a moving partner');
+            return false;
+          }
+          return true;
+          
+        case AccessStorageStep.CONFIRMATION:
+          // Step 4: no additional validation needed
+          return true;
+          
+        default:
+          return true;
+      }
     }
   });
 
   const storageUnitsHook = useStorageUnits({
-    autoFetch: true
+    userId,
+    autoFetch: true,
+    // In edit mode, exclude the current appointment from pending checks
+    // so the unit being edited isn't disabled
+    excludeAppointmentId: mode === 'edit' ? appointmentId : undefined
   });
 
   const persistenceHook = useFormPersistence({
@@ -142,51 +199,57 @@ export function AccessStorageProvider({
   const appointmentDataHook = useAppointmentData(isEditMode ? appointmentId : undefined);
 
   // ===== FORM SYNCHRONIZATION =====
+  
+  // Track if we're syncing to prevent loops
+  const isSyncingRef = useRef(false);
+  
+  // Store refs for functions to avoid stale closures
+  const updateFormStateRef = useRef(formHook.updateFormState);
+  const saveFormStateRef = useRef(persistenceHook.saveFormState);
+  updateFormStateRef.current = formHook.updateFormState;
+  saveFormStateRef.current = persistenceHook.saveFormState;
 
-  // Sync React Hook Form with custom form hook
+  // Sync React Hook Form with custom form hook (one-way: RHF -> custom hook)
+  // Note: We don't sync in the other direction to avoid infinite loops
   useEffect(() => {
     const subscription = form.watch((data) => {
-      // Update custom hook state when React Hook Form changes
-      formHook.updateFormState(data as AccessStorageFormState);
+      if (isSyncingRef.current) return;
       
-      // Sync with persistence
-      if (enablePersistence) {
-        persistenceHook.saveFormState(data as Partial<AccessStorageFormState>);
+      isSyncingRef.current = true;
+      try {
+        // Update custom hook state when React Hook Form changes
+        updateFormStateRef.current(data as AccessStorageFormState);
+        
+        // Sync with persistence
+        if (enablePersistence) {
+          saveFormStateRef.current(data as Partial<AccessStorageFormState>);
+        }
+      } finally {
+        isSyncingRef.current = false;
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [form, formHook, persistenceHook, enablePersistence]);
+  }, [form, enablePersistence]);
 
-  // Sync custom hook changes back to React Hook Form
-  useEffect(() => {
-    const formState = formHook.formState;
-    const currentValues = form.getValues();
-    
-    // Check if there are differences and update React Hook Form
-    const hasChanges = Object.keys(formState).some(key => {
-      const formKey = key as keyof AccessStorageFormState;
-      return formState[formKey] !== currentValues[formKey];
-    });
-
-    if (hasChanges) {
-      Object.entries(formState).forEach(([key, value]) => {
-        const formKey = key as keyof AccessStorageFormState;
-        if (value !== currentValues[formKey]) {
-          form.setValue(formKey, value, {
-            shouldValidate: false,
-            shouldDirty: true
-          });
-        }
-      });
-    }
-  }, [formHook.formState, form]);
+  // Note: Removed bidirectional sync (formHook -> RHF) to prevent infinite loops
+  // React Hook Form is the source of truth, custom hook syncs from it
 
   // ===== EDIT MODE: FORM PRE-POPULATION =====
+  
+  // Track if form has been populated to prevent infinite loops
+  const hasPopulatedFormRef = useRef(false);
 
   // Pre-populate form when appointment data is loaded in edit mode
   useEffect(() => {
-    if (isEditMode && appointmentDataHook?.appointmentData && !appointmentDataHook.isLoading) {
+    // Only populate once when appointment data is loaded
+    if (
+      isEditMode && 
+      appointmentDataHook?.appointmentData && 
+      !appointmentDataHook.isLoading &&
+      !hasPopulatedFormRef.current
+    ) {
+      hasPopulatedFormRef.current = true;
       const appointment = appointmentDataHook.appointmentData;
       
       // Helper function to safely parse date and create time slot
@@ -303,25 +366,33 @@ export function AccessStorageProvider({
         calculatedTotal: appointment.quotedPrice || 0,
         
         // Additional data
-        appointmentType: (appointment.appointmentType as AppointmentType) || AppointmentType.STORAGE_UNIT_ACCESS
+        appointmentType: (appointment.appointmentType as AppointmentType) || AppointmentType.STORAGE_UNIT_ACCESS,
+        
+        // Edit mode specific fields
+        stripeCustomerId
       };
 
-      // Apply updates to form
-      Object.entries(formUpdates).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          form.setValue(key as keyof AccessStorageFormState, value, {
-            shouldValidate: false,
-            shouldDirty: false
-          });
-        }
-      });
+      // Apply updates to form (using isSyncingRef to prevent the watch callback from triggering)
+      isSyncingRef.current = true;
+      try {
+        Object.entries(formUpdates).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            form.setValue(key as keyof AccessStorageFormState, value, {
+              shouldValidate: false,
+              shouldDirty: false
+            });
+          }
+        });
 
-      // Update custom hook state
-      formHook.updateFormState(formUpdates as AccessStorageFormState);
+        // Update custom hook state using ref
+        updateFormStateRef.current(formUpdates as AccessStorageFormState);
+      } finally {
+        isSyncingRef.current = false;
+      }
       
       console.log('Form pre-populated with appointment data:', formUpdates);
     }
-  }, [isEditMode, appointmentDataHook?.appointmentData, appointmentDataHook?.isLoading, form, formHook]);
+  }, [isEditMode, appointmentDataHook?.appointmentData, appointmentDataHook?.isLoading, form]);
 
   // ===== STORAGE UNITS INTEGRATION =====
 
@@ -391,16 +462,50 @@ export function AccessStorageProvider({
       },
       
       submitForm: async () => {
+        console.log('🏁 [AccessStorageProvider.submitForm] Starting...');
+        console.log('🏁 [AccessStorageProvider.submitForm] Form state:', form.getValues());
+        
         // Validate form before submission
+        console.log('🔍 [AccessStorageProvider.submitForm] Triggering form validation...');
         const isValid = await form.trigger();
+        console.log('🔍 [AccessStorageProvider.submitForm] Form isValid:', isValid);
+        console.log('🔍 [AccessStorageProvider.submitForm] Form errors:', form.formState.errors);
         
         if (!isValid) {
-          console.warn('Form validation failed, cannot submit');
+          console.error('❌ [AccessStorageProvider.submitForm] Form validation failed, cannot submit');
+          console.error('❌ [AccessStorageProvider.submitForm] Errors:', form.formState.errors);
+          
+          // Set user-friendly errors on the form hook so they're displayed
+          const { errors } = form.formState;
+          if (errors.deliveryReason) {
+            formHook.setError('deliveryReasonError', errors.deliveryReason.message || 'Please select a delivery reason');
+          }
+          if (errors.address) {
+            formHook.setError('addressError', errors.address.message || 'Please enter a valid address');
+          }
+          if (errors.selectedStorageUnits) {
+            formHook.setError('storageUnitError', errors.selectedStorageUnits.message || 'Please select at least one storage unit');
+          }
+          if (errors.selectedPlan) {
+            formHook.setError('planError', errors.selectedPlan.message || 'Please select a plan');
+          }
+          if (errors.scheduledDate || errors.scheduledTimeSlot) {
+            formHook.setError('scheduleError', 'Please select a date and time');
+          }
+          if (errors.selectedLabor) {
+            formHook.setError('laborError', errors.selectedLabor.message || 'Please select loading help');
+          }
+          
+          // Set a general submit error so user knows something went wrong
+          formHook.setError('submitError', 'Please fill in all required fields before submitting');
+          
           return;
         }
         
+        console.log('✅ [AccessStorageProvider.submitForm] Form validation passed. Calling formHook.submitForm...');
         // Submit using the custom hook (will handle edit vs create mode internally)
         await formHook.submitForm();
+        console.log('✅ [AccessStorageProvider.submitForm] Submission complete');
       }
     };
   }, [
@@ -417,12 +522,18 @@ export function AccessStorageProvider({
 
   // ===== ERROR SYNCHRONIZATION =====
 
+  // Store ref for setError to avoid stale closures
+  const setErrorRef = useRef(formHook.setError);
+  const formHookErrorsRef = useRef(formHook.errors);
+  setErrorRef.current = formHook.setError;
+  formHookErrorsRef.current = formHook.errors;
+
   // Sync React Hook Form errors with custom hook errors
   useEffect(() => {
     const { errors } = form.formState;
     
     // Map React Hook Form errors to custom hook error format
-    const errorMappings: Record<string, keyof typeof formHook.errors> = {
+    const errorMappings: Record<string, 'deliveryReasonError' | 'addressError' | 'planError' | 'storageUnitError' | 'laborError' | 'scheduleError'> = {
       'deliveryReason': 'deliveryReasonError',
       'address': 'addressError',
       'selectedPlan': 'planError',
@@ -436,11 +547,11 @@ export function AccessStorageProvider({
       const error = errors[formField as keyof AccessStorageFormState];
       const errorMessage = error?.message || null;
       
-      if (formHook.errors[errorField] !== errorMessage) {
-        formHook.setError(errorField, errorMessage);
+      if (formHookErrorsRef.current[errorField] !== errorMessage) {
+        setErrorRef.current(errorField, errorMessage);
       }
     });
-  }, [form.formState.errors, formHook]);
+  }, [form.formState.errors]);
 
   return (
     <AccessStorageContext.Provider value={contextValue}>
@@ -574,7 +685,21 @@ export function useAddressField() {
     coordinates: form.watch('coordinates'),
     cityName: form.watch('cityName'),
     error: formHook.errors.addressError,
-    onChange: formHook.handleAddressChange,
+    onChange: (
+      newAddress: string,
+      newZipCode: string,
+      newCoordinates: google.maps.LatLngLiteral,
+      newCityName: string
+    ) => {
+      // Update React Hook Form (source of truth for display)
+      form.setValue('address', newAddress, { shouldValidate: true });
+      form.setValue('zipCode', newZipCode, { shouldValidate: true });
+      form.setValue('coordinates', newCoordinates, { shouldValidate: false });
+      form.setValue('cityName', newCityName, { shouldValidate: false });
+      
+      // Also update custom hook state
+      formHook.handleAddressChange(newAddress, newZipCode, newCoordinates, newCityName);
+    },
     clearError: () => formHook.clearError('addressError')
   };
 }
@@ -609,7 +734,37 @@ export function usePlanSelectionField() {
     selectedPlanName: form.watch('selectedPlanName'),
     planType: form.watch('planType'),
     error: formHook.errors.planError,
-    onChange: formHook.handleInitialPlanChoice,
+    onChange: (id: string, planNameFromRadio: string, descriptionFromRadio: string) => {
+      // Update React Hook Form (source of truth for display)
+      form.setValue('selectedPlan', id, { shouldValidate: true });
+      
+      // Set plan-specific values based on selection
+      if (planNameFromRadio === 'Do It Yourself Plan') {
+        form.setValue('planType', 'Do It Yourself Plan', { shouldValidate: true });
+        form.setValue('selectedPlanName', 'Do It Yourself Plan', { shouldValidate: false });
+        form.setValue('loadingHelpPrice', '$0', { shouldValidate: false });
+        form.setValue('loadingHelpDescription', 'No loading help', { shouldValidate: false });
+        form.setValue('parsedLoadingHelpPrice', 0, { shouldValidate: false });
+        form.setValue('selectedLabor', {
+          id: 'Do It Yourself Plan',
+          price: '$0',
+          title: 'Do It Yourself Plan'
+        }, { shouldValidate: false });
+        form.setValue('movingPartnerId', null, { shouldValidate: false });
+        form.setValue('thirdPartyMovingPartnerId', null, { shouldValidate: false });
+      } else if (planNameFromRadio === 'Full Service Plan') {
+        form.setValue('planType', 'Full Service Plan', { shouldValidate: true });
+        form.setValue('selectedPlanName', 'Full Service Plan', { shouldValidate: false });
+        form.setValue('loadingHelpPrice', '$189/hr', { shouldValidate: false });
+        form.setValue('loadingHelpDescription', 'estimate', { shouldValidate: false });
+        form.setValue('selectedLabor', null, { shouldValidate: false });
+        form.setValue('movingPartnerId', null, { shouldValidate: false });
+        form.setValue('thirdPartyMovingPartnerId', null, { shouldValidate: false });
+      }
+      
+      // Also update custom hook state
+      formHook.handleInitialPlanChoice(id, planNameFromRadio, descriptionFromRadio);
+    },
     clearError: () => formHook.clearError('planError')
   };
 }
@@ -632,7 +787,8 @@ export function useAccessStorageAppointmentData() {
       clearError: () => {},
       hasAppointmentData: false,
       canRetry: false,
-      isEditMode: false
+      isEditMode: false,
+      appointmentId: undefined
     };
   }
   
@@ -648,6 +804,7 @@ export function useAccessStorageAppointmentData() {
     hasAppointmentData: !!appointmentDataHook?.appointmentData,
     canRetry: appointmentDataHook?.canRetry || false,
     isEditMode: true,
+    appointmentId,
     appointmentId
   };
 }

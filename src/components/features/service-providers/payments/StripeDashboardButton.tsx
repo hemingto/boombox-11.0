@@ -47,6 +47,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/primitives/Button/Button';
 
 interface StripeDashboardButtonProps {
   userId: string;
@@ -116,9 +117,6 @@ export function StripeDashboardButton({
     }
   };
 
-  // Determine if button should be disabled
-  const isDisabled = isLoading || !isAccountActive || isCheckingAccount;
-
   // Determine button text based on state
   const getButtonText = () => {
     if (isLoading) return 'Connecting to Stripe...';
@@ -129,14 +127,13 @@ export function StripeDashboardButton({
 
   return (
     <div>
-      <button
+      <Button
         onClick={handleOpenDashboard}
-        disabled={isDisabled}
-        className={`block rounded-md py-2.5 px-6 font-semibold text-md basis-1/2 font-inter ${
-          isDisabled
-            ? 'bg-surface-tertiary text-text-disabled cursor-not-allowed'
-            : 'bg-primary text-text-inverse hover:bg-primary-hover active:bg-zinc-700'
-        }`}
+        disabled={!isAccountActive}
+        loading={isLoading || isCheckingAccount}
+        variant="primary"
+        size="md"
+        className="basis-1/2"
         aria-label={
           isCheckingAccount
             ? 'Checking Stripe account status'
@@ -144,11 +141,9 @@ export function StripeDashboardButton({
             ? 'Complete Stripe account setup to view dashboard'
             : 'Open Stripe Express Dashboard in new tab'
         }
-        aria-busy={isLoading || isCheckingAccount}
-        aria-disabled={isDisabled}
       >
-        <span>{getButtonText()}</span>
-      </button>
+        {getButtonText()}
+      </Button>
       {error && (
         <p className="text-status-error text-sm mt-2" role="alert">
           {error}

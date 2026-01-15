@@ -51,9 +51,7 @@ export type AppointmentDomainType =
   | 'Initial Pickup'
   | 'Storage Unit Access'
   | 'Additional Storage'
-  | 'End Storage Term'
-  | 'Return Delivery'
-  | 'Damage Inspection';
+  | 'End Storage Term';
 
 // Legacy export for backward compatibility
 export type AppointmentType = AppointmentDomainType;
@@ -470,8 +468,6 @@ export function isValidAppointmentDomainType(
     'Storage Unit Access',
     'Additional Storage',
     'End Storage Term',
-    'Return Delivery',
-    'Damage Inspection',
   ].includes(type);
 }
 

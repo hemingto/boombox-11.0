@@ -28,6 +28,7 @@ function validateVerificationCode(code: string): boolean {
  * Custom hook for phone verification flow
  * 
  * @param initialPhone - Optional pre-filled phone number
+ * @param skipAccountCheck - Whether to skip account existence check (default: false, use true for profile verification)
  * @returns Phone verification state and actions
  * 
  * @example
@@ -47,10 +48,10 @@ function validateVerificationCode(code: string): boolean {
  *   sendCode,
  *   verifyCode,
  *   resendCode
- * } = usePhoneVerification('4155551234');
+ * } = usePhoneVerification('4155551234', true);
  * ```
  */
-export function usePhoneVerification(initialPhone?: string) {
+export function usePhoneVerification(initialPhone?: string, skipAccountCheck: boolean = false) {
   const [phoneNumber, setPhoneNumber] = useState(initialPhone || '');
   const [displayPhoneNumber, setDisplayPhoneNumber] = useState('');
   const [code, setCode] = useState('');
@@ -111,7 +112,10 @@ export function usePhoneVerification(initialPhone?: string) {
       const response = await fetch('/api/auth/send-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber: cleaned }),
+        body: JSON.stringify({ 
+          phoneNumber: cleaned,
+          skipAccountCheck // Pass through the skipAccountCheck flag
+        }),
       });
       
       if (!response.ok) {
@@ -129,7 +133,7 @@ export function usePhoneVerification(initialPhone?: string) {
     } finally {
       setIsLoading(false);
     }
-  }, [phoneNumber, startResendTimer]);
+  }, [phoneNumber, skipAccountCheck, startResendTimer]);
   
   /**
    * Resend verification code

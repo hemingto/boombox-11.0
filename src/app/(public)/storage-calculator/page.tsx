@@ -15,8 +15,7 @@ import {
   ContainerInfoSection,
   StorageCalculatorFAQ,
 } from '@/components/features/storage-calculator';
-import { HowItWorksCustomerReviewSection } from '@/components/features/howitworks';
-import { HelpCenterSection } from '@/components/features/landing';
+import { CustomerReviewSection, HelpCenterSection } from '@/components/features/landing';
 
 // Note: Page is client component due to interactive calculator
 // SEO metadata should be added via generateMetadata when converting to server component
@@ -29,7 +28,7 @@ export default function StorageCalculator() {
       <ItemsThatFitSection />
       <NumberOfUnitsSection />
       <ContainerInfoSection />
-      <HowItWorksCustomerReviewSection />
+      <CustomerReviewSection variant="white" />
       <StorageCalculatorFAQ />
       <HelpCenterSection />
     </>

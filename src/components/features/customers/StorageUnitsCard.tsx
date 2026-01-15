@@ -116,7 +116,7 @@ export function StorageUnitsCard({
       const result = await response.json();
 
       if (response.ok) {
-        setUploadSuccess(`Successfully uploaded ${result.uploadedUrls.length} photo(s)!`);
+        setUploadSuccess(`Successfully uploaded ${result.uploadedUrls.length} ${result.uploadedUrls.length === 1 ? 'photo' : 'photos'}!`);
         // Call the callback to update parent component
         if (onPhotosUploaded) {
           onPhotosUploaded(result.uploadedUrls);
@@ -174,7 +174,7 @@ export function StorageUnitsCard({
             onError={handleImageError}
           />
         ) : (
-          <span className="text-sm text-text-tertiary text-center">Image not available</span>
+          <span className="text-sm text-text-secondary text-center">Image not available</span>
         )}
       </div>
 
@@ -205,7 +205,7 @@ export function StorageUnitsCard({
               <div className="absolute rounded-l-md inset-0 bg-primary opacity-0 hover:opacity-10 transition-opacity duration-300"></div>
             </>
           ) : (
-            <div className="flex items-center justify-center h-full w-full text-sm text-text-tertiary text-center">
+            <div className="flex items-center justify-center h-full w-full text-sm text-text-secondary text-center">
               Image not available
             </div>
           )}
@@ -259,7 +259,7 @@ export function StorageUnitsCard({
             {/* Upload Status Messages */}
             {uploadError && (
               <div
-                className="mt-2 p-2 bg-status-bg-error border border-border-error rounded-md"
+                className="mt-2 p-3 bg-status-bg-error rounded-md w-fit"
                 role="alert"
               >
                 <p className="text-sm text-status-error">{uploadError}</p>
@@ -267,7 +267,7 @@ export function StorageUnitsCard({
             )}
             {uploadSuccess && (
               <div
-                className="mt-2 p-2 bg-status-bg-success border border-border-success rounded-md"
+                className="mt-2 p-3 bg-status-bg-success rounded-md w-fit"
                 role="status"
               >
                 <p className="text-sm text-status-success">{uploadSuccess}</p>

@@ -31,6 +31,12 @@ import {
   UpdateLocationService
 } from '@/lib/services';
 
+/**
+ * Appointment statuses that should be excluded from task generation
+ * Completed and Canceled/Cancelled appointments should not generate tasks
+ */
+const EXCLUDED_APPOINTMENT_STATUSES = ['Completed', 'Cancelled', 'Canceled'];
+
 // Individual task services
 export class AdminTaskListingService {
   private assignStorageUnitService = new AssignStorageUnitService();
@@ -235,14 +241,16 @@ export class AdminTaskListingService {
   /**
    * Get admin check tasks (appointments needing admin review)
    * @source boombox-10.0/src/app/api/admin/tasks/route.ts (admin check query)
+   * Excludes canceled and completed appointments
    */
   private async getAdminCheck() {
     try {
-      // This appears to be appointments that need admin review for storage unit assignment
+      // Get appointments that need storage unit assignment
+      // These are Initial Pickup and Additional Storage appointments where units haven't been assigned yet
       const appointments = await prisma.appointment.findMany({
         where: {
           appointmentType: {
-            in: ['Storage Pickup', 'Storage Delivery']
+            in: ['Initial Pickup', 'Additional Storage']
           },
           date: {
             gte: new Date(),
@@ -251,6 +259,10 @@ export class AdminTaskListingService {
           // Appointments without storage unit usages that should have them
           storageStartUsages: {
             none: {}
+          },
+          // Exclude canceled and completed appointments
+          status: {
+            notIn: EXCLUDED_APPOINTMENT_STATUSES
           }
         },
         select: {
@@ -342,6 +354,7 @@ export class AdminTaskListingService {
 
   /**
    * Get storage returns using StorageUnitReturnService
+   * Handles all appointment types: Initial Pickup, Additional Storage, Storage Unit Access, End Storage Term/Plan
    */
   private async getStorageReturns() {
     try {
@@ -351,7 +364,7 @@ export class AdminTaskListingService {
         id: `storage-return-${returnItem.appointmentId}`,
         title: 'Storage Unit Return',
         description: 'Process storage unit return and damage assessment',
-        details: `<strong>Job Code:</strong> ${returnItem.jobCode}<br><strong>Return Date:</strong> ${returnItem.appointmentDate}`,
+        details: `<strong>Job Code:</strong> ${returnItem.jobCode}<br><strong>Type:</strong> ${returnItem.appointmentType}<br><strong>Return Date:</strong> ${returnItem.appointmentDate}`,
         action: 'Process Return',
         actionUrl: `/admin/tasks/storage-return-${returnItem.appointmentId}/storage-unit-return`,
         color: 'indigo',
@@ -441,7 +454,7 @@ export class AdminTaskListingService {
           title: 'Prep Packing Supply Order',
           description: 'Organize packing supply order and prep it for pickup',
           details: `<strong>Order #:</strong> ${order.onfleetTaskShortId || order.id}<br><strong>Customer:</strong> ${order.contactName}<br><strong>Delivery Date:</strong> ${formattedDate}`,
-          action: 'View in Delivery Routes',
+          action: 'Prep Order',
           actionUrl: `/admin/delivery-routes`,
           color: 'darkAmber',
           customerName: order.contactName,
@@ -459,6 +472,7 @@ export class AdminTaskListingService {
   /**
    * Helper method to get unassigned driver appointments
    * Uses direct query since UnassignedDriverService doesn't have bulk method yet
+   * Excludes canceled and completed appointments
    */
   private async getUnassignedDriverAppointments() {
     const today = new Date();
@@ -477,6 +491,10 @@ export class AdminTaskListingService {
         },
         movingPartner: {
           isNot: null
+        },
+        // Exclude canceled and completed appointments
+        status: {
+          notIn: EXCLUDED_APPOINTMENT_STATUSES
         }
       },
       select: {
@@ -512,12 +530,19 @@ export class AdminTaskListingService {
   /**
    * Helper method to get negative feedback records
    * Uses direct query since NegativeFeedbackService doesn't have bulk method yet
+   * Only excludes feedback for canceled appointments (not completed - feedback comes after completion)
    */
   private async getNegativeFeedbackRecords() {
     return await prisma.feedback.findMany({
       where: {
         rating: { lte: 3 },
-        responded: false
+        responded: false,
+        // Only exclude feedback for canceled appointments (feedback is submitted after completion)
+        appointment: {
+          status: {
+            notIn: ['Cancelled', 'Canceled']
+          }
+        }
       },
       select: {
         id: true,

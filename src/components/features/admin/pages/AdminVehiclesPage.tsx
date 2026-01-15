@@ -12,42 +12,32 @@
  * - View vehicle photos (insurance, front, back)
  * - Sortable by all columns
  * 
- * DESIGN SYSTEM UPDATES:
- * - Uses shared AdminDataTable component
- * - Uses shared hooks (useAdminTable, useAdminDataFetch)
- * - Uses AdminDetailModal for owner records
- * - Uses PhotoViewerModal for vehicle photos
- * - 100% semantic color tokens
- * - Consistent with other management pages
+ * DESIGN:
+ * - Uses gold standard admin components
+ * - AdminPageHeader with filters
+ * - AdminTable with skeleton loading
+ * - AdminActionButton and AdminBooleanBadge
+ * - Headless UI Dialog for modals
  * 
  * API ROUTES:
  * - GET /api/admin/vehicles - Fetches all vehicles
  * - POST /api/admin/vehicles/[id]/approve - Approves vehicle
  * 
- * CODE REDUCTION:
- * - Original: 536 lines
- * - Refactored: ~310 lines (42% reduction)
- * - Eliminated duplicate state management
- * - Eliminated custom table implementation
- * 
- * @refactor Extracted from inline page implementation, uses shared admin components
+ * @refactor Refactored to use gold standard admin components
  */
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import {
-  AdminDataTable,
-  ColumnManagerMenu,
-  SearchAndFilterBar,
-  AdminDetailModal,
-  PhotoViewerModal,
-  type Column,
-  type ActionFilter,
-} from '@/components/features/admin/shared';
-import { useAdminTable, useAdminDataFetch } from '@/hooks';
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
+import Image from 'next/image';
 import { formatPhoneNumberForDisplay } from '@/lib/utils/phoneUtils';
-import { Modal } from '@/components/ui/primitives/Modal/Modal';
+import { AdminTable } from '@/components/features/admin/shared/table/AdminTable';
+import { AdminActionButton } from '@/components/features/admin/shared/buttons/AdminActionButton';
+import { AdminBooleanBadge } from '@/components/features/admin/shared/buttons/AdminBooleanBadge';
+import { FilterDropdown } from '@/components/features/admin/shared/filters/FilterDropdown';
+import { ColumnManagerDropdown } from '@/components/features/admin/shared/filters/ColumnManagerDropdown';
+import { AdminPageHeader } from '@/components/features/admin/shared/filters/AdminPageHeader';
 
 interface Vehicle {
   id: number;
@@ -92,7 +82,18 @@ type ColumnId =
 
 type RecordType = 'driver' | 'movingPartner';
 
-const defaultColumns: Column<ColumnId>[] = [
+interface Column {
+  id: ColumnId;
+  label: string;
+  visible: boolean;
+}
+
+type SortConfig = {
+  column: ColumnId | null;
+  direction: 'asc' | 'desc';
+};
+
+const allColumns: Column[] = [
   { id: 'make', label: 'Make', visible: true },
   { id: 'model', label: 'Model', visible: true },
   { id: 'year', label: 'Year', visible: true },
@@ -108,10 +109,6 @@ const defaultColumns: Column<ColumnId>[] = [
   { id: 'movingPartner', label: 'Mover Record', visible: false },
 ];
 
-const actionFiltersConfig: ActionFilter[] = [
-  { id: 'approve_vehicles', label: 'Approve Vehicles', active: false },
-];
-
 /**
  * AdminVehiclesPage - Vehicle management interface
  * 
@@ -122,124 +119,125 @@ const actionFiltersConfig: ActionFilter[] = [
  * ```
  */
 export function AdminVehiclesPage() {
-  // Shared hooks for table management
-  const {
-    columns,
-    toggleColumn,
-    sortConfig,
-    handleSort,
-    searchQuery,
-    setSearchQuery,
-    actionFilters,
-    toggleFilter,
-    getSortedAndFilteredData,
-  } = useAdminTable<ColumnId, Vehicle>({
-    initialColumns: defaultColumns,
-    initialSort: { column: null, direction: 'asc' },
-    initialFilters: { approve_vehicles: false },
-  });
-
-  // Data fetching
-  const { data: vehicles, loading, error, refetch } = useAdminDataFetch<Vehicle[]>({
-    apiEndpoint: '/api/admin/vehicles',
-  });
-
-  // Modal states
-  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [showApproveModal, setShowApproveModal] = useState(false);
-  const [showPhotoModal, setShowPhotoModal] = useState(false);
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
-  const [selectedRecordType, setSelectedRecordType] = useState<RecordType | null>(null);
+  // State management
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [columns, setColumns] = useState<Column[]>(allColumns);
   const [showColumnMenu, setShowColumnMenu] = useState(false);
-  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [showActionsFilter, setShowActionsFilter] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [showApproveModal, setShowApproveModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [selectedPhotoUrl, setSelectedPhotoUrl] = useState<string>('');
+  const [selectedRecordType, setSelectedRecordType] = useState<RecordType | null>(null);
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ column: null, direction: 'asc' });
+  const [actionFilters, setActionFilters] = useState<Record<string, boolean>>({
+    approve_vehicles: false,
+  });
+  const [searchQuery, setSearchQuery] = useState('');
 
-  /**
-   * Custom sort function for vehicles
-   */
-  const customSortFn = (data: Vehicle[], config: typeof sortConfig) => {
-    if (!config.column) return data;
+  // Fetch vehicles
+  useEffect(() => {
+    fetchVehicles();
+  }, []);
 
-    return [...data].sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
+  const fetchVehicles = async () => {
+    try {
+      const response = await fetch('/api/admin/vehicles');
+      if (!response.ok) throw new Error('Failed to fetch vehicles');
+      const data = await response.json();
+      setVehicles(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      // Handle special column sorting
-      if (config.column === 'driverName' || config.column === 'driver') {
-        aValue = a.driver ? `${a.driver.firstName} ${a.driver.lastName}`.toLowerCase() : '';
-        bValue = b.driver ? `${b.driver.firstName} ${b.driver.lastName}`.toLowerCase() : '';
-      } else if (config.column === 'moverName' || config.column === 'movingPartner') {
-        aValue = a.movingPartner?.name.toLowerCase() || '';
-        bValue = b.movingPartner?.name.toLowerCase() || '';
-      } else {
-        aValue = a[config.column as keyof Vehicle];
-        bValue = b[config.column as keyof Vehicle];
-      }
+  // Sorting
+  const handleSort = (column: ColumnId) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.column === column && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ column, direction });
+  };
 
-      if (aValue === null || aValue === undefined) return config.direction === 'asc' ? -1 : 1;
-      if (bValue === null || bValue === undefined) return config.direction === 'asc' ? 1 : -1;
+  const getSortValue = (vehicle: Vehicle, column: ColumnId) => {
+    switch (column) {
+      case 'make':
+      case 'model':
+      case 'year':
+      case 'licensePlate':
+        return vehicle[column].toLowerCase();
+      case 'driver':
+      case 'driverName':
+        return vehicle.driver ? `${vehicle.driver.firstName} ${vehicle.driver.lastName}`.toLowerCase() : '';
+      case 'movingPartner':
+      case 'moverName':
+        return vehicle.movingPartner?.name.toLowerCase() || '';
+      case 'isApproved':
+      case 'hasTrailerHitch':
+        return vehicle[column] ? 'true' : 'false';
+      default:
+        return '';
+    }
+  };
 
-      if (aValue < bValue) return config.direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return config.direction === 'asc' ? 1 : -1;
+  const getSortedVehicles = (vehicles: Vehicle[]) => {
+    if (!sortConfig.column) return vehicles;
+
+    const sortColumn = sortConfig.column;
+    return [...vehicles].sort((a, b) => {
+      const aValue = getSortValue(a, sortColumn);
+      const bValue = getSortValue(b, sortColumn);
+
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
   };
 
-  /**
-   * Custom filter function for search and action filters
-   */
-  const customFilterFn = (data: Vehicle[], query: string, filters: Record<string, boolean>) => {
-    let result = data;
-
-    // Apply search filter
-    if (query) {
-      const lowerQuery = query.toLowerCase();
-      result = result.filter(
-        (vehicle) =>
-          vehicle.make.toLowerCase().includes(lowerQuery) ||
-          vehicle.model.toLowerCase().includes(lowerQuery) ||
-          vehicle.year.includes(query) ||
-          vehicle.licensePlate.toLowerCase().includes(lowerQuery)
+  // Filtering
+  const filteredVehicles = vehicles
+    .filter((vehicle) => {
+      if (actionFilters.approve_vehicles) {
+        return !vehicle.isApproved;
+      }
+      return true;
+    })
+    .filter((vehicle) => {
+      if (!searchQuery) return true;
+      const searchLower = searchQuery.toLowerCase();
+      return (
+        vehicle.make.toLowerCase().includes(searchLower) ||
+        vehicle.model.toLowerCase().includes(searchLower) ||
+        vehicle.year.toLowerCase().includes(searchLower) ||
+        vehicle.licensePlate.toLowerCase().includes(searchLower) ||
+        vehicle.driver?.firstName.toLowerCase().includes(searchLower) ||
+        vehicle.driver?.lastName.toLowerCase().includes(searchLower) ||
+        vehicle.driver?.email.toLowerCase().includes(searchLower) ||
+        vehicle.movingPartner?.name.toLowerCase().includes(searchLower) ||
+        vehicle.movingPartner?.email?.toLowerCase().includes(searchLower)
       );
-    }
+    });
 
-    // Apply action filters
-    if (filters.approve_vehicles) {
-      result = result.filter((vehicle) => !vehicle.isApproved);
-    }
+  const sortedVehicles = getSortedVehicles(filteredVehicles);
 
-    return result;
+  // Actions
+  const toggleColumn = (columnId: ColumnId) => {
+    setColumns((prev) => prev.map((col) => (col.id === columnId ? { ...col, visible: !col.visible } : col)));
   };
 
-  /**
-   * Get sorted and filtered vehicle data
-   */
-  const processedVehicles = useMemo(
-    () => getSortedAndFilteredData(vehicles || [], customSortFn, customFilterFn),
-    [vehicles, sortConfig, searchQuery, actionFilters, getSortedAndFilteredData]
-  );
-
-  /**
-   * Handle viewing owner records
-   */
-  const handleViewRecord = (vehicle: Vehicle, recordType: RecordType) => {
-    setSelectedVehicle(vehicle);
-    setSelectedRecordType(recordType);
-    setShowViewModal(true);
+  const toggleActionFilter = (action: string) => {
+    setActionFilters((prev) => ({
+      ...prev,
+      [action]: !prev[action],
+    }));
   };
 
-  /**
-   * Handle viewing vehicle photos
-   */
-  const handleViewPhotos = (vehicle: Vehicle) => {
-    setSelectedVehicle(vehicle);
-    setCurrentPhotoIndex(0);
-    setShowPhotoModal(true);
-  };
-
-  /**
-   * Handle vehicle approval
-   */
   const handleApproveVehicle = (vehicle: Vehicle) => {
     setSelectedVehicle(vehicle);
     setShowApproveModal(true);
@@ -255,7 +253,7 @@ export function AdminVehiclesPage() {
 
       if (!response.ok) throw new Error('Failed to approve vehicle');
 
-      await refetch();
+      await fetchVehicles();
       setShowApproveModal(false);
       setSelectedVehicle(null);
     } catch (err) {
@@ -263,278 +261,223 @@ export function AdminVehiclesPage() {
     }
   };
 
-  /**
-   * Render cell content based on column type
-   */
-  const renderCellContent = (vehicle: Vehicle, column: Column<ColumnId>): React.ReactNode => {
-    switch (column.id) {
-      case 'isApproved':
-        return vehicle.isApproved ? 'Yes' : 'No';
-
-      case 'hasTrailerHitch':
-        return vehicle.hasTrailerHitch ? 'Yes' : 'No';
-
-      case 'autoInsurancePhoto':
-      case 'frontVehiclePhoto':
-      case 'backVehiclePhoto':
-        if (!vehicle.autoInsurancePhoto && !vehicle.frontVehiclePhoto && !vehicle.backVehiclePhoto)
-          return '-';
-        return (
-          <button
-            onClick={() => handleViewPhotos(vehicle)}
-            className="inline-flex items-center bg-primary/10 px-2.5 py-1 text-sm font-inter rounded-md font-medium text-primary ring-1 ring-inset ring-primary/20 hover:bg-primary/20 transition-colors"
-            aria-label={`View photos for ${vehicle.make} ${vehicle.model}`}
-          >
-            View Photos
-          </button>
-        );
-
-      case 'driverName':
-        return vehicle.driver
-          ? `${vehicle.driver.firstName} ${vehicle.driver.lastName}`
-          : '-';
-
-      case 'moverName':
-        return vehicle.movingPartner ? vehicle.movingPartner.name : '-';
-
-      case 'driver':
-        return vehicle.driver ? (
-          <button
-            onClick={() => handleViewRecord(vehicle, 'driver')}
-            className="inline-flex items-center bg-primary/10 px-2.5 py-1 text-sm font-inter rounded-md font-medium text-primary ring-1 ring-inset ring-primary/20 hover:bg-primary/20 transition-colors"
-            aria-label={`View driver record for ${vehicle.driver.firstName} ${vehicle.driver.lastName}`}
-          >
-            View Record
-          </button>
-        ) : (
-          '-'
-        );
-
-      case 'movingPartner':
-        return vehicle.movingPartner ? (
-          <button
-            onClick={() => handleViewRecord(vehicle, 'movingPartner')}
-            className="inline-flex items-center bg-primary/10 px-2.5 py-1 text-sm font-inter rounded-md font-medium text-primary ring-1 ring-inset ring-primary/20 hover:bg-primary/20 transition-colors"
-            aria-label={`View mover record for ${vehicle.movingPartner.name}`}
-          >
-            View Record
-          </button>
-        ) : (
-          '-'
-        );
-
-      default: {
-        const value = vehicle[column.id as keyof Vehicle];
-        return typeof value === 'string' || typeof value === 'number' ? value : '-';
-      }
-    }
+  const handleViewPhoto = (photoUrl: string) => {
+    setSelectedPhotoUrl(photoUrl);
+    setShowPhotoModal(true);
   };
 
-  /**
-   * Render modal content based on record type
-   */
-  const renderModalContent = () => {
-    if (!selectedVehicle || !selectedRecordType) return null;
-
-    if (selectedRecordType === 'driver' && selectedVehicle.driver) {
-      const driver = selectedVehicle.driver;
-      return (
-        <div className="space-y-4">
-          <div className="border-b border-border pb-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-text-secondary">Name:</span>
-                <span className="ml-2 text-text-primary font-medium">
-                  {driver.firstName} {driver.lastName}
-                </span>
-              </div>
-              <div>
-                <span className="text-text-secondary">Email:</span>
-                <span className="ml-2 text-text-primary">{driver.email}</span>
-              </div>
-              <div>
-                <span className="text-text-secondary">Phone:</span>
-                <span className="ml-2 text-text-primary">
-                  {driver.phoneNumber ? formatPhoneNumberForDisplay(driver.phoneNumber) : '-'}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (selectedRecordType === 'movingPartner' && selectedVehicle.movingPartner) {
-      const mover = selectedVehicle.movingPartner;
-      return (
-        <div className="space-y-4">
-          <div className="border-b border-border pb-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-text-secondary">Name:</span>
-                <span className="ml-2 text-text-primary font-medium">{mover.name}</span>
-              </div>
-              <div>
-                <span className="text-text-secondary">Email:</span>
-                <span className="ml-2 text-text-primary">{mover.email || '-'}</span>
-              </div>
-              <div>
-                <span className="text-text-secondary">Phone:</span>
-                <span className="ml-2 text-text-primary">
-                  {mover.phoneNumber ? formatPhoneNumberForDisplay(mover.phoneNumber) : '-'}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return null;
+  const handleViewRecord = (vehicle: Vehicle, recordType: RecordType) => {
+    setSelectedVehicle(vehicle);
+    setSelectedRecordType(recordType);
+    setShowViewModal(true);
   };
+
+  // Convert action filters to FilterDropdown format
+  const actionFilterItems = [
+    { id: 'approve_vehicles', label: 'Approve Vehicles', checked: actionFilters.approve_vehicles },
+  ];
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold text-text-primary">Vehicles</h1>
-        <div className="flex gap-3">
-          <SearchAndFilterBar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            searchPlaceholder="Search vehicles..."
-            actionFilters={actionFiltersConfig.map((f) => ({
-              ...f,
-              active: actionFilters[f.id] || false,
-            }))}
-            onToggleFilter={toggleFilter}
-            showFilterMenu={showFilterMenu}
-            onToggleFilterMenu={() => setShowFilterMenu(!showFilterMenu)}
-          />
-          <ColumnManagerMenu
-            columns={columns}
-            onToggleColumn={toggleColumn}
-            showMenu={showColumnMenu}
-            onToggleMenu={() => setShowColumnMenu(!showColumnMenu)}
+    <div>
+      <AdminPageHeader title="Vehicles">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search vehicles..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="block w-full rounded-md border-0 py-2 pl-3 pr-10 text-zinc-950 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 font-semibold"
           />
         </div>
-      </div>
+        <FilterDropdown
+          label="Actions"
+          filters={actionFilterItems}
+          isOpen={showActionsFilter}
+          onToggle={() => {
+            setShowActionsFilter(!showActionsFilter);
+            setShowColumnMenu(false);
+          }}
+          onToggleFilter={(id) => toggleActionFilter(id)}
+          onToggleAll={() => toggleActionFilter('approve_vehicles')}
+          allSelected={actionFilters.approve_vehicles}
+          allLabel="All Actions"
+        />
+        <ColumnManagerDropdown
+          columns={columns}
+          isOpen={showColumnMenu}
+          onToggle={() => {
+            setShowColumnMenu(!showColumnMenu);
+            setShowActionsFilter(false);
+          }}
+          onToggleColumn={toggleColumn}
+        />
+      </AdminPageHeader>
 
-      {/* Table */}
-      <AdminDataTable
-        columns={columns.filter((c) => c.visible)}
-        data={processedVehicles}
+      <AdminTable
+        columns={[...columns, { id: 'actions' as ColumnId, label: 'Actions', visible: true }].map(col => ({
+          ...col,
+          sortable: ['make', 'model', 'year', 'licensePlate', 'driverName', 'moverName'].includes(col.id)
+        }))}
+        data={sortedVehicles}
         sortConfig={sortConfig}
-        onSort={(columnId) => handleSort(columnId as ColumnId)}
+        onSort={handleSort}
         loading={loading}
         error={error}
         emptyMessage="No vehicles found"
+        onRetry={fetchVehicles}
         renderRow={(vehicle) => (
-          <tr key={vehicle.id} className="hover:bg-surface-tertiary transition-colors">
-            {columns
-              .filter((c) => c.visible)
-              .map((column) => (
-                <td key={column.id} className="px-3 py-4 text-sm text-text-primary whitespace-nowrap">
-                  {renderCellContent(vehicle, column)}
+          <tr key={vehicle.id} className="hover:bg-gray-50">
+            {columns.map((column) => {
+              if (!column.visible) return null;
+
+              let content: React.ReactNode = '-';
+
+              if (column.id === 'isApproved') {
+                content = <AdminBooleanBadge value={vehicle.isApproved} />;
+              } else if (column.id === 'hasTrailerHitch') {
+                content = vehicle.hasTrailerHitch ? 'Yes' : 'No';
+              } else if (column.id === 'autoInsurancePhoto' || column.id === 'frontVehiclePhoto' || column.id === 'backVehiclePhoto') {
+                const photoUrl = vehicle[column.id];
+                content = photoUrl ? (
+                  <AdminActionButton variant="indigo" onClick={() => handleViewPhoto(photoUrl)}>
+                    View Photo
+                  </AdminActionButton>
+                ) : '-';
+              } else if (column.id === 'driver') {
+                content = vehicle.driver ? (
+                  <AdminActionButton variant="indigo" onClick={() => handleViewRecord(vehicle, 'driver')}>
+                    View Record
+                  </AdminActionButton>
+                ) : '-';
+              } else if (column.id === 'movingPartner') {
+                content = vehicle.movingPartner ? (
+                  <AdminActionButton variant="indigo" onClick={() => handleViewRecord(vehicle, 'movingPartner')}>
+                    View Record
+                  </AdminActionButton>
+                ) : '-';
+              } else if (column.id === 'driverName') {
+                content = vehicle.driver ? `${vehicle.driver.firstName} ${vehicle.driver.lastName}` : '-';
+              } else if (column.id === 'moverName') {
+                content = vehicle.movingPartner?.name || '-';
+              } else {
+                const value = vehicle[column.id as keyof Vehicle];
+                content = value != null ? String(value) : '-';
+              }
+
+              return (
+                <td key={column.id} className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
+                  {content}
                 </td>
-              ))}
-            <td className="px-3 py-4 text-sm text-right">
+              );
+            })}
+            <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
               {!vehicle.isApproved && (
-                <button
-                  onClick={() => handleApproveVehicle(vehicle)}
-                  className="btn-primary text-sm"
-                  aria-label={`Approve ${vehicle.make} ${vehicle.model}`}
-                >
+                <AdminActionButton variant="green" onClick={() => handleApproveVehicle(vehicle)}>
                   Approve
-                </button>
+                </AdminActionButton>
               )}
             </td>
           </tr>
         )}
       />
 
-      {/* Detail Modal */}
-      <AdminDetailModal
-        isOpen={showViewModal}
-        onClose={() => {
-          setShowViewModal(false);
-          setSelectedVehicle(null);
-          setSelectedRecordType(null);
-        }}
-        title={
-          selectedRecordType === 'driver'
-            ? 'Driver Record'
-            : selectedRecordType === 'movingPartner'
-            ? 'Moving Partner Record'
-            : ''
-        }
-        data={
-          selectedVehicle && selectedRecordType
-            ? selectedVehicle[selectedRecordType]
-            : null
-        }
-        renderContent={renderModalContent}
-        size="md"
-      />
-
-      {/* Photo Viewer Modal */}
-      <PhotoViewerModal
-        isOpen={showPhotoModal}
-        onClose={() => {
-          setShowPhotoModal(false);
-          setSelectedVehicle(null);
-          setCurrentPhotoIndex(0);
-        }}
-        photos={
-          selectedVehicle
-            ? [
-                selectedVehicle.autoInsurancePhoto,
-                selectedVehicle.frontVehiclePhoto,
-                selectedVehicle.backVehiclePhoto,
-              ]
-            : []
-        }
-        currentIndex={currentPhotoIndex}
-        onNavigate={setCurrentPhotoIndex}
-        title="Vehicle Photos"
-      />
-
-      {/* Approve Confirmation Modal */}
-      <Modal
-        open={showApproveModal}
-        onClose={() => {
-          setShowApproveModal(false);
-          setSelectedVehicle(null);
-        }}
-        title="Approve Vehicle"
-        size="sm"
-      >
-        <div className="space-y-4">
-          <p className="text-text-primary">
-            Are you sure you want to approve{' '}
-            <strong>
-              {selectedVehicle?.make} {selectedVehicle?.model} ({selectedVehicle?.year})
-            </strong>
-            ?
-          </p>
-          <div className="flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setShowApproveModal(false);
-                setSelectedVehicle(null);
-              }}
-              className="btn-secondary"
-            >
-              Cancel
-            </button>
-            <button type="button" onClick={handleApproveConfirm} className="btn-primary">
+      {/* Approve Modal */}
+      <Dialog open={showApproveModal} onClose={() => setShowApproveModal(false)} className="relative z-50">
+        <DialogBackdrop className="fixed inset-0 bg-black bg-opacity-50" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <DialogPanel className="bg-white rounded-lg p-6 max-w-md w-full">
+            <DialogTitle className="text-lg font-medium leading-6 text-gray-900 mb-4">
               Approve Vehicle
-            </button>
-          </div>
+            </DialogTitle>
+            <p className="text-sm text-gray-500 mb-6">
+              Are you sure you want to approve this vehicle: {selectedVehicle?.make} {selectedVehicle?.model} (
+              {selectedVehicle?.licensePlate})?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowApproveModal(false)}
+                className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleApproveConfirm}
+                className="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 sm:ml-3 sm:w-auto"
+              >
+                Approve
+              </button>
+            </div>
+          </DialogPanel>
         </div>
-      </Modal>
+      </Dialog>
+
+      {/* View Record Modal */}
+      <Dialog open={showViewModal} onClose={() => setShowViewModal(false)} className="relative z-50">
+        <DialogBackdrop className="fixed inset-0 bg-black bg-opacity-50" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <DialogPanel className="bg-white rounded-lg p-6 max-w-2xl w-full">
+            <DialogTitle className="text-xl font-bold mb-4">
+              {selectedRecordType === 'driver' ? 'Driver Details' : 'Moving Partner Details'}
+            </DialogTitle>
+            <div className="space-y-4">
+              {selectedVehicle && selectedRecordType === 'driver' && selectedVehicle.driver && (
+                <div className="border p-4 rounded-lg">
+                  <p className="font-semibold">Name: {selectedVehicle.driver.firstName} {selectedVehicle.driver.lastName}</p>
+                  <p>Email: {selectedVehicle.driver.email}</p>
+                  <p>Phone: {selectedVehicle.driver.phoneNumber ? formatPhoneNumberForDisplay(selectedVehicle.driver.phoneNumber) : 'N/A'}</p>
+                </div>
+              )}
+
+              {selectedVehicle && selectedRecordType === 'movingPartner' && selectedVehicle.movingPartner && (
+                <div className="border p-4 rounded-lg">
+                  <p className="font-semibold">Name: {selectedVehicle.movingPartner.name}</p>
+                  <p>Email: {selectedVehicle.movingPartner.email || 'N/A'}</p>
+                  <p>Phone: {selectedVehicle.movingPartner.phoneNumber ? formatPhoneNumberForDisplay(selectedVehicle.movingPartner.phoneNumber) : 'N/A'}</p>
+                </div>
+              )}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={() => {
+                  setShowViewModal(false);
+                  setSelectedRecordType(null);
+                }}
+                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+              >
+                Close
+              </button>
+            </div>
+          </DialogPanel>
+        </div>
+      </Dialog>
+
+      {/* Photo Modal */}
+      <Dialog open={showPhotoModal} onClose={() => setShowPhotoModal(false)} className="relative z-50">
+        <DialogBackdrop className="fixed inset-0 bg-black bg-opacity-50" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <DialogPanel className="bg-white rounded-lg p-6 max-w-2xl w-full">
+            <DialogTitle className="text-lg font-medium leading-6 text-gray-900 mb-4">
+              Vehicle Photo
+            </DialogTitle>
+            <div className="relative w-full h-96">
+              <Image
+                src={selectedPhotoUrl}
+                alt="Vehicle photo"
+                fill
+                className="object-contain"
+              />
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={() => setShowPhotoModal(false)}
+                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+              >
+                Close
+              </button>
+            </div>
+          </DialogPanel>
+        </div>
+      </Dialog>
     </div>
   );
 }
-

@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * @fileoverview ProductCard component for displaying packing supply products with cart functionality
  * @source boombox-10.0/src/app/components/reusablecomponents/productcard.tsx
@@ -22,9 +24,9 @@
  */
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { MinusCircleIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
 import { type Product, type ProductCardProps } from '@/types/product.types';
-import { OptimizedImage } from '../OptimizedImage/OptimizedImage';
 import { Modal } from '../Modal/Modal';
 import { Button } from '../Button/Button';
 import { formatCurrency } from '@/lib/utils/currencyUtils';
@@ -69,7 +71,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     <>
       <article 
         className={cn(
-          'card',
+          'bg-white rounded-md border border-slate-100',
           isOutOfStock && 'opacity-75'
         )}
         role="article"
@@ -77,14 +79,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         aria-describedby={`product-description-${product.productid}`}
       >
         {/* Product Image Container */}
-        <div className="relative bg-surface-tertiary rounded-t-md aspect-video">
-          <OptimizedImage
+        <div className="relative bg-slate-100 rounded-t-md aspect-video overflow-hidden">
+          <Image
             src={product.imageSrc}
             alt={`${product.imageAlt} (Product ID: ${product.productid})`}
-            width={400}
-            height={225}
-            aspectRatio="video"
-            containerClassName="rounded-t-md"
+            fill
             className="rounded-t-md object-cover"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
@@ -130,7 +129,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </h3>
             <p 
               id={`product-description-${product.productid}`}
-              className="text-xs text-text-secondary mt-1"
+              className="text-xs text-text-primary"
             >
               {product.description}
             </p>
@@ -139,7 +138,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           {/* Cart Controls */}
           <div className="flex flex-col items-end ml-4">
             <div 
-              className="flex items-center space-x-2 mb-2"
+              className="flex items-center space-x-1 mb-2"
               role="group"
               aria-label={`Quantity controls for ${product.title}`}
             >
@@ -150,10 +149,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 disabled={cartQuantity === 0}
                 aria-label={`Decrease quantity of ${product.title}`}
                 className={cn(
-                  'p-1 rounded-full',
+                  'p-1 rounded-full hover:bg-transparent active:bg-transparent',
                   cartQuantity === 0 
                     ? 'text-text-secondary cursor-not-allowed' 
-                    : 'text-text-primary hover:bg-surface-secondary'
+                    : 'text-text-primary'
                 )}
               >
                 <MinusCircleIcon className="w-6 h-6" />
@@ -174,10 +173,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 disabled={isOutOfStock || isAtMaxQuantity}
                 aria-label={`Increase quantity of ${product.title}`}
                 className={cn(
-                  'p-1 rounded-full',
+                  'p-1 rounded-full hover:bg-transparent active:bg-transparent',
                   (isOutOfStock || isAtMaxQuantity)
                     ? 'text-text-secondary cursor-not-allowed'
-                    : 'text-text-primary hover:bg-surface-secondary'
+                    : 'text-text-primary'
                 )}
               >
                 <PlusCircleIcon className="w-6 h-6" />
@@ -189,7 +188,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               variant="ghost"
               size="sm"
               onClick={openModal}
-              className="text-xs text-text-secondary underline decoration-dotted underline-offset-4 hover:text-text-primary p-0 h-auto"
+              className="text-xs text-text-primary underline decoration-dotted hover:bg-transparent active:bg-transparent hover:decoration-solid underline-offset-4 p-0 h-auto"
               aria-label={`View more details about ${product.title}`}
             >
               More Details
@@ -200,23 +199,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
       {/* Product Details Modal */}
       <Modal
-        isOpen={isModalOpen}
+        open={isModalOpen}
         onClose={closeModal}
         title={product.title}
         size="lg"
-        aria-labelledby={`product-modal-title-${product.productid}`}
       >
         <div className="flex gap-4">
           {/* Product Image */}
           {product.imageSrc && (
-            <div className="hidden sm:block shrink-0">
-              <OptimizedImage
+            <div className="hidden sm:block shrink-0 w-44 h-44 bg-surface-tertiary rounded-md relative overflow-hidden">
+              <Image
                 src={product.imageSrc}
                 alt={product.imageAlt}
-                width={176}
-                height={176}
-                aspectRatio="square"
-                containerClassName="w-44 h-44 bg-surface-tertiary rounded-md"
+                fill
                 className="rounded-md object-cover"
               />
             </div>
@@ -224,12 +219,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           
           {/* Product Details */}
           <div className="flex-1">
-            <h2 
-              id={`product-modal-title-${product.productid}`}
-              className="text-2xl font-semibold mt-4 mb-4 text-text-primary"
-            >
-              {product.title}
-            </h2>
             <div className="mb-4 leading-5 text-text-primary">
               {product.detailedDescription}
             </div>
@@ -243,7 +232,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <Button
             variant="ghost"
             onClick={closeModal}
-            className="underline text-sm"
           >
             Close
           </Button>

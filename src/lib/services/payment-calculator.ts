@@ -26,24 +26,24 @@ export const PAYMENT_STRUCTURE = {
 
 // Estimated service hours by appointment type for BOOMBOX DELIVERY DRIVERS
 // (Reduced times since they don't load - just delivery/pickup)
-const BOOMBOX_DRIVER_SERVICE_TIME_ESTIMATES = {
-  'Initial Pickup': 1.5,      // Just pickup and transport
-  'Access Storage': 1.0,     // Quick delivery
+export const BOOMBOX_DRIVER_SERVICE_TIME_ESTIMATES: Record<string, number> = {
+  'Initial Pickup': 1.0,      // Just pickup and transport
+  'Storage Unit Access': 1.0,      // Quick delivery
   'End Storage Term': 1.0,    // Pickup and transport
-  'Additional Storage': 1.5   // Just pickup and transport
+  'Additional Storage': 1.0   // Just pickup and transport
 };
 
 // Estimated loading time per unit for MOVING PARTNERS
 // (Time to actually load items into storage units)
-const MOVING_PARTNER_LOADING_TIME_PER_UNIT = {
+export const MOVING_PARTNER_LOADING_TIME_PER_UNIT: Record<string, number> = {
   'Initial Pickup': 1.5,      // 1 hour per unit to load
-  'Access Storage': 1.0,      // 30 min per unit for access
+  'Storage Unit Access': 1.0,      // 30 min per unit for access
   'End Storage Term': 1.0,   // 45 min per unit to unload
   'Additional Storage': 1.5   // 1 hour per unit to load
 };
 
 // Warehouse address constant
-const WAREHOUSE_ADDRESS = process.env.WAREHOUSE_ADDRESS || '2340 3rd St, San Francisco, CA 94107';
+export const WAREHOUSE_ADDRESS = process.env.WAREHOUSE_ADDRESS || '2340 3rd St, San Francisco, CA 94107';
 
 interface TravelMetrics {
   distanceMiles: number;
@@ -62,10 +62,26 @@ interface PaymentBreakdown {
 }
 
 /**
+ * Detailed breakdown of cost components for a single step
+ * Used for saving individual payout components to the database
+ */
+export interface StepCostBreakdown {
+  stepNumber: number;
+  totalCost: number;
+  fixedFeePay: number;
+  mileagePay: number;
+  driveTimePay: number;
+  serviceTimePay: number;
+  estimatedDistanceMiles: number;
+  estimatedDriveTimeMinutes: number;
+  estimatedServiceHours: number;
+}
+
+/**
  * Calculate travel distance and time using Google Maps APIs
  * Tries Routes API first, falls back to Distance Matrix API if needed
  */
-async function calculateTravelMetrics(
+export async function calculateTravelMetrics(
   warehouseAddress: string, 
   customerAddress: string
 ): Promise<TravelMetrics> {
@@ -356,6 +372,119 @@ export async function calculateStepSpecificCost(
   } catch (error) {
     console.error(`Error calculating step-specific cost for step ${stepNumber}:`, error);
     return 0; // Return 0 on error to prevent breaking the flow
+  }
+}
+
+/**
+ * Calculate step-specific cost with full breakdown of individual components
+ * Returns all payout components for saving to database
+ * 
+ * Drive Time Pay Rules:
+ * - Step 1: NO drive time pay (driver travels from home to warehouse on their own)
+ * - Step 2: YES drive time pay (Warehouse → Customer)
+ * - Step 3: YES drive time pay (Customer → Warehouse)
+ */
+export async function calculateStepCostBreakdown(
+  stepNumber: number,
+  workerType: 'boombox_driver' | 'moving_partner',
+  customerAddress: string,
+  appointmentType: string,
+  numberOfUnits: number = 1,
+  movingPartnerHourlyRate: number = 25,
+  estimatedServiceHoursOverride?: number
+): Promise<StepCostBreakdown> {
+  // Default values
+  let fixedFeePay = 0;
+  let mileagePay = 0;
+  let driveTimePay = 0;
+  let serviceTimePay = 0;
+  let estimatedDistanceMiles = 0;
+  let estimatedDriveTimeMinutes = 0;
+  let estimatedServiceHours = 0;
+
+  try {
+    // Get travel metrics from Google Maps (for Steps 2 & 3)
+    let travelMetrics: TravelMetrics = { distanceMiles: 0, durationMinutes: 0 };
+    if (customerAddress && (stepNumber === 2 || stepNumber === 3)) {
+      travelMetrics = await calculateTravelMetrics(WAREHOUSE_ADDRESS, customerAddress);
+      estimatedDistanceMiles = travelMetrics.distanceMiles;
+      estimatedDriveTimeMinutes = travelMetrics.durationMinutes;
+    }
+
+    // Calculate service hours based on appointment type
+    estimatedServiceHours = estimatedServiceHoursOverride || 
+      BOOMBOX_DRIVER_SERVICE_TIME_ESTIMATES[appointmentType] || 
+      MOVING_PARTNER_LOADING_TIME_PER_UNIT[appointmentType] ||
+      0.5;
+
+    if (workerType === 'moving_partner') {
+      // Moving partners only get paid for Step 2 (service time)
+      if (stepNumber === 2) {
+        const hours = estimatedServiceHoursOverride ?? 
+          Math.max(1.0, numberOfUnits * (MOVING_PARTNER_LOADING_TIME_PER_UNIT[appointmentType] || 1.0));
+        serviceTimePay = hours * movingPartnerHourlyRate;
+        estimatedServiceHours = hours;
+      }
+      // Steps 1 and 3 have no cost for moving partners
+    } else {
+      // Boombox drivers
+      switch (stepNumber) {
+        case 1: {
+          // Step 1: ONLY fixed fee - NO mileage, NO drive time
+          // Driver is not paid for traveling from home to warehouse
+          fixedFeePay = PAYMENT_STRUCTURE.fixed;
+          break;
+        }
+        
+        case 2: {
+          // Step 2: Drive time (warehouse→customer) + Service time + Mileage
+          driveTimePay = (travelMetrics.durationMinutes / 60) * PAYMENT_STRUCTURE.driveTime;
+          serviceTimePay = estimatedServiceHours * PAYMENT_STRUCTURE.serviceTime;
+          mileagePay = travelMetrics.distanceMiles * PAYMENT_STRUCTURE.mileage;
+          break;
+        }
+        
+        case 3: {
+          // Step 3: Drive time (customer→warehouse) + Mileage
+          // NO service time for step 3
+          driveTimePay = (travelMetrics.durationMinutes / 60) * PAYMENT_STRUCTURE.driveTime;
+          mileagePay = travelMetrics.distanceMiles * PAYMENT_STRUCTURE.mileage;
+          estimatedServiceHours = 0; // No service time for step 3
+          break;
+        }
+        
+        default:
+          console.warn(`Unknown step number for cost calculation: ${stepNumber}`);
+      }
+    }
+
+    const totalCost = fixedFeePay + mileagePay + driveTimePay + serviceTimePay;
+
+    return {
+      stepNumber,
+      totalCost: Math.round(totalCost * 100) / 100,
+      fixedFeePay: Math.round(fixedFeePay * 100) / 100,
+      mileagePay: Math.round(mileagePay * 100) / 100,
+      driveTimePay: Math.round(driveTimePay * 100) / 100,
+      serviceTimePay: Math.round(serviceTimePay * 100) / 100,
+      estimatedDistanceMiles: Math.round(estimatedDistanceMiles * 100) / 100,
+      estimatedDriveTimeMinutes: Math.round(estimatedDriveTimeMinutes * 100) / 100,
+      estimatedServiceHours: Math.round(estimatedServiceHours * 100) / 100,
+    };
+  } catch (error) {
+    console.error(`Error calculating step cost breakdown for step ${stepNumber}:`, error);
+    // Return fallback with zeros
+    return {
+      stepNumber,
+      totalCost: stepNumber === 1 ? PAYMENT_STRUCTURE.fixed : 0,
+      fixedFeePay: stepNumber === 1 ? PAYMENT_STRUCTURE.fixed : 0,
+      mileagePay: 0,
+      driveTimePay: 0,
+      serviceTimePay: 0,
+      estimatedDistanceMiles: 10, // Fallback
+      estimatedDriveTimeMinutes: 20, // Fallback
+      estimatedServiceHours: estimatedServiceHours || 1.0,
+    };
   }
 }
 

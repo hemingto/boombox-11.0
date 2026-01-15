@@ -34,9 +34,9 @@ export default function Locations() {
     <>
       <LocationsHeroSection />
       <PopularLocationsSection />
+      <GetQuoteLocations />
       <CitiesSection />
       <ZipCodeSection />
-      <GetQuoteLocations />
       <LocationsFaqSection />
       <HelpCenterSection />
     </>

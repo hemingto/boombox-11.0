@@ -97,6 +97,7 @@ export const PackingSuppliesLayout: React.FC<PackingSuppliesLayoutProps> = ({
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Initialize user data if available
   useEffect(() => {
@@ -113,31 +114,35 @@ export const PackingSuppliesLayout: React.FC<PackingSuppliesLayoutProps> = ({
     const fetchProducts = async () => {
       try {
         const response = await fetch('/api/orders/packing-supplies/products');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success) {
-            // Map API products to match Product interface
-            const mappedProducts = data.products.map((product: any) => ({
-              productid: product.id,
-              price: product.price,
-              title: product.title,
-              description: product.description,
-              detailedDescription: product.detailedDescription,
-              imageSrc: product.imageSrc,
-              imageAlt: product.imageAlt,
-              category: product.category,
-              quantity: 0,
-              stockCount: product.stockCount,
-              isOutOfStock: product.isOutOfStock,
-              hasLowStock: product.hasLowStock,
-            }));
-            setAllProducts(mappedProducts);
-          }
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data.success && Array.isArray(data.products)) {
+          // Map API products to match Product interface
+          const mappedProducts = data.products.map((product: any) => ({
+            productid: product.id,
+            price: product.price,
+            title: product.title,
+            description: product.description,
+            detailedDescription: product.detailedDescription,
+            imageSrc: product.imageSrc,
+            imageAlt: product.imageAlt,
+            category: product.category,
+            quantity: 0,
+            stockCount: product.stockCount,
+            isOutOfStock: product.isOutOfStock,
+            hasLowStock: product.hasLowStock,
+          }));
+          setAllProducts(mappedProducts);
+          setError(null);
         } else {
-          console.error('Failed to fetch products');
+          console.error('Invalid response format:', data);
+          setError('Failed to load products. Please try again later.');
         }
       } catch (error) {
         console.error('Error fetching products:', error);
+        setError('Failed to load products. Please check your connection and try again.');
       } finally {
         setLoading(false);
       }
@@ -291,6 +296,20 @@ export const PackingSuppliesLayout: React.FC<PackingSuppliesLayoutProps> = ({
                 <div className="flex justify-center items-center py-12">
                   <div className="text-text-secondary">Loading products...</div>
                 </div>
+              ) : error ? (
+                <div className="flex flex-col justify-center items-center py-12 px-4">
+                  <div className="text-status-error mb-4 text-center">{error}</div>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="btn-primary"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : allProducts.length === 0 ? (
+                <div className="flex justify-center items-center py-12">
+                  <div className="text-text-secondary">No products available at this time.</div>
+                </div>
               ) : (
                 <ProductGrid
                   products={allProducts}
@@ -334,35 +353,69 @@ export const PackingSuppliesLayout: React.FC<PackingSuppliesLayoutProps> = ({
           )}
         </div>
 
-        {/* Right column: Cart (desktop and mobile - MyCart handles both) */}
-        {!isOrderConfirmed && (
-          <MyCart
-            cartItems={cartItems}
-            removeItem={removeItem}
-            clearCart={clearCart}
-            onCheckout={handleCheckout}
-            isCheckout={isCheckout}
-            address={address}
-            firstName={firstName}
-            lastName={lastName}
-            email={email}
-            phoneNumber={phoneNumber}
-            addressError={addressError}
-            firstNameError={firstNameError}
-            lastNameError={lastNameError}
-            emailError={emailError}
-            phoneError={phoneError}
-            setAddressError={setAddressError}
-            setFirstNameError={setFirstNameError}
-            setLastNameError={setLastNameError}
-            setEmailError={setEmailError}
-            setPhoneError={setPhoneError}
-            onOrderSuccess={handleOrderSuccess}
-            savedCards={userData?.savedCards || []}
-            selectedPaymentMethod={selectedPaymentMethod}
-            userId={userData?.id}
-          />
-        )}
+        {/* Right column: Cart (desktop with sticky positioning and mobile) */}
+        <div className="hidden md:flex basis-1/2 md:mr-auto sticky top-5 max-w-md h-fit">
+          {!isOrderConfirmed && (
+            <MyCart
+              cartItems={cartItems}
+              removeItem={removeItem}
+              clearCart={clearCart}
+              onCheckout={handleCheckout}
+              isCheckout={isCheckout}
+              address={address}
+              firstName={firstName}
+              lastName={lastName}
+              email={email}
+              phoneNumber={phoneNumber}
+              addressError={addressError}
+              firstNameError={firstNameError}
+              lastNameError={lastNameError}
+              emailError={emailError}
+              phoneError={phoneError}
+              setAddressError={setAddressError}
+              setFirstNameError={setFirstNameError}
+              setLastNameError={setLastNameError}
+              setEmailError={setEmailError}
+              setPhoneError={setPhoneError}
+              onOrderSuccess={handleOrderSuccess}
+              savedCards={userData?.savedCards || []}
+              selectedPaymentMethod={selectedPaymentMethod}
+              userId={userData?.id}
+            />
+          )}
+        </div>
+        
+        {/* Mobile cart - rendered separately at bottom of viewport */}
+        <div className="md:hidden">
+          {!isOrderConfirmed && (
+            <MyCart
+              cartItems={cartItems}
+              removeItem={removeItem}
+              clearCart={clearCart}
+              onCheckout={handleCheckout}
+              isCheckout={isCheckout}
+              address={address}
+              firstName={firstName}
+              lastName={lastName}
+              email={email}
+              phoneNumber={phoneNumber}
+              addressError={addressError}
+              firstNameError={firstNameError}
+              lastNameError={lastNameError}
+              emailError={emailError}
+              phoneError={phoneError}
+              setAddressError={setAddressError}
+              setFirstNameError={setFirstNameError}
+              setLastNameError={setLastNameError}
+              setEmailError={setEmailError}
+              setPhoneError={setPhoneError}
+              onOrderSuccess={handleOrderSuccess}
+              savedCards={userData?.savedCards || []}
+              selectedPaymentMethod={selectedPaymentMethod}
+              userId={userData?.id}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

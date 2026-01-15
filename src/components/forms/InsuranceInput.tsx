@@ -128,6 +128,7 @@ const InsuranceInput = forwardRef<HTMLDivElement, InsuranceInputProps>(
           variant={hasError ? 'error' : 'default'}
           error={hasError ? 'Please select an insurance option' : undefined}
           onClearError={onClearError}
+          size="sm"
         />
       </div>
     );

@@ -7,18 +7,18 @@
 import { MessageTemplate } from '@/lib/messaging/types';
 
 export const thirdPartyTimeoutAlertTemplate: MessageTemplate = {
-  subject: '🚨 Third-Party Mover Timeout - Manual Booking Required for Appointment ${appointmentId}',
+  subject: '🚨 Third-Party Mover Timeout - Manual Booking Required for Appointment \${appointmentId}',
   text: `THIRD-PARTY MOVER TIMEOUT - ACTION REQUIRED
 
-Customer: ${customerName}
-Phone: ${customerPhone}
-Appointment ID: ${appointmentId}
+Customer: \${customerName}
+Phone: \${customerPhone}
+Appointment ID: \${appointmentId}
 
 ISSUE: Customer didn't respond to third-party mover options within the 2-hour window.
 
 ACTION NEEDED: Please manually book a third-party mover for this customer.
 
-Admin Dashboard: ${dashboardUrl}/admin/appointments/${appointmentId}
+Admin Dashboard: \${dashboardUrl}/admin/appointments/\${appointmentId}
 
 This requires immediate attention to ensure service continuity.`,
   html: `<!DOCTYPE html>

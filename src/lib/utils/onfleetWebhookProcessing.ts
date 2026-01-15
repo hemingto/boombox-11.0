@@ -16,19 +16,8 @@ import {
   handlePackingSupplyTaskCompleted,
   handlePackingSupplyTaskFailed
 } from './packingSupplyWebhookHandlers';
-
-// @REFACTOR-P9-TEMP: Replace with actual implementations when API migrations complete
-// Priority: High | Est: 2h | Dependencies: API_005_DRIVERS_DOMAIN
-const processAppointmentPayout = async (appointmentId: number) => {
-  console.log('PLACEHOLDER: processAppointmentPayout called for appointment', appointmentId);
-  return { success: false, error: 'Placeholder implementation' };
-};
-
-// @REFACTOR-P9-TEMP: Replace with migrated task costing service when API_008 completes
-// Priority: High | Est: 45min | Dependencies: API_008_ADMIN_SYSTEM_DOMAIN
-const updateTaskActualCostFromWebhook = async (shortId: string, completionDetails: any) => {
-  console.log('PLACEHOLDER: updateTaskActualCostFromWebhook called for', shortId);
-};
+import { TaskCostingService } from '@/lib/services/payments/TaskCostingService';
+import { AppointmentPayoutService } from '@/lib/services/payments/AppointmentPayoutService';
 
 /**
  * Sends SMS notification to worker about their earnings after payout completion
@@ -205,7 +194,7 @@ export async function processStorageUnitWebhook(
   // Calculate actual costs for ALL completed tasks (steps 1, 2, 3, 4)
   if (triggerName === 'taskCompleted' && [1, 2, 3, 4].includes(Number(step))) {
     try {
-      await updateTaskActualCostFromWebhook(taskDetails.shortId, taskDetails.completionDetails);
+      await TaskCostingService.updateTaskActualCostFromWebhook(taskDetails.shortId, taskDetails.completionDetails);
       console.log('Updated actual cost for completed task:', taskDetails.shortId);
     } catch (error) {
       console.error('Error updating actual cost for task:', taskDetails.shortId, error);
@@ -235,13 +224,11 @@ export async function processAppointmentCompletion(appointmentId: number, appoin
     // Process payout for the completed task (full job compensation)
     try {
       console.log(`Processing payout for completed job - Appointment: ${appointment.id}`);
-      const payoutResult = await processAppointmentPayout(appointment.id);
+      const payoutResult = await AppointmentPayoutService.processAppointmentPayout(appointment.id);
       
       if (payoutResult.success) {
-        console.log(`Payout completed for appointment ${appointment.id}: $${(payoutResult as any).amount} (Transfer ID: ${(payoutResult as any).transferId})`);
-        
-        // Send SMS notification to worker with earnings
-        await sendPayoutNotificationSMS(appointment.id, (payoutResult as any).amount!, appointment);
+        console.log(`Payout completed for appointment ${appointment.id}: $${payoutResult.amount} (Transfer ID: ${payoutResult.transferId})`);
+        // SMS notification is sent inside processAppointmentPayout
       } else {
         console.error(`Payout failed for appointment ${appointment.id}:`, payoutResult.error);
       }

@@ -38,6 +38,7 @@ export interface DailyAvailabilityParams {
   planType: PlanType;
   date: string; // YYYY-MM-DD
   numberOfUnits: number;
+  excludeAppointmentId?: number; // Optional: exclude this appointment's booking from conflicts (for edit mode)
 }
 
 export interface AvailabilityQueryParams {

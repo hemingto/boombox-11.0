@@ -8,7 +8,7 @@
  * - Fetches and combines regular appointments with packing supply delivery routes
  * - Shows appointment details in a popup modal when clicked
  * - Color-codes events by status and type
- * - Integrates with react-big-calendar for calendar UI
+ * - Integrates with FullCalendar for calendar UI
  * 
  * API ROUTES UPDATED:
  * - Old: /api/drivers/${userId}/appointments → New: /api/drivers/[id]/appointments/route.ts
@@ -22,28 +22,20 @@
  * - Replaced custom loading state with design system patterns
  * - Updated button styling for navigation controls
  * 
- * @refactor Updated API routes to new domain-based structure, applied design system colors, improved accessibility
+ * @refactor Migrated from react-big-calendar to FullCalendar, applied design system colors, improved accessibility
  */
 
 'use client'
 
-import React, { useState, useEffect } from 'react';
-import { Calendar, dateFnsLocalizer, Event, View, Components } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay, setHours, setMinutes, isSameDay } from 'date-fns';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
+import React, { useState, useEffect, useRef } from 'react';
+import FullCalendar from '@fullcalendar/react';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import listPlugin from '@fullcalendar/list';
+import interactionPlugin from '@fullcalendar/interaction';
+import { EventClickArg, DayHeaderContentArg } from '@fullcalendar/core';
+import { format, isSameDay } from 'date-fns';
 import { AppointmentDetailsPopup } from '../shared/AppointmentDetailsPopup';
-
-const locales = {
-  'en-US': require('date-fns/locale/en-US')
-};
-
-const localizer = dateFnsLocalizer({
-  format,
-  parse,
-  startOfWeek,
-  getDay,
-  locales,
-});
 
 interface AppointmentDetails {
   id: number;
@@ -94,40 +86,72 @@ interface AppointmentDetails {
   };
 }
 
-interface Appointment extends Event {
+interface Appointment {
   id: number;
+  title: string;
+  start: Date;
+  end: Date;
   address: string;
   appointmentType: string;
   status: string;
-  movingPartnerId?: number;
+  movingPartnerId?: number | null;
   driverId?: number;
   details?: AppointmentDetails;
   user?: {
     firstName: string;
     lastName: string;
-  };
+  } | null;
+  color?: string;
 }
 
 interface CalendarViewProps {
   userType: "driver" | "mover";
   userId: string;
+  /** Whether to show a warning banner when there are no upcoming jobs (default: false) */
+  showEmptyWarning?: boolean;
+  /** Custom message for the empty warning banner */
+  emptyWarningMessage?: string;
 }
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ userType, userId }) => {
+/**
+ * Get event color based on appointment type and status
+ */
+const getEventColor = (appointmentType: string, status: string, routeId?: string): string => {
+  // Check if this is a packing supply route
+  const isPackingSupplyRoute = appointmentType === 'Packing Supply Delivery' && routeId;
+
+  if (isPackingSupplyRoute) {
+    // Different colors for packing supply routes
+    if (status === 'completed') {
+      return '#059669'; // emerald-600 for completed routes
+    } else if (status === 'in_progress') {
+      return '#7c3aed'; // violet-600 for active routes
+    } else {
+      return '#ea580c'; // orange-600 for pending routes
+    }
+  } else {
+    // Regular appointment colors
+    if (status === 'Completed') {
+      return '#10b981'; // emerald-500 (status-success)
+    } else if (status === 'Canceled') {
+      return '#ef4444'; // red-500 (status-error)
+    }
+  }
+  
+  return '#06b6d4'; // cyan-500 for default
+};
+
+export const CalendarView: React.FC<CalendarViewProps> = ({ 
+  userType, 
+  userId,
+  showEmptyWarning = false,
+  emptyWarningMessage = "You currently have no upcoming jobs scheduled. Once a job has been accepted it will show on your calendar here."
+}) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<View>('week');
-  const [date, setDate] = useState<Date>(new Date());
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
-
-  // Set the min and max times for the calendar
-  const minTime = setHours(setMinutes(new Date(), 0), 7); // 7:00 AM
-  const maxTime = setHours(setMinutes(new Date(), 0), 20); // 8:00 PM
-
-  const formats = {
-    timeGutterFormat: (date: Date) => format(date, 'h aaa'), // This will format times as "7 AM"
-  };
+  const calendarRef = useRef<FullCalendar>(null);
 
   useEffect(() => {
     const fetchAppointments = async () => {
@@ -158,14 +182,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ userType, userId }) 
         }
         
         // Format regular appointments
-        const formattedAppointments = appointmentsData.map((appointment: any) => {
+        const formattedAppointments: Appointment[] = appointmentsData.map((appointment: any) => {
           const appointmentDate = new Date(appointment.date);
           const startDate = new Date(appointmentDate);
           startDate.setMinutes(startDate.getMinutes() - 60);
           const endDate = new Date(startDate);
           endDate.setHours(endDate.getHours() + 3);
           
-          const formattedAppointment = {
+          const formattedAppointment: Appointment = {
             id: appointment.id,
             title: `${appointment.appointmentType} - ${appointment.address}`,
             start: startDate,
@@ -175,6 +199,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ userType, userId }) 
             status: appointment.status,
             movingPartnerId: appointment.movingPartnerId,
             driverId: appointment.driverId,
+            color: getEventColor(appointment.appointmentType, appointment.status),
             user: {
               firstName: appointment.user?.firstName || '',
               lastName: appointment.user?.lastName || ''
@@ -218,7 +243,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ userType, userId }) 
         });
         
         // Format packing supply routes
-        const formattedRoutes = packingSupplyRoutes.map((route: any) => {
+        const formattedRoutes: Appointment[] = packingSupplyRoutes.map((route: any) => {
           const routeDate = new Date(route.date);
           const startDate = new Date(routeDate);
           // Set start time to 12:00 PM for packing supply deliveries
@@ -228,7 +253,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ userType, userId }) 
           const durationHours = 5;
           endDate.setHours(endDate.getHours() + durationHours);
           
-          const formattedRoute = {
+          const formattedRoute: Appointment = {
             id: route.id,
             title: `${route.appointmentType} - Route ${route.routeId}`,
             start: startDate,
@@ -238,6 +263,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ userType, userId }) 
             status: route.routeStatus || 'in_progress',
             movingPartnerId: null,
             driverId: route.driver?.id,
+            color: getEventColor(route.appointmentType, route.routeStatus || 'in_progress', route.routeId),
             user: null, // Routes don't have a single user
             details: {
               id: route.id,
@@ -247,7 +273,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ userType, userId }) 
               numberOfUnits: route.numberOfUnits || route.totalStops || 0,
               planType: route.planType || 'Packing Supply Route',
               appointmentType: route.appointmentType,
-              insuranceCoverage: null,
+              insuranceCoverage: undefined,
               description: route.description || `Route with ${route.totalStops} delivery stops`,
               additionalInformation: {
                 itemsOver100lbs: false,
@@ -255,7 +281,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ userType, userId }) 
                 conditionsDescription: ''
               },
               requestedStorageUnits: [],
-              user: null,
+              user: undefined,
               driver: route.driver ? {
                 firstName: route.driver.firstName,
                 lastName: route.driver.lastName,
@@ -292,77 +318,56 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ userType, userId }) 
     fetchAppointments();
   }, [userType, userId]);
 
-  const eventStyleGetter = (event: Appointment) => {
-    // DESIGN SYSTEM UPDATE: Using semantic color tokens
-    let backgroundColor = '#06b6d4'; // cyan-500 for default (could use design system color)
-    let color = 'white';
-
-    // Check if this is a packing supply route
-    const isPackingSupplyRoute = event.appointmentType === 'Packing Supply Delivery' && event.details?.routeId;
-
-    if (isPackingSupplyRoute) {
-      // Different colors for packing supply routes
-      if (event.status === 'completed') {
-        backgroundColor = '#059669'; // emerald-600 for completed routes
-      } else if (event.status === 'in_progress') {
-        backgroundColor = '#7c3aed'; // violet-600 for active routes
-      } else {
-        backgroundColor = '#ea580c'; // orange-600 for pending routes
-      }
-    } else {
-      // Regular appointment colors
-      if (event.status === 'Completed') {
-        backgroundColor = '#10b981'; // emerald-500 (status-success)
-      } else if (event.status === 'Canceled') {
-        backgroundColor = '#ef4444'; // red-500 (status-error)
-      }
+  const handleEventClick = (clickInfo: EventClickArg) => {
+    const eventId = parseInt(clickInfo.event.id, 10);
+    const appointment = appointments.find(apt => apt.id === eventId);
+    
+    if (appointment) {
+      console.log('Selected appointment details:', {
+        id: appointment.id,
+        details: appointment.details,
+        additionalInfo: appointment.details?.additionalInformation,
+        user: appointment.user
+      });
+      setSelectedAppointment(appointment);
+      setIsPopupOpen(true);
     }
-
-    return {
-      style: {
-        backgroundColor,
-        color,
-        border: 'none',
-        borderRadius: '6px',
-        opacity: 0.95,
-      },
-    };
   };
 
-  const components: Components<Appointment, object> = {
-    timeSlotWrapper: ({ children }: { children?: React.ReactElement }) => 
-      children
-        ? React.cloneElement(children, {
-            style: {
-              backgroundColor: 'transparent',
-            },
-          } as any)
-        : null,
-    header: (props: { date: Date; label: string }) => {
-      const isToday = isSameDay(props.date, new Date());
-      return (
-        <div className="flex flex-col items-center justify-center py-2">
-          <span className="text-sm font-medium mb-1 text-text-secondary">{format(props.date, 'EEE').toUpperCase()}</span>
-          <span className={`w-12 h-12 flex items-center justify-center rounded-full text-lg ${
-            isToday ? 'bg-primary text-text-inverse' : 'text-text-primary'
-          }`}>
-            {format(props.date, 'd')}
-          </span>
-        </div>
-      );
-    },
+  // Custom day header renderer
+  const renderDayHeaderContent = (args: DayHeaderContentArg) => {
+    const isToday = isSameDay(args.date, new Date());
+    return (
+      <div className="flex flex-col items-center justify-center py-2 w-full h-full">
+        <span className="text-sm font-medium mb-1 text-text-secondary">
+          {format(args.date, 'EEE').toUpperCase()}
+        </span>
+        <span className={`w-12 h-12 flex items-center justify-center rounded-full text-lg flex-shrink-0 ${
+          isToday ? 'bg-primary text-text-inverse' : 'text-text-primary'
+        }`}>
+          {format(args.date, 'd')}
+        </span>
+      </div>
+    );
   };
 
-  const handleSelectEvent = (event: Appointment) => {
-    console.log('Selected appointment details:', {
-      id: event.id,
-      details: event.details,
-      additionalInfo: event.details?.additionalInformation,
-      user: event.user
-    });
-    setSelectedAppointment(event);
-    setIsPopupOpen(true);
-  };
+  // Convert appointments to FullCalendar event format
+  const calendarEvents = appointments.map(apt => ({
+    id: String(apt.id),
+    title: apt.title,
+    start: apt.start,
+    end: apt.end,
+    backgroundColor: apt.color,
+    borderColor: apt.color,
+    textColor: 'white',
+    extendedProps: {
+      address: apt.address,
+      appointmentType: apt.appointmentType,
+      status: apt.status,
+      details: apt.details,
+      user: apt.user,
+    }
+  }));
 
   if (loading) {
     return (
@@ -373,144 +378,243 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ userType, userId }) 
   }
 
   return (
-    <div className="h-[800px] p-4 bg-surface-tertiary rounded-xl">
-      <style jsx global>{`
-        .rbc-calendar {
-          color: var(--color-text-primary);
-        }
-        .rbc-toolbar {
-          margin-bottom: 20px !important;
-        }
-        .rbc-toolbar-label {
-          font-size: 1.5rem !important;
-          font-weight: 500;
-        }
-        @media (max-width: 640px) {
-          .rbc-toolbar-label {
-            margin: 20px 0 !important;
+    <>
+      {/* Empty Jobs Warning Banner - Outside calendar container */}
+      {showEmptyWarning && appointments.length === 0 && !loading && (
+        <div 
+          className="bg-status-bg-warning border border-border-warning rounded-md p-4 mb-6"
+          role="alert"
+          aria-live="polite"
+        >
+          <p className="text-status-warning text-sm">
+            {emptyWarningMessage}
+          </p>
+        </div>
+      )}
+      <div className="h-[800px] p-4 sm:p-6 border-2 border-slate-100 bg-white rounded-md">
+        <style jsx global>{`
+          /* FullCalendar CSS Variables */
+          :root {
+            --fc-border-color: var(--color-border, #e2e8f0);
+            --fc-button-bg-color: transparent;
+            --fc-button-border-color: transparent;
+            --fc-button-text-color: #18181b;
+            --fc-button-hover-bg-color: #f1f5f9;
+            --fc-button-active-bg-color: #e2e8f0;
+            --fc-today-bg-color: #f8fafc;
+            --fc-page-bg-color: var(--color-surface-primary, white);
+            --fc-neutral-bg-color: var(--color-surface-primary, white);
+            --fc-event-border-color: transparent;
           }
-        }
-        .rbc-btn-group {
-          background-color: var(--color-surface-primary);
-          border: 1px solid var(--color-border) !important;
-          border-radius: 0.5rem;
-          overflow: hidden;
-        }
-        .rbc-header {
-          padding: 0 !important;
-          border: none !important;
-          font-weight: normal !important;
-        }
-        .rbc-time-header-cell {
-          min-height: 80px !important;
-        }
-        .rbc-time-header-content {
-          border: none !important;
-        }
-        .rbc-today {
-          background-color: #f8fafc !important;
-        }
-        .rbc-time-content {
-          border-top: 1px solid var(--color-border) !important;
-        }
-        .rbc-time-view, .rbc-month-view, .rbc-agenda-view {
-          border: 1px solid var(--color-border) !important;
-          border-radius: 0.5rem !important;
-          background-color: var(--color-surface-primary);
-        }
-        .rbc-timeslot-group {
-          border-bottom: 1px solid var(--color-border) !important;
-        }
-        .rbc-time-slot {
-          color: var(--color-text-tertiary);
-        }
-        .rbc-time-header-gutter {
-          background-color: var(--color-surface-primary) !important;
-        }
-        .rbc-time-gutter {
-          background-color: var(--color-surface-primary) !important;
-        }
-        .rbc-time-column {
-          background-color: var(--color-surface-primary) !important;
-        }
-        .rbc-day-slot .rbc-time-slot {
-          border-top: none !important;
-        }
-        .rbc-toolbar button {
-          color: var(--color-text-primary) !important;
-          font-size: 1rem !important;
-          border: none !important;
-          padding: 8px 16px;
-          background: none;
-          box-shadow: none !important;
-        }
-        .rbc-toolbar button:hover {
-          background-color: var(--color-surface-secondary) !important;
-        }
-        .rbc-toolbar button.rbc-active {
-          background-color: var(--color-surface-tertiary) !important;
-        }
-        .rbc-toolbar button:checked,
-        .rbc-toolbar button[aria-pressed="true"],
-        .rbc-toolbar button.rbc-clicked {
-          background: none !important;
-        }
-        .rbc-toolbar .rbc-btn-group:first-child button {
-          background: none !important;
-        }
-        .rbc-toolbar .rbc-btn-group:first-child button:hover {
-          background-color: var(--color-surface-secondary) !important;
-        }
-        .rbc-current-time-indicator {
-          background-color: #0891b2 !important;
-        }
-        .rbc-time-header {
-          display: flex;
-          align-items: stretch;
-        }
-        .rbc-time-header-content {
-          flex: 1;
-          min-width: 0;
-          display: flex;
-          flex-direction: column;
-        }
-        .rbc-header + .rbc-header {
-          border-left: none !important;
-        }
-        .rbc-header {
-          border-bottom: none !important;
-        }
-        .rbc-time-header-cell-single-day {
-          display: none;
-        }
-      `}</style>
-      <Calendar
-        localizer={localizer}
-        events={appointments}
-        startAccessor="start"
-        endAccessor="end"
-        style={{ height: '100%' }}
-        eventPropGetter={eventStyleGetter}
-        views={['month', 'week', 'day', 'agenda']}
-        view={view}
-        onView={(newView) => setView(newView)}
-        date={date}
-        onNavigate={(newDate) => setDate(newDate)}
-        min={minTime}
-        max={maxTime}
-        formats={formats}
-        components={components}
-        onSelectEvent={handleSelectEvent}
-      />
-      <AppointmentDetailsPopup
-        isOpen={isPopupOpen}
-        onClose={() => setIsPopupOpen(false)}
-        appointment={selectedAppointment?.details || null}
-        userType={userType}
-      />
-    </div>
+          
+          .fc {
+            color: var(--color-text-primary);
+            height: 100%;
+          }
+          
+          /* Toolbar styling */
+          .fc .fc-toolbar {
+            margin-bottom: 20px !important;
+            flex-wrap: wrap;
+            gap: 10px;
+          }
+          
+          .fc .fc-toolbar-title {
+            font-size: 1.5rem !important;
+            font-weight: 500;
+          }
+          
+          @media (max-width: 640px) {
+            .fc .fc-toolbar-title {
+              margin: 10px 0 !important;
+              width: 100%;
+              text-align: center;
+            }
+            .fc .fc-toolbar {
+              flex-direction: column;
+            }
+          }
+          
+          /* Button group styling */
+          .fc .fc-button-group {
+            background-color: var(--color-surface-primary, white);
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            padding: 4px;
+            gap: 2px;
+          }
+          
+          .fc .fc-button {
+            color: #18181b !important;
+            font-size: 0.875rem !important;
+            font-weight: 600 !important;
+            border: none !important;
+            padding: 8px 12px !important;
+            background-color: transparent !important;
+            box-shadow: none !important;
+            border-radius: 0.375rem !important;
+            transition: background-color 150ms ease, color 150ms ease;
+            text-transform: capitalize;
+          }
+          
+          .fc .fc-button:hover {
+            background-color: #f1f5f9 !important;
+          }
+          
+          .fc .fc-button:active {
+            background-color: #e2e8f0 !important;
+          }
+          
+          .fc .fc-button:focus {
+            box-shadow: none !important;
+          }
+          
+          .fc .fc-button:focus-visible {
+            outline: 2px solid #18181b;
+            outline-offset: 2px;
+          }
+          
+          .fc .fc-button-active {
+            background-color: #e2e8f0 !important;
+            color: #18181b !important;
+          }
+          
+          .fc .fc-button-active:hover {
+            background-color: #cbd5e1 !important;
+          }
+          
+          /* Header styling */
+          .fc .fc-col-header-cell {
+            padding: 0 !important;
+            border: none !important;
+            font-weight: normal !important;
+          }
+          
+          .fc .fc-col-header {
+            border: none !important;
+          }
+          
+          /* Time grid styling */
+          .fc-theme-standard .fc-scrollgrid {
+            border: 1px solid var(--color-border, #e2e8f0) !important;
+            border-radius: 0.5rem !important;
+            overflow: hidden;
+          }
+          
+          .fc .fc-timegrid-slot {
+            height: 3em;
+          }
+          
+          .fc .fc-timegrid-slot-label {
+            color: var(--color-text-tertiary);
+          }
+          
+          .fc .fc-timegrid-axis {
+            background-color: var(--color-surface-primary, white) !important;
+          }
+          
+          .fc .fc-timegrid-col.fc-day-today {
+            background-color: #f8fafc !important;
+          }
+          
+          /* Event styling */
+          .fc-event {
+            border: none !important;
+            border-radius: 6px !important;
+            opacity: 0.95;
+            cursor: pointer;
+          }
+          
+          .fc-event-main {
+            padding: 2px 4px;
+          }
+          
+          /* Current time indicator */
+          .fc .fc-timegrid-now-indicator-line {
+            border-color: #0891b2 !important;
+            border-width: 2px;
+          }
+          
+          .fc .fc-timegrid-now-indicator-arrow {
+            border-color: #0891b2 !important;
+            border-top-color: transparent !important;
+            border-bottom-color: transparent !important;
+          }
+          
+          /* Day grid / Month view */
+          .fc .fc-daygrid-day.fc-day-today {
+            background-color: #f8fafc !important;
+          }
+          
+          .fc .fc-daygrid-day-frame {
+            min-height: 100px;
+          }
+          
+          /* List view styling */
+          .fc .fc-list {
+            border-radius: 0.5rem !important;
+            overflow: hidden;
+          }
+          
+          .fc .fc-list-event:hover td {
+            background-color: #f8fafc;
+          }
+          
+          /* Remove extra borders */
+          .fc-theme-standard td, .fc-theme-standard th {
+            border-color: var(--color-border, #e2e8f0);
+          }
+          
+          .fc .fc-scrollgrid-section > * {
+            border-color: var(--color-border, #e2e8f0);
+          }
+        `}</style>
+        <FullCalendar
+          ref={calendarRef}
+          plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
+          initialView="timeGridWeek"
+          headerToolbar={{
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+          }}
+          buttonText={{
+            today: 'Today',
+            month: 'Month',
+            week: 'Week',
+            day: 'Day',
+            list: 'Agenda'
+          }}
+          events={calendarEvents}
+          eventClick={handleEventClick}
+          slotMinTime="07:00:00"
+          slotMaxTime="20:00:00"
+          slotLabelFormat={{
+            hour: 'numeric',
+            minute: '2-digit',
+            omitZeroMinute: true,
+            meridiem: 'short'
+          }}
+          dayHeaderContent={renderDayHeaderContent}
+          height="100%"
+          nowIndicator={true}
+          allDaySlot={false}
+          slotDuration="01:00:00"
+          expandRows={true}
+          stickyHeaderDates={true}
+          dayMaxEvents={true}
+          eventDisplay="block"
+        />
+        <AppointmentDetailsPopup
+          isOpen={isPopupOpen}
+          onClose={() => setIsPopupOpen(false)}
+          appointment={selectedAppointment?.details || null}
+          userType={userType}
+        />
+      </div>
+    </>
   );
 };
 
 export default CalendarView;
-

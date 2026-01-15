@@ -55,7 +55,10 @@ export async function fetchAvailableMovingPartners(
     }
 
     const dateISO = date.toISOString();
-    const timeHHMM = date.toISOString().slice(11, 16); // Gets "HH:MM" from ISO string
+    // Use local time instead of UTC to match user's selected time slot
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const timeHHMM = `${hours}:${minutes}`;
     
     let apiUrl = `/api/moving-partners/search?date=${encodeURIComponent(dateISO)}&time=${encodeURIComponent(timeHHMM)}`;
     

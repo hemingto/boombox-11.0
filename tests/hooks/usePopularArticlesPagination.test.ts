@@ -21,7 +21,7 @@ const mockPopularArticles = [
     title: 'Moving Costs in San Francisco',
     author: 'Sophie',
     readTime: '10 min read',
-    imageSrc: '/img/golden-gate.png',
+    imageSrc: '/placeholder.jpg',
     imageAlt: 'Golden Gate Bridge',
     link: '/locations/san-francisco',
   },

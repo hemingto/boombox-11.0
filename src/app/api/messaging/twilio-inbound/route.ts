@@ -28,7 +28,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { 
   validateTwilioRequest, 
   parseInboundMessage 
-} from '@/lib/utils';
+} from '@/lib/utils/twilioUtils';
 import { InboundMessageRouter } from '@/lib/services/messaging/InboundMessageRouter';
 import { 
   TwilioInboundRequestSchema,
@@ -40,6 +40,13 @@ export async function POST(req: NextRequest) {
     // Parse the form data from Twilio
     const formData = await req.formData();
     const { from, body } = parseInboundMessage(formData);
+    
+    // DEBUG: Log incoming SMS details
+    console.log('=== TWILIO INBOUND SMS DEBUG ===');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('From (phone):', from);
+    console.log('Body (message):', body);
+    console.log('Raw FormData keys:', Array.from(formData.keys()));
     
     // Convert FormData to object for validation
     const requestBody: Record<string, string> = {};
@@ -65,14 +72,20 @@ export async function POST(req: NextRequest) {
     
     // Validate required fields
     if (!from || !body) {
+      console.log('DEBUG: Missing required fields - from:', !!from, 'body:', !!body);
       return NextResponse.json({ 
         error: 'Missing required fields: From and Body are required' 
       }, { status: 400 });
     }
     
     // Route message to appropriate handler
+    console.log('DEBUG: Routing message to InboundMessageRouter...');
     const router = new InboundMessageRouter();
     const result = await router.routeMessage(from, body);
+    
+    // DEBUG: Log routing result
+    console.log('DEBUG: Router result:', JSON.stringify(result, null, 2));
+    console.log('=== END TWILIO INBOUND SMS DEBUG ===');
     
     // Return structured response
     const response: TwilioInboundResponse = {

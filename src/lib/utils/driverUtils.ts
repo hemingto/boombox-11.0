@@ -10,6 +10,7 @@ import { prisma } from '@/lib/database/prismaClient';
 import { v2 as cloudinary } from 'cloudinary';
 import { v4 as uuidv4 } from 'uuid';
 import { Readable } from 'stream';
+import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
 
 // Types and interfaces
 export interface DriverRegistrationData {
@@ -243,9 +244,18 @@ export async function processDriverProfileUpdate(driverId: number, updateData: D
     throw new Error('Driver not found');
   }
   
-  // If the phone number is being updated, set verifiedPhoneNumber to false
-  if (updateData.phoneNumber && updateData.phoneNumber !== existingDriver.phoneNumber) {
-    updateData.verifiedPhoneNumber = false;
+  // Normalize phone number to E.164 format if it's being updated
+  if (updateData.phoneNumber) {
+    try {
+      const normalizedPhone = normalizePhoneNumberToE164(updateData.phoneNumber);
+      // If the phone number is being updated, set verifiedPhoneNumber to false
+      if (normalizedPhone !== existingDriver.phoneNumber) {
+        updateData.verifiedPhoneNumber = false;
+      }
+      updateData.phoneNumber = normalizedPhone;
+    } catch (error) {
+      throw new Error('Invalid phone number format');
+    }
   }
   
   // Handle services update and Onfleet team synchronization
@@ -1592,6 +1602,7 @@ export async function getAdminDriversList() {
           startTime: true,
           endTime: true,
           maxCapacity: true,
+          isBlocked: true,
         },
       },
       cancellations: {

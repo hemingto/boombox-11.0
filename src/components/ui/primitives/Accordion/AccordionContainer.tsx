@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * @fileoverview AccordionContainer component for managing multiple accordion items
  * @source boombox-10.0/src/app/components/reusablecomponents/accordioncontainer.tsx

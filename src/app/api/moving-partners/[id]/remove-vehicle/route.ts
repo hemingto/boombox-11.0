@@ -5,7 +5,8 @@
  * 
  * ROUTE FUNCTIONALITY:
  * DELETE endpoint that removes a vehicle associated with a moving partner.
- * Finds the vehicle by moving partner ID and deletes it from the database.
+ * Supports removing a specific vehicle by ID (for multi-vehicle fleet management)
+ * or the first vehicle found (legacy behavior).
  * 
  * USED BY (boombox-10.0 files):
  * - Moving partner vehicle management interface
@@ -15,12 +16,12 @@
  * 
  * INTEGRATION NOTES:
  * - Requires moverId path parameter validation
+ * - Optional vehicleId query parameter to remove specific vehicle
  * - Finds vehicle by movingPartnerId relationship
  * - Returns 404 if no vehicle found for the partner
  * - Returns 204 (No Content) on successful deletion
- * - Simple database find and delete operations
  * 
- * @refactor No logic changes - direct port with updated imports
+ * @refactor Added vehicleId query parameter support for multi-vehicle fleet management
  */
 
 import { NextResponse, NextRequest } from 'next/server';
@@ -40,11 +41,37 @@ export async function DELETE(
       );
     }
 
-    const vehicle = await prisma.vehicle.findFirst({
-      where: {
-        movingPartnerId: moverId,
-      },
-    });
+    // Check for optional vehicleId query parameter (for multi-vehicle support)
+    const { searchParams } = new URL(request.url);
+    const vehicleIdParam = searchParams.get('vehicleId');
+    
+    let vehicle;
+    
+    if (vehicleIdParam) {
+      // Remove specific vehicle by ID
+      const vehicleId = parseInt(vehicleIdParam);
+      
+      if (isNaN(vehicleId)) {
+        return new NextResponse(
+          JSON.stringify({ error: 'Invalid vehicle ID' }),
+          { status: 400 }
+        );
+      }
+      
+      vehicle = await prisma.vehicle.findFirst({
+        where: {
+          id: vehicleId,
+          movingPartnerId: moverId,
+        },
+      });
+    } else {
+      // Legacy behavior: remove first vehicle found
+      vehicle = await prisma.vehicle.findFirst({
+        where: {
+          movingPartnerId: moverId,
+        },
+      });
+    }
 
     if (!vehicle) {
       return new NextResponse(null, { status: 404 });

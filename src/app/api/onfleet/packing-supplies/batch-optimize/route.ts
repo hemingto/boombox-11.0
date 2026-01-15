@@ -382,9 +382,8 @@ export async function POST(request: NextRequest) {
     for (const route of successfulRoutes) {
       try {
         // Call driver offer endpoint to start the driver selection process
-        // @REFACTOR-P9-TEMP: Update URL path when driver-offer route is migrated
         const driverOfferResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_APP_URL}/api/packing-supplies/driver-offer`,
+          `${process.env.NEXT_PUBLIC_APP_URL}/api/onfleet/packing-supplies/driver-offer`,
           {
             method: 'POST',
             headers: {

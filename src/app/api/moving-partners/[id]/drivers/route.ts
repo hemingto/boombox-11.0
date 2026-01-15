@@ -29,6 +29,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/nextAuthConfig";
+import { MovingPartnerStatus } from '@prisma/client';
 import { 
   MovingPartnerDriversListResponseSchema,
   UpdateMovingPartnerDriverStatusRequestSchema,
@@ -158,6 +159,27 @@ export async function PATCH(
                 }
             }
         });
+
+        // If driver was deactivated, check if we need to update mover status to INACTIVE
+        if (!isActive) {
+            const remainingActiveApprovedDrivers = await prisma.movingPartnerDriver.count({
+                where: {
+                    movingPartnerId: partnerIdNum,
+                    isActive: true,
+                    driver: {
+                        isApproved: true
+                    }
+                }
+            });
+
+            if (remainingActiveApprovedDrivers === 0) {
+                await prisma.movingPartner.update({
+                    where: { id: partnerIdNum },
+                    data: { status: MovingPartnerStatus.INACTIVE }
+                });
+                console.log(`Moving partner ${partnerIdNum} status updated to INACTIVE - no remaining active approved drivers`);
+            }
+        }
 
         const responseData = {
             id: updatedDriver.driver.id,

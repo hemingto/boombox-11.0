@@ -17,10 +17,11 @@ import {
 } from '@/types/availability.types';
 import { MovingPartnerAvailability, DriverAvailability } from '@prisma/client';
 import { formatTime24Hour } from '@/lib/utils/dateUtils';
+import { JOB_TIMING, doWindowsOverlap } from '@/lib/constants/jobTiming';
 
 // Business Configuration
 export const DEFAULT_BUSINESS_HOURS: BusinessHoursConfig = {
-  startHour: 8,
+  startHour: 9,
   endHour: 18,
   slotDurationMinutes: 60,
   timezone: 'America/Los_Angeles'
@@ -75,10 +76,10 @@ export function formatTimeLocal(hour: number): string {
   const endHour = hour + 1;
   
   const formatHour = (h: number) => {
-    if (h === 0) return '12AM';
-    if (h < 12) return `${h}AM`;
-    if (h === 12) return '12PM';
-    return `${h - 12}PM`;
+    if (h === 0) return '12am';
+    if (h < 12) return `${h}am`;
+    if (h === 12) return '12pm';
+    return `${h - 12}pm`;
   };
   
   return `${formatHour(startHour)}-${formatHour(endHour)}`;
@@ -180,31 +181,53 @@ export function createTimeConflict(
 }
 
 /**
- * Check for Onfleet task conflicts with buffer time
+ * Check for Onfleet task conflicts using centralized job timing
+ * 
+ * Uses JOB_TIMING constants for consistent blocking:
+ * - 1 hour buffer before
+ * - 1 hour service time
+ * - 1 hour buffer after
+ * = 3 hours total blocked per job
+ * 
+ * This checks if a NEW job booked at slotStart would conflict with existing tasks
  */
 export function checkOnfleetTaskConflicts(
   slotStart: Date,
   slotEnd: Date,
   driverTasks: { appointment: { time: Date } }[],
-  bufferHours: number = 2
+  _bufferHours?: number // Deprecated, kept for backwards compatibility
 ): ConflictCheckResult {
   const conflicts: TimeConflict[] = [];
   
+  // Calculate the potential new job's blocked window if booked at slotStart
+  const potentialJobBlockedStart = new Date(
+    slotStart.getTime() - JOB_TIMING.BUFFER_BEFORE_MINUTES * 60 * 1000
+  );
+  const potentialJobBlockedEnd = new Date(
+    slotStart.getTime() + 
+    (JOB_TIMING.SERVICE_DURATION_MINUTES + JOB_TIMING.BUFFER_AFTER_MINUTES) * 60 * 1000
+  );
+  
   for (const task of driverTasks) {
     const taskStart = new Date(task.appointment.time);
-    const taskEnd = new Date(taskStart.getTime() + 3600 * 1000); // 1-hour task duration
     
-    // Create buffer around the task
-    const bufferStart = new Date(taskStart.getTime() - bufferHours * 3600 * 1000);
-    const bufferEnd = new Date(taskEnd.getTime() + bufferHours * 3600 * 1000);
+    // Calculate existing task's blocked window
+    const existingBlockedStart = new Date(
+      taskStart.getTime() - JOB_TIMING.BUFFER_BEFORE_MINUTES * 60 * 1000
+    );
+    const existingBlockedEnd = new Date(
+      taskStart.getTime() + 
+      (JOB_TIMING.SERVICE_DURATION_MINUTES + JOB_TIMING.BUFFER_AFTER_MINUTES) * 60 * 1000
+    );
 
-    if (hasTimeConflict(slotStart, slotEnd, bufferStart, bufferEnd)) {
+    // Check if potential new job's blocked window overlaps with existing task
+    if (doWindowsOverlap(potentialJobBlockedStart, potentialJobBlockedEnd, existingBlockedStart, existingBlockedEnd)) {
       conflicts.push(createTimeConflict(
-        bufferStart,
-        bufferEnd,
+        existingBlockedStart,
+        existingBlockedEnd,
         'onfleet_task',
         undefined,
-        `Task at ${taskStart.toISOString()} with ${bufferHours}h buffer`
+        `Task at ${taskStart.toISOString()} blocks ${JOB_TIMING.TOTAL_BLOCKED_HOURS}h`
       ));
     }
   }

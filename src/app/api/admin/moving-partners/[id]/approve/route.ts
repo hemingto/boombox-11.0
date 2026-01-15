@@ -6,6 +6,7 @@
  * ROUTE FUNCTIONALITY:
  * POST endpoint that approves moving partners and creates associated Onfleet teams.
  * Sets partner status based on available drivers and handles Onfleet API integration.
+ * Sends approval notifications (in-app, SMS, email) upon success.
  * 
  * USED BY (boombox-10.0 files):
  * - Admin moving partner approval workflow
@@ -16,9 +17,11 @@
  * INTEGRATION NOTES:
  * - Creates Onfleet team with partner name
  * - Updates partner with isApproved=true and onfleetTeamId
- * - Sets status to ACTIVE if approved drivers exist, INACTIVE otherwise
+ * - Always sets status to INACTIVE (drivers can only be added after approval)
+ * - Status transitions to ACTIVE when first driver is approved via /api/drivers/approve
  * - Handles Onfleet API errors including duplicate team names
  * - Uses MovingPartnerStatus enum for type safety
+ * - Sends multi-channel approval notifications
  * 
  * @refactor Uses centralized Onfleet client from @/lib/integrations
  */
@@ -27,6 +30,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
 import { getOnfleetClient } from '@/lib/integrations/onfleetClient';
 import { MovingPartnerStatus } from '@prisma/client';
+import { ApprovalNotificationService } from '@/lib/services/ApprovalNotificationService';
 
 export async function POST(
   request: NextRequest,
@@ -38,14 +42,7 @@ export async function POST(
     const moverId = parseInt(id);
 
     const mover = await prisma.movingPartner.findUnique({
-      where: { id: moverId },
-      include: {
-        approvedDrivers: {
-          where: {
-            isActive: true
-          }
-        }
-      }
+      where: { id: moverId }
     });
 
     if (!mover) {
@@ -69,15 +66,28 @@ export async function POST(
       console.log('Onfleet team created successfully:', team);
 
       // Update mover with Onfleet team ID and status
+      // Always set to INACTIVE - drivers can only be added after approval
+      // Status will transition to ACTIVE when first driver is approved
       const updatedMover = await prisma.movingPartner.update({
         where: { id: moverId },
         data: {
           isApproved: true,
           onfleetTeamId: team.id,
-          status: mover.approvedDrivers.length > 0 ? MovingPartnerStatus.ACTIVE : MovingPartnerStatus.INACTIVE
+          status: MovingPartnerStatus.INACTIVE
         },
       });
       console.log('Mover updated with Onfleet team ID:', updatedMover.onfleetTeamId);
+
+      // Send pending drivers notification (non-blocking, in-app only)
+      ApprovalNotificationService.notifyMoverPendingDrivers({
+        id: updatedMover.id,
+        name: updatedMover.name,
+        email: updatedMover.email,
+        phoneNumber: updatedMover.phoneNumber
+      }).catch((error) => {
+        // Log but don't fail the approval if notification fails
+        console.error('Error sending mover pending drivers notification:', error);
+      });
 
       return NextResponse.json(updatedMover);
     } catch (onfleetError: any) {

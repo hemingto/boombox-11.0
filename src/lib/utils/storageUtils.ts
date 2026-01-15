@@ -19,24 +19,22 @@ export async function calculateAvailableStorageUnits(): Promise<number> {
     const emptyUnitsCount = await prisma.storageUnit.count({
       where: { status: 'Empty' },
     });
-
-    const now = new Date();
     
-    // Get appointments scheduled for today or in the future
-    // that are of type 'Initial Pickup' or 'Additional Storage' and have a defined numberOfUnits
+    // Get appointments that will require storage units
+    // IMPORTANT: Count ALL 'Scheduled' appointments regardless of date because:
+    // - If an appointment is still 'Scheduled' (not 'Completed' or 'Canceled'), 
+    //   the units are still reserved even if the date has passed
+    // - This prevents double-booking units for appointments that are delayed/rescheduled
     const upcomingReservations = await prisma.appointment.aggregate({
       _sum: {
         numberOfUnits: true,
       },
       where: {
-        status: 'Scheduled',
+        status: 'Scheduled', // All scheduled appointments reserve units
         OR: [
           { appointmentType: 'Initial Pickup' }, 
           { appointmentType: 'Additional Storage' }
         ],
-        date: {
-          gte: now, // From today onwards
-        },
         numberOfUnits: {
           gt: 0, // Only count if numberOfUnits is positive and not null
         },
@@ -45,7 +43,7 @@ export async function calculateAvailableStorageUnits(): Promise<number> {
 
     const reservedUnitsCount = upcomingReservations._sum.numberOfUnits || 0;
     
-    // Available units = (empty units) - (units reserved for future pickups)
+    // Available units = (empty units) - (units reserved for scheduled appointments)
     // Ensure the count is not negative
     const availableCount = Math.max(0, emptyUnitsCount - reservedUnitsCount);
 

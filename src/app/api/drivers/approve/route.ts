@@ -30,6 +30,8 @@ import {
 } from '@/lib/utils/driverUtils';
 import { ApproveDriverRequestSchema, type ApproveDriverRequest } from '@/lib/validations/api.validations';
 import { ApiResponse, ApiError, API_ERROR_CODES } from '@/types/api.types';
+import { ApprovalNotificationService } from '@/lib/services/ApprovalNotificationService';
+import { MovingPartnerStatus } from '@prisma/client';
 
 interface DriverApprovalResponse {
   driver: {
@@ -69,6 +71,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
         vehicles: {
           where: { isApproved: true },
           take: 1
+        },
+        movingPartners: {
+          include: {
+            movingPartner: true
+          }
         }
       }
     });
@@ -129,6 +136,73 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
           isApproved: true,
           status: DRIVER_STATUSES.ACTIVE
         }
+      });
+
+      // Check if this driver is linked to a moving partner
+      // If so, check if this is their first approved driver and activate the mover account
+      if (driver.movingPartners && driver.movingPartners.length > 0) {
+        for (const mpDriver of driver.movingPartners) {
+          const mover = mpDriver.movingPartner;
+          
+          // Only process if mover is approved but still INACTIVE
+          if (mover.isApproved && mover.status === MovingPartnerStatus.INACTIVE) {
+            // Count other approved drivers for this mover
+            const otherApprovedDrivers = await prisma.movingPartnerDriver.count({
+              where: {
+                movingPartnerId: mover.id,
+                isActive: true,
+                driver: {
+                  isApproved: true,
+                  id: { not: driverId } // Exclude the current driver being approved
+                }
+              }
+            });
+
+            // If this is the first approved driver, activate the mover account
+            if (otherApprovedDrivers === 0) {
+              console.log(`[Driver Approval Trigger] Activating mover ${mover.id} - first approved driver ${driverId}`);
+              
+              await prisma.movingPartner.update({
+                where: { id: mover.id },
+                data: { status: MovingPartnerStatus.ACTIVE }
+              });
+
+              // Send mover activation notifications (email, SMS, in-app)
+              ApprovalNotificationService.notifyMoverActivated(
+                {
+                  id: mover.id,
+                  name: mover.name,
+                  email: mover.email,
+                  phoneNumber: mover.phoneNumber
+                },
+                `${updatedDriver.firstName} ${updatedDriver.lastName}`
+              ).catch((error) => {
+                // Log but don't fail the driver approval if notifications fail
+                console.error('Error sending mover activation notifications:', error);
+              });
+            }
+          }
+        }
+      }
+
+      // Send driver approval notifications (in-app, SMS, email)
+      // Customize message if driver is linked to a moving partner
+      const movingPartnerName = driver.movingPartners && driver.movingPartners.length > 0 
+        ? driver.movingPartners[0].movingPartner.name 
+        : undefined;
+      
+      ApprovalNotificationService.notifyDriverApproved({
+        id: updatedDriver.id,
+        firstName: updatedDriver.firstName,
+        lastName: updatedDriver.lastName,
+        email: updatedDriver.email,
+        phoneNumber: updatedDriver.phoneNumber,
+        services: driver.services ? (Array.isArray(driver.services) ? driver.services : [driver.services]) : undefined,
+        movingPartnerName,
+        isMovingPartnerDriver: !!movingPartnerName
+      }).catch((error) => {
+        // Log but don't fail the approval if notifications fail
+        console.error('Error sending driver approval notifications:', error);
       });
 
       const responseData: DriverApprovalResponse = {

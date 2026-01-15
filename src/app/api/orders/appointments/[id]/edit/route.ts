@@ -6,91 +6,39 @@
  * PUT endpoint that handles appointment modifications including plan switches (DIY ↔ Full Service),
  * storage unit count changes, time updates, moving partner assignments, and driver reassignments.
  *
- * USED BY (boombox-10.0 files):
- * - src/app/components/edit-appointment/editaccessstorageappointment.tsx (line 329: Edit storage access appointments)
- * - src/app/components/edit-appointment/editaddstorageappointment.tsx (line 323: Edit additional storage appointments)
+ * USED BY:
+ * - Edit appointment forms for access storage and additional storage appointments
  *
  * INTEGRATION NOTES:
- * - Critical Onfleet integration - manages task creation/deletion/reassignment for plan switches
- * - Driver assignment system - triggers driver-assign route after plan changes
- * - Moving partner availability validation - checks schedule conflicts
- * - SMS notifications for drivers and moving partners on changes
- * - Database transactions for unit count changes and storage unit assignments
+ * - Uses AppointmentUpdateOrchestrator for coordinated updates
+ * - Onfleet integration handled by OnfleetTaskUpdateService
+ * - Notifications handled by NotificationOrchestrator
+ * - Database transactions ensure atomic updates
  *
- * @refactor Consolidated from 1,309 lines to ~300 lines using service layer architecture
+ * @refactor Refactored from ~492 lines to ~165 lines using orchestrator pattern
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
-import { prisma } from '@/lib/database/prismaClient';
-import { MessageService } from '@/lib/messaging/MessageService';
-import { AppointmentOnfleetService } from '@/lib/services/appointmentOnfleetService';
+import { AppointmentUpdateOrchestrator } from '@/lib/services/AppointmentUpdateOrchestrator';
 import { 
   UpdateAppointmentRequestSchema, 
   UpdateAppointmentResponseSchema 
 } from '@/lib/validations/api.validations';
-import {
-  calculateAppointmentChanges,
-  generateDriverReconfirmToken,
-  generateDriverWebViewUrl,
-  formatAppointmentDateForSms,
-  formatTimeMinusOneHour,
-  formatAppointmentTime,
-  validateMovingPartnerAvailability,
-  getDayOfWeekForAvailability,
-  calculateFinalUnitCount,
-  getUnitNumbersToRemove,
-  validateAppointmentDateTime,
-  type AppointmentChanges
-} from '@/lib/utils/appointmentUtils';
-import { driverReassignmentNotificationSms } from '@/lib/messaging/templates/sms/appointment';
+import { validateAppointmentDateTime } from '@/lib/utils/appointmentUtils';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-interface AppointmentWithRelations {
-  id: number;
-  planType: string;
-  date: Date;
-  time: Date;
-  address: string;
-  zipcode: string;
-  numberOfUnits: number;
-  userId: number;
-  movingPartnerId: number | null;
-  thirdPartyMovingPartnerId: number | null;
-  onfleetTasks: Array<{
-    id: number;
-    taskId: string;
-    driverId: number | null;
-    unitNumber: number | null;
-    driverNotificationStatus: string | null;
-    driver?: {
-      phoneNumber: string | null;
-    } | null;
-  }>;
-  movingPartner?: {
-    id: number;
-    name: string;
-    phoneNumber: string | null;
-    email: string | null;
-  } | null;
-  user: {
-    firstName: string | null;
-    lastName: string | null;
-    phoneNumber: string | null;
-  };
-  requestedStorageUnits: Array<{
-    storageUnitId: number;
-  }>;
-}
-
+/**
+ * Trigger driver assignment through existing API
+ * @deprecated Will be refactored when driver-assign route is migrated
+ */
 async function triggerDriverAssignment(appointmentId: number): Promise<void> {
   try {
-    // Use fetch to call the existing boombox-10.0 driver-assign route
-    // This will be refactored when we migrate the driver-assign route in Phase 4
-    const response = await fetch('http://localhost:3000/api/driver-assign', {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    const response = await fetch(`${baseUrl}/api/onfleet/driver-assign`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -101,380 +49,162 @@ async function triggerDriverAssignment(appointmentId: number): Promise<void> {
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('Driver assignment trigger failed:', errorData);
+      console.error('❌ Driver assignment trigger failed:', errorData);
     } else {
-      console.log(`Successfully triggered driver assignment for appointment ${appointmentId}`);
+      console.log(`✅ Successfully triggered driver assignment for appointment ${appointmentId}`);
     }
   } catch (error) {
-    console.error('Error triggering driver assignment:', error);
+    console.error('❌ Error triggering driver assignment:', error);
   }
 }
 
-async function handleDriverReconfirmation(
-  appointmentId: number,
-  existingAppointment: AppointmentWithRelations,
-  newDateTime: Date,
-  messageService: MessageService
-): Promise<void> {
-  // Find the driver assigned to the tasks (should be the same driver for all tasks)
-  const assignedDriverTask = existingAppointment.onfleetTasks.find(task => 
-    task.driverId && task.driver?.phoneNumber && 
-    (task.driverNotificationStatus === 'accepted' || task.driverNotificationStatus === 'pending_reconfirmation')
-  );
+/**
+ * Parse and normalize update input data
+ */
+function parseUpdateInput(validatedData: any, appointmentDate: Date): any {
+  // Convert userId to number
+  const numericUserId = typeof validatedData.userId === 'string' 
+    ? parseInt(validatedData.userId, 10) 
+    : validatedData.userId;
   
-  if (!assignedDriverTask || !assignedDriverTask.driverId) {
-    return;
+  if (isNaN(numericUserId)) {
+    throw new Error('Invalid userId format');
   }
 
-  const driverId = assignedDriverTask.driverId;
-  const driverPhone = assignedDriverTask.driver?.phoneNumber;
-  
-  console.log(`Found assigned driver ${driverId} for appointment ${appointmentId}. Sending single reconfirmation SMS.`);
-  
-  // Generate a token for the driver to use in the web link (using unit 1 as representative)
-  const reconfirmToken = generateDriverReconfirmToken(driverId, appointmentId, 1);
-  const webViewUrl = generateDriverWebViewUrl(reconfirmToken);
-  
-  // Format dates for the message BEFORE updating the database
-  const originalDateTime = existingAppointment.date;
-  
-  const originalDateStr = formatAppointmentDateForSms(originalDateTime);
-  const newDateStr = formatAppointmentDateForSms(newDateTime);
-  
-  const originalTimeStr = formatTimeMinusOneHour(originalDateTime);
-  const newTimeStr = formatTimeMinusOneHour(newDateTime);
-  
-  if (driverPhone) {
-    await MessageService.sendSms(
-      driverPhone,
-      driverReassignmentNotificationSms,
-      {
-        appointmentType: existingAppointment.planType,
-        originalDate: originalDateStr,
-        originalTime: originalTimeStr,
-        newDate: newDateStr,
-        newTime: newTimeStr,
-        webViewUrl
-      }
-    );
-    console.log(`Sent SMS to driver ${driverId} at ${driverPhone}`);
-  }
-  
-  // Update ALL tasks for this driver to pending_reconfirmation status
-  await prisma.onfleetTask.updateMany({
-    where: { 
-      appointmentId: appointmentId,
-      driverId: driverId 
-    },
-    data: {
-      driverNotificationStatus: 'pending_reconfirmation', 
-      driverAcceptedAt: null,
-      lastNotifiedDriverId: driverId,
-      driverNotificationSentAt: new Date(),
-    },
-  });
-  
-  console.log(`Updated all tasks for driver ${driverId} to pending_reconfirmation status`);
-}
+  // Parse storage unit IDs
+  const selectedStorageUnits = validatedData.selectedStorageUnits || [];
 
-async function updateMovingPartnerBooking(
-  appointmentId: number,
-  movingPartnerId: number | null,
-  appointmentDate: Date,
-  existingAppointment: AppointmentWithRelations
-): Promise<void> {
-  if (!movingPartnerId) {
-    // Delete existing booking if no moving partner selected
-    const existingBooking = await prisma.timeSlotBooking.findFirst({
-      where: { appointmentId }
-    });
-    
-    if (existingBooking) {
-      await prisma.timeSlotBooking.delete({
-        where: { id: existingBooking.id }
-      });
-    }
-    return;
-  }
+  // Calculate final moving partner IDs based on plan type
+  const movingPartnerId = validatedData.planType === 'Full Service Plan' 
+    ? validatedData.movingPartnerId 
+    : null;
+  const thirdPartyMovingPartnerId = validatedData.planType === 'Third Party Loading Help' 
+    ? validatedData.thirdPartyMovingPartnerId 
+    : null;
 
-  const existingBooking = await prisma.timeSlotBooking.findFirst({
-    where: { appointmentId }
-  });
+  // Parse loading help price
+  const loadingHelpPrice = validatedData.selectedLabor?.price 
+    ? parseFloat(validatedData.selectedLabor.price.replace(/[^\d.]/g, '')) 
+    : validatedData.parsedLoadingHelpPrice || 0;
 
-  const dayOfWeek = getDayOfWeekForAvailability(appointmentDate);
+  // Calculate final unit count based on appointment type
+  // For Access Storage appointments: use selectedStorageUnits.length + additionalUnitsCount
+  // For Initial Pickup/Additional Storage: use storageUnitCount directly
+  const isAccessStorageAppointment = 
+    validatedData.appointmentType === 'Storage Unit Access' ||
+    validatedData.appointmentType === 'End Storage Term';
   
-  const availabilitySlot = await prisma.movingPartnerAvailability.findFirst({
-    where: {
-      movingPartnerId,
-      dayOfWeek,
-    },
-  });
-
-  if (availabilitySlot) {
-    // Validate time is within availability
-    const validation = validateMovingPartnerAvailability(appointmentDate, availabilitySlot);
-    if (!validation.isValid) {
-      throw new Error(validation.error);
-    }
-
-    // Calculate booking start/end times
-    const bookingStart = new Date(appointmentDate.getTime() - 60 * 60 * 1000); // 1 hour before
-    const bookingEnd = new Date(appointmentDate.getTime() + 2 * 60 * 60 * 1000); // 1 hour after
-
-    // Delete old booking if exists
-    if (existingBooking) {
-      await prisma.timeSlotBooking.delete({
-        where: { id: existingBooking.id }
-      });
-    }
-
-    // Create new booking with start and end times
-    await prisma.timeSlotBooking.create({
-      data: {
-        movingPartnerAvailabilityId: availabilitySlot.id,
-        appointmentId,
-        bookingDate: bookingStart,
-        endDate: bookingEnd
-      }
-    });
+  let numberOfUnits: number;
+  if (isAccessStorageAppointment) {
+    // Access Storage: count from selected units
+    const baseUnitCount = selectedStorageUnits.length || 0;
+    const additionalUnits = validatedData.additionalUnitsCount || 0;
+    numberOfUnits = baseUnitCount + additionalUnits;
   } else {
-    throw new Error(`No availability found for ${dayOfWeek}`);
+    // Initial Pickup / Additional Storage: use storageUnitCount from payload
+    numberOfUnits = validatedData.storageUnitCount || validatedData.numberOfUnits || 1;
   }
+
+  return {
+    userId: numericUserId,
+    address: validatedData.address,
+    zipcode: validatedData.zipCode,
+    planType: validatedData.planType,
+    appointmentDateTime: appointmentDate,
+    description: validatedData.description || 'No added info',
+    selectedLabor: validatedData.selectedLabor,
+    movingPartnerId,
+    thirdPartyMovingPartnerId,
+    selectedStorageUnits,
+    numberOfUnits,
+    loadingHelpPrice,
+    monthlyStorageRate: validatedData.monthlyStorageRate,
+    monthlyInsuranceRate: validatedData.monthlyInsuranceRate,
+    quotedPrice: validatedData.calculatedTotal,
+    // Pass through additional fields for Onfleet task creation
+    deliveryReason: validatedData.deliveryReason,
+    appointmentType: validatedData.appointmentType,
+    insuranceCoverage: validatedData.selectedInsurance?.label || null,
+    status: validatedData.status || 'Scheduled',
+  };
 }
 
+/**
+ * PUT /api/orders/appointments/[id]/edit
+ * Update an existing appointment
+ */
 export async function PUT(req: NextRequest, { params }: RouteParams) {
-  const messageService = new MessageService();
-  const onfleetService = new AppointmentOnfleetService();
-  
   try {
     // 1. Validate and parse input
     const { id: appointmentIdParam } = await params;
     const appointmentId = parseInt(appointmentIdParam, 10);
+    
     if (isNaN(appointmentId)) {
-      return NextResponse.json({ error: 'Invalid appointment ID format' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'Invalid appointment ID format' }, 
+        { status: 400 }
+      );
     }
     
     const body = await req.json();
     const validatedData = UpdateAppointmentRequestSchema.parse(body);
 
-    // 2. Fetch existing appointment with relations
-    const existingAppointment = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
-      include: {
-        onfleetTasks: {
-          include: { driver: true },
-        },
-        movingPartner: true,
-        user: true,
-        requestedStorageUnits: true,
-      },
-    }) as AppointmentWithRelations | null;
-
-    if (!existingAppointment) {
-      return NextResponse.json({ error: 'Appointment not found' }, { status: 404 });
-    }
-
-    // 3. Calculate changes
-    const changes = calculateAppointmentChanges(existingAppointment, validatedData);
-    console.log('Appointment changes:', changes);
-
-    // 4. Validate appointment date time
+    // 2. Validate appointment date time
     const dateTimeValidation = validateAppointmentDateTime(validatedData.appointmentDateTime);
     if (!dateTimeValidation.isValid) {
-      return NextResponse.json({ error: dateTimeValidation.error }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: dateTimeValidation.error }, 
+        { status: 400 }
+      );
     }
+    
     const appointmentDate = dateTimeValidation.date!;
 
-    // 5. Handle plan transitions BEFORE database update
-    if (changes.planChanged) {
-      if (existingAppointment.planType === 'Do It Yourself Plan' && validatedData.planType === 'Full Service Plan') {
-        // Transition from DIY to Full Service
-        await onfleetService.handleDiyToFullServiceTransition(appointmentId);
-      } else if (existingAppointment.planType === 'Full Service Plan' && validatedData.planType === 'Do It Yourself Plan') {
-        // Transition from Full Service to DIY
-        await onfleetService.handleFullServiceToDiyTransition(appointmentId);
-      }
-    }
+    // 3. Parse and normalize input data
+    const updateInput = parseUpdateInput(validatedData, appointmentDate);
 
-    // 6. Handle time change notifications BEFORE database update
-    if (changes.timeChanged && !changes.planChanged) {
-      if (existingAppointment.planType === 'Do It Yourself Plan') {
-        await handleDriverReconfirmation(appointmentId, existingAppointment, appointmentDate, messageService);
-      } else if (existingAppointment.planType === 'Full Service Plan' && 
-                 existingAppointment.movingPartnerId === validatedData.movingPartnerId) {
-        // Same moving partner, notify of time change
-        await onfleetService.notifyMovingPartnerTimeChange(
-          appointmentId,
-          existingAppointment.date,
-          appointmentDate
-        );
-      }
-    }
+    console.log(`📝 Processing appointment update for ID ${appointmentId}`);
 
-    // 7. Handle unit removals BEFORE database update
-    if (changes.unitsRemoved.length > 0) {
-      const unitNumbersToRemove = getUnitNumbersToRemove(
-        existingAppointment.numberOfUnits,
-        validatedData.selectedStorageUnits?.length || 0
-      );
-      if (unitNumbersToRemove.length > 0) {
-        await onfleetService.deleteTasksForRemovedUnits(appointmentId, unitNumbersToRemove);
-      }
-    }
-
-    // 8. Convert and validate data for database update
-    const numericUserId = typeof validatedData.userId === 'string' 
-      ? parseInt(validatedData.userId, 10) 
-      : validatedData.userId;
-    
-    if (isNaN(numericUserId)) {
-      return NextResponse.json({ error: 'Invalid userId format' }, { status: 400 });
-    }
-
-    const numericStorageUnitIds = validatedData.selectedStorageUnits || [];
-    const finalNumberOfUnits = calculateFinalUnitCount(
-      existingAppointment.numberOfUnits,
-      numericStorageUnitIds,
-      validatedData.additionalUnitsCount
-    );
-
-    // Calculate final moving partner IDs
-    const finalMovingPartnerId = validatedData.planType === 'Full Service Plan' 
-      ? validatedData.movingPartnerId 
-      : null;
-    const finalThirdPartyMovingPartnerId = validatedData.planType === 'Third Party Loading Help' 
-      ? validatedData.thirdPartyMovingPartnerId 
-      : null;
-
-    // 9. Update moving partner booking
-    await updateMovingPartnerBooking(
+    // 4. Process update through orchestrator
+    const result = await AppointmentUpdateOrchestrator.processAppointmentUpdate(
       appointmentId,
-      finalMovingPartnerId,
-      appointmentDate,
-      existingAppointment
+      updateInput
     );
 
-    // 10. Update appointment in database
-    const updatedAppointment = await prisma.appointment.update({
-      where: { id: appointmentId },
-      data: {
-        userId: numericUserId,
-        address: validatedData.address,
-        zipcode: validatedData.zipCode,
-        date: appointmentDate,
-        time: appointmentDate,
-        planType: validatedData.planType,
-        deliveryReason: validatedData.deliveryReason,
-        numberOfUnits: finalNumberOfUnits,
-        description: validatedData.description || 'No added info',
-        appointmentType: validatedData.appointmentType,
-        loadingHelpPrice: validatedData.selectedLabor?.price 
-          ? parseFloat(validatedData.selectedLabor.price.replace(/[^\d.]/g, '')) 
-          : validatedData.parsedLoadingHelpPrice || 0,
-        monthlyStorageRate: validatedData.monthlyStorageRate,
-        monthlyInsuranceRate: validatedData.monthlyInsuranceRate,
-        insuranceCoverage: validatedData.selectedInsurance?.label || null,
-        quotedPrice: validatedData.calculatedTotal,
-        status: validatedData.status || 'Scheduled',
-        requestedStorageUnits: {
-          deleteMany: {},
-          create: numericStorageUnitIds.map((unitId: number) => ({
-            storageUnit: { connect: { id: unitId } }
-          }))
-        },
-        movingPartnerId: finalMovingPartnerId,
-        thirdPartyMovingPartnerId: finalThirdPartyMovingPartnerId,
-      },
-      include: {
-        requestedStorageUnits: {
-          include: { storageUnit: true }
-        }
-      }
-    });
-
-    // 11. Update Onfleet tasks with new appointment data
-    await onfleetService.updateAppointmentTasks(appointmentId, {
-      id: appointmentId,
-      appointmentType: validatedData.appointmentType,
-      address: validatedData.address,
-      zipcode: validatedData.zipCode,
-      time: appointmentDate,
-      description: validatedData.description || 'No added info',
-      planType: validatedData.planType,
-      selectedLabor: validatedData.selectedLabor,
-      loadingHelpPrice: validatedData.selectedLabor?.price 
-        ? parseFloat(validatedData.selectedLabor.price.replace(/[^\d.]/g, '')) 
-        : validatedData.parsedLoadingHelpPrice || 0,
-      storageUnitCount: finalNumberOfUnits
-    });
-
-    // 12. Create additional Onfleet tasks for new units
-    if (changes.unitsAdded.length > 0) {
-      await onfleetService.createAdditionalTasks(appointmentId, changes.unitsAdded, {
-        address: validatedData.address,
-        zipCode: validatedData.zipCode,
-        appointmentDateTime: appointmentDate.toISOString(),
-        planType: validatedData.planType,
-        deliveryReason: validatedData.deliveryReason,
-        description: validatedData.description || 'No added info',
-        appointmentType: validatedData.appointmentType,
-        parsedLoadingHelpPrice: validatedData.parsedLoadingHelpPrice,
-        monthlyStorageRate: validatedData.monthlyStorageRate,
-        monthlyInsuranceRate: validatedData.monthlyInsuranceRate,
-        calculatedTotal: validatedData.calculatedTotal,
-        movingPartnerId: finalMovingPartnerId,
-        thirdPartyMovingPartnerId: finalThirdPartyMovingPartnerId,
-        selectedLabor: validatedData.selectedLabor,
-        stripeCustomerId: validatedData.stripeCustomerId || "none",
-      });
+    if (!result.success) {
+      return NextResponse.json(
+        { success: false, error: result.error || 'Update failed' },
+        { status: 400 }
+      );
     }
 
-    // 13. Handle additional units for Initial Pickup/Additional Storage appointments
-    if ((validatedData.appointmentType === 'Additional Storage' || validatedData.appointmentType === 'Initial Pickup') && 
-        validatedData.additionalUnitsCount && validatedData.additionalUnitsCount > 0) {
-      await onfleetService.createAdditionalTasks(appointmentId, [], {
-        address: validatedData.address,
-        zipCode: validatedData.zipCode,
-        appointmentDateTime: appointmentDate.toISOString(),
-        planType: validatedData.planType,
-        deliveryReason: validatedData.deliveryReason,
-        description: validatedData.description || 'No added info',
-        appointmentType: validatedData.appointmentType,
-        parsedLoadingHelpPrice: validatedData.parsedLoadingHelpPrice,
-        monthlyStorageRate: validatedData.monthlyStorageRate,
-        monthlyInsuranceRate: validatedData.monthlyInsuranceRate,
-        calculatedTotal: validatedData.calculatedTotal,
-        movingPartnerId: finalMovingPartnerId,
-        thirdPartyMovingPartnerId: finalThirdPartyMovingPartnerId,
-        selectedLabor: validatedData.selectedLabor,
-        stripeCustomerId: validatedData.stripeCustomerId || "none",
-        additionalUnitsCount: validatedData.additionalUnitsCount,
-        additionalUnitsOnly: true,
-      });
-    }
-
-    // 14. Trigger driver assignment if needed
-    if (changes.driverReassignmentRequired) {
-      console.log(`Triggering driver assignment for appointment ${appointmentId} due to changes`);
+    // 5. Trigger driver assignment if needed
+    if (result.changes?.driverReassignmentRequired) {
+      console.log(`🚗 Triggering driver assignment for appointment ${appointmentId}`);
       await triggerDriverAssignment(appointmentId);
     }
 
-    // 15. Revalidate cache and return response
-    revalidatePath(`/user-page/${updatedAppointment.userId}/`);
+    // 6. Revalidate cache
+    if (result.appointment?.userId) {
+      revalidatePath(`/user-page/${result.appointment.userId}/`);
+    }
 
+    // 7. Return standardized response
     const response = UpdateAppointmentResponseSchema.parse({
       success: true,
-      appointment: updatedAppointment,
-      newUnitsAdded: changes.unitsAdded.length > 0 || (validatedData.additionalUnitsCount && validatedData.additionalUnitsCount > 0),
-      newUnitCount: changes.unitsAdded.length || validatedData.additionalUnitsCount || 0,
-      changes
+      appointment: result.appointment,
+      newUnitsAdded: (result.changes?.unitsAdded?.length ?? 0) > 0,
+      newUnitCount: result.changes?.unitsAdded?.length ?? 0,
+      changes: result.changes,
+      notificationsSent: result.notificationsSent,
     });
 
     return NextResponse.json(response);
 
   } catch (error: any) {
-    console.error('Error updating appointment:', error);
+    console.error('❌ Error updating appointment:', error);
     
+    // Handle Zod validation errors
     if (error.name === 'ZodError') {
       return NextResponse.json({ 
         success: false, 
@@ -483,10 +213,11 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
       }, { status: 400 });
     }
     
+    // Handle general errors
     return NextResponse.json({ 
       success: false, 
       error: 'Failed to update appointment', 
       details: error.message 
     }, { status: 500 });
   }
-} 
+}

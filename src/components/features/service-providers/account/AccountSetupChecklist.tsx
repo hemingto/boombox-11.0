@@ -37,7 +37,8 @@ import { useAccountSetupChecklist } from '@/hooks/useAccountSetupChecklist';
 import {
   isMoverChecklist,
   isDriverChecklist,
-} from '@/lib/services/accountSetupChecklistService';
+  isChecklistComplete as checkIfChecklistComplete,
+} from '@/lib/services/accountSetupChecklistUtils';
 import { TermsOfServicePopup } from '@/components/features/service-providers/shared/TermsOfServicePopup';
 
 interface AccountSetupChecklistProps {
@@ -56,7 +57,7 @@ export function AccountSetupChecklist({
     isApproved,
     status,
     hasMovingPartner,
-    showActiveMessage,
+    activeMessageShown,
     isLoading,
     error,
     refetch,
@@ -80,25 +81,12 @@ export function AccountSetupChecklist({
 
   // Check if checklist is complete
   const isChecklistComplete = checklistStatus
-    ? Object.values(checklistStatus).every((status) => status === true)
+    ? checkIfChecklistComplete(checklistStatus, userType, isApproved, hasMovingPartner)
     : false;
 
-  // Loading state
+  // Loading state - return null to show nothing while loading
   if (isLoading) {
-    return (
-      <div className="bg-surface-tertiary mb-8 border border-border rounded-xl p-6">
-        <div className="animate-pulse flex space-x-4">
-          <div className="flex-1 space-y-4 py-1">
-            <div className="h-4 bg-surface-disabled rounded w-3/4"></div>
-            <div className="space-y-3">
-              <div className="h-4 bg-surface-disabled rounded"></div>
-              <div className="h-4 bg-surface-disabled rounded"></div>
-              <div className="h-4 bg-surface-disabled rounded"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   // Error state
@@ -115,10 +103,10 @@ export function AccountSetupChecklist({
 
   // Completion states for movers
   if (isChecklistComplete && userType === 'mover') {
-    // Active status - can accept jobs
-    if (status === 'ACTIVE' && showActiveMessage) {
+    // Active status - show message only if not yet shown
+    if (status === 'ACTIVE' && !activeMessageShown) {
       return (
-        <div className="bg-status-bg-success border border-border-success rounded-xl p-6 mb-8">
+        <div className="bg-status-bg-success rounded-xl p-6 mb-8 animate-slideDown">
           <h2 className="text-status-success text-base font-semibold mb-1">
             Your account is now active!
           </h2>
@@ -129,10 +117,15 @@ export function AccountSetupChecklist({
       );
     }
 
+    // Active status without showing message - hide checklist since account is active
+    if (status === 'ACTIVE' && activeMessageShown) {
+      return null;
+    }
+
     // Approved status - needs to add drivers
     if (status === 'APPROVED') {
       return (
-        <div className="bg-status-bg-warning border border-border-warning rounded-xl p-6 mb-8">
+        <div className="bg-status-bg-warning border border-border-warning rounded-xl p-6 mb-8 animate-slideDown">
           <h2 className="text-status-warning text-base font-semibold mb-1">
             Last Step
           </h2>
@@ -146,23 +139,29 @@ export function AccountSetupChecklist({
     // Pending status - under review
     if (status === 'PENDING') {
       return (
-        <div className="bg-status-bg-warning border border-border-warning rounded-xl p-6 mb-8">
-          <h2 className="text-status-warning text-base font-semibold mb-1">
+        <div className="bg-status-bg-info border border-border-info rounded-xl p-6 mb-8 animate-slideDown">
+          <h2 className="text-status-info text-base font-semibold mb-1">
             Account Status Pending
           </h2>
-          <p className="text-status-warning text-base">
+          <p className="text-status-info text-base">
             We are looking over your application and will respond within the next
             few days
           </p>
         </div>
       );
     }
+
+    // Inactive status with complete checklist - auto-update to ACTIVE should trigger
+    // Don't show any message - let the auto-update handle the transition
+    if (status === 'INACTIVE' && isApproved) {
+      return null;
+    }
   }
 
   // Completion state for drivers
   if (isChecklistComplete && userType === 'driver') {
     return (
-      <div className="bg-status-bg-success border border-border-success rounded-xl p-6 mb-8">
+      <div className="bg-status-bg-success rounded-xl p-6 mb-8 animate-slideDown">
         <h2 className="text-status-success text-base font-semibold mb-1">
           You&rsquo;re all set!
         </h2>
@@ -180,7 +179,7 @@ export function AccountSetupChecklist({
   }
 
   return (
-    <div className="bg-status-bg-warning border border-border-warning rounded-xl p-6 mb-8">
+    <div className="bg-status-bg-warning border border-border-warning rounded-xl p-6 mb-8 animate-slideDown">
       {/* Header */}
       {userType === 'mover' && isMoverChecklist(checklistStatus) ? (
         <>
@@ -189,7 +188,7 @@ export function AccountSetupChecklist({
               <h2 className="text-status-warning text-base font-semibold mb-1">
                 Last Step
               </h2>
-              <p className="text-status-warning text-base mb-4">
+              <p className="text-status-warning mb-4">
                 Add drivers to start accepting jobs on Boombox
               </p>
             </>
@@ -223,36 +222,44 @@ export function AccountSetupChecklist({
               <ChecklistItem
                 completed={checklistStatus.approvedDrivers}
                 label="Add approved drivers"
+                href={`/service-provider/${userType}/${userId}/drivers`}
               />
             ) : (
               <>
                 <ChecklistItem
                   completed={checklistStatus.companyDescription}
                   label="Add a company description"
+                  href={`/service-provider/${userType}/${userId}/account-information`}
                 />
                 <ChecklistItem
                   completed={checklistStatus.companyPicture}
                   label="Add company picture or logo"
+                  href={`/service-provider/${userType}/${userId}/account-information`}
                 />
                 <ChecklistItem
                   completed={checklistStatus.phoneVerified}
                   label="Verify your phone number"
+                  href={`/service-provider/${userType}/${userId}/account-information`}
                 />
                 <ChecklistItem
                   completed={checklistStatus.hourlyRate}
                   label="Set your hourly rate"
+                  href={`/service-provider/${userType}/${userId}/account-information`}
                 />
                 <ChecklistItem
                   completed={checklistStatus.approvedVehicles}
                   label="Add approved vehicles"
+                  href={`/service-provider/${userType}/${userId}/vehicle`}
                 />
                 <ChecklistItem
                   completed={checklistStatus.calendarSet}
                   label="Set your calendar and team capacity"
+                  href={`/service-provider/${userType}/${userId}/calendar`}
                 />
                 <ChecklistItem
                   completed={checklistStatus.bankAccountLinked}
                   label="Link your bank account"
+                  href={`/service-provider/${userType}/${userId}/payment`}
                 />
                 <ChecklistItem
                   completed={checklistStatus.termsOfServiceReviewed}
@@ -262,7 +269,7 @@ export function AccountSetupChecklist({
                       <Link
                         href="/terms-of-service"
                         onClick={handleTermsClick}
-                        className="text-status-warning underline decoration-dotted underline-offset-4"
+                        className="text-status-warning underline decoration-dotted hover:decoration-solid underline-offset-4"
                       >
                         terms of service
                       </Link>
@@ -278,28 +285,34 @@ export function AccountSetupChecklist({
               <ChecklistItem
                 completed={checklistStatus.profilePicture}
                 label="Add a profile picture"
+                href={`/service-provider/${userType}/${userId}/account-information`}
               />
               <ChecklistItem
                 completed={checklistStatus.driversLicense}
                 label="Add driver&rsquo;s license photos"
+                href={`/service-provider/${userType}/${userId}/account-information`}
               />
               <ChecklistItem
                 completed={checklistStatus.phoneVerified}
                 label="Verify your phone number"
+                href={`/service-provider/${userType}/${userId}/account-information`}
               />
               {!hasMovingPartner && (
                 <>
                   <ChecklistItem
                     completed={checklistStatus.approvedVehicle || false}
                     label="Add an approved vehicle"
+                    href={`/service-provider/${userType}/${userId}/vehicle`}
                   />
                   <ChecklistItem
                     completed={checklistStatus.workSchedule || false}
                     label="Set your work schedule"
+                    href={`/service-provider/${userType}/${userId}/calendar`}
                   />
                   <ChecklistItem
                     completed={checklistStatus.bankAccountLinked || false}
                     label="Link your bank account"
+                    href={`/service-provider/${userType}/${userId}/payment`}
                   />
                 </>
               )}
@@ -341,11 +354,12 @@ export function AccountSetupChecklist({
 interface ChecklistItemProps {
   completed: boolean;
   label: React.ReactNode;
+  href?: string;
 }
 
-function ChecklistItem({ completed, label }: ChecklistItemProps) {
-  return (
-    <div className="flex items-start">
+function ChecklistItem({ completed, label, href }: ChecklistItemProps) {
+  const content = (
+    <>
       {completed ? (
         <div className="w-5 h-5 bg-status-warning rounded-full flex items-center justify-center mr-4 shrink-0">
           <CheckIcon className="h-4 w-4 text-white" />
@@ -360,7 +374,22 @@ function ChecklistItem({ completed, label }: ChecklistItemProps) {
       >
         {label}
       </span>
-    </div>
+    </>
+  );
+
+  // Render as plain div if completed or no href
+  if (!href || completed) {
+    return <div className="flex items-start">{content}</div>;
+  }
+
+  // Render as interactive link only when incomplete
+  return (
+    <Link
+      href={href}
+      className="flex items-start hover:underline decoration-dotted text-status-warning focus:decoration-solid underline-offset-4"
+    >
+      {content}
+    </Link>
   );
 }
 

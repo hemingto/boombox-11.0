@@ -25,21 +25,22 @@ export interface NavigationUser {
  * @example
  * ```ts
  * const user = { id: '123', accountType: 'USER' as const };
- * const url = getAccountPageUrl(user); // Returns '/user-page/123'
+ * const url = getAccountPageUrl(user); // Returns '/customer/123'
  * ```
  */
 export function getAccountPageUrl(user?: NavigationUser | null): string {
-  if (!user) return '/login';
+  // Check if user exists AND has required properties (not just null values)
+  if (!user || !user.id || !user.accountType) return '/login';
   
   const { id: userId, accountType } = user;
   
   switch (accountType) {
     case 'USER':
-      return `/user-page/${userId}`;
+      return `/customer/${userId}`;
     case 'DRIVER':
-      return `/driver-account-page/${userId}`;
+      return `/service-provider/driver/${userId}`;
     case 'MOVER':
-      return `/mover-account-page/${userId}`;
+      return `/service-provider/mover/${userId}`;
     case 'ADMIN':
       return `/admin`;
     default:
@@ -53,5 +54,6 @@ export function getAccountPageUrl(user?: NavigationUser | null): string {
  * @returns Display text for account page link
  */
 export function getAccountPageText(user?: NavigationUser | null): string {
-  return user ? 'Account Page' : 'Log In';
+  // Check if user exists AND has required properties (not just null values)
+  return (user && user.id && user.accountType) ? 'Account Page' : 'Log In';
 }

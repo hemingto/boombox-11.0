@@ -6,13 +6,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  ContactInfo,
-  MovingPartnerStatus,
+  type ContactInfo,
+  type MovingPartnerStatus,
   getContactInfo,
   getMovingPartnerStatus,
   updateContactInfoField,
-  buildActivationMessage,
 } from '@/lib/services/contactInfoService';
+import { buildActivationMessage } from '@/lib/services/contactInfoUtils';
 import { formatPhoneNumberForDisplay } from '@/lib/utils/phoneUtils';
 import { isValidEmail } from '@/lib/utils/validationUtils';
 
@@ -25,6 +25,7 @@ interface UseContactInfoReturn {
   contactInfo: ContactInfo | null;
   movingPartnerStatus: MovingPartnerStatus | null;
   isLoading: boolean;
+  isSaving: boolean;
   error: string | null;
   editField: keyof ContactInfo | null;
   editedInfo: Partial<ContactInfo>;
@@ -59,6 +60,7 @@ export function useContactInfo({
   const [movingPartnerStatus, setMovingPartnerStatus] =
     useState<MovingPartnerStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editField, setEditField] = useState<keyof ContactInfo | null>(null);
   const [editedInfo, setEditedInfo] = useState<Partial<ContactInfo>>({});
@@ -180,16 +182,26 @@ export function useContactInfo({
     }
 
     try {
+      setIsSaving(true);
+      
       // API call to update field
       const apiRoute =
         userType === 'driver'
           ? `/api/drivers/${userId}/profile`
           : `/api/moving-partners/${userId}/profile`;
 
+      // Convert hourlyRate to number if it's being updated
+      const payload: Record<string, any> = {};
+      if (editField === 'hourlyRate') {
+        payload[editField] = parseFloat(editedInfo[editField] as string);
+      } else {
+        payload[editField] = editedInfo[editField];
+      }
+
       const response = await fetch(apiRoute, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [editField]: editedInfo[editField] }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -198,17 +210,25 @@ export function useContactInfo({
       }
 
       const updatedData = await response.json();
-      setContactInfo((prev) =>
-        prev
-          ? { ...prev, ...updatedData, verifiedPhoneNumber: false }
-          : prev
-      );
+      setContactInfo((prev) => {
+        if (!prev) return prev;
+        
+        // Only reset verifiedPhoneNumber if we're updating the phone number itself
+        if (editField === 'phoneNumber') {
+          return { ...prev, ...updatedData, verifiedPhoneNumber: false };
+        }
+        
+        // For all other fields, just merge the updated data
+        return { ...prev, ...updatedData };
+      });
       setEditField(null);
       setLocalHasError(false);
       setErrorMessage(null);
     } catch (err: unknown) {
       setErrorMessage((err as Error).message);
       setLocalHasError(true);
+    } finally {
+      setIsSaving(false);
     }
   }, [editField, editedInfo, userId, userType]);
 
@@ -267,6 +287,8 @@ export function useContactInfo({
   // Handle save services
   const handleSaveServices = useCallback(async () => {
     try {
+      setIsSaving(true);
+      
       // Use specific services endpoint for drivers to handle Onfleet sync
       const apiRoute =
         userType === 'driver'
@@ -295,6 +317,8 @@ export function useContactInfo({
     } catch (err: unknown) {
       setErrorMessage((err as Error).message);
       setLocalHasError(true);
+    } finally {
+      setIsSaving(false);
     }
   }, [selectedServices, userId, userType]);
 
@@ -302,6 +326,7 @@ export function useContactInfo({
     contactInfo,
     movingPartnerStatus,
     isLoading,
+    isSaving,
     error,
     editField,
     editedInfo,

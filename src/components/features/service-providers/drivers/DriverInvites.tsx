@@ -1,45 +1,40 @@
 /**
- * @fileoverview Driver invites management component for moving partners
+ * @fileoverview Driver invites management SERVER component for moving partners
  * Displays list of sent driver invitations with status tracking and resend functionality
  * 
  * @source boombox-10.0/src/app/components/mover-account/driverinvites.tsx
  * 
  * COMPONENT FUNCTIONALITY:
- * - Fetches and displays all driver invitations sent by a moving partner
+ * - Server Component that fetches driver invitations directly from database
  * - Shows invitation status (pending, accepted, expired)
- * - Allows resending pending invitations
- * - Displays temporary "Sent" confirmation after resending
- * - Auto-resets "Sent" state after 30 seconds
+ * - Allows resending pending invitations via Client Component button
  * - Returns null if no invites exist (hidden state)
+ * - Automatically refetches when revalidatePath() is called
  * 
- * API ROUTES UPDATED:
- * - Old: /api/movers/${moverId}/driver-invites → New: /api/moving-partners/${moverId}/driver-invites
- * - Old: /api/movers/${moverId}/resend-invite → New: /api/moving-partners/${moverId}/resend-invite
+ * REFACTOR TO SERVER COMPONENT:
+ * - Removed 'use client' directive - now a Server Component
+ * - Replaced Server Action call with direct Prisma query
+ * - Extracted interactive Resend button to ResendInviteButton Client Component
+ * - Removed all React hooks (useState, useEffect, useCallback)
+ * - Simplified data fetching - no loading states needed
+ * - Auto-refresh now works with revalidatePath()
  * 
- * DESIGN SYSTEM UPDATES:
- * - Replaced custom status badges with Badge component using semantic variants
- * - Applied semantic color tokens (text-primary, text-secondary, surface-primary, etc.)
- * - Replaced hardcoded colors with design system tokens
- * - Updated button styling to use design system patterns
- * - Improved error state styling with status colors
- * - Enhanced table layout with consistent borders and spacing
- * 
- * @refactor 
- * - Integrated Badge component for status display
- * - Applied comprehensive design system colors
- * - Enhanced accessibility with proper ARIA labels and roles
- * - Improved component structure and TypeScript interfaces
+ * DESIGN SYSTEM:
+ * - Uses Badge component for status display
+ * - Semantic color tokens throughout
+ * - Consistent table layout with proper accessibility
  */
 
-'use client';
-
-import { useEffect, useState, useCallback } from 'react';
+import { prisma } from '@/lib/database/prismaClient';
 import { Badge } from '@/components/ui/primitives/Badge';
+import { InviteActionsMenu } from './InviteActionsMenu';
+import { formatPhoneNumberForDisplay } from '@/lib/utils/phoneUtils';
+import { isValidEmail } from '@/lib/utils/validationUtils';
 
 interface DriverInvite {
   email: string;
   status: string;
-  createdAt: string;
+  createdAt: Date;
   token: string;
 }
 
@@ -47,116 +42,68 @@ interface DriverInvitesProps {
   moverId: string;
 }
 
-export const DriverInvites: React.FC<DriverInvitesProps> = ({ moverId }) => {
-  const [invites, setInvites] = useState<DriverInvite[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isResending, setIsResending] = useState<string | null>(null);
-  const [sentInvites, setSentInvites] = useState<Set<string>>(new Set());
-
-  const fetchInvites = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      // Updated API route
-      const response = await fetch(`/api/moving-partners/${moverId}/driver-invites`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch driver invites');
-      }
-      
-      const data = await response.json();
-      setInvites(data);
-    } catch (err) {
-      console.error('Error fetching driver invites:', err);
-      setError('Unable to load driver invites');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [moverId]);
-
-  useEffect(() => {
-    fetchInvites();
-  }, [fetchInvites]);
-
-  const handleResend = async (token: string) => {
-    try {
-      setIsResending(token);
-      // Updated API route
-      const response = await fetch(`/api/moving-partners/${moverId}/resend-invite`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ token }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to resend invite');
-      }
-
-      // Add token to sent invites
-      setSentInvites(prev => new Set(Array.from(prev).concat(token)));
-
-      // Reset the "Sent" state after 30 seconds
-      setTimeout(() => {
-        setSentInvites(prev => {
-          const newSet = new Set(Array.from(prev));
-          newSet.delete(token);
-          return newSet;
-        });
-      }, 30000);
-
-    } catch (err) {
-      console.error('Error resending invite:', err);
-      setError('Unable to resend invite');
-    } finally {
-      setIsResending(null);
-    }
-  };
-
-  // Error state
-  if (error) {
-    return (
-      <div 
-        className="p-6 bg-surface-primary rounded-md shadow-custom-shadow"
-        role="alert"
-        aria-live="polite"
-      >
-        <p className="text-status-error">{error}</p>
-      </div>
-    );
+// Helper functions moved outside component (pure functions)
+function getStatusVariant(status: string): 'pending' | 'success' | 'error' | 'default' {
+  switch (status.toLowerCase()) {
+    case 'pending':
+      return 'pending';
+    case 'accepted':
+      return 'success';
+    case 'expired':
+      return 'error';
+    default:
+      return 'default';
   }
+}
 
-  // Return null if loading or if there are no invites (hidden state)
-  if (isLoading || invites.length === 0) {
+function getStatusLabel(status: string): string {
+  switch (status.toLowerCase()) {
+    case 'pending':
+      return 'Pending';
+    case 'accepted':
+      return 'Accepted';
+    case 'expired':
+      return 'Expired';
+    default:
+      return status;
+  }
+}
+
+/**
+ * Format contact info for display - formats phone numbers, leaves emails as-is
+ */
+function formatContactForDisplay(contact: string): string {
+  // If it looks like an email, return as-is
+  if (isValidEmail(contact)) {
+    return contact;
+  }
+  // Otherwise, try to format as phone number
+  return formatPhoneNumberForDisplay(contact);
+}
+
+// Server Component - async function
+export async function DriverInvites({ moverId }: DriverInvitesProps) {
+  // Direct Prisma query - fetched on server
+  const invites = await prisma.driverInvitation.findMany({
+    where: {
+      movingPartnerId: parseInt(moverId, 10),
+      status: 'pending',
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+    select: {
+      token: true,
+      email: true,
+      status: true,
+      createdAt: true,
+    },
+  });
+
+  // Return null if no invites (hidden state)
+  if (invites.length === 0) {
     return null;
   }
-
-  const getStatusVariant = (status: string): 'pending' | 'success' | 'error' | 'default' => {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return 'pending';
-      case 'accepted':
-        return 'success';
-      case 'expired':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
-  const getStatusLabel = (status: string): string => {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return 'Pending';
-      case 'accepted':
-        return 'Accepted';
-      case 'expired':
-        return 'Expired';
-      default:
-        return status;
-    }
-  };
 
   return (
     <section aria-labelledby="driver-invites-heading">
@@ -168,7 +115,7 @@ export const DriverInvites: React.FC<DriverInvitesProps> = ({ moverId }) => {
       </h2>
       
       <div 
-        className="mb-20 p-4 bg-surface-primary rounded-md shadow-custom-shadow overflow-hidden"
+        className="mb-20 p-4 bg-surface-primary rounded-md shadow-custom-shadow"
         role="table"
         aria-label="Driver invitations table"
       >
@@ -177,25 +124,24 @@ export const DriverInvites: React.FC<DriverInvitesProps> = ({ moverId }) => {
           className="grid grid-cols-4 border-b border-border pb-2"
           role="row"
         >
-          <div className="text-sm text-text-secondary" role="columnheader">
-            Driver Email
+          <div className="text-sm text-text-tertiary" role="columnheader">
+            Driver
           </div>
-          <div className="text-sm text-text-secondary text-right" role="columnheader">
+          <div className="text-sm text-text-tertiary text-right" role="columnheader">
             Status
           </div>
-          <div className="text-sm text-text-secondary text-right" role="columnheader">
+          <div className="text-sm text-text-tertiary text-right" role="columnheader">
             Date Sent
           </div>
-          <div className="text-sm text-text-secondary text-right" role="columnheader">
-            Actions
+          <div className="text-sm text-text-tertiary text-right" role="columnheader">
+            Options
           </div>
         </div>
         
         {/* Table Body */}
         <div role="rowgroup">
           {invites.map((invite) => {
-            const isSent = sentInvites.has(invite.token);
-            const canResend = invite.status === 'pending' && !isSent;
+            const canResend = invite.status === 'pending';
             
             return (
               <div 
@@ -203,9 +149,9 @@ export const DriverInvites: React.FC<DriverInvitesProps> = ({ moverId }) => {
                 className="grid grid-cols-4 pt-2 items-center"
                 role="row"
               >
-                {/* Email */}
+                {/* Email or Phone */}
                 <div className="text-text-primary font-medium" role="cell">
-                  {invite.email}
+                  {formatContactForDisplay(invite.email)}
                 </div>
                 
                 {/* Status Badge */}
@@ -213,7 +159,7 @@ export const DriverInvites: React.FC<DriverInvitesProps> = ({ moverId }) => {
                   <Badge
                     label={getStatusLabel(invite.status)}
                     variant={getStatusVariant(invite.status)}
-                    size="sm"
+                    size="md"
                   />
                 </div>
                 
@@ -222,25 +168,14 @@ export const DriverInvites: React.FC<DriverInvitesProps> = ({ moverId }) => {
                   {new Date(invite.createdAt).toLocaleDateString()}
                 </div>
                 
-                {/* Actions */}
+                {/* Actions - Client Component for interactivity */}
                 <div className="flex justify-end" role="cell">
-                  <button
-                    onClick={() => handleResend(invite.token)}
-                    disabled={isResending === invite.token || !canResend}
-                    className={`rounded-md py-1.5 px-3 w-fit transition-colors ${
-                      isSent 
-                        ? 'bg-status-bg-success cursor-default' 
-                        : 'bg-surface-tertiary hover:bg-surface-disabled active:bg-border disabled:bg-surface-tertiary disabled:cursor-not-allowed disabled:opacity-50'
-                    }`}
-                    aria-label={`Resend invitation to ${invite.email}`}
-                    aria-busy={isResending === invite.token}
-                  >
-                    <p className={`font-semibold text-sm ${
-                      isSent ? 'text-status-success' : 'text-text-primary'
-                    }`}>
-                      {isResending === invite.token ? 'Sending...' : isSent ? 'Sent' : 'Resend'}
-                    </p>
-                  </button>
+                  <InviteActionsMenu
+                    moverId={parseInt(moverId, 10)}
+                    token={invite.token}
+                    email={invite.email}
+                    canResend={canResend}
+                  />
                 </div>
               </div>
             );
@@ -249,7 +184,6 @@ export const DriverInvites: React.FC<DriverInvitesProps> = ({ moverId }) => {
       </div>
     </section>
   );
-};
+}
 
 export default DriverInvites;
-

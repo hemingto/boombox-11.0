@@ -51,6 +51,9 @@ export interface VehicleFormErrors {
   year: string | null;
   licensePlate: string | null;
   trailerHitch: string | null;
+  frontVehiclePhoto: string | null;
+  backVehiclePhoto: string | null;
+  autoInsurancePhoto: string | null;
   submit: string | null;
 }
 
@@ -81,10 +84,10 @@ export interface UseAddVehicleFormReturn {
   clearError: (field: keyof VehicleFormErrors) => void;
   
   // Validation
-  validateForm: () => boolean;
+  validateForm: () => { isValid: boolean; firstErrorField: string | null };
   
   // Submission
-  handleSubmit: () => Promise<void>;
+  handleSubmit: () => Promise<string | null>;
 }
 
 const DEFAULT_FORM_DATA: VehicleFormData = {
@@ -101,6 +104,9 @@ const DEFAULT_ERRORS: VehicleFormErrors = {
   year: null,
   licensePlate: null,
   trailerHitch: null,
+  frontVehiclePhoto: null,
+  backVehiclePhoto: null,
+  autoInsurancePhoto: null,
   submit: null,
 };
 
@@ -142,6 +148,10 @@ export function useAddVehicleForm({
    */
   const updatePhoto = useCallback((field: keyof VehiclePhotos, file: File | null) => {
     setPhotos(prev => ({ ...prev, [field]: file }));
+    // Clear error for this photo field when a photo is uploaded
+    if (file) {
+      setErrors(prev => ({ ...prev, [field]: null }));
+    }
   }, []);
 
   /**
@@ -155,27 +165,32 @@ export function useAddVehicleForm({
    * Validate entire form
    * @source boombox-10.0/src/app/components/driver-signup/addvehicleform.tsx (validateForm function)
    */
-  const validateForm = useCallback((): boolean => {
+  const validateForm = useCallback((): { isValid: boolean; firstErrorField: string | null } => {
     const newErrors: VehicleFormErrors = { ...DEFAULT_ERRORS };
     let isValid = true;
+    let firstErrorField: string | null = null;
+
+    // Validate in the order fields appear in the form
+    // Validate year
+    if (!formData.year) {
+      newErrors.year = 'Please select a vehicle year';
+      isValid = false;
+      if (!firstErrorField) firstErrorField = 'year';
+    }
 
     // Validate make
     if (!formData.make) {
       newErrors.make = 'Please select a vehicle make';
       isValid = false;
+      if (!firstErrorField) firstErrorField = 'make';
     }
 
     // Validate model
     const modelValidation = validateField(formData.model, { required: true });
     if (!modelValidation.isValid) {
-      newErrors.model = modelValidation.error || 'Vehicle model is required';
+      newErrors.model = 'Please enter your vehicle model (e.g., Camry, F-150)';
       isValid = false;
-    }
-
-    // Validate year
-    if (!formData.year) {
-      newErrors.year = 'Please select a vehicle year';
-      isValid = false;
+      if (!firstErrorField) firstErrorField = 'model';
     }
 
     // Validate license plate
@@ -184,28 +199,50 @@ export function useAddVehicleForm({
       licensePlate: true 
     });
     if (!licensePlateValidation.isValid) {
-      newErrors.licensePlate = licensePlateValidation.error || 'Please enter a valid license plate number';
+      newErrors.licensePlate = 'Please enter your vehicle\'s license plate number';
       isValid = false;
+      if (!firstErrorField) firstErrorField = 'licensePlate';
     }
 
     // Validate trailer hitch
     if (!formData.hasTrailerHitch) {
       newErrors.trailerHitch = 'Please select whether your vehicle has a trailer hitch';
       isValid = false;
+      if (!firstErrorField) firstErrorField = 'trailerHitch';
+    }
+
+    // Validate photos
+    if (!photos.frontVehiclePhoto) {
+      newErrors.frontVehiclePhoto = 'Please upload a front vehicle photo';
+      isValid = false;
+      if (!firstErrorField) firstErrorField = 'frontVehiclePhoto';
+    }
+
+    if (!photos.backVehiclePhoto) {
+      newErrors.backVehiclePhoto = 'Please upload a back vehicle photo';
+      isValid = false;
+      if (!firstErrorField) firstErrorField = 'backVehiclePhoto';
+    }
+
+    if (!photos.autoInsurancePhoto) {
+      newErrors.autoInsurancePhoto = 'Please upload your auto insurance document';
+      isValid = false;
+      if (!firstErrorField) firstErrorField = 'autoInsurancePhoto';
     }
 
     setErrors(newErrors);
-    return isValid;
-  }, [formData]);
+    return { isValid, firstErrorField };
+  }, [formData, photos]);
 
   /**
    * Handle form submission
    * @source boombox-10.0/src/app/components/driver-signup/addvehicleform.tsx (handleSubmit function)
    */
-  const handleSubmit = useCallback(async (): Promise<void> => {
-    if (!validateForm()) {
+  const handleSubmit = useCallback(async (): Promise<string | null> => {
+    const validation = validateForm();
+    if (!validation.isValid) {
       console.log('Validation failed');
-      return;
+      return validation.firstErrorField;
     }
     
     try {
@@ -230,7 +267,20 @@ export function useAddVehicleForm({
             console.log(`Successfully uploaded ${fieldName}:`, url);
           } catch (uploadError) {
             console.error(`Error uploading ${fieldName}:`, uploadError);
-            throw new Error(`Failed to upload ${fieldName}. Please try again.`);
+            
+            // Provide user-friendly error messages based on field type
+            let errorMessage: string;
+            if (fieldName === 'autoInsurancePhoto') {
+              errorMessage = 'Failed to upload your insurance document. Please try again or email us at help@boomboxstorage.com';
+            } else if (fieldName === 'frontVehiclePhoto') {
+              errorMessage = 'Failed to upload your front vehicle photo. Please try again or email us at help@boomboxstorage.com';
+            } else if (fieldName === 'backVehiclePhoto') {
+              errorMessage = 'Failed to upload your back vehicle photo. Please try again or email us at help@boomboxstorage.com';
+            } else {
+              errorMessage = `Failed to upload ${fieldName}. Please try again or email us at help@boomboxstorage.com`;
+            }
+            
+            throw new Error(errorMessage);
           }
         }
       }
@@ -239,7 +289,7 @@ export function useAddVehicleForm({
       const vehicleData = {
         make: formData.make!,
         model: formData.model,
-        year: formData.year!,
+        year: formData.year!, // Keep year as string (Prisma expects String)
         licensePlate: formData.licensePlate,
         hasTrailerHitch: formData.hasTrailerHitch === "Yes",
         frontVehiclePhoto: photoUrls['frontVehiclePhoto'] || null,
@@ -260,16 +310,19 @@ export function useAddVehicleForm({
       } else {
         // Otherwise redirect to appropriate account page
         const redirectPath = userType === 'driver' 
-          ? `/driver-account-page/${userId}/vehicle`
-          : `/mover-account-page/${userId}/vehicle`;
+          ? `/service-provider/driver/${userId}/vehicle`
+          : `/service-provider/mover/${userId}/vehicle`;
         router.push(redirectPath);
       }
+      
+      return null; // Success - no error to scroll to
     } catch (error: any) {
       console.error('Error submitting form:', error);
       setErrors(prev => ({
         ...prev,
         submit: error.message || 'An unexpected error occurred. Please try again.'
       }));
+      return null; // Don't scroll on submission errors
     } finally {
       setIsSubmitting(false);
     }

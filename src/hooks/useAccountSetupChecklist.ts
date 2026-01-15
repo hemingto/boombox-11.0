@@ -4,13 +4,15 @@
  * @refactor Extracted checklist state management and business logic from component
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   type ChecklistStatus,
   type ChecklistData,
+  isChecklistComplete,
+} from '@/lib/services/accountSetupChecklistUtils';
+import {
   getDriverChecklistStatus,
   getMoverChecklistStatus,
-  isChecklistComplete,
 } from '@/lib/services/accountSetupChecklistService';
 
 interface UseAccountSetupChecklistParams {
@@ -22,10 +24,10 @@ interface UseAccountSetupChecklistReturn {
   // Data
   checklistStatus: ChecklistStatus | null;
   isApproved: boolean;
-  status: 'PENDING' | 'APPROVED' | 'ACTIVE';
+  status: 'PENDING' | 'APPROVED' | 'ACTIVE' | 'INACTIVE';
   hasMovingPartner: boolean;
   applicationComplete: boolean;
-  showActiveMessage: boolean;
+  activeMessageShown: boolean;
   
   // Loading and error states
   isLoading: boolean;
@@ -33,7 +35,6 @@ interface UseAccountSetupChecklistReturn {
   
   // Actions
   refetch: () => Promise<void>;
-  acknowledgeActiveMessage: () => void;
 }
 
 export function useAccountSetupChecklist(
@@ -48,10 +49,13 @@ export function useAccountSetupChecklist(
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isApproved, setIsApproved] = useState(false);
-  const [status, setStatus] = useState<'PENDING' | 'APPROVED' | 'ACTIVE'>('PENDING');
+  const [status, setStatus] = useState<'PENDING' | 'APPROVED' | 'ACTIVE' | 'INACTIVE'>('PENDING');
   const [hasMovingPartner, setHasMovingPartner] = useState(false);
   const [applicationComplete, setApplicationComplete] = useState(false);
-  const [showActiveMessage, setShowActiveMessage] = useState(false);
+  const [activeMessageShown, setActiveMessageShown] = useState(false);
+  
+  // Ref to track if we've already called the API to mark message as shown
+  const hasMarkedMessageRef = useRef(false);
 
   // Fetch checklist data
   const fetchChecklistData = useCallback(async () => {
@@ -85,6 +89,16 @@ export function useAccountSetupChecklist(
         setHasMovingPartner(data.hasMovingPartner || false);
       }
 
+      // Set activeMessageShown from database value, BUT if we've already marked the message
+      // as shown locally (hasMarkedMessageRef), don't let the refetch overwrite it with 'true'
+      // This prevents the race condition where a parallel fetch returns after the mark API
+      if (hasMarkedMessageRef.current && data.activeMessageShown === true) {
+        // We already marked it locally and the DB confirms it - keep showing the message
+        // by NOT updating state (leave activeMessageShown as false so message stays visible)
+      } else {
+        setActiveMessageShown(data.activeMessageShown || false);
+      }
+
       setError(null);
     } catch (err) {
       const errorMessage =
@@ -106,7 +120,8 @@ export function useAccountSetupChecklist(
       const isComplete = isChecklistComplete(
         checklistStatus,
         userType,
-        isApproved
+        isApproved,
+        hasMovingPartner
       );
 
       if (isComplete) {
@@ -145,20 +160,35 @@ export function useAccountSetupChecklist(
     };
 
     updateApplicationComplete();
-  }, [checklistStatus, userId, userType, isApproved, applicationComplete]);
+  }, [checklistStatus, userId, userType, isApproved, applicationComplete, hasMovingPartner]);
 
   // Auto-update mover status from APPROVED to ACTIVE
   useEffect(() => {
     const updateMoverStatus = async () => {
-      if (userType !== 'mover' || status === 'ACTIVE') {
+      if (userType !== 'mover' || status === 'ACTIVE' || !userId) {
         return;
       }
 
       try {
-        const response = await fetch(`/api/moving-partners/${userId}`);
-        if (!response.ok) throw new Error('Failed to fetch mover data');
+        const response = await fetch(`/api/moving-partners/${userId}/profile`);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          console.error('Failed to fetch mover data:', errorData);
+          // Don't throw - just log the error and continue
+          // This prevents the checklist from breaking if the profile fetch fails
+          return;
+        }
         
         const moverData = await response.json();
+
+        // Debug logging to understand why auto-update might not trigger
+        console.log('[Auto-update check]', {
+          isApproved: moverData.isApproved,
+          onfleetTeamId: moverData.onfleetTeamId,
+          approvedDriversCount: moverData.approvedDrivers?.length ?? 0,
+          currentStatus: status
+        });
 
         // Check if conditions for ACTIVE status are met
         if (
@@ -179,52 +209,79 @@ export function useAccountSetupChecklist(
           );
 
           if (!updateResponse.ok) {
-            const errorData = await updateResponse.json();
-            throw new Error(
-              errorData.error || 'Failed to update mover status'
-            );
+            const errorData = await updateResponse.json().catch(() => ({ error: 'Unknown error' }));
+            console.error('Failed to update mover status:', errorData.error || 'Unknown error');
+            // Don't throw - just log the error and continue
+            return;
           }
 
+          const updatedMover = await updateResponse.json();
           setStatus('ACTIVE');
+          // NOTE: Do NOT refetch here - it causes a race condition where the refetch
+          // overwrites activeMessageShown with the updated value before the user sees the message
         }
       } catch (error) {
         console.error('Error updating mover status:', error);
+        // Don't propagate the error - this is a background update
+        // The main checklist should still function even if this fails
       }
     };
 
     if (userId && userType === 'mover') {
       updateMoverStatus();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, userType, status]);
 
-  // Show active message timer (24 hours)
+  // Reset hasMarkedMessageRef when status/approval changes
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-
-    if (status === 'ACTIVE') {
-      setShowActiveMessage(true);
-      // Set timer to hide message after 24 hours (86400000ms)
-      timer = setTimeout(() => {
-        setShowActiveMessage(false);
-      }, 86400000);
+    if (userType === 'mover' && status !== 'ACTIVE') {
+      hasMarkedMessageRef.current = false;
     }
+    if (userType === 'driver' && !isApproved) {
+      hasMarkedMessageRef.current = false;
+    }
+  }, [userType, status, isApproved]);
 
-    // Cleanup timer on unmount or when status changes
-    return () => {
-      if (timer) {
-        clearTimeout(timer);
-      }
-    };
-  }, [status]);
+  // Mark active message as shown in database AFTER component has rendered
+  // This runs after the message is displayed, so the user sees it once
+  useEffect(() => {
+    const shouldMarkForMover = userType === 'mover' && status === 'ACTIVE' && !activeMessageShown;
+    const shouldMarkForDriver = userType === 'driver' && isApproved && !activeMessageShown;
+    
+    if ((shouldMarkForMover || shouldMarkForDriver) && !hasMarkedMessageRef.current && userId && !isLoading) {
+      hasMarkedMessageRef.current = true;
+      
+      const endpoint =
+        userType === 'driver'
+          ? `/api/drivers/${userId}/mark-active-message-shown`
+          : `/api/moving-partners/${userId}/mark-active-message-shown`;
+
+      fetch(endpoint, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+        .then(response => {
+          if (!response.ok) {
+            console.error('Failed to mark active message as shown');
+            hasMarkedMessageRef.current = false;
+          } else {
+            console.log(`✅ Active message marked as shown for ${userType} ${userId}`);
+          }
+        })
+        .catch(error => {
+          console.error('Error marking active message as shown:', error);
+          hasMarkedMessageRef.current = false;
+        });
+    }
+  }, [userType, status, isApproved, activeMessageShown, userId, isLoading]);
 
   // Fetch data on mount and when dependencies change
   useEffect(() => {
     fetchChecklistData();
   }, [fetchChecklistData]);
-
-  const acknowledgeActiveMessage = useCallback(() => {
-    setShowActiveMessage(false);
-  }, []);
 
   return {
     // Data
@@ -233,7 +290,7 @@ export function useAccountSetupChecklist(
     status,
     hasMovingPartner,
     applicationComplete,
-    showActiveMessage,
+    activeMessageShown,
     
     // Loading and error states
     isLoading,
@@ -241,7 +298,6 @@ export function useAccountSetupChecklist(
     
     // Actions
     refetch: fetchChecklistData,
-    acknowledgeActiveMessage,
   };
 }
 

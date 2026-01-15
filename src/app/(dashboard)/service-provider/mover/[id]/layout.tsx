@@ -9,6 +9,8 @@
 import { MoverNavbar } from '@/components/ui/navigation/MoverNavbar';
 import { UserProvider } from '@/contexts/UserContext';
 import { useParams } from 'next/navigation';
+import { useSessionMonitor } from '@/hooks/useSessionMonitor';
+import { SessionExpirationModal } from '@/components/ui/session/SessionExpirationModal';
 
 export default function MoverLayout({
   children,
@@ -17,6 +19,9 @@ export default function MoverLayout({
 }>) {
   const params = useParams();
   const moverId = (Array.isArray(params?.id) ? params.id[0] : params?.id) ?? '';
+  
+  // Monitor session expiration
+  const { showWarning, secondsRemaining, isExpired, resetMonitor } = useSessionMonitor();
 
   if (!moverId) {
     return <div>Loading mover...</div>;
@@ -26,6 +31,14 @@ export default function MoverLayout({
     <UserProvider userId={moverId}>
       <MoverNavbar userType="mover" userId={moverId} />
       {children}
+      
+      {/* Session expiration modal */}
+      <SessionExpirationModal
+        open={showWarning}
+        secondsRemaining={secondsRemaining}
+        isExpired={isExpired}
+        onReauthenticated={resetMonitor}
+      />
     </UserProvider>
   );
 }

@@ -49,10 +49,9 @@ interface AppointmentWithRelations {
 // Billing service result interfaces
 export interface InvoiceItemData {
   customer: string;
-  amount: number; // In cents for Stripe
   currency: string;
-  quantity?: number;
   description: string;
+  amount: number; // In cents, total amount for the line item
 }
 
 export interface BillingCalculationResult {
@@ -209,7 +208,7 @@ export class AppointmentBillingService {
       case 'End Storage Term':
         newStatus = 'Storage Term Ended';
         break;
-      case 'Access Storage':
+      case 'Storage Unit Access':
         newStatus = 'Access Complete';
         break;
       default:
@@ -231,24 +230,24 @@ export class AppointmentBillingService {
     loadingHelp: LoadingHelpCalculation,
     insuranceCoverage: string
   ): InvoiceItemData[] {
+    // Use pre-calculated totals for Stripe invoiceItems.create
+    const numberOfUnits = storageCharges.numberOfUnits;
     return [
       {
         customer: customerId,
-        amount: BillingCalculator.toCents(storageCharges.monthlyStorageRate),
+        amount: BillingCalculator.toCents(storageCharges.storageTotal), // Total storage
         currency: 'usd',
-        quantity: storageCharges.numberOfUnits,
-        description: 'Monthly Storage Rate'
+        description: `Monthly Storage Rate (${numberOfUnits} unit${numberOfUnits > 1 ? 's' : ''} @ $${storageCharges.monthlyStorageRate}/unit)`
       },
       {
         customer: customerId,
-        amount: BillingCalculator.toCents(storageCharges.monthlyInsuranceRate),
+        amount: BillingCalculator.toCents(storageCharges.insuranceTotal), // Total insurance
         currency: 'usd',
-        quantity: storageCharges.numberOfUnits,
-        description: insuranceCoverage
+        description: `${insuranceCoverage} (${numberOfUnits} unit${numberOfUnits > 1 ? 's' : ''} @ $${storageCharges.monthlyInsuranceRate}/unit)`
       },
       {
         customer: customerId,
-        amount: BillingCalculator.toCents(loadingHelp.total),
+        amount: BillingCalculator.toCents(loadingHelp.total), // Total loading help
         currency: 'usd',
         description: `Loading Help Service (${loadingHelp.billedMinutes} minutes, 1 hr minimum)`
       }
@@ -263,17 +262,17 @@ export class AppointmentBillingService {
     accessCharges: AccessStorageCalculation,
     loadingHelp: LoadingHelpCalculation
   ): InvoiceItemData[] {
+    // Use amount alone for total amounts (no quantity needed)
     return [
       {
         customer: customerId,
-        amount: BillingCalculator.toCents(accessCharges.total),
+        amount: BillingCalculator.toCents(accessCharges.total), // Total amount
         currency: 'usd',
-        quantity: 1,
         description: `Storage Unit Access (${accessCharges.unitCount} units)`
       },
       {
         customer: customerId,
-        amount: BillingCalculator.toCents(loadingHelp.total),
+        amount: BillingCalculator.toCents(loadingHelp.total), // Total amount
         currency: 'usd',
         description: `Loading Help Service (${loadingHelp.billedMinutes} minutes, 1 hr minimum)`
       }
@@ -416,16 +415,21 @@ export class AppointmentBillingService {
 
   /**
    * Calculate service metrics from appointment and task details for webhook processing
+   * Note: Both serviceStartTime and completionDetails.time are stored in milliseconds
+   * (from the Onfleet webhook time field which is already in milliseconds)
    */
   private static calculateWebhookServiceMetrics(appointment: any, taskDetails: any): ServiceMetrics {
-    const serviceStartTime = parseInt(appointment.serviceStartTime || "0");
-    const serviceTimeMinutes = taskDetails.completionDetails?.time && serviceStartTime
-      ? (taskDetails.completionDetails.time - serviceStartTime) / (60 * 1000) // Convert to minutes
+    // serviceStartTime is already stored in milliseconds (from webhook time)
+    const serviceStartTimeMs = parseInt(appointment.serviceStartTime || "0");
+    const completionTimeMs = taskDetails.completionDetails?.time || 0;
+    
+    const serviceTimeMinutes = completionTimeMs && serviceStartTimeMs
+      ? (completionTimeMs - serviceStartTimeMs) / (60 * 1000) // Convert ms difference to minutes
       : 0;
     
     return {
       serviceTimeMinutes: serviceTimeMinutes,
-      completionTime: taskDetails.completionDetails?.time || 0
+      completionTime: completionTimeMs
     };
   }
 

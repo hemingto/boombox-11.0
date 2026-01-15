@@ -37,112 +37,112 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 import { NotificationDropdown } from './NotificationDropdown';
 
 export interface NotificationBellProps {
-  recipientId: number;
-  recipientType: 'USER' | 'DRIVER' | 'MOVER' | 'ADMIN';
-  isDarkTheme?: boolean;
+ recipientId: number;
+ recipientType: 'USER' | 'DRIVER' | 'MOVER' | 'ADMIN';
+ isDarkTheme?: boolean;
 }
 
 export function NotificationBell({ 
-  recipientId, 
-  recipientType,
-  isDarkTheme = false
+ recipientId, 
+ recipientType,
+ isDarkTheme = false
 }: NotificationBellProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+ const [isOpen, setIsOpen] = useState(false);
+ const [unreadCount, setUnreadCount] = useState(0);
+ const [isLoading, setIsLoading] = useState(true);
+ const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Fetch unread count
-  useEffect(() => {
-    const fetchUnreadCount = async () => {
-      try {
-        const response = await fetch(
-          `/api/notifications?recipientId=${recipientId}&recipientType=${recipientType}&status=UNREAD&limit=1`
-        );
-        
-        if (response.ok) {
-          const data = await response.json();
-          setUnreadCount(Math.min(data.unreadCount || 0, 25)); // Cap at 25
-        }
-      } catch (error) {
-        console.error('Error fetching unread count:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUnreadCount();
+ // Fetch unread count
+ useEffect(() => {
+  const fetchUnreadCount = async () => {
+   try {
+    const response = await fetch(
+     `/api/notifications?recipientId=${recipientId}&recipientType=${recipientType}&status=UNREAD&limit=1`
+    );
     
-    // Poll for updates every 30 seconds
-    const interval = setInterval(fetchUnreadCount, 30000);
-    return () => clearInterval(interval);
-  }, [recipientId, recipientType]);
-
-  // Handle click outside to close dropdown (desktop only)
-  useClickOutside(
-    dropdownRef,
-    () => {
-      if (window.innerWidth >= 768) {
-        setIsOpen(false);
-      }
-    },
-    isOpen
-  );
-
-  const handleBellClick = () => {
-    setIsOpen(!isOpen);
+    if (response.ok) {
+     const data = await response.json();
+     setUnreadCount(Math.min(data.unreadCount || 0, 25)); // Cap at 25
+    }
+   } catch (error) {
+    console.error('Error fetching unread count:', error);
+   } finally {
+    setIsLoading(false);
+   }
   };
 
-  const handleNotificationRead = () => {
-    // Refresh unread count when a notification is read
-    setUnreadCount(prev => Math.max(0, prev - 1));
-  };
+  fetchUnreadCount();
+  
+  // Poll for updates every 30 seconds
+  const interval = setInterval(fetchUnreadCount, 30000);
+  return () => clearInterval(interval);
+ }, [recipientId, recipientType]);
 
-  const handleMarkAllRead = () => {
-    setUnreadCount(0);
-  };
+ // Handle click outside to close dropdown (desktop only)
+ useClickOutside(
+  dropdownRef,
+  () => {
+   if (window.innerWidth >= 768) {
+    setIsOpen(false);
+   }
+  },
+  isOpen
+ );
 
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        onClick={handleBellClick}
-        className={`relative p-2.5 rounded-full transition-colors ${
-          isDarkTheme
-            ? 'text-text-inverse hover:bg-primary-hover active:bg-primary-active'
-            : 'text-text-primary hover:bg-surface-tertiary active:bg-surface-disabled'
-        }`}
-        aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
-        aria-expanded={isOpen}
-        aria-haspopup="dialog"
-      >
-        {unreadCount > 0 ? (
-          <BellSolidIcon className="h-5 w-5" aria-hidden="true" />
-        ) : (
-          <BellIcon className="h-5 w-5" aria-hidden="true" />
-        )}
-        
-        {/* Notification badge */}
-        {unreadCount > 0 && !isLoading && (
-          <span 
-            className="absolute -top-0.5 -right-0.5 bg-status-error text-text-inverse text-xs font-medium rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1"
-            aria-hidden="true"
-          >
-            {unreadCount > 25 ? '25+' : unreadCount}
-          </span>
-        )}
-      </button>
+ const handleBellClick = () => {
+  setIsOpen(!isOpen);
+ };
 
-      {/* Notification dropdown */}
-      {isOpen && (
-        <NotificationDropdown
-          recipientId={recipientId}
-          recipientType={recipientType}
-          onClose={() => setIsOpen(false)}
-          onNotificationRead={handleNotificationRead}
-          onMarkAllRead={handleMarkAllRead}
-        />
-      )}
-    </div>
-  );
+ const handleNotificationRead = () => {
+  // Refresh unread count when a notification is read
+  setUnreadCount(prev => Math.max(0, prev - 1));
+ };
+
+ const handleMarkAllRead = () => {
+  setUnreadCount(0);
+ };
+
+ return (
+  <div className="relative" ref={dropdownRef}>
+   <button
+    onClick={handleBellClick}
+    className={`relative p-2.5 rounded-full ${
+     isDarkTheme
+      ? 'text-text-inverse hover:bg-primary-hover active:bg-primary-active'
+      : 'text-text-primary hover:bg-surface-tertiary active:bg-surface-disabled'
+    }`}
+    aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
+    aria-expanded={isOpen}
+    aria-haspopup="dialog"
+   >
+    {unreadCount > 0 ? (
+     <BellSolidIcon className="h-5 w-5" aria-hidden="true" />
+    ) : (
+     <BellIcon className="h-5 w-5" aria-hidden="true" />
+    )}
+    
+    {/* Notification badge */}
+    {unreadCount > 0 && !isLoading && (
+     <span 
+      className="absolute -top-0.5 -right-0.5 bg-status-error text-text-inverse text-xs font-medium rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1"
+      aria-hidden="true"
+     >
+      {unreadCount > 25 ? '25+' : unreadCount}
+     </span>
+    )}
+   </button>
+
+   {/* Notification dropdown */}
+   {isOpen && (
+    <NotificationDropdown
+     recipientId={recipientId}
+     recipientType={recipientType}
+     onClose={() => setIsOpen(false)}
+     onNotificationRead={handleNotificationRead}
+     onMarkAllRead={handleMarkAllRead}
+    />
+   )}
+  </div>
+ );
 }
 

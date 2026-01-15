@@ -16,6 +16,8 @@
  * @refactor Extracted pure calculation logic for better testability and reusability
  */
 
+import { accessStorageUnitPricing } from '@/data/accessStorageUnitPricing';
+
 // Billing calculation results
 export interface LoadingHelpCalculation {
   totalMinutes: number;
@@ -52,7 +54,6 @@ export interface EarlyTerminationCalculation {
 export class BillingCalculator {
   private static readonly MINIMUM_LOADING_HELP_MINUTES = 60; // 1 hour minimum
   private static readonly MINIMUM_STORAGE_DAYS = 60; // 2 months minimum
-  private static readonly ACCESS_STORAGE_UNIT_PRICING = 50; // TODO: Move to config
 
   /**
    * Calculate loading help charges with minimum 1-hour billing
@@ -94,7 +95,7 @@ export class BillingCalculator {
    * Calculate access storage charges (one-time fee)
    */
   static calculateAccessStorageTotal(unitCount: number): AccessStorageCalculation {
-    const accessRatePerUnit = this.ACCESS_STORAGE_UNIT_PRICING;
+    const accessRatePerUnit = accessStorageUnitPricing;
     const total = accessRatePerUnit * unitCount;
 
     return {

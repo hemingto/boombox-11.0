@@ -1,18 +1,15 @@
 /**
  * @fileoverview Tests for PaymentMethodDropdown component
  * Following boombox-11.0 testing standards
+ * 
+ * Updated for refactored component that wraps Select
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import { PaymentMethodDropdown } from '@/components/forms/PaymentMethodDropdown';
 
 expect.extend(toHaveNoViolations);
-
-// Mock useClickOutside hook
-jest.mock('@/hooks', () => ({
-  useClickOutside: jest.fn()
-}));
 
 // Mock card brand icons
 jest.mock('@/components/icons/VisaIcon', () => ({
@@ -75,7 +72,7 @@ describe('PaymentMethodDropdown', () => {
   describe('Rendering', () => {
     it('renders without crashing', () => {
       render(<PaymentMethodDropdown {...defaultProps} />);
-      expect(screen.getByRole('button')).toBeInTheDocument();
+      expect(screen.getByRole('combobox')).toBeInTheDocument();
     });
 
     it('displays placeholder text when no option is selected', () => {
@@ -90,12 +87,14 @@ describe('PaymentMethodDropdown', () => {
           value="card_visa123"
         />
       );
-      expect(screen.getByText('Visa ending in 1234')).toBeInTheDocument();
+      // Query within the combobox to avoid the hidden select element
+      const combobox = screen.getByRole('combobox');
+      expect(within(combobox).getByText('Visa ending in 1234')).toBeInTheDocument();
     });
 
     it('shows dropdown chevron icon', () => {
       const { container } = render(<PaymentMethodDropdown {...defaultProps} />);
-      const chevron = container.querySelector('svg path[d*="M19 9l-7 7-7-7"]');
+      const chevron = container.querySelector('svg.w-6.h-6');
       expect(chevron).toBeInTheDocument();
     });
   });
@@ -120,20 +119,19 @@ describe('PaymentMethodDropdown', () => {
 
     it('has proper ARIA attributes', () => {
       render(<PaymentMethodDropdown {...defaultProps} label="Select card" />);
-      const button = screen.getByRole('button');
+      const combobox = screen.getByRole('combobox');
       
-      expect(button).toHaveAttribute('aria-haspopup', 'listbox');
-      expect(button).toHaveAttribute('aria-expanded', 'false');
-      expect(button).toHaveAttribute('aria-label', 'Select card');
+      expect(combobox).toHaveAttribute('aria-haspopup', 'listbox');
+      expect(combobox).toHaveAttribute('aria-expanded', 'false');
     });
 
     it('updates aria-expanded when dropdown opens', async () => {
       const user = userEvent.setup();
       render(<PaymentMethodDropdown {...defaultProps} />);
-      const button = screen.getByRole('button');
+      const combobox = screen.getByRole('combobox');
       
-      await user.click(button);
-      expect(button).toHaveAttribute('aria-expanded', 'true');
+      await user.click(combobox);
+      expect(combobox).toHaveAttribute('aria-expanded', 'true');
     });
   });
 
@@ -162,11 +160,12 @@ describe('PaymentMethodDropdown', () => {
       const user = userEvent.setup();
       render(<PaymentMethodDropdown {...defaultProps} />);
       
-      const button = screen.getByRole('button');
-      await user.click(button);
+      const combobox = screen.getByRole('combobox');
+      await user.click(combobox);
       
-      expect(screen.getByTestId('visa-icon')).toBeInTheDocument();
-      expect(screen.getByTestId('mastercard-icon')).toBeInTheDocument();
+      const listbox = screen.getByRole('listbox');
+      expect(within(listbox).getByTestId('visa-icon')).toBeInTheDocument();
+      expect(within(listbox).getByTestId('mastercard-icon')).toBeInTheDocument();
     });
 
     it('handles all card brands correctly', async () => {
@@ -188,16 +187,17 @@ describe('PaymentMethodDropdown', () => {
         />
       );
       
-      const button = screen.getByRole('button');
-      await user.click(button);
+      const combobox = screen.getByRole('combobox');
+      await user.click(combobox);
       
-      expect(screen.getByTestId('visa-icon')).toBeInTheDocument();
-      expect(screen.getByTestId('mastercard-icon')).toBeInTheDocument();
-      expect(screen.getByTestId('amex-icon')).toBeInTheDocument();
-      expect(screen.getByTestId('discover-icon')).toBeInTheDocument();
-      expect(screen.getByTestId('jcb-icon')).toBeInTheDocument();
-      expect(screen.getByTestId('apple-icon')).toBeInTheDocument();
-      expect(screen.getByTestId('amazon-icon')).toBeInTheDocument();
+      const listbox = screen.getByRole('listbox');
+      expect(within(listbox).getByTestId('visa-icon')).toBeInTheDocument();
+      expect(within(listbox).getByTestId('mastercard-icon')).toBeInTheDocument();
+      expect(within(listbox).getByTestId('amex-icon')).toBeInTheDocument();
+      expect(within(listbox).getByTestId('discover-icon')).toBeInTheDocument();
+      expect(within(listbox).getByTestId('jcb-icon')).toBeInTheDocument();
+      expect(within(listbox).getByTestId('apple-icon')).toBeInTheDocument();
+      expect(within(listbox).getByTestId('amazon-icon')).toBeInTheDocument();
     });
   });
 
@@ -206,8 +206,8 @@ describe('PaymentMethodDropdown', () => {
       const user = userEvent.setup();
       render(<PaymentMethodDropdown {...defaultProps} />);
       
-      const button = screen.getByRole('button');
-      await user.click(button);
+      const combobox = screen.getByRole('combobox');
+      await user.click(combobox);
       
       expect(screen.getByRole('listbox')).toBeInTheDocument();
     });
@@ -223,10 +223,11 @@ describe('PaymentMethodDropdown', () => {
         />
       );
       
-      const button = screen.getByRole('button');
-      await user.click(button);
+      const combobox = screen.getByRole('combobox');
+      await user.click(combobox);
       
-      const option = screen.getByText('Visa ending in 1234');
+      const listbox = screen.getByRole('listbox');
+      const option = within(listbox).getByText('Visa ending in 1234');
       await user.click(option);
       
       await waitFor(() => {
@@ -245,10 +246,11 @@ describe('PaymentMethodDropdown', () => {
         />
       );
       
-      const button = screen.getByRole('button');
-      await user.click(button);
+      const combobox = screen.getByRole('combobox');
+      await user.click(combobox);
       
-      const option = screen.getByText('Visa ending in 1234');
+      const listbox = screen.getByRole('listbox');
+      const option = within(listbox).getByText('Visa ending in 1234');
       await user.click(option);
       
       expect(mockOnChange).toHaveBeenCalledWith('card_visa123');
@@ -258,12 +260,13 @@ describe('PaymentMethodDropdown', () => {
       const user = userEvent.setup();
       render(<PaymentMethodDropdown {...defaultProps} />);
       
-      const button = screen.getByRole('button');
-      await user.click(button);
+      const combobox = screen.getByRole('combobox');
+      await user.click(combobox);
       
-      expect(screen.getByText('Visa ending in 1234')).toBeInTheDocument();
-      expect(screen.getByText('Mastercard ending in 5678')).toBeInTheDocument();
-      expect(screen.getByText('Add new payment method')).toBeInTheDocument();
+      const listbox = screen.getByRole('listbox');
+      expect(within(listbox).getByText('Visa ending in 1234')).toBeInTheDocument();
+      expect(within(listbox).getByText('Mastercard ending in 5678')).toBeInTheDocument();
+      expect(within(listbox).getByText('Add new payment method')).toBeInTheDocument();
     });
 
     it('updates selected option when clicked', async () => {
@@ -277,10 +280,11 @@ describe('PaymentMethodDropdown', () => {
         />
       );
       
-      const button = screen.getByRole('button');
-      await user.click(button);
+      const combobox = screen.getByRole('combobox');
+      await user.click(combobox);
       
-      const option = screen.getByText('Mastercard ending in 5678');
+      const listbox = screen.getByRole('listbox');
+      const option = within(listbox).getByText('Mastercard ending in 5678');
       await user.click(option);
       
       expect(mockOnChange).toHaveBeenCalledWith('card_mc456');
@@ -292,8 +296,8 @@ describe('PaymentMethodDropdown', () => {
       const user = userEvent.setup();
       render(<PaymentMethodDropdown {...defaultProps} />);
       
-      const button = screen.getByRole('button');
-      button.focus();
+      const combobox = screen.getByRole('combobox');
+      await user.tab(); // Focus the combobox
       await user.keyboard('{Enter}');
       
       expect(screen.getByRole('listbox')).toBeInTheDocument();
@@ -303,8 +307,8 @@ describe('PaymentMethodDropdown', () => {
       const user = userEvent.setup();
       render(<PaymentMethodDropdown {...defaultProps} />);
       
-      const button = screen.getByRole('button');
-      button.focus();
+      const combobox = screen.getByRole('combobox');
+      await user.tab(); // Focus the combobox
       await user.keyboard(' ');
       
       expect(screen.getByRole('listbox')).toBeInTheDocument();
@@ -321,11 +325,13 @@ describe('PaymentMethodDropdown', () => {
         />
       );
       
-      const button = screen.getByRole('button');
-      await user.click(button);
+      const combobox = screen.getByRole('combobox');
+      await user.click(combobox);
       
       const options = screen.getAllByRole('option');
-      options[0].focus();
+      // Filter to get only visible options (not from hidden select)
+      const visibleOptions = options.filter(opt => opt.parentElement?.getAttribute('role') === 'listbox');
+      visibleOptions[0].focus();
       await user.keyboard('{Enter}');
       
       expect(mockOnChange).toHaveBeenCalledWith('card_visa123');
@@ -341,10 +347,9 @@ describe('PaymentMethodDropdown', () => {
         />
       );
       
-      const button = container.querySelector('[role="button"]');
-      expect(button).toHaveClass('text-status-error');
-      expect(button).toHaveClass('bg-status-bg-error');
-      expect(button).toHaveClass('ring-status-error');
+      const combobox = container.querySelector('[role="combobox"]');
+      expect(combobox).toHaveClass('border-border-error');
+      expect(combobox).toHaveClass('ring-border-error');
     });
 
     it('calls onClearError when dropdown is opened', async () => {
@@ -359,8 +364,8 @@ describe('PaymentMethodDropdown', () => {
         />
       );
       
-      const button = screen.getByRole('button');
-      await user.click(button);
+      const combobox = screen.getByRole('combobox');
+      await user.click(combobox);
       
       expect(mockClearError).toHaveBeenCalled();
     });
@@ -381,11 +386,11 @@ describe('PaymentMethodDropdown', () => {
   describe('Design System Integration', () => {
     it('uses surface-tertiary for default background', () => {
       const { container } = render(<PaymentMethodDropdown {...defaultProps} />);
-      const button = container.querySelector('[role="button"]');
-      expect(button).toHaveClass('bg-surface-tertiary');
+      const combobox = container.querySelector('[role="combobox"]');
+      expect(combobox).toHaveClass('bg-surface-tertiary');
     });
 
-    it('uses surface-secondary for selected option in dropdown', async () => {
+    it('uses bg-slate-200 for selected option in dropdown', async () => {
       const user = userEvent.setup();
       render(
         <PaymentMethodDropdown
@@ -394,18 +399,20 @@ describe('PaymentMethodDropdown', () => {
         />
       );
       
-      const button = screen.getByRole('button');
-      await user.click(button);
+      const combobox = screen.getByRole('combobox');
+      await user.click(combobox);
       
       const options = screen.getAllByRole('option');
-      const selectedOption = options.find(opt => 
+      // Filter to get only visible options (not from hidden select)
+      const visibleOptions = options.filter(opt => opt.parentElement?.getAttribute('role') === 'listbox');
+      const selectedOption = visibleOptions.find(opt => 
         opt.getAttribute('aria-selected') === 'true'
       );
       
-      expect(selectedOption).toHaveClass('bg-surface-secondary');
+      expect(selectedOption).toHaveClass('bg-slate-200');
     });
 
-    it('uses text-primary for selected text', () => {
+    it('displays selected value in combobox', () => {
       render(
         <PaymentMethodDropdown
           {...defaultProps}
@@ -413,14 +420,15 @@ describe('PaymentMethodDropdown', () => {
         />
       );
       
-      const displayText = screen.getByText('Visa ending in 1234');
-      expect(displayText).toHaveClass('text-text-primary');
+      const combobox = screen.getByRole('combobox');
+      expect(within(combobox).getByText('Visa ending in 1234')).toBeInTheDocument();
     });
 
-    it('uses text-secondary for placeholder text', () => {
-      render(<PaymentMethodDropdown {...defaultProps} />);
-      const placeholder = screen.getByText('Select payment method');
-      expect(placeholder).toHaveClass('text-text-secondary');
+    it('uses text-secondary for placeholder text when unfocused', () => {
+      const { container } = render(<PaymentMethodDropdown {...defaultProps} />);
+      const combobox = container.querySelector('[role="combobox"]');
+      // The text-secondary class is applied to the content div when no value is selected
+      expect(combobox?.querySelector('.text-text-secondary')).toBeInTheDocument();
     });
   });
 
@@ -442,7 +450,8 @@ describe('PaymentMethodDropdown', () => {
         />
       );
       
-      expect(screen.getByText('Visa ending in 1234')).toBeInTheDocument();
+      const combobox = screen.getByRole('combobox');
+      expect(within(combobox).getByText('Visa ending in 1234')).toBeInTheDocument();
     });
 
     it('shows aria-selected on correct option', async () => {
@@ -454,12 +463,14 @@ describe('PaymentMethodDropdown', () => {
         />
       );
       
-      const button = screen.getByRole('button');
-      await user.click(button);
+      const combobox = screen.getByRole('combobox');
+      await user.click(combobox);
       
       const options = screen.getAllByRole('option');
-      expect(options[0]).toHaveAttribute('aria-selected', 'true');
-      expect(options[1]).toHaveAttribute('aria-selected', 'false');
+      // Filter to get only visible options (not from hidden select)
+      const visibleOptions = options.filter(opt => opt.parentElement?.getAttribute('role') === 'listbox');
+      expect(visibleOptions[0]).toHaveAttribute('aria-selected', 'true');
+      expect(visibleOptions[1]).toHaveAttribute('aria-selected', 'false');
     });
   });
 
@@ -472,7 +483,7 @@ describe('PaymentMethodDropdown', () => {
         />
       );
       
-      expect(screen.getByRole('button')).toBeInTheDocument();
+      expect(screen.getByRole('combobox')).toBeInTheDocument();
     });
 
     it('handles options without brand property', async () => {
@@ -489,11 +500,12 @@ describe('PaymentMethodDropdown', () => {
         />
       );
       
-      const button = screen.getByRole('button');
-      await user.click(button);
+      const combobox = screen.getByRole('combobox');
+      await user.click(combobox);
       
-      expect(screen.getByText('Option 1')).toBeInTheDocument();
-      expect(screen.getByText('Option 2')).toBeInTheDocument();
+      const listbox = screen.getByRole('listbox');
+      expect(within(listbox).getByText('Option 1')).toBeInTheDocument();
+      expect(within(listbox).getByText('Option 2')).toBeInTheDocument();
     });
 
     it('handles long option text gracefully', () => {
@@ -513,8 +525,8 @@ describe('PaymentMethodDropdown', () => {
         />
       );
       
-      expect(screen.getByText(/This is a very long payment method/)).toBeInTheDocument();
+      const combobox = screen.getByRole('combobox');
+      expect(within(combobox).getByText(/This is a very long payment method/)).toBeInTheDocument();
     });
   });
 });
-

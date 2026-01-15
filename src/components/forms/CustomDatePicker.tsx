@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * @fileoverview Custom date picker component with error handling, validation, and design system compliance
  * @source boombox-10.0/src/app/components/reusablecomponents/customdatepicker.tsx
@@ -11,12 +13,13 @@
  * - Keyboard navigation and accessibility support
  * 
  * DESIGN SYSTEM UPDATES:
+ * - Integrated with Input primitive component for consistent styling
  * - Replaced hardcoded colors with design system tokens
- * - Used input-field utility classes from globals.css
  * - Applied semantic color patterns (error, focus, text states)
  * - Consistent hover/focus states using design system colors
+ * - Leverages Input component's built-in error handling and icon positioning
  * 
- * @refactor Enhanced accessibility, extracted date formatting to utilities, improved TypeScript interfaces
+ * @refactor Enhanced accessibility, extracted date formatting to utilities, improved TypeScript interfaces, integrated Input primitive
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -25,12 +28,16 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { CalendarDaysIcon } from '@heroicons/react/20/solid';
 import { formatDateForInput, isPastDate } from '@/lib/utils/dateUtils';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { Input } from '@/components/ui/primitives/Input';
+import { cn } from '@/lib/utils/cn';
 
 export interface CustomDatePickerProps {
   /** Callback function called when date changes, receives formatted date string and Date object */
   onDateChange: (formattedDate: string, dateObject: Date | null) => void;
   /** Whether the input field has a validation error */
   hasError?: boolean;
+  /** Error message to display below the input */
+  error?: string;
   /** Callback function to clear validation errors when user interacts with input */
   onClearError?: () => void;
   /** Current selected date value */
@@ -41,35 +48,42 @@ export interface CustomDatePickerProps {
   smallText?: boolean;
   /** Optional placeholder text for the input field */
   placeholder?: string;
+  /** Optional label text for the input field */
+  label?: string;
   /** Optional aria-label for accessibility */
   'aria-label'?: string;
   /** Optional aria-describedby for accessibility */
   'aria-describedby'?: string;
   /** Whether the input is disabled */
   disabled?: boolean;
+  /** Optional CSS classes */
+  className?: string;
+  /** Optional input ID */
+  id?: string;
 }
 
 const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   onDateChange,
   hasError = false,
+  error,
   onClearError,
   value = null,  
   allowPastDates = false,
   smallText = false,
   placeholder = "Add Date",
+  label,
   'aria-label': ariaLabel,
   'aria-describedby': ariaDescribedBy,
   disabled = false,
+  className,
+  id,
 }) => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(value);  
   const [isOpen, setIsOpen] = useState(false);
   const datePickerRef = useRef<HTMLDivElement>(null);
-  const [isFocused, setIsFocused] = useState<boolean>(false);
-  const [hasValue, setHasValue] = useState<boolean>(!!value);
 
   const handleDateChange = (date: Date | null) => {
     setSelectedDate(date);
-    setHasValue(!!date);
     if (date) {
       const formattedDate = formatDateForInput(date);
       onDateChange(formattedDate, date);
@@ -107,68 +121,43 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
 
   useEffect(() => {
     setSelectedDate(value || null);
-    setHasValue(!!value);
   }, [value]);
 
   // Compute display value using utility function
   const displayValue = selectedDate ? formatDateForInput(selectedDate) : '';
 
-  // Compute icon color based on state
-  const iconColor = hasError
-    ? 'text-status-error'
-    : isFocused || hasValue
-    ? 'text-primary'
-    : 'text-text-secondary';
-
-  // Compute input classes with design system tokens
-  const inputClasses = `
-    pl-8 py-2.5 px-3 w-full sm:mb-4 mb-2 rounded-md 
-    placeholder:text-sm cursor-pointer transition-colors
-    ${hasError 
-      ? 'ring-status-error ring-2 bg-red-50 placeholder:text-status-error border-status-error' 
-      : 'input-field'
-    } 
-    ${smallText ? 'text-sm' : ''} 
-    ${disabled ? 'cursor-not-allowed opacity-50' : ''}
-  `.trim().replace(/\s+/g, ' ');
-
   return (
-    <div className="relative w-full" ref={datePickerRef}>
-      <input
+    <div className={cn("relative w-full", className)} ref={datePickerRef}>
+      <Input
+        id={id}
         type="text"
         name="date"
         value={displayValue} 
         onClick={toggleCalendar}
         onKeyDown={handleKeyDown}
-        onFocus={() => {
-          if (!disabled) {
-            setIsFocused(true);
-            if (onClearError) onClearError();
-          }
-        }}
-        onBlur={() => setIsFocused(false)}
         readOnly
         disabled={disabled}
         placeholder={placeholder}
-        className={inputClasses}
-        aria-label={ariaLabel || "Select date"}
+        label={label}
+        error={error}
+        icon={<CalendarDaysIcon />}
+        iconPosition="left"
+        fullWidth
+        size="md"
+        className={cn("cursor-pointer", smallText && "!text-sm")}
+        aria-label={ariaLabel || label || "Select date"}
         aria-describedby={ariaDescribedBy}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         aria-controls={isOpen ? "date-picker-calendar" : undefined}
         role="combobox"
-      />
-      <CalendarDaysIcon 
-        className={`absolute left-2 w-5 h-5 pointer-events-none transition-colors
-          ${iconColor} 
-          ${smallText ? 'inset-y-2.5' : 'inset-y-3'}
-        `} 
-        aria-hidden="true"
+        onClearError={onClearError}
+        variant={hasError || error ? 'error' : 'default'}
       />
       {isOpen && !disabled && (
         <div 
           id="date-picker-calendar"
-          className="absolute top-full w-full min-w-72 left-0 z-10"
+          className="absolute mt-2 top-full w-full min-w-72 left-0 z-10"
           role="dialog"
           aria-label="Date picker"
         >

@@ -18,7 +18,7 @@
  * - Used consistent design system spacing and responsive patterns
  * 
  * IMAGE OPTIMIZATION:
- * - ✅ CRITICAL: Replaced bg-slate-100 placeholder divs with OptimizedImage component
+ * - Uses Next.js Image component for images
  * - Using placeholder.jpg as temporary image source
  * - Configured with lazy loading for below-the-fold images
  * - Set responsive aspect ratios (landscape 4:3)
@@ -31,13 +31,13 @@
  * - Proper keyboard navigation support
  * - Screen reader friendly step indicators
  * 
- * @refactor Migrated to features/howitworks with design system compliance, OptimizedImage components, and enhanced accessibility
+ * @refactor Migrated to features/howitworks with design system compliance, Next.js Image, and enhanced accessibility
  */
 
 'use client';
 
 import React from 'react';
-import { OptimizedImage } from '@/components/ui/primitives/OptimizedImage/OptimizedImage';
+import Image from 'next/image';
 
 export interface Step {
   /**
@@ -152,19 +152,18 @@ export function HowItWorksStepSection({
               
               {/* Step content */}
               <div className="flex flex-col sm:flex-row items-start space-y-4 sm:space-y-0 sm:space-x-8 w-full">
-                {/* Step image - CRITICAL: Using OptimizedImage instead of placeholder div */}
-                <OptimizedImage
-                  src={step.image || '/placeholder.jpg'}
-                  alt={step.imageAlt || `${step.title} - Boombox storage process step ${step.stepNumber}`}
-                  width={384}
-                  height={288}
-                  aspectRatio="landscape"
-                  containerClassName="w-full sm:w-72 md:w-96 shrink-0 rounded-md"
-                  className="object-cover rounded-md"
-                  loading="lazy"
-                  quality={85}
-                  sizes="(max-width: 640px) 100vw, (max-width: 768px) 288px, 384px"
-                />
+                {/* Step image */}
+                <div className="relative w-full sm:w-72 md:w-96 aspect-[4/3] shrink-0 rounded-md overflow-hidden">
+                  <Image
+                    src={step.image || '/placeholder.jpg'}
+                    alt={step.imageAlt || `${step.title} - Boombox storage process step ${step.stepNumber}`}
+                    fill
+                    className="object-cover rounded-md"
+                    loading="lazy"
+                    quality={85}
+                    sizes="(max-width: 640px) 100vw, (max-width: 768px) 288px, 384px"
+                  />
+                </div>
                 
                 {/* Step text content */}
                 <div>
@@ -177,7 +176,7 @@ export function HowItWorksStepSection({
                   <h2 className="mt-2 text-text-primary">
                     {step.title}
                   </h2>
-                  <p className="mt-2 text-text-secondary">
+                  <p className="mt-2 text-text-primary">
                     {step.description}
                   </p>
                 </div>

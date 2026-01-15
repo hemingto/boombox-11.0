@@ -6,7 +6,6 @@
  * 
  * COMPONENT FUNCTIONALITY:
  * - Displays upcoming jobs for drivers and moving partners with map previews
- * - Fetches and combines regular appointments and packing supply delivery routes
  * - Provides filtering options: Next Up, Today, Unassigned (for movers)
  * - Integrates Google Maps with geocoding for location visualization
  * - Supports job cancellation with reason selection
@@ -15,11 +14,10 @@
  * - Links to detailed calendar view
  * - Shows packing supply route metrics (stops, estimated payout)
  * 
- * API ROUTES UPDATED:
- * - Old: /api/appointments/upcoming → New: /api/customers/upcoming-appointments
- * - Old: /api/drivers/[id]/packing-supply-routes → New: /api/drivers/[id]/packing-supply-routes (unchanged)
- * - Old: /api/movers/[id]/packing-supply-routes → New: /api/moving-partners/[id]/packing-supply-routes
- * - Old: /api/appointments/[id]/mover-driver-cancel → New: /api/orders/appointments/[id]/mover-driver-cancel
+ * API ROUTES USED:
+ * - POST /api/orders/appointments/[id]/mover-driver-cancel - Cancel appointment
+ * - GET /api/moving-partners/[id]/approved-drivers - Fetch drivers for assignment
+ * - POST /api/orders/appointments/[id]/assign-driver - Assign driver
  * 
  * DESIGN SYSTEM UPDATES:
  * - Replaced bg-slate-100 with semantic surface colors (bg-surface-secondary, bg-surface-tertiary)
@@ -30,13 +28,8 @@
  * - Updated error styling (bg-red-100, text-red-500 → bg-status-error/10, text-status-error)
  * - Updated warning styling (bg-amber-50, text-amber-600 → bg-status-warning/10, text-status-warning)
  * 
- * BUSINESS LOGIC EXTRACTED:
- * - Replaced inline click-outside handler with useClickOutside hook
- * - Extracted date formatting logic (uses date-fns consistently)
- * 
  * ACCESSIBILITY IMPROVEMENTS:
  * - Added ARIA labels for all interactive elements
- * - Added role="status" for loading states
  * - Added role="alert" for error messages
  * - Added aria-expanded for filter dropdown
  * - Added aria-label for navigation buttons
@@ -44,14 +37,8 @@
  * - Proper button disabled states with aria-disabled
  * - Screen reader announcements for dynamic content
  * 
- * @refactor
- * - Migrated to service-providers/jobs feature folder
- * - Updated API routes to new domain-based structure
- * - Applied design system colors and semantic tokens
- * - Extracted business logic to centralized utilities
- * - Enhanced accessibility with ARIA attributes
- * - Replaced InformationalPopup with Modal component
- * - Improved component organization and readability
+ * @refactor Data fetching moved to parent page via useJobsPageData hook.
+ * Component now accepts appointments as props for coordinated page-level loading.
  */
 
 'use client';
@@ -62,84 +49,39 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   EllipsisHorizontalIcon,
-  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
-import { ArrowUpRightIcon } from '@heroicons/react/20/solid';
 import { format, subHours } from 'date-fns';
-import Link from 'next/link';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { AppointmentDetailsPopup } from '../shared/AppointmentDetailsPopup';
+import { DriverAssignmentModeToggle } from './DriverAssignmentModeToggle';
 import { Modal } from '@/components/ui/primitives/Modal';
-import { RadioList } from '@/components/forms/RadioList';
+import { Select, SelectOption } from '@/components/ui/primitives/Select';
+import { Button } from '@/components/ui/primitives/Button';
+import { Spinner } from '@/components/ui/primitives/Spinner';
+import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import { mapStyles } from '@/app/mapstyles';
+import { formatPhoneNumberForDisplay } from '@/lib/utils/phoneUtils';
+import Image from 'next/image';
+import type { UpcomingAppointment } from '@/hooks/useJobsPageData';
 
-interface Appointment {
-  id: number;
-  address: string;
-  date: Date;
-  time: Date;
-  numberOfUnits: number;
-  planType: string;
-  appointmentType: string;
-  insuranceCoverage?: string;
-  description?: string;
-  additionalInformation?: {
-    itemsOver100lbs: boolean;
-    moveDescription?: string;
-    conditionsDescription?: string;
-  };
-  requestedStorageUnits?: {
-    storageUnitId: number;
-    storageUnit: {
-      storageUnitNumber: string;
-    };
-  }[];
-  user?: {
-    firstName: string;
-    lastName: string;
-  };
-  driver?: {
-    firstName: string;
-    lastName: string;
-    phoneNumber: string;
-    profilePicture?: string;
-  };
-  coordinates?: {
-    lat: number;
-    lng: number;
-  };
-  // Packing supply route specific fields
-  routeId?: string;
-  routeStatus?: string;
-  totalStops?: number;
-  completedStops?: number;
-  estimatedMiles?: number;
-  estimatedDurationMinutes?: number;
-  estimatedPayout?: number;
-  payoutStatus?: string;
-  orders?: any[];
-  routeMetrics?: {
-    totalDistance?: number;
-    totalTime?: number;
-    startTime?: Date;
-    endTime?: Date;
-  };
-}
+// Re-export type for convenience
+export type { UpcomingAppointment };
 
 interface UpcomingJobsProps {
   userType: 'mover' | 'driver';
   userId: string;
+  /** Upcoming appointments to display */
+  appointments: UpcomingAppointment[];
+  /** Callback to update appointments after actions (for optimistic updates) */
+  onAppointmentsChange: (appointments: UpcomingAppointment[]) => void;
 }
 
 type FilterOption = 'next-up' | 'today' | 'unassigned';
 
-export function UpcomingJobs({ userType, userId }: UpcomingJobsProps) {
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export function UpcomingJobs({ userType, userId, appointments, onAppointmentsChange }: UpcomingJobsProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedAppointment, setSelectedAppointment] =
-    useState<Appointment | null>(null);
+    useState<UpcomingAppointment | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [geocodingStatus, setGeocodingStatus] = useState<
@@ -159,6 +101,23 @@ export function UpcomingJobs({ userType, userId }: UpcomingJobsProps) {
   const [appointmentToCancel, setAppointmentToCancel] = useState<number | null>(
     null
   );
+  // Driver assignment modal state
+  const [isAssignDriverModalOpen, setIsAssignDriverModalOpen] = useState(false);
+  const [appointmentToAssign, setAppointmentToAssign] = useState<UpcomingAppointment | null>(null);
+  const [availableDrivers, setAvailableDrivers] = useState<Array<{
+    id: number;
+    firstName: string;
+    lastName: string;
+    phoneNumber: string | null;
+    onfleetWorkerId: string | null;
+    profilePicture: string | null;
+    isAvailable?: boolean;
+    conflictReason?: string;
+  }>>([]);
+  const [selectedDriverId, setSelectedDriverId] = useState<string>('');
+  const [isLoadingDrivers, setIsLoadingDrivers] = useState(false);
+  const [isAssigningDriver, setIsAssigningDriver] = useState(false);
+  const [assignDriverError, setAssignDriverError] = useState<string | null>(null);
   const filterRef = useRef<HTMLDivElement>(null);
   const itemsPerPage = 5;
 
@@ -167,6 +126,12 @@ export function UpcomingJobs({ userType, userId }: UpcomingJobsProps) {
 
   const filteredAppointments = appointments
     .filter((appointment) => {
+      // Filter out completed appointments (handle case variations)
+      const status = appointment.status?.toLowerCase();
+      if (status === 'complete' || status === 'completed') {
+        return false;
+      }
+
       const appointmentDate = new Date(appointment.date);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -196,11 +161,6 @@ export function UpcomingJobs({ userType, userId }: UpcomingJobsProps) {
   );
   const totalPages = Math.ceil(filteredAppointments.length / itemsPerPage);
 
-  const baseUrl =
-    userType === 'driver'
-      ? `/driver-account-page/${userId}`
-      : `/mover-account-page/${userId}`;
-
   const mapContainerStyle = {
     width: '100%',
     height: '100%',
@@ -215,62 +175,6 @@ export function UpcomingJobs({ userType, userId }: UpcomingJobsProps) {
     disableDefaultUI: false,
     fullscreenControl: false,
   };
-
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      try {
-        setIsLoading(true);
-
-        // Fetch regular appointments
-        const appointmentsResponse = await fetch(
-          `/api/customers/upcoming-appointments?userType=${userType}&userId=${userId}`
-        );
-        if (!appointmentsResponse.ok) {
-          throw new Error('Failed to fetch appointments');
-        }
-        const appointmentsData = await appointmentsResponse.json();
-
-        // Fetch packing supply routes
-        let packingSupplyRoutes = [];
-        if (userType === 'driver') {
-          try {
-            const routesResponse = await fetch(
-              `/api/drivers/${userId}/packing-supply-routes`
-            );
-            if (routesResponse.ok) {
-              packingSupplyRoutes = await routesResponse.json();
-            }
-          } catch (routeError) {
-            console.warn('Failed to fetch packing supply routes:', routeError);
-          }
-        } else if (userType === 'mover') {
-          try {
-            const routesResponse = await fetch(
-              `/api/moving-partners/${userId}/packing-supply-routes`
-            );
-            if (routesResponse.ok) {
-              packingSupplyRoutes = await routesResponse.json();
-            }
-          } catch (routeError) {
-            console.warn('Failed to fetch packing supply routes:', routeError);
-          }
-        }
-
-        // Combine appointments and packing supply routes
-        const combinedData = [...appointmentsData, ...packingSupplyRoutes];
-        setAppointments(combinedData);
-      } catch (error) {
-        console.error('Error:', error);
-        setError('Failed to load appointments');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (userId) {
-      fetchAppointments();
-    }
-  }, [userId, userType]);
 
   // Geocode location to coordinates for each appointment
   useEffect(() => {
@@ -316,28 +220,36 @@ export function UpcomingJobs({ userType, userId }: UpcomingJobsProps) {
     if (currentPage < totalPages) setCurrentPage(currentPage + 1);
   };
 
-  const isPackingSupplyRoute = (appointment: Appointment) => {
+  const isPackingSupplyRoute = (appointment: UpcomingAppointment) => {
     return (
       appointment.appointmentType === 'Packing Supply Delivery' &&
       appointment.routeId
     );
   };
 
-  const getDriverStatus = (appointment: Appointment) => {
+  const getDriverStatus = (appointment: UpcomingAppointment, onAssignClick?: () => void) => {
     if (isPackingSupplyRoute(appointment)) {
       const routeStatus = appointment.routeStatus;
       if (routeStatus === 'completed') {
-        return <span className="badge-success text-xs">Route Completed</span>;
+        return <span className="bg-status-bg-success text-status-success px-3 py-2 rounded-md text-xs font-medium">Route Completed</span>;
       } else if (routeStatus === 'in_progress') {
-        return <span className="badge-info text-xs">Route Active</span>;
+        return <span className="bg-status-bg-info text-status-info px-3 py-2 rounded-md text-xs font-medium">Route Active</span>;
       }
-      return <span className="badge-warning text-xs">Route Pending</span>;
+      return <span className="bg-status-bg-warning text-status-warning px-3 py-2 rounded-md text-xs font-medium">Route Pending</span>;
     }
 
     if (appointment.driver) {
-      return <span className="badge-success text-xs">Driver Assigned</span>;
+      return <span className="bg-status-bg-success text-status-success px-3 py-2 rounded-md text-xs font-medium">Driver Assigned</span>;
     }
-    return <span className="badge-error text-xs">Driver Unassigned</span>;
+    return (
+      <button
+        onClick={onAssignClick}
+        className="bg-status-bg-error text-status-error py-2 px-3 rounded-md text-xs font-medium hover:bg-red-200 cursor-pointer transition-colors"
+        aria-label="Assign driver to this job"
+      >
+        Driver Unassigned
+      </button>
+    );
   };
 
   const handleMenuClick = (appointmentId: number) => {
@@ -368,11 +280,8 @@ export function UpcomingJobs({ userType, userId }: UpcomingJobsProps) {
       );
 
       if (response.ok) {
-        // Refresh the appointments list
-        const updatedAppointments = appointments.filter(
-          (app) => app.id !== appointmentId
-        );
-        setAppointments(updatedAppointments);
+        // Update appointments via parent callback
+        onAppointmentsChange(appointments.filter((app) => app.id !== appointmentId));
         setOpenMenuId(null);
         setIsCancelModalOpen(false);
         setCancellationReason('');
@@ -390,186 +299,220 @@ export function UpcomingJobs({ userType, userId }: UpcomingJobsProps) {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div
-        className="max-w-5xl lg:px-16 px-6 mx-auto"
-        role="status"
-        aria-busy="true"
-        aria-label="Loading upcoming jobs"
-      >
-        <h2 className="text-2xl mb-8">Upcoming Jobs</h2>
-        <div className="bg-white rounded-md shadow-custom-shadow">
-          {[...Array(1)].map((_, i) => (
-            <div key={i} className={`p-4 ${i === 0 ? 'mb-4' : ''}`}>
-              <div className="flex items-center space-x-4">
-                {/* Map skeleton */}
-                <div className="w-36 h-36 shrink-0 bg-surface-tertiary rounded-l-md animate-pulse" />
+  // Fetch approved drivers for the moving partner with availability check
+  const fetchApprovedDrivers = async () => {
+    if (!appointmentToAssign) return;
+    
+    setIsLoadingDrivers(true);
+    setAssignDriverError(null);
+    try {
+      // Build URL with appointment date/time for availability checking
+      const appointmentDate = new Date(appointmentToAssign.date).toISOString();
+      const appointmentTime = new Date(appointmentToAssign.time).toISOString();
+      const url = `/api/moving-partners/${userId}/approved-drivers?appointmentDate=${encodeURIComponent(appointmentDate)}&appointmentTime=${encodeURIComponent(appointmentTime)}`;
+      
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch drivers');
+      }
+      const data = await response.json();
+      console.log('Approved drivers API response:', data);
+      
+      // Extract driver data from the nested MovingPartnerDriver structure
+      // Sort available drivers to the top
+      const drivers = (data.approvedDrivers || [])
+        .map((mpDriver: any) => ({
+          id: mpDriver.driver.id,
+          firstName: mpDriver.driver.firstName,
+          lastName: mpDriver.driver.lastName,
+          phoneNumber: mpDriver.driver.phoneNumber,
+          onfleetWorkerId: mpDriver.driver.onfleetWorkerId,
+          profilePicture: mpDriver.driver.profilePicture,
+          isAvailable: mpDriver.isAvailable ?? true, // Default to available if not provided
+          conflictReason: mpDriver.conflictReason,
+        }))
+        .sort((a: { isAvailable?: boolean }, b: { isAvailable?: boolean }) => 
+          (b.isAvailable ? 1 : 0) - (a.isAvailable ? 1 : 0)
+        );
+      console.log('Extracted drivers with availability:', drivers);
+      
+      setAvailableDrivers(drivers);
+    } catch (error) {
+      console.error('Error fetching drivers:', error);
+      setAssignDriverError('Failed to load available drivers');
+    } finally {
+      setIsLoadingDrivers(false);
+    }
+  };
 
-                {/* Content skeleton */}
-                <div className="flex-1 h-36 relative">
-                  {/* Status and menu skeleton */}
-                  <div className="absolute top-0 right-0 flex items-center gap-4">
-                    <div className="w-28 h-8 bg-surface-tertiary rounded-md animate-pulse" />
-                    <div className="w-8 h-8 bg-surface-tertiary rounded-full animate-pulse" />
-                  </div>
+  // Assign driver to the selected appointment
+  const assignDriver = async () => {
+    if (!appointmentToAssign || !selectedDriverId) return;
 
-                  {/* Text content skeleton */}
-                  <div className="h-full flex items-center">
-                    <div className="space-y-2">
-                      <div className="h-6 bg-surface-tertiary rounded w-64 animate-pulse" />
-                      <div className="h-5 bg-surface-tertiary rounded w-48 animate-pulse" />
-                      <div className="h-5 bg-surface-tertiary rounded w-56 animate-pulse" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
+    setIsAssigningDriver(true);
+    setAssignDriverError(null);
+    try {
+      const response = await fetch(
+        `/api/orders/appointments/${appointmentToAssign.id}/assign-driver`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            driverId: parseInt(selectedDriverId),
+            movingPartnerId: parseInt(userId),
+          }),
+        }
+      );
 
-  if (error) {
-    return (
-      <div className="max-w-5xl lg:px-16 px-6 mx-auto">
-        <h2 className="text-2xl mb-8">Upcoming Jobs</h2>
-        <div
-          className="bg-status-error/10 p-3 mb-4 border border-status-error rounded-md"
-          role="alert"
-        >
-          <p className="text-sm text-status-error">{error}</p>
-        </div>
-      </div>
-    );
-  }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to assign driver');
+      }
 
-  if (!isLoading && appointments.length === 0) {
-    return (
-      <div className="max-w-5xl lg:px-16 px-6 mx-auto">
-        <h2 className="text-2xl mb-8">Upcoming Jobs</h2>
-        <div
-          className="bg-white rounded-md shadow-custom-shadow p-8 text-center"
-          role="status"
-          aria-live="polite"
-        >
-          <CalendarDaysIcon
-            className="w-10 h-10 text-text-disabled mb-4 mx-auto"
-            aria-hidden="true"
-          />
-          <p className="text-text-secondary">No upcoming jobs available</p>
-        </div>
-      </div>
-    );
+      const data = await response.json();
+      
+      // Update local state with assigned driver via parent callback
+      const assignedDriver = availableDrivers.find(d => d.id === parseInt(selectedDriverId));
+      if (assignedDriver) {
+        onAppointmentsChange(
+          appointments.map(app =>
+            app.id === appointmentToAssign.id
+              ? {
+                  ...app,
+                  driver: {
+                    firstName: assignedDriver.firstName,
+                    lastName: assignedDriver.lastName,
+                    phoneNumber: assignedDriver.phoneNumber || '',
+                    profilePicture: assignedDriver.profilePicture || undefined,
+                  },
+                }
+              : app
+          )
+        );
+      }
+
+      // Close modal and reset state
+      setIsAssignDriverModalOpen(false);
+      setAppointmentToAssign(null);
+      setSelectedDriverId('');
+      setAvailableDrivers([]);
+    } catch (error) {
+      console.error('Error assigning driver:', error);
+      setAssignDriverError(error instanceof Error ? error.message : 'Failed to assign driver');
+    } finally {
+      setIsAssigningDriver(false);
+    }
+  };
+
+  // Fetch drivers when assign driver modal opens
+  useEffect(() => {
+    if (isAssignDriverModalOpen && userType === 'mover' && appointmentToAssign) {
+      fetchApprovedDrivers();
+    }
+  }, [isAssignDriverModalOpen, userType, userId, appointmentToAssign]);
+
+  // Don't render the section if no appointments
+  if (appointments.length === 0) {
+    return null;
   }
 
   return (
     <div className="max-w-5xl lg:px-16 px-6 mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <h2 className="text-2xl">Upcoming Jobs</h2>
-        <div className="flex items-center gap-4">
-          <Link
-            href={`${baseUrl}/view-calendar`}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="View calendar in new tab"
-          >
-            <button className="flex items-center gap-1 bg-primary text-white rounded-md py-2.5 pl-6 pr-5 font-inter font-semibold hover:bg-primary-hover">
-              View Calendar
-              <ArrowUpRightIcon className="w-6 h-6" aria-hidden="true" />
-            </button>
-          </Link>
-        </div>
-      </div>
+      <h2 className="text-2xl mb-8">Upcoming Jobs</h2>
 
-      <div className="relative" ref={filterRef}>
-        <button
-          className={`relative w-fit rounded-full px-3 py-2 mb-6 cursor-pointer ${
-            isFilterOpen
-              ? 'ring-2 ring-border bg-white'
-              : 'ring-1 ring-border bg-surface-secondary'
-          }`}
-          onClick={() => setIsFilterOpen(!isFilterOpen)}
-          aria-expanded={isFilterOpen}
-          aria-haspopup="listbox"
-          aria-label={`Filter jobs: ${
-            filterOption === 'next-up'
-              ? 'Next Up'
-              : filterOption === 'today'
-                ? 'Today'
-                : 'Unassigned'
-          }`}
-        >
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-text-primary text-nowrap">
-              {filterOption === 'next-up'
+      <div className="flex justify-between items-start mb-6">
+        {/* Filter dropdown */}
+        <div className="relative" ref={filterRef}>
+          <button
+            className={`relative w-fit rounded-full px-3 py-2 cursor-pointer ${
+              isFilterOpen
+                ? 'ring-2 ring-border bg-white'
+                : 'ring-1 ring-border bg-surface-secondary'
+            }`}
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            aria-expanded={isFilterOpen}
+            aria-haspopup="listbox"
+            aria-label={`Filter jobs: ${
+              filterOption === 'next-up'
                 ? 'Next Up'
                 : filterOption === 'today'
                   ? 'Today'
-                  : 'Unassigned'}
-            </span>
-            <svg
-              className="shrink-0 w-3 h-3 text-text-primary ml-1"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-          </div>
-        </button>
-
-        {isFilterOpen && (
-          <div
-            className="absolute w-fit min-w-36 left-0 z-10 -mt-2 border border-border rounded-md bg-white shadow-custom-shadow"
-            role="listbox"
-            aria-label="Filter options"
+                  : 'Unassigned'
+            }`}
           >
-            <div
-              className="flex justify-between items-center p-3 cursor-pointer hover:bg-surface-hover"
-              onClick={() => {
-                setFilterOption('next-up');
-                setIsFilterOpen(false);
-              }}
-              role="option"
-              aria-selected={filterOption === 'next-up'}
-            >
-              <span className="text-sm text-text-primary">Next Up</span>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-text-primary text-nowrap">
+                {filterOption === 'next-up'
+                  ? 'Next Up'
+                  : filterOption === 'today'
+                    ? 'Today'
+                    : 'Unassigned'}
+              </span>
+              <svg
+                className="shrink-0 w-3 h-3 text-text-primary ml-1"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
             </div>
+          </button>
+
+          {isFilterOpen && (
             <div
-              className="flex justify-between items-center p-3 cursor-pointer hover:bg-surface-hover"
-              onClick={() => {
-                setFilterOption('today');
-                setIsFilterOpen(false);
-              }}
-              role="option"
-              aria-selected={filterOption === 'today'}
+              className="absolute w-fit min-w-36 left-0 z-10 mt-1 border border-border rounded-md bg-surface-primary shadow-custom-shadow"
+              role="listbox"
+              aria-label="Filter options"
             >
-              <span className="text-sm text-text-primary">Today</span>
-            </div>
-            {userType === 'mover' && (
-              <div
-                className="flex justify-between items-center p-3 cursor-pointer hover:bg-surface-hover"
+              <button
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-surface-tertiary focus-visible focus:bg-surface-secondary ${userType === 'mover' ? 'rounded-t-md' : 'rounded-md'}`}
                 onClick={() => {
-                  setFilterOption('unassigned');
+                  setFilterOption('next-up');
                   setIsFilterOpen(false);
                 }}
                 role="option"
-                aria-selected={filterOption === 'unassigned'}
+                aria-selected={filterOption === 'next-up'}
               >
-                <span className="text-sm text-text-primary">Unassigned</span>
-              </div>
-            )}
-          </div>
-        )}
+                Next Up
+              </button>
+              <button
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-surface-tertiary focus-visible focus:bg-surface-secondary ${userType === 'mover' ? '' : 'rounded-b-md'}`}
+                onClick={() => {
+                  setFilterOption('today');
+                  setIsFilterOpen(false);
+                }}
+                role="option"
+                aria-selected={filterOption === 'today'}
+              >
+                Today
+              </button>
+              {userType === 'mover' && (
+                <button
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-surface-tertiary focus-visible focus:bg-surface-secondary rounded-b-md"
+                  onClick={() => {
+                    setFilterOption('unassigned');
+                    setIsFilterOpen(false);
+                  }}
+                  role="option"
+                  aria-selected={filterOption === 'unassigned'}
+                >
+                  Unassigned
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Driver Assignment Mode Toggle - Only for movers */}
+        {userType === 'mover' && <DriverAssignmentModeToggle userId={userId} />}
       </div>
 
       <div className="space-y-4">
@@ -621,25 +564,28 @@ export function UpcomingJobs({ userType, userId }: UpcomingJobsProps) {
 
                 <div className="flex-1 h-36 relative">
                   <div className="absolute top-0 right-0 flex items-center gap-4">
-                    {userType !== 'driver' && getDriverStatus(appointment)}
+                    {userType !== 'driver' && getDriverStatus(appointment, () => {
+                      setAppointmentToAssign(appointment);
+                      setIsAssignDriverModalOpen(true);
+                    })}
 
                     <div className="relative">
                       <button
                         onClick={() => handleMenuClick(appointment.id)}
-                        className="p-1 hover:bg-surface-hover rounded-full"
+                        className="p-1 rounded-full hover:bg-surface-tertiary"
                         aria-label="Job options"
                         aria-expanded={openMenuId === appointment.id}
                         aria-haspopup="menu"
                       >
                         <EllipsisHorizontalIcon
-                          className="w-6 h-6 text-text-primary"
+                          className="w-8 h-8 text-text-primary"
                           aria-hidden="true"
                         />
                       </button>
 
                       {openMenuId === appointment.id && (
                         <div
-                          className="absolute right-0 top-8 w-48 bg-white border border-border rounded-md shadow-custom-shadow z-10"
+                          className="absolute right-0 top-10 w-48 bg-surface-primary border border-border rounded-md shadow-custom-shadow z-10"
                           role="menu"
                         >
                           <button
@@ -648,7 +594,7 @@ export function UpcomingJobs({ userType, userId }: UpcomingJobsProps) {
                               setIsDetailsOpen(true);
                               setOpenMenuId(null);
                             }}
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-surface-hover"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-surface-tertiary rounded-t-md"
                             role="menuitem"
                           >
                             More Details
@@ -659,7 +605,7 @@ export function UpcomingJobs({ userType, userId }: UpcomingJobsProps) {
                               setIsCancelModalOpen(true);
                               setOpenMenuId(null);
                             }}
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-surface-hover text-status-error"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-red-50 text-status-error rounded-b-md"
                             role="menuitem"
                           >
                             Cancel Job
@@ -674,12 +620,12 @@ export function UpcomingJobs({ userType, userId }: UpcomingJobsProps) {
                       <h3 className="text-lg font-medium mb-1">
                         {appointment.address}
                       </h3>
-                      <p className="text-text-secondary mb-1">
+                      <p className="text-text-tertiary mb-1">
                         {appointment.appointmentType}
                       </p>
                       {isPackingSupplyRoute(appointment) ? (
                         <div className="space-y-1">
-                          <p className="text-text-secondary">
+                          <p className="text-text-tertiary">
                             {format(displayTime, "MMMM do, yyyy 'delivery route'")}
                           </p>
                           <p className="text-sm text-text-tertiary">
@@ -693,7 +639,7 @@ export function UpcomingJobs({ userType, userId }: UpcomingJobsProps) {
                           </p>
                         </div>
                       ) : (
-                        <p className="text-text-secondary">
+                        <p className="text-text-tertiary">
                           {format(displayTime, "MMMM do, yyyy 'starting at' h:mmaaa")}
                         </p>
                       )}
@@ -767,51 +713,239 @@ export function UpcomingJobs({ userType, userId }: UpcomingJobsProps) {
           setCancellationReason('');
           setCancellationError(null);
         }}
-        title="Confirm your cancellation"
+        title="Tell us why you need to cancel"
         size="md"
       >
-        <div>
-          <p className="mt-2 mb-4 text-lg">Tell us why you need to cancel</p>
-          <div className="bg-status-warning/10 border border-status-warning rounded-md p-3 mb-6 max-w-md">
-            <p className="text-status-warning text-sm">
-              Cancellations affect your rating and your ability to accept future
-              jobs. Please make sure you do not cancel jobs unless absolutely
-              necessary.
-            </p>
+        <div className="space-y-4">
+          <div>
+            <div className="space-y-2">
+              {cancelationOptions.map((option) => (
+                <label
+                  key={option}
+                  className={`flex items-center p-4 border-2 rounded-md cursor-pointer ${
+                    cancellationReason === option
+                      ? 'border-2 border-primary bg-surface-primary'
+                      : 'bg-slate-100 border-slate-100'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="cancellation-reason"
+                    value={option}
+                    checked={cancellationReason === option}
+                    onChange={(e) => {
+                      setCancellationReason(e.target.value);
+                      setCancellationError(null);
+                    }}
+                    className="mr-3 accent-primary w-4 h-4"
+                  />
+                  <span className="text-sm text-text-primary">{option}</span>
+                </label>
+              ))}
+            </div>
           </div>
-          <RadioList
-            options={cancelationOptions}
-            onChange={(value) => {
-              setCancellationReason(value);
-              setCancellationError(null);
-            }}
-          />
+
           {cancellationError && (
-            <p className="mt-2 text-sm text-status-error" role="alert">
+            <p className="text-sm text-status-error" role="alert">
               {cancellationError}
             </p>
           )}
+
+          <div className="bg-status-bg-warning border border-border-warning rounded-md p-4">
+            <p className="text-status-warning text-sm">
+              Once canceled, the job will be removed from your schedule and
+              reassigned to another mover. Cancellations affect your rating and your ability to accept future jobs.
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-8">
+            <Button
+              onClick={() => {
+                setIsCancelModalOpen(false);
+                setAppointmentToCancel(null);
+                setCancellationReason('');
+                setCancellationError(null);
+              }}
+              variant="secondary"
+              size="md"
+              disabled={isCancelling}
+            >
+              Keep Job
+            </Button>
+            <Button
+              onClick={async () => {
+                if (appointmentToCancel) {
+                  await cancelAppointment(appointmentToCancel);
+                }
+              }}
+              variant="primary"
+              size="md"
+              disabled={!cancellationReason || isCancelling}
+              loading={isCancelling}
+              aria-label="Confirm job cancellation"
+            >
+              Confirm
+            </Button>
+          </div>
         </div>
-        <p className="mt-4 ml-1 text-sm">
-          Once canceled, the job will be removed from your schedule and
-          reassigned to another mover.
-        </p>
-        <div className="mt-10 flex justify-end">
-          <button
-            onClick={async () => {
-              if (appointmentToCancel) {
-                await cancelAppointment(appointmentToCancel);
-              }
+      </Modal>
+
+      {/* Assign Driver Modal */}
+      <Modal
+        open={isAssignDriverModalOpen}
+        onClose={() => {
+          setIsAssignDriverModalOpen(false);
+          setAppointmentToAssign(null);
+          setSelectedDriverId('');
+          setAvailableDrivers([]);
+          setAssignDriverError(null);
+        }}
+        title="Assign Driver"
+        size="md"
+      >
+        <div className="space-y-4">
+          {appointmentToAssign && (
+            <div className="bg-surface-tertiary p-3 rounded-md">
+              <p className="text-sm text-text-tertiary">
+                <span className="font-medium text-text-primary">Job:</span>{' '}
+                {appointmentToAssign.appointmentType}
+              </p>
+              <p className="text-sm text-text-tertiary mt-1">
+                <span className="font-medium text-text-primary">Address:</span>{' '}
+                {appointmentToAssign.address}
+              </p>
+              <p className="text-sm text-text-tertiary mt-1">
+                <span className="font-medium text-text-primary">Date:</span>{' '}
+                {format(new Date(appointmentToAssign.date), 'MMMM do, yyyy')}
+              </p>
+            </div>
+          )}
+
+          {isLoadingDrivers ? (
+            <div className="space-y-2">
+              <label className="form-label">Select a Driver</label>
+              <div className="w-full py-2.5 px-3 bg-surface-tertiary rounded-md flex justify-between items-center">
+                <div className="flex items-center space-x-2">
+                  <Spinner size="sm" variant="secondary" />
+                  <span className="text-base text-text-secondary">Loading drivers...</span>
+                </div>
+                <ChevronDownIcon className="w-6 h-6 text-text-secondary flex-shrink-0" />
+              </div>
+            </div>
+          ) : availableDrivers.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-text-tertiary">No approved drivers available.</p>
+              <p className="text-sm text-text-tertiary mt-1">
+                Please add and approve drivers in your account settings.
+              </p>
+            </div>
+          ) : (
+            <Select
+              label="Select a Driver"
+              placeholder="Choose a driver to assign"
+              options={availableDrivers.map(driver => ({
+                value: driver.id.toString(),
+                label: `${driver.firstName} ${driver.lastName}`,
+                description: driver.isAvailable === false 
+                  ? driver.conflictReason 
+                  : driver.phoneNumber 
+                    ? formatPhoneNumberForDisplay(driver.phoneNumber) 
+                    : undefined,
+                disabled: driver.isAvailable === false,
+                metadata: { 
+                  profilePicture: driver.profilePicture,
+                  isAvailable: driver.isAvailable,
+                  conflictReason: driver.conflictReason,
+                },
+              }))}
+              value={selectedDriverId}
+              onChange={(value) => setSelectedDriverId(value)}
+              fullWidth
+              renderOption={(option: SelectOption) => (
+                <div className={`flex items-center space-x-3 ${option.disabled ? 'opacity-60' : ''}`}>
+                  {option.metadata?.profilePicture ? (
+                    <Image
+                      src={option.metadata.profilePicture}
+                      alt={option.label}
+                      width={32}
+                      height={32}
+                      className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-surface-tertiary flex items-center justify-center flex-shrink-0">
+                      <span className="text-xs font-medium text-text-tertiary">
+                        {option.label.split(' ').map(n => n[0]).join('')}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex flex-col">
+                    <span className={`text-sm ${option.disabled ? 'text-text-tertiary' : 'text-text-primary'}`}>
+                      {option.label}
+                    </span>
+                    {option.description && (
+                      <span className={`text-xs ${option.disabled ? 'text-status-warning' : 'text-text-tertiary'}`}>
+                        {option.description}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+              renderSelected={(option: SelectOption) => (
+                <div className="flex items-center space-x-3">
+                  {option.metadata?.profilePicture ? (
+                    <Image
+                      src={option.metadata.profilePicture}
+                      alt={option.label}
+                      width={24}
+                      height={24}
+                      className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-surface-tertiary flex items-center justify-center flex-shrink-0">
+                      <span className="text-2xs font-medium text-text-tertiary">
+                        {option.label.split(' ').map(n => n[0]).join('')}
+                      </span>
+                    </div>
+                  )}
+                  <span>{option.label}</span>
+                </div>
+              )}
+            />
+          )}
+
+          {assignDriverError && (
+            <div 
+              className="mt-4 p-3 text-sm bg-status-bg-error text-status-error rounded-md"
+              role="alert"
+              aria-live="polite"
+            >
+              {assignDriverError}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-12 flex justify-end gap-3">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setIsAssignDriverModalOpen(false);
+              setAppointmentToAssign(null);
+              setSelectedDriverId('');
+              setAvailableDrivers([]);
+              setAssignDriverError(null);
             }}
-            disabled={isCancelling}
-            className="cursor-pointer py-2.5 px-5 font-semibold bg-primary text-white text-sm rounded-md hover:bg-primary-hover active:bg-primary font-inter disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label="Confirm job cancellation"
           >
-            {isCancelling ? 'Cancelling...' : 'Cancel Job'}
-          </button>
+            Cancel
+          </Button>
+          <Button
+            onClick={assignDriver}
+            disabled={!selectedDriverId || isAssigningDriver || availableDrivers.length === 0}
+            aria-label="Assign selected driver to job"
+          >
+            {isAssigningDriver ? 'Assigning...' : 'Assign Driver'}
+          </Button>
         </div>
       </Modal>
     </div>
   );
 }
-

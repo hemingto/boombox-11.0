@@ -90,15 +90,15 @@ export const DriverQualifySection: React.FC = () => {
         {requirements.map((requirement) => (
           <div 
             key={requirement.key} 
-            className="flex p-3 items-start"
+            className="flex p-3 items-center mb-5"
             role="listitem"
           >
             <CheckCircleIcon 
-              className="shrink-0 w-8 h-8 mr-4 mt-0.5 text-status-success" 
+              className="shrink-0 w-8 h-8 mr-4 text-text-primary" 
               aria-hidden="true"
             />
             <div>
-              <h2 className="mb-5">{requirement.title}</h2>
+              <h2>{requirement.title}</h2>
             </div>
           </div>
         ))}
