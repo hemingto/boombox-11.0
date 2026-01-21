@@ -64,7 +64,7 @@ export interface WhatFitsSectionProps {
 
   /**
    * Button link URL
-   * @default '/calculator' or appropriate route
+   * @default '/storage-calculator'
    */
   buttonHref?: string;
 
@@ -111,7 +111,7 @@ export function WhatFitsSection({
   heading = 'What fits in a Boombox?',
   description = 'More than you think. Our 5ft x 8ft storage unit is designed to fit all your household and office items',
   buttonText = 'Calculate your space',
-  buttonHref = '/calculator',
+  buttonHref = '/storage-calculator',
   imageSrc = '/placeholder.jpg',
   imageAlt = 'Storage unit capacity visualization showing household and office items that fit in a 5ft x 8ft Boombox storage unit',
   className,

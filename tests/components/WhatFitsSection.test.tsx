@@ -163,7 +163,7 @@ describe('WhatFitsSection', () => {
     it('button link navigates to default calculator route', () => {
       render(<WhatFitsSection />);
       const button = screen.getByRole('link', { name: /calculate your space/i });
-      expect(button).toHaveAttribute('href', '/calculator');
+      expect(button).toHaveAttribute('href', '/storage-calculator');
     });
 
     it('button link navigates to custom route when provided', () => {
@@ -480,7 +480,7 @@ describe('WhatFitsSection', () => {
     });
 
     it('handles very long button href', () => {
-      const longHref = '/calculator/' + 'param'.repeat(100);
+      const longHref = '/storage-calculator/' + 'param'.repeat(100);
       render(<WhatFitsSection buttonHref={longHref} />);
       const button = screen.getByRole('link', { name: /calculate your space/i });
       expect(button).toHaveAttribute('href', longHref);
