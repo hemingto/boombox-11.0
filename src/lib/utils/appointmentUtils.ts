@@ -294,7 +294,7 @@ export function parseLoadingHelpPrice(priceString: string): number {
 /**
  * Validate appointment date time format
  */
-export function validateAppointmentDateTime(dateTimeString: string): {
+export function validateAppointmentDateTimeFormat(dateTimeString: string): {
   isValid: boolean;
   date?: Date;
   error?: string;

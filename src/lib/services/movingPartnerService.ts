@@ -8,7 +8,7 @@
  * @refactor Extracted API calls to dedicated service layer with updated API endpoints
  */
 
-import { ApiResponse } from '@/types/api';
+import { ApiResponse } from '@/types/api.types';
 
 export interface MovingPartner {
   id: number;
@@ -50,7 +50,6 @@ export async function fetchAvailableMovingPartners(
       return {
         success: true,
         data: [],
-        message: 'No date provided',
       };
     }
 
@@ -77,7 +76,6 @@ export async function fetchAvailableMovingPartners(
     return {
       success: true,
       data,
-      message: 'Moving partners fetched successfully',
     };
   } catch (error) {
     console.error('Error fetching available moving partners:', error);
@@ -85,7 +83,10 @@ export async function fetchAvailableMovingPartners(
     return {
       success: false,
       data: [],
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
+      error: {
+        code: 'FETCH_ERROR',
+        message: error instanceof Error ? error.message : 'Unknown error occurred',
+      },
     };
   }
 }

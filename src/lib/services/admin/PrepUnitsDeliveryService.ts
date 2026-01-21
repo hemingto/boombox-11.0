@@ -89,6 +89,7 @@ export class PrepUnitsDeliveryService {
             select: {
               firstName: true,
               lastName: true
+              
             }
           },
           requestedStorageUnits: {
@@ -280,6 +281,7 @@ export class PrepUnitsDeliveryService {
             select: {
               firstName: true,
               lastName: true
+              
             }
           },
           requestedStorageUnits: {
@@ -318,8 +320,7 @@ export class PrepUnitsDeliveryService {
           admin: {
             select: {
               email: true,
-              firstName: true,
-              lastName: true
+              name: true
             }
           }
         },
@@ -353,8 +354,7 @@ export class PrepUnitsDeliveryService {
               storageUnit: {
                 select: {
                   storageUnitNumber: true,
-                  status: true,
-                  warehouseLocation: true
+                  status: true
                 }
               }
             }
@@ -416,8 +416,7 @@ export class PrepUnitsDeliveryService {
               storageUnit: {
                 select: {
                   storageUnitNumber: true,
-                  status: true,
-                  warehouseLocation: true
+                  status: true
                 }
               }
             }

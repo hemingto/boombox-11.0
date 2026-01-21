@@ -30,7 +30,7 @@ import { generateDriverToken } from '@/lib/utils/driverAssignmentUtils';
 
 // Validation schema for the request
 const DriverPendingOffersRequestSchema = z.object({
-  driverId: z.string().or(z.number().int().positive()).transform(val => 
+  driverId: z.union([z.string(), z.number()]).transform((val): number => 
     typeof val === 'string' ? parseInt(val, 10) : val
   ),
 });
@@ -99,7 +99,7 @@ export async function GET(
       );
     }
 
-    const { driverId } = validation.data;
+    const driverId = Number(validation.data.driverId);
 
     // Verify driver exists
     const driver = await prisma.driver.findUnique({

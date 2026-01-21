@@ -97,6 +97,7 @@ export class PrepPackingSupplyOrderService {
             select: {
               firstName: true,
               lastName: true
+              
             }
           },
           orderDetails: {
@@ -235,6 +236,7 @@ export class PrepPackingSupplyOrderService {
             select: {
               firstName: true,
               lastName: true
+              
             }
           },
           orderDetails: {
@@ -275,8 +277,7 @@ export class PrepPackingSupplyOrderService {
           admin: {
             select: {
               email: true,
-              firstName: true,
-              lastName: true
+              name: true
             }
           }
         },
@@ -305,9 +306,7 @@ export class PrepPackingSupplyOrderService {
                 select: {
                   id: true,
                   title: true,
-                  category: true,
-                  weight: true,
-                  dimensions: true
+                  category: true
                 }
               }
             }

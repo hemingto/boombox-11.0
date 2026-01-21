@@ -59,6 +59,7 @@ const meta = {
     answer: 'You can return items within 30 days of purchase for a full refund.',
     category: 'policy',
     isOpen: false,
+    toggleAccordion: () => {},
   },
 } satisfies Meta<typeof Accordion>;
 
@@ -82,6 +83,7 @@ const AccordionWrapper = (args: any) => {
 
 // Basic accordion story
 export const Default: Story = {
+  args: {},
   render: AccordionWrapper,
 };
 

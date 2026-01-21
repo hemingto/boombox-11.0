@@ -78,7 +78,6 @@ export function VehicleReqPictures() {
                 quality={85}
                 sizes="(max-width: 640px) 100vw, 33vw"
               />
-              />
               <CheckCircleIcon
                 className="absolute bg-white rounded-full top-2 right-2 w-6 h-6 sm:w-10 sm:h-10 text-status-success"
                 aria-hidden="true"

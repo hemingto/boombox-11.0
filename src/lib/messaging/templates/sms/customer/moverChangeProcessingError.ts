@@ -4,7 +4,7 @@
  * @domain customer
  */
 
-import type { MessageTemplate } from '../../types';
+import type { MessageTemplate } from '../../../types';
 
 export const moverChangeProcessingErrorTemplate: MessageTemplate = {
   text: 'There was an error processing your response. Please try using the link in your original message or contact support.',

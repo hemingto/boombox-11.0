@@ -8,7 +8,7 @@
  * @refactor Extracted storage unit API calls to dedicated service layer with updated API endpoints
  */
 
-import { ApiResponse } from '@/types/api';
+import { ApiResponse } from '@/types/api.types';
 import {
   StorageUnitUsage,
   FormattedStorageUnit,
@@ -256,7 +256,6 @@ export async function fetchStorageUnitsByUser(
         meta: {
           timestamp: new Date().toISOString(),
           requestId: response.headers.get('x-request-id') || undefined,
-          count: rawUnits.length,
         }
       };
     };

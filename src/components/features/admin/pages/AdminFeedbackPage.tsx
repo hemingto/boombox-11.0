@@ -46,7 +46,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
  AdminTable,
  AdminPageHeader,
- FilterDropdown,
+  AdminFilterDropdown,
  ColumnManagerDropdown,
  AdminDetailModal,
  AdminBooleanBadge,
@@ -408,7 +408,7 @@ export function AdminFeedbackPage() {
     </div>
 
     {/* Actions Filter Dropdown (GOLD STANDARD PATTERN) */}
-    <FilterDropdown
+    <AdminFilterDropdown
      label="Actions"
      filters={actionFilterItems}
      isOpen={showActionsFilter}

@@ -79,11 +79,14 @@ export function useMovingPartners(params: UseMovingPartnersParams): UseMovingPar
     const result = await fetchAvailableMovingPartners(filters);
     
     if (result.success) {
-      setMovingPartners(result.data);
+      setMovingPartners(result.data || []);
       setError(null);
     } else {
       setMovingPartners([]);
-      setError(result.error || 'Failed to fetch moving partners');
+      const errorMessage = typeof result.error === 'string' 
+        ? result.error 
+        : result.error?.message || 'Failed to fetch moving partners';
+      setError(errorMessage);
     }
     
     setIsLoading(false);

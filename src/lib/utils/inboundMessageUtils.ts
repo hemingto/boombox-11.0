@@ -93,7 +93,7 @@ export async function findDriverByPhone(phoneNumber: string): Promise<Driver | n
 export async function findPendingMoverChange(userId: string): Promise<Appointment | null> {
   return await prisma.appointment.findFirst({
     where: {
-      userId,
+      userId: parseInt(userId, 10),
       description: {
         contains: '"moverChangeRequest"'
       }
@@ -237,8 +237,8 @@ export function parseAppointmentDescription(description: string | null): any {
 export async function removeDriverFromAppointment(appointmentId: string, driverId: string): Promise<void> {
   await prisma.onfleetTask.updateMany({
     where: {
-      appointmentId,
-      driverId
+      appointmentId: parseInt(appointmentId, 10),
+      driverId: parseInt(driverId, 10)
     },
     data: {
       driverId: null,

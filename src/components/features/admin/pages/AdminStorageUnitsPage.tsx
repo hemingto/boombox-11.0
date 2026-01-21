@@ -40,7 +40,7 @@ import Image from 'next/image';
 import {
   AdminTable,
   AdminPageHeader,
-  FilterDropdown,
+  AdminFilterDropdown,
   ColumnManagerDropdown,
   AdminDetailModal,
   PhotoViewerModal,
@@ -613,7 +613,7 @@ export function AdminStorageUnitsPage() {
         </button>
 
         {/* Action Filter */}
-        <FilterDropdown
+        <AdminFilterDropdown
           label="Actions"
           filters={actionFilters}
           isOpen={showFilterMenu}

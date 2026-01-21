@@ -44,7 +44,7 @@ export class MoverChangeHandler {
       }
 
       // Find pending mover change request
-      const pendingAppointment = await findPendingMoverChange(customer.id);
+      const pendingAppointment = await findPendingMoverChange(String(customer.id));
 
       if (!pendingAppointment) {
         await MessageService.sendSms(
@@ -121,7 +121,7 @@ export class MoverChangeHandler {
         success: true,
         action,
         type: 'mover_change',
-        appointmentId: pendingAppointment.id,
+        appointmentId: String(pendingAppointment.id),
       };
     } catch (error) {
       console.error('Error handling mover change response:', error);

@@ -40,7 +40,9 @@ export type MessageDomain =
   | 'appointment'
   | 'logistics'
   | 'payment'
-  | 'admin';
+  | 'admin'
+  | 'customer'
+  | 'driver';
 export type MessageChannel = 'sms' | 'email';
 
 // Template validation error

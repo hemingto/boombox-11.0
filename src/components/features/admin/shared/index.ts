@@ -23,7 +23,8 @@ export { AdminEmptyState } from './table/AdminEmptyState';
 export { AdminErrorState } from './table/AdminErrorState';
 
 // Filter Components
-export { FilterDropdown } from './filters/FilterDropdown';
+// Note: Exported as AdminFilterDropdown to avoid conflict with ui/primitives/FilterDropdown
+export { FilterDropdown as AdminFilterDropdown } from './filters/FilterDropdown';
 export { ColumnManagerDropdown } from './filters/ColumnManagerDropdown';
 export { AdminPageHeader } from './filters/AdminPageHeader';
 export { AdminDatePicker } from './AdminDatePicker';

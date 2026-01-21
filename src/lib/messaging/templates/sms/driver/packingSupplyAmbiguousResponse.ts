@@ -4,7 +4,7 @@
  * @domain driver
  */
 
-import type { MessageTemplate } from '../../types';
+import type { MessageTemplate } from '../../../types';
 
 export const packingSupplyAmbiguousResponseTemplate: MessageTemplate = {
   text: 'Sorry, we couldn\'t understand your response to the packing supply route offer. Please reply with YES to accept or NO to decline.',

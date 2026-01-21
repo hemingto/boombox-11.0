@@ -278,6 +278,7 @@ export interface AppointmentDetailsResponse {
   loadingHelpPrice: number;
   monthlyStorageRate: number;
   monthlyInsuranceRate: number;
+  insuranceCoverage?: string | null;
   quotedPrice: number;
   status: string;
   user?: {

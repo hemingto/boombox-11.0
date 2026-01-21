@@ -4,7 +4,7 @@
  * @domain customer
  */
 
-import type { MessageTemplate } from '../../types';
+import type { MessageTemplate } from '../../../types';
 
 export const moverChangeAlreadyProcessedTemplate: MessageTemplate = {
   text: 'Your moving partner change request has already been processed. Please check your account for the latest status.',

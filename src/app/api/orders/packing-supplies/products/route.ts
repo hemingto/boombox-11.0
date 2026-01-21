@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
       products: products.map(product => ({
         ...product,
         price: parseFloat(product.price.toString()),
-        hasLowStock: product.stockCount < 50, // Flag for low stock warning
+        hasLowStock: (product.stockCount ?? 0) < 50, // Flag for low stock warning
       })),
     });
   } catch (error: any) {

@@ -47,7 +47,7 @@ export interface UsePhotoUploadReturn {
   uploadError: string | null;
   
   // File input ref
-  fileInputRef: React.RefObject<HTMLInputElement>;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
   
   // Actions
   handleFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;

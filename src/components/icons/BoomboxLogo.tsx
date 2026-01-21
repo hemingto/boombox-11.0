@@ -7,10 +7,10 @@ export const BoomboxLogo: React.FC<{ className?: string }> = ({ className }) => 
     height="100%"
     viewBox="0 0 129 27"
     style={{ display: 'block' }}
-    title="Boombox Storage Logo"
     role="img"
     aria-label="Boombox Storage Logo"
   >
+    <title>Boombox Storage Logo</title>
     <g>
       <g>
         <path fill="currentColor" d="M0,18.72V0H4V12.53a5.85,5.85,0,0,1,4.39-1.66c4.54,0,7.71,3.17,7.71,7.85a8.05,8.05,0,0,1-8.07,7.84C3.38,26.56,0,23.4,0,18.72Zm12.09,0a3.91,3.91,0,0,0-4-4.11,4,4,0,0,0-4,4.11,4,4,0,0,0,4,4.1A4,4,0,0,0,12.09,18.72Z"/>

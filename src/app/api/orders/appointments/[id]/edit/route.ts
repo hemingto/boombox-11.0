@@ -25,7 +25,7 @@ import {
   UpdateAppointmentRequestSchema, 
   UpdateAppointmentResponseSchema 
 } from '@/lib/validations/api.validations';
-import { validateAppointmentDateTime } from '@/lib/utils/appointmentUtils';
+import { validateAppointmentDateTimeFormat } from '@/lib/utils/appointmentUtils';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -150,7 +150,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
     const validatedData = UpdateAppointmentRequestSchema.parse(body);
 
     // 2. Validate appointment date time
-    const dateTimeValidation = validateAppointmentDateTime(validatedData.appointmentDateTime);
+    const dateTimeValidation = validateAppointmentDateTimeFormat(validatedData.appointmentDateTime);
     if (!dateTimeValidation.isValid) {
       return NextResponse.json(
         { success: false, error: dateTimeValidation.error }, 

@@ -4,7 +4,7 @@
  * @domain driver
  */
 
-import type { MessageTemplate } from '../../types';
+import type { MessageTemplate } from '../../../types';
 
 export const taskDeclineErrorTemplate: MessageTemplate = {
   text: 'There was an error declining the job. Please try using the app or contact support for assistance.',

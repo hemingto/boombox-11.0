@@ -127,10 +127,19 @@ export class OnfleetTaskCreationService {
 
       console.log(`✅ Created Onfleet tasks for additional units`);
 
+      // Flatten taskIds object into a single array
+      const flatTaskIds = result?.taskIds 
+        ? [
+            ...result.taskIds.pickup, 
+            ...result.taskIds.customer, 
+            ...result.taskIds.return
+          ]
+        : [];
+
       return {
         success: true,
         tasksCreated: newUnitIds.length * 3, // 3 tasks per unit (pickup, customer, return)
-        taskIds: result?.taskIds || []
+        taskIds: flatTaskIds
       };
     } catch (error) {
       console.error(`❌ Error creating tasks for additional units:`, error);
@@ -221,10 +230,19 @@ export class OnfleetTaskCreationService {
 
       console.log(`✅ Created Onfleet tasks for unit count increase`);
 
+      // Flatten taskIds object into a single array
+      const flatTaskIds = result?.taskIds 
+        ? [
+            ...result.taskIds.pickup, 
+            ...result.taskIds.customer, 
+            ...result.taskIds.return
+          ]
+        : [];
+
       return {
         success: true,
         tasksCreated: additionalUnitsCount * 3, // 3 tasks per unit
-        taskIds: result?.taskIds || []
+        taskIds: flatTaskIds
       };
     } catch (error) {
       console.error(`❌ Error creating tasks for unit count increase:`, error);

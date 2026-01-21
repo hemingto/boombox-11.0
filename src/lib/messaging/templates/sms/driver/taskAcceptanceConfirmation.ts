@@ -4,7 +4,7 @@
  * @domain driver
  */
 
-import type { MessageTemplate } from '../../types';
+import type { MessageTemplate } from '../../../types';
 
 export const taskAcceptanceConfirmationTemplate: MessageTemplate = {
   text: 'Great! You have been assigned to the job on ${formattedDate} at ${formattedTime}. Please check the Boombox account page for more details.',

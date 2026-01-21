@@ -4,7 +4,7 @@
  * @domain driver
  */
 
-import type { MessageTemplate } from '../../types';
+import type { MessageTemplate } from '../../../types';
 
 export const packingSupplyProcessingErrorTemplate: MessageTemplate = {
   text: 'There was an error ${action}ing the packing supply route. Please try using the link in your original message or contact support.',

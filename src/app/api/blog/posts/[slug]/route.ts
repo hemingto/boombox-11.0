@@ -22,11 +22,11 @@ import { BlogService } from '@/lib/services/blogService';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
+  const { slug } = await params;
+  
   try {
-    const { slug } = params;
-
     if (!slug) {
       return NextResponse.json(
         { error: 'Blog post slug is required' },
@@ -47,7 +47,7 @@ export async function GET(
     return NextResponse.json(post);
 
   } catch (error) {
-    console.error(`Error fetching blog post [${params.slug}]:`, error);
+    console.error(`Error fetching blog post [${slug}]:`, error);
     return NextResponse.json(
       { error: 'Failed to fetch blog post' },
       { status: 500 }

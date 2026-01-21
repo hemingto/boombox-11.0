@@ -63,7 +63,7 @@ export {
   formatAppointmentTime,
   formatAppointmentDateForSms,
   formatTimeMinusOneHour,
-  validateAppointmentDateTime,
+  validateAppointmentDateTimeFormat,
   calculateAppointmentChanges,
   calculateFinalUnitCount,
   getUnitNumbersToRemove,

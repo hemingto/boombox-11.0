@@ -71,6 +71,7 @@ const meta = {
   },
   args: {
     open: false,
+    onClose: () => {},
     showCloseButton: true,
     closeOnOverlayClick: true,
   },

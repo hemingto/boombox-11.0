@@ -100,6 +100,7 @@ export class StorageUnitReturnService {
             select: {
               firstName: true,
               lastName: true
+              
             }
           },
           movingPartner: {
@@ -118,7 +119,8 @@ export class StorageUnitReturnService {
               driver: {
                 select: {
                   firstName: true,
-                  lastName: true
+              lastName: true
+                  
                 }
               }
             },

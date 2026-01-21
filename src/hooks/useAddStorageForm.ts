@@ -128,7 +128,7 @@ export function useAddStorageForm(params: UseAddStorageFormParams = {}): UseAddS
     const updates: Partial<AddStorageFormState> = {
       selectedPlan: planId,
       selectedPlanName: planName,
-      planType,
+      planType: planType as PlanType,
     };
 
     // Handle DIY plan special case

@@ -4,7 +4,7 @@
  * @domain customer
  */
 
-import type { MessageTemplate } from '../../types';
+import type { MessageTemplate } from '../../../types';
 
 export const moverChangeDiyTemplate: MessageTemplate = {
   text: 'Perfect! We\'ve switched your appointment to our DIY plan. Our drivers will handle the delivery and you\'ll take care of loading/unloading. Your updated quote is $${newQuotedPrice}.',

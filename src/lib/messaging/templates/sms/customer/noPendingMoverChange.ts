@@ -4,7 +4,7 @@
  * @domain customer
  */
 
-import type { MessageTemplate } from '../../types';
+import type { MessageTemplate } from '../../../types';
 
 export const noPendingMoverChangeTemplate: MessageTemplate = {
   text: 'We could not find any pending moving partner changes for your account. Please contact support if you need assistance.',

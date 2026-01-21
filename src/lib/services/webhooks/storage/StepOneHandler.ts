@@ -64,11 +64,16 @@ export class StepOneHandler {
 
     // Generate tracking token and URL
     console.log('[StepOneHandler] Generating tracking token...');
+    // Convert eta to string, handling null/number cases
+    const etaValue = taskDetails.estimatedArrivalTime != null 
+      ? String(taskDetails.estimatedArrivalTime) 
+      : undefined;
+
     const token = createTrackingToken({
       appointmentId: appointment.id,
       taskId: taskDetails.shortId,
       webhookTime: time,
-      eta: taskDetails.estimatedArrivalTime,
+      eta: etaValue,
       triggerName: 'taskStarted'
     });
     console.log(`[StepOneHandler] Token generated (first 50 chars): ${token.substring(0, 50)}...`);

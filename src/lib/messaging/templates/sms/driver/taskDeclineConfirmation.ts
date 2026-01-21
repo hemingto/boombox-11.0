@@ -4,7 +4,7 @@
  * @domain driver
  */
 
-import type { MessageTemplate } from '../../types';
+import type { MessageTemplate } from '../../../types';
 
 export const taskDeclineReconfirmationTemplate: MessageTemplate = {
   text: 'Thank you for letting us know. We have unassigned you from this job and will find another driver.',

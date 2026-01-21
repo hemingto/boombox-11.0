@@ -485,7 +485,7 @@ export class AppointmentUpdateOrchestrator {
           await NotificationService.createNotification({
             recipientId: appointment.movingPartnerId,
             recipientType: 'MOVER',
-            type: 'APPOINTMENT_CHANGE',
+            type: 'APPOINTMENT_UPDATED',
             data: {
               appointmentId: appointment.id,
               changeType: 'unit_count_reduced',
@@ -598,7 +598,7 @@ export class AppointmentUpdateOrchestrator {
           await NotificationService.createNotification({
             recipientId: appointment.movingPartnerId,
             recipientType: 'MOVER',
-            type: 'APPOINTMENT_CHANGE',
+            type: 'APPOINTMENT_UPDATED',
             data: {
               appointmentId: appointment.id,
               changeType: 'unit_count_reduced',
@@ -1089,7 +1089,7 @@ export class AppointmentUpdateOrchestrator {
             pendingReconfirmations.push({
               driverId: shift.driverId,
               driverName: shift.driverName,
-              driverPhone: shift.driverPhone,
+              driverPhone: shift.driverPhone || '',
               newUnitNumber: shift.newUnit,
               newArrivalTime: shift.newArrivalTime
             });

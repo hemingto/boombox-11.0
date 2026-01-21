@@ -277,6 +277,7 @@ export class AdminTaskListingService {
             select: {
               firstName: true,
               lastName: true
+              
             }
           }
         }

@@ -72,7 +72,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
           where: { isApproved: true },
           take: 1
         },
-        movingPartners: {
+        movingPartnerAssociations: {
           include: {
             movingPartner: true
           }
@@ -140,8 +140,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
 
       // Check if this driver is linked to a moving partner
       // If so, check if this is their first approved driver and activate the mover account
-      if (driver.movingPartners && driver.movingPartners.length > 0) {
-        for (const mpDriver of driver.movingPartners) {
+      if (driver.movingPartnerAssociations && driver.movingPartnerAssociations.length > 0) {
+        for (const mpDriver of driver.movingPartnerAssociations) {
           const mover = mpDriver.movingPartner;
           
           // Only process if mover is approved but still INACTIVE
@@ -187,8 +187,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
 
       // Send driver approval notifications (in-app, SMS, email)
       // Customize message if driver is linked to a moving partner
-      const movingPartnerName = driver.movingPartners && driver.movingPartners.length > 0 
-        ? driver.movingPartners[0].movingPartner.name 
+      const movingPartnerName = driver.movingPartnerAssociations && driver.movingPartnerAssociations.length > 0 
+        ? driver.movingPartnerAssociations[0].movingPartner.name 
         : undefined;
       
       ApprovalNotificationService.notifyDriverApproved({

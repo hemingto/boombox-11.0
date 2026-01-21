@@ -15,16 +15,16 @@
 import { renderHook } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import type {
-  AccessStorageFormState,
-  AccessStorageSubmissionData,
-  StorageUnitUsage,
-  FormattedStorageUnit,
-  SelectedLabor,
+import {
   DeliveryReason,
   PlanType,
   AppointmentType,
-  AccessStorageStep
+  AccessStorageStep,
+  type AccessStorageFormState,
+  type AccessStorageSubmissionData,
+  type StorageUnitUsage,
+  type FormattedStorageUnit,
+  type SelectedLabor,
 } from '@/types/accessStorage.types';
 
 // ===== MOCK DATA FACTORIES =====
@@ -60,7 +60,7 @@ export const createMockFormState = (overrides: Partial<AccessStorageFormState> =
   selectedStorageUnits: ['unit-101', 'unit-102'],
   selectedPlan: 'option1',
   selectedPlanName: 'Do It Yourself Plan',
-  planType: PlanType.DIY,
+  planType: PlanType.DO_IT_YOURSELF,
   
   // Step 2: Scheduling
   scheduledDate: new Date('2024-02-15T10:00:00Z'),
@@ -98,7 +98,7 @@ export const createMockSubmissionData = (overrides: Partial<AccessStorageSubmiss
   selectedPlanName: 'Do It Yourself Plan',
   appointmentDateTime: '2024-02-15T10:00:00.000Z',
   deliveryReason: DeliveryReason.ACCESS_ITEMS,
-  planType: PlanType.DIY,
+  planType: PlanType.DO_IT_YOURSELF,
   selectedStorageUnits: ['unit-101', 'unit-102'],
   description: 'Test delivery description',
   appointmentType: AppointmentType.STORAGE_UNIT_ACCESS,
@@ -115,11 +115,14 @@ export const createMockStorageUnit = (overrides: Partial<StorageUnitUsage> = {})
   storageUnit: {
     id: 101,
     storageUnitNumber: 'BX001',
+    mainImage: 'https://example.com/image1.jpg',
   },
   usageStartDate: '2024-01-15T10:00:00Z',
   returnDate: '2024-02-15T10:00:00Z',
   mainImage: 'https://example.com/image1.jpg',
   description: 'Living room furniture',
+  uploadedImages: ['https://example.com/image1.jpg'],
+  location: 'Warehouse A',
   ...overrides
 });
 

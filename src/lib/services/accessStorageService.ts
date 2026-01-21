@@ -8,7 +8,7 @@
  * @refactor Extracted API calls to dedicated service layer with updated API endpoints
  */
 
-import { ApiResponse } from '@/types/api';
+import { ApiResponse } from '@/types/api.types';
 import {
   AccessStorageSubmissionData,
   AccessStorageApiResponse,

@@ -4,7 +4,7 @@
  * @domain driver
  */
 
-import type { MessageTemplate } from '../../types';
+import type { MessageTemplate } from '../../../types';
 
 export const packingSupplyDeclinedTemplate: MessageTemplate = {
   text: 'Thanks for letting us know. We\'ve recorded that you declined the packing supply route. We\'ll continue looking for other available drivers.',

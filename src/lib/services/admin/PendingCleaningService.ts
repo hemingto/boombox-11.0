@@ -192,13 +192,12 @@ export class PendingCleaningService {
           admin: {
             select: {
               email: true,
-              firstName: true,
-              lastName: true
+              name: true
             }
           }
         },
         orderBy: {
-          createdAt: 'desc'
+          cleanedAt: 'desc'
         }
       });
     } catch (error) {

@@ -805,6 +805,5 @@ export function useAccessStorageAppointmentData() {
     canRetry: appointmentDataHook?.canRetry || false,
     isEditMode: true,
     appointmentId,
-    appointmentId
   };
 }

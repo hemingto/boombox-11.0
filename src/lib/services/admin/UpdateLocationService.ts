@@ -73,6 +73,7 @@ export class UpdateLocationService {
             select: {
               firstName: true,
               lastName: true
+              
             }
           }
         }
@@ -203,6 +204,7 @@ export class UpdateLocationService {
             select: {
               firstName: true,
               lastName: true
+              
             }
           }
         },

@@ -184,7 +184,7 @@ export default function DriverOfferPage() {
                 // Sum estimated costs for only THIS unit's tasks (Step 1, 2, 3 for this unitNumber)
                 // This matches the calculation used in SMS notifications and pending-offers API
                 const unitTasks = fullAppointmentData.onfleetTasks?.filter(
-                  (task: OnfleetTaskData) => task.unitNumber === localTokenData.unitNumber
+                  (task: OnfleetTaskData) => task.unitNumber === fullAppointmentData.unitNumber
                 ) || [];
                 
                 const unitTaskCostSum = unitTasks.reduce(

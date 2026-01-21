@@ -312,9 +312,10 @@ export async function POST(request: NextRequest) {
           });
         } else {
           // Validate stock availability
-          if (product.stockCount < item.quantity) {
+          const currentStock = product.stockCount ?? 0;
+          if (currentStock < item.quantity) {
             throw new Error(
-              `Sorry, we don't have enough ${item.name} in stock. We only have ${product.stockCount} available, but you requested ${item.quantity}. Please reduce the quantity and try again.`
+              `Sorry, we don't have enough ${item.name} in stock. We only have ${currentStock} available, but you requested ${item.quantity}. Please reduce the quantity and try again.`
             );
           }
 
@@ -325,7 +326,7 @@ export async function POST(request: NextRequest) {
               stockCount: {
                 decrement: item.quantity,
               },
-              isOutOfStock: product.stockCount - item.quantity <= 0,
+              isOutOfStock: currentStock - item.quantity <= 0,
             },
           });
         }

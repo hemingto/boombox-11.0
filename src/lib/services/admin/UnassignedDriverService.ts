@@ -81,6 +81,7 @@ export class UnassignedDriverService {
             select: {
               firstName: true,
               lastName: true
+              
             }
           },
           movingPartner: {

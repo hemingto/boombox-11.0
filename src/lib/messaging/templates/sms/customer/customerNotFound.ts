@@ -4,11 +4,11 @@
  * @domain customer
  */
 
-import type { MessageTemplate } from '../../types';
+import type { MessageTemplate } from '../../../types';
 
 export const customerNotFoundTemplate: MessageTemplate = {
   text: 'We could not identify you in our system. Please contact support for assistance.',
   requiredVariables: [],
   channel: 'sms',
-  domain: 'customer'
+  domain: 'auth'
 };

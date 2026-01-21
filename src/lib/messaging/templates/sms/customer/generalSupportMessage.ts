@@ -4,7 +4,7 @@
  * @domain customer
  */
 
-import type { MessageTemplate } from '../../types';
+import type { MessageTemplate } from '../../../types';
 
 export const generalSupportTemplate: MessageTemplate = {
   text: 'We received your message. If you need assistance with your appointment, please contact our support team.',

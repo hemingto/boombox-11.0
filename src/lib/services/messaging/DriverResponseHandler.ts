@@ -96,7 +96,7 @@ export class DriverResponseHandler {
     const customer = await findCustomerByPhone(phoneNumber);
 
     if (customer) {
-      const pendingAppointment = await findPendingMoverChange(customer.id);
+      const pendingAppointment = await findPendingMoverChange(String(customer.id));
 
       if (pendingAppointment) {
         await MessageService.sendSms(
@@ -363,7 +363,7 @@ export class DriverResponseHandler {
 
       if (isReconfirmationDecline) {
         // Remove driver from all tasks for this appointment and trigger reassignment
-        await removeDriverFromAppointment(task.appointmentId, driver.id);
+        await removeDriverFromAppointment(task.appointmentId, String(driver.id));
 
         // Trigger driver reassignment
         await fetch(`${config.app.url}/api/onfleet/driver-assign`, {

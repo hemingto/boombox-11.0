@@ -52,8 +52,6 @@ export function StorageCalculatorSection() {
           className="object-cover rounded-md"
           loading="lazy"
           quality={85}
-        />
-          quality={85}
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 800px"
         />
       </div>

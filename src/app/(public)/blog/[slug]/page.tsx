@@ -27,9 +27,9 @@ import { BlogPostHero, FullBlogPost } from '@/components/features/content';
 import { FaqSection, HelpCenterSection } from '@/components/features/landing';
 
 interface BlogPostPageProps {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }
 
 /**
@@ -37,7 +37,8 @@ interface BlogPostPageProps {
  * Includes title, description, OpenGraph, and Twitter cards
  */
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
-  const post = await BlogService.getBlogPostBySlug(params.slug);
+  const { slug } = await params;
+  const post = await BlogService.getBlogPostBySlug(slug);
 
   if (!post) {
     return {
@@ -99,7 +100,8 @@ export async function generateStaticParams() {
  * Server component that fetches and renders individual blog post
  */
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
-  const post = await BlogService.getBlogPostBySlug(params.slug);
+  const { slug } = await params;
+  const post = await BlogService.getBlogPostBySlug(slug);
 
   // Return 404 if post not found
   if (!post) {

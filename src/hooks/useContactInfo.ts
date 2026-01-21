@@ -193,7 +193,7 @@ export function useContactInfo({
       // Convert hourlyRate to number if it's being updated
       const payload: Record<string, any> = {};
       if (editField === 'hourlyRate') {
-        payload[editField] = parseFloat(editedInfo[editField] as string);
+        payload[editField] = parseFloat(String(editedInfo[editField]));
       } else {
         payload[editField] = editedInfo[editField];
       }

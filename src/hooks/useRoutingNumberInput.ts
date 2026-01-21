@@ -66,9 +66,9 @@ export interface UseRoutingNumberInputReturn {
   inputProps: {
     type: 'text';
     inputMode: 'numeric';
-    pattern: '[0-9]*';
-    maxLength: 9;
-    placeholder: 'Routing Number';
+    pattern: string;
+    maxLength: number;
+    placeholder: string;
     value: string;
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     onFocus: () => void;
@@ -266,7 +266,7 @@ export function useRoutingNumberInput(
   const inputProps = {
     type: 'text' as const,
     inputMode: 'numeric' as const,
-    pattern: '[0-9]*',
+    pattern: '[0-9]*' as const,
     maxLength: 9,
     placeholder: 'Routing Number',
     value,

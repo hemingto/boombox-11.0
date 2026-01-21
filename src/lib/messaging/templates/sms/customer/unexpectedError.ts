@@ -4,7 +4,7 @@
  * @domain customer
  */
 
-import type { MessageTemplate } from '../../types';
+import type { MessageTemplate } from '../../../types';
 
 export const unexpectedErrorTemplate: MessageTemplate = {
   text: 'There was an unexpected error processing your response. Please contact support for assistance.',

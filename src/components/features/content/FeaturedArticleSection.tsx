@@ -65,15 +65,12 @@ export const FeaturedArticleSection: React.FC = () => {
         <Link href={article.link} className="group">
           <div className="flex items-center mb-8">
             <div className="w-8 h-8 mr-2 flex-shrink-0 rounded-full overflow-hidden">
-              <AvatarImage
-                src={article.authorImage}
+              <Image
+                src={article.authorImage || '/placeholder.jpg'}
                 alt={`${article.author} profile picture`}
                 width={32}
                 height={32}
-                className="w-full h-full"
-                containerClassName="w-full h-full"
-                objectFit="cover"
-                fallbackSrc="/placeholder.jpg"
+                className="w-full h-full object-cover"
               />
             </div>
             <p className="text-sm text-text-tertiary">
