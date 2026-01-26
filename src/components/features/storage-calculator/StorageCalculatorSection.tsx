@@ -1,63 +1,125 @@
 /**
- * @fileoverview Storage calculator section with visual placeholder
- * @source boombox-10.0/src/app/components/storagecalculator/storagecalculatorsection.tsx
- * 
- * COMPONENT FUNCTIONALITY:
- * Displays a visual section for the storage calculator. This section appears to be
- * a placeholder for future calculator functionality or interactive content.
- * 
- * DESIGN SYSTEM UPDATES:
- * - Uses Next.js Image component for images
- * - Applied semantic surface colors (bg-surface-tertiary for fallback)
- * - Used consistent spacing from design system
- * - Implemented proper image optimization with lazy loading
- * 
- * IMAGE OPTIMIZATION:
- * - Uses Next.js Image with lazy loading for below-the-fold content
- * - Set quality to 85 for optimal performance
- * - Responsive sizing with proper aspect ratio
- * - Descriptive alt text for accessibility and SEO
- * 
- * @refactor 
- * - Renamed from storagecalculatorsection.tsx to StorageCalculatorSection.tsx (PascalCase)
- * - Uses Next.js Image for better performance
- * - Updated imports to use absolute paths
- * - Applied semantic design system color tokens
- * - Enhanced accessibility with proper semantic HTML
+ * @fileoverview Interactive 3D storage calculator section
+ * Combines ItemSelector, BoomboxVisualizer, and CalculatorSummary
+ *
+ * LAYOUT:
+ * Desktop: Sidebar (ItemSelector) | Main (Visualizer + Summary)
+ * Mobile: Tabs between ItemSelector and Visualizer, Summary always visible
+ *
+ * FEATURES:
+ * - 3D visualization of items in Boombox containers
+ * - Real-time bin-packing calculation
+ * - Responsive layout for all screen sizes
+ * - Premium, Boombox-branded design
  */
 
 'use client';
 
-import Image from 'next/image';
+import { useState } from 'react';
+import dynamic from 'next/dynamic';
+import { ItemSelector } from './ItemSelector';
+import { CalculatorSummary } from './CalculatorSummary';
+import { cn } from '@/lib/utils';
+import { Box, List } from 'lucide-react';
 
-/**
- * Storage Calculator Section Component
- * 
- * Displays a visual section that can be used for:
- * - Interactive storage calculator interface
- * - Visual illustration of storage solutions
- * - Placeholder for future calculator functionality
- */
+// Dynamically import the 3D visualizer to avoid SSR issues with Three.js
+const BoomboxVisualizer = dynamic(
+  () => import('./BoomboxVisualizer').then(mod => mod.BoomboxVisualizer),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full min-h-[400px] bg-zinc-100 rounded-lg flex items-center justify-center">
+        <div className="flex items-center gap-2 text-zinc-500">
+          <div className="w-5 h-5 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin" />
+          <span>Loading 3D visualizer...</span>
+        </div>
+      </div>
+    ),
+  }
+);
+
+// ==================== TYPES ====================
+
+type MobileView = 'items' | 'visualizer';
+
+// ==================== COMPONENT ====================
+
 export function StorageCalculatorSection() {
+  const [mobileView, setMobileView] = useState<MobileView>('items');
+
   return (
-    <section 
-      className="md:flex lg:px-16 px-6 sm:mb-48 mb-24"
-      aria-label="Storage calculator interactive section"
+    <section
+      className="lg:px-16 px-6 sm:mb-48 mb-24"
+      aria-label="Interactive storage calculator"
     >
-      <div className="relative rounded-md w-full flex flex-col items-center text-center p-24 bg-surface-tertiary max-w-2xl aspect-[8/5] overflow-hidden">
-        <Image
-          src="/placeholder.jpg"
-          alt="Storage calculator interactive interface - calculate your storage needs with Boombox units"
-          fill
-          className="object-cover rounded-md"
-          loading="lazy"
-          quality={85}
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 800px"
-        />
+      {/* Mobile View Toggle */}
+      <div className="lg:hidden flex mb-4 bg-surface-tertiary rounded-lg p-1">
+        <button
+          onClick={() => setMobileView('items')}
+          className={cn(
+            'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md text-sm font-medium transition-colors',
+            mobileView === 'items'
+              ? 'bg-white text-text-primary shadow-sm'
+              : 'text-text-secondary hover:text-text-primary'
+          )}
+        >
+          <List className="w-4 h-4" />
+          Items
+        </button>
+        <button
+          onClick={() => setMobileView('visualizer')}
+          className={cn(
+            'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md text-sm font-medium transition-colors',
+            mobileView === 'visualizer'
+              ? 'bg-white text-text-primary shadow-sm'
+              : 'text-text-secondary hover:text-text-primary'
+          )}
+        >
+          <Box className="w-4 h-4" />
+          3D View
+        </button>
+      </div>
+
+      {/* Main Layout */}
+      <div className="grid lg:grid-cols-[350px_1fr] gap-6">
+        {/* Left Sidebar - Item Selector */}
+        <div
+          className={cn(
+            'lg:block',
+            mobileView === 'items' ? 'block' : 'hidden'
+          )}
+        >
+          <ItemSelector className="lg:sticky lg:top-24" />
+        </div>
+
+        {/* Right Side - Visualizer and Summary */}
+        <div
+          className={cn(
+            'flex flex-col gap-6',
+            mobileView === 'visualizer' ? 'block' : 'hidden lg:flex'
+          )}
+        >
+          {/* 3D Visualizer */}
+          <div className="bg-gradient-to-b from-zinc-100 to-zinc-200 rounded-lg overflow-hidden aspect-[4/3] lg:aspect-[16/10]">
+            <BoomboxVisualizer className="w-full h-full" />
+          </div>
+
+          {/* Summary Panel */}
+          <CalculatorSummary />
+        </div>
+      </div>
+
+      {/* Mobile Summary - Always visible on mobile when viewing items */}
+      <div
+        className={cn(
+          'lg:hidden mt-6',
+          mobileView === 'items' ? 'block' : 'hidden'
+        )}
+      >
+        <CalculatorSummary />
       </div>
     </section>
   );
 }
 
 export default StorageCalculatorSection;
-

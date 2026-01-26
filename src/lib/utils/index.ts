@@ -170,12 +170,13 @@ export {
 } from './pricingUtils';
 
 // Storage utilities (explicit exports)
-export {
-  getStorageUnitText,
-} from './storageUtils';
+export { getStorageUnitText } from './storageUtils';
 
 // Sorting and pagination utilities
 export * from './sortingUtils';
 
 // Tracking utilities
 export * from './trackingStatusUtils';
+
+// Bin packing utilities for storage calculator
+export * from './binPackingUtils';

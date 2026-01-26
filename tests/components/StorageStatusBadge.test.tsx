@@ -60,14 +60,3 @@ describe('StorageStatusBadge', () => {
     expect(badge).toHaveClass('px-2.5', 'py-1', 'text-sm', 'rounded-md');
   });
 });
-
-
-
-
-
-
-
-
-
-
-

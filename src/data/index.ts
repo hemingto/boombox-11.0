@@ -41,3 +41,5 @@ export * from './accessStorageUnitPricing';
 export * from './cancelationpricing';
 export * from './zipcodeprices';
 
+// Storage Calculator Inventory
+export * from './inventoryData';

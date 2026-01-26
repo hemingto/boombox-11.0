@@ -8,13 +8,3 @@ describe('Minimal Test', () => {
     expect(screen.getByText('Add Storage Form')).toBeInTheDocument();
   });
 });
-
-
-
-
-
-
-
-
-
-

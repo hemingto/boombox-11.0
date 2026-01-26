@@ -10,13 +10,3 @@ export default function AddStorageFormMinimal() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
