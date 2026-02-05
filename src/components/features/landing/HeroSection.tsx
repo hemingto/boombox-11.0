@@ -185,9 +185,10 @@ export function HeroSection({
     }
 
     // Convert form data to query string
-    const queryParams = new URLSearchParams(
-      formData as Record<string, string>
-    ).toString();
+    const queryParams = new URLSearchParams({
+      storageUnitCount: formData.storageUnitCount.toString(),
+      ...(formData.zipCode && { zipCode: formData.zipCode }),
+    }).toString();
 
     // Navigate to the get-quote page with the query parameters
     router.push(`/get-quote?${queryParams}`);

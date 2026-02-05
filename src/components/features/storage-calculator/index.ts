@@ -10,7 +10,11 @@ export { StorageCalculatorFAQ } from './StorageCalculatorFAQ';
 export { StorageCalculatorHero } from './StorageCalculatorHero';
 export { StorageCalculatorSection } from './StorageCalculatorSection';
 
-// New interactive calculator components
-export { ItemSelector } from './ItemSelector';
-export { CalculatorSummary } from './CalculatorSummary';
-export { default as BoomboxVisualizer } from './BoomboxVisualizer';
+// Calculator sub-components
+export { StorageCalculatorWidget } from './StorageCalculatorWidget';
+export { CalculatorHeader } from './CalculatorHeader';
+export { ItemList } from './ItemList';
+export { ItemRow, formatDimensions } from './ItemRow';
+export { CustomItemModal } from './CustomItemModal';
+export { CalculatorResults } from './CalculatorResults';
+export { MaxUnitsExceeded } from './MaxUnitsExceeded';

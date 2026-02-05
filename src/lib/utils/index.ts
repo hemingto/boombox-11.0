@@ -177,6 +177,3 @@ export * from './sortingUtils';
 
 // Tracking utilities
 export * from './trackingStatusUtils';
-
-// Bin packing utilities for storage calculator
-export * from './binPackingUtils';

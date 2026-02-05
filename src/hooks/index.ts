@@ -186,19 +186,15 @@ export { useAdminDataFetch } from './useAdminDataFetch';
 export { useTask } from './useTask';
 export type { Task } from './useTask';
 
-// Storage calculator store
-export {
-  useStorageStore,
-  useSelectedItemsWithDetails,
-  getContainerCapacity,
-} from './useStorageStore';
+// Storage Calculator hooks
+export { useStorageCalculator } from './useStorageCalculator';
 export type {
-  StorageStore,
-  StorageStoreState,
-  StorageStoreActions,
-  PackedItem,
-  SelectedItem,
-} from './useStorageStore';
+  ViewMode,
+  CalculatorView,
+  CalculatorState,
+  CalculationResult,
+  UseStorageCalculatorReturn,
+} from './useStorageCalculator';
 
 // Note: Additional custom hooks will be added here as they are created
 // Examples: useAuth, useBooking, useOnfleet, etc.
