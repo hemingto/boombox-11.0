@@ -1,20 +1,20 @@
-"use client";
+'use client';
 
 /**
  * @fileoverview Unified MyQuote component for order pricing display with responsive design
  * @source boombox-10.0/src/app/components/getquote/myquote.tsx
  * @source boombox-10.0/src/app/components/getquote/mobilemyquote.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * Displays order pricing details, map location, and appointment information in both desktop and mobile layouts.
  * Handles quote calculations, insurance pricing, storage unit costs, and loading help pricing.
  * Integrates with Google Maps for location display and SendQuoteEmail for quote sharing.
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Replaced hardcoded colors with semantic design tokens
  * - Applied utility classes from globals.css
  * - Used design system spacing and typography patterns
- * 
+ *
  * @refactor Combined desktop and mobile versions into single responsive component with unified business logic
  */
 
@@ -27,8 +27,12 @@ import SendQuoteEmail from '@/components/forms/SendQuoteEmailModal';
 import { InsuranceOption } from '@/types/insurance';
 import { QuoteData } from '@/lib/services/quoteService';
 import { mapStyles } from '@/app/mapstyles';
-import { formatVerboseDate } from '@/lib/utils/dateUtils';
-import { getBoomboxPriceByZipCode, formatStorageUnitPrice, formatInsurancePrice } from '@/lib/utils/pricingUtils';
+import {
+  formatVerboseDate,
+  getBoomboxPriceByZipCode,
+  formatStorageUnitPrice,
+  formatInsurancePrice,
+} from '@/lib/utils';
 import { useQuote } from '@/hooks/useQuote';
 import { accessStorageUnitPricing } from '@/data/accessStorageUnitPricing';
 
@@ -56,14 +60,14 @@ interface MyQuoteProps {
   setMonthlyStorageRate: (rate: number) => void;
   setMonthlyInsuranceRate: (rate: number) => void;
   isAccessStorage: boolean;
-  
+
   // Edit mode specific props
   isEditMode?: boolean;
   appointmentId?: string;
   originalTotal?: number;
   showPriceComparison?: boolean;
   editModeTitle?: string;
-  
+
   // Button state props
   isButtonDisabled?: boolean;
 }
@@ -74,17 +78,17 @@ const containerStyle = {
   borderRadius: '0.375rem',
 };
 
-export function MyQuote({ 
-  title = "My Quote",
+export function MyQuote({
+  title = 'My Quote',
   showSendQuoteEmail = true,
-  address, 
-  scheduledDate, 
-  scheduledTimeSlot, 
-  storageUnitCount, 
-  storageUnitText, 
-  selectedPlanName, 
-  loadingHelpPrice, 
-  loadingHelpDescription, 
+  address,
+  scheduledDate,
+  scheduledTimeSlot,
+  storageUnitCount,
+  storageUnitText,
+  selectedPlanName,
+  loadingHelpPrice,
+  loadingHelpDescription,
   selectedInsurance,
   zipCode,
   handleSubmit,
@@ -93,19 +97,21 @@ export function MyQuote({
   accessStorageUnitCount,
   onCalculateTotal,
   buttonTexts,
-  monthlyStorageRate,
-  monthlyInsuranceRate,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  monthlyStorageRate: _monthlyStorageRate,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  monthlyInsuranceRate: _monthlyInsuranceRate,
   setMonthlyStorageRate,
   setMonthlyInsuranceRate,
   isAccessStorage,
-  
+
   // Edit mode props
   isEditMode = false,
   appointmentId,
   originalTotal,
   showPriceComparison = false,
   editModeTitle,
-  
+
   // Button state props
   isButtonDisabled = false,
 }: MyQuoteProps) {
@@ -151,57 +157,62 @@ export function MyQuote({
 
     const currentTotal = pricing.total;
     const difference = currentTotal - originalTotal;
-    
+
     if (Math.abs(difference) < 0.01) {
       return { type: 'same', difference: 0, message: 'No price change' };
     } else if (difference > 0) {
-      return { 
-        type: 'increase', 
-        difference, 
-        message: `+$${difference.toFixed(2)} from original` 
+      return {
+        type: 'increase',
+        difference,
+        message: `+$${difference.toFixed(2)} from original`,
       };
     } else {
-      return { 
-        type: 'decrease', 
-        difference: Math.abs(difference), 
-        message: `-$${Math.abs(difference).toFixed(2)} from original` 
+      return {
+        type: 'decrease',
+        difference: Math.abs(difference),
+        message: `-$${Math.abs(difference).toFixed(2)} from original`,
       };
     }
   }, [isEditMode, originalTotal, showPriceComparison, pricing.total]);
 
   // Prepare quote data for email
-  const quoteData: QuoteData = useMemo(() => ({
-    address,
-    scheduledDate,
-    scheduledTimeSlot,
-    storageUnitCount,
-    storageUnitText,
-    selectedPlanName,
-    loadingHelpPrice,
-    loadingHelpDescription,
-    selectedInsurance: selectedInsurance ? {
-      label: selectedInsurance.label,
-      price: selectedInsurance.price || '' // Ensure price is always a string
-    } : null,
-    accessStorageUnitCount,
-    totalPrice: pricing.total,
-    isAccessStorage,
-    zipCode,
-  }), [
-    address,
-    scheduledDate,
-    scheduledTimeSlot,
-    storageUnitCount,
-    storageUnitText,
-    selectedPlanName,
-    loadingHelpPrice,
-    loadingHelpDescription,
-    selectedInsurance,
-    accessStorageUnitCount,
-    pricing.total,
-    isAccessStorage,
-    zipCode,
-  ]);
+  const quoteData: QuoteData = useMemo(
+    () => ({
+      address,
+      scheduledDate,
+      scheduledTimeSlot,
+      storageUnitCount,
+      storageUnitText,
+      selectedPlanName,
+      loadingHelpPrice,
+      loadingHelpDescription,
+      selectedInsurance: selectedInsurance
+        ? {
+            label: selectedInsurance.label,
+            price: selectedInsurance.price || '', // Ensure price is always a string
+          }
+        : null,
+      accessStorageUnitCount,
+      totalPrice: pricing.total,
+      isAccessStorage,
+      zipCode,
+    }),
+    [
+      address,
+      scheduledDate,
+      scheduledTimeSlot,
+      storageUnitCount,
+      storageUnitText,
+      selectedPlanName,
+      loadingHelpPrice,
+      loadingHelpDescription,
+      selectedInsurance,
+      accessStorageUnitCount,
+      pricing.total,
+      isAccessStorage,
+      zipCode,
+    ]
+  );
 
   return (
     <>
@@ -209,7 +220,9 @@ export function MyQuote({
       <div className="p-6 hidden md:block bg-surface-primary rounded-md shadow-custom-shadow w-full max-w-md">
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h3 className="text-2xl font-semibold text-text-primary">{displayTitle}</h3>
+            <h3 className="text-2xl font-semibold text-text-primary">
+              {displayTitle}
+            </h3>
             {isEditMode && appointmentId && (
               <p className="text-sm text-text-secondary mt-1">
                 Appointment #{appointmentId}
@@ -222,7 +235,7 @@ export function MyQuote({
           <div className="rounded-md mb-4">
             <GoogleMap
               mapContainerStyle={containerStyle}
-              center={mapCenter || { lat: 37.75, lng: -122.294465 }} 
+              center={mapCenter || { lat: 37.75, lng: -122.294465 }}
               zoom={mapZoom}
               options={{
                 styles: mapStyles,
@@ -234,22 +247,37 @@ export function MyQuote({
             </GoogleMap>
           </div>
           <p className="text-sm text-text-tertiary mb-1">Address</p>
-          <p id="address-input" className="mb-4 text-text-primary">{address || '---'}</p>
+          <p id="address-input" className="mb-4 text-text-primary">
+            {address || '---'}
+          </p>
           <p className="text-sm text-text-tertiary mb-1">Date and Time</p>
-          <p id="date-time-input" className="text-text-primary">{formatVerboseDate(scheduledDate)} {scheduledTimeSlot ? `between ${scheduledTimeSlot}` : ''}</p>
+          <p id="date-time-input" className="text-text-primary">
+            {formatVerboseDate(scheduledDate)}{' '}
+            {scheduledTimeSlot ? `between ${scheduledTimeSlot}` : ''}
+          </p>
         </div>
-        <h3 className="text-xl font-semibold mb-4 text-text-primary">Price details</h3>
+        <h3 className="text-xl font-semibold mb-4 text-text-primary">
+          Price details
+        </h3>
         <div className="pb-4 mb-4 border-b border-border">
           {storageUnitCount !== undefined && storageUnitText !== undefined && (
             <div className="flex justify-between mb-4">
-              <p className="text-text-primary">{storageUnitCount} Boombox{storageUnitCount > 1 ? 'es' : ''}</p>
+              <p className="text-text-primary">
+                {storageUnitCount} Boombox{storageUnitCount > 1 ? 'es' : ''}
+              </p>
               <p className="text-text-primary">
                 {boomboxPrice !== null ? (
                   <>
                     <span className="text-text-tertiary line-through text-xs mr-1">
-                      {formatStorageUnitPrice(boomboxPrice, storageUnitCount).strikethroughPrice}
-                    </span> 
-                    {formatStorageUnitPrice(boomboxPrice, storageUnitCount).price}
+                      {
+                        formatStorageUnitPrice(boomboxPrice, storageUnitCount)
+                          .strikethroughPrice
+                      }
+                    </span>
+                    {
+                      formatStorageUnitPrice(boomboxPrice, storageUnitCount)
+                        .price
+                    }
                   </>
                 ) : (
                   '---'
@@ -259,14 +287,26 @@ export function MyQuote({
           )}
           {accessStorageUnitCount !== undefined && (
             <div className="flex justify-between mb-4">
-              <p className="text-text-primary">{accessStorageUnitCount > 0 ? accessStorageUnitCount : ''} Storage Unit {accessStorageUnitCount > 1 ? 'Deliveries' : 'Delivery'} </p>
-              <p className="text-text-primary">{accessStorageUnitCount > 0 ? `$${accessStorageUnitCount * accessStorageUnitPricing}` : '---'}</p>
+              <p className="text-text-primary">
+                {accessStorageUnitCount > 0 ? accessStorageUnitCount : ''}{' '}
+                Storage Unit{' '}
+                {accessStorageUnitCount > 1 ? 'Deliveries' : 'Delivery'}{' '}
+              </p>
+              <p className="text-text-primary">
+                {accessStorageUnitCount > 0
+                  ? `$${accessStorageUnitCount * accessStorageUnitPricing}`
+                  : '---'}
+              </p>
             </div>
           )}
           <div className="flex justify-between mb-4">
-            <p className="text-text-primary">{selectedPlanName || 'Loading Help'}</p>
             <p className="text-text-primary">
-              <span className="text-text-tertiary text-xs mr-1">{loadingHelpDescription}</span> 
+              {selectedPlanName || 'Loading Help'}
+            </p>
+            <p className="text-text-primary">
+              <span className="text-text-tertiary text-xs mr-1">
+                {loadingHelpDescription}
+              </span>
               {loadingHelpPrice || '--- '}
             </p>
           </div>
@@ -276,7 +316,10 @@ export function MyQuote({
               <p className="text-text-primary">
                 {selectedInsurance.price ? (
                   <span>
-                    {formatInsurancePrice(selectedInsurance, storageUnitCount || 1)}
+                    {formatInsurancePrice(
+                      selectedInsurance,
+                      storageUnitCount || 1
+                    )}
                   </span>
                 ) : (
                   <span className="text-text-primary">---</span>
@@ -293,27 +336,37 @@ export function MyQuote({
           <div className="flex items-center">
             <div>
               <div className="flex items-center">
-                <p className="text-xl font-semibold mr-1 text-text-primary">Total</p>
-                <Tooltip 
-                  text={isEditMode 
-                    ? "This is the updated total amount for your appointment changes." 
-                    : "This is the total amount you will pay on the day of your initial appointment."
-                  } 
+                <p className="text-xl font-semibold mr-1 text-text-primary">
+                  Total
+                </p>
+                <Tooltip
+                  text={
+                    isEditMode
+                      ? 'This is the updated total amount for your appointment changes.'
+                      : 'This is the total amount you will pay on the day of your initial appointment.'
+                  }
                 />
               </div>
               {priceComparison && (
-                <p className={`text-sm mt-1 ${
-                  priceComparison.type === 'increase' ? 'text-status-warning' :
-                  priceComparison.type === 'decrease' ? 'text-status-success' :
-                  'text-text-tertiary'
-                }`}>
+                <p
+                  className={`text-sm mt-1 ${
+                    priceComparison.type === 'increase'
+                      ? 'text-status-warning'
+                      : priceComparison.type === 'decrease'
+                        ? 'text-status-success'
+                        : 'text-text-tertiary'
+                  }`}
+                >
                   {priceComparison.message}
                 </p>
               )}
             </div>
           </div>
           <div className="text-right">
-            <p id="total-price" className="text-xl font-semibold text-text-primary">
+            <p
+              id="total-price"
+              className="text-xl font-semibold text-text-primary"
+            >
               {pricing.total > 0 ? `$${pricing.total}` : '---'}
             </p>
             {isEditMode && originalTotal && originalTotal !== pricing.total && (
@@ -327,9 +380,17 @@ export function MyQuote({
           variant="primary"
           fullWidth
           onClick={handleSubmit}
-          disabled={isButtonDisabled || (isAccessStorage && accessStorageUnitCount === 0)}
+          disabled={
+            isButtonDisabled ||
+            (isAccessStorage && accessStorageUnitCount === 0)
+          }
         >
-          {buttonTexts?.[currentStep] || (currentStep === 2 ? "Add Moving Help" : currentStep === 3 ? "Confirm Appointment" : "Reserve Appointment")}
+          {buttonTexts?.[currentStep] ||
+            (currentStep === 2
+              ? 'Add Moving Help'
+              : currentStep === 3
+                ? 'Confirm Appointment'
+                : 'Reserve Appointment')}
         </Button>
       </div>
 
@@ -338,7 +399,9 @@ export function MyQuote({
         <button
           onClick={() => setIsExpanded(!isExpanded)}
           className={`absolute -top-8 left-1/2 transform -translate-x-1/2 w-16 h-8 ${isExpanded ? 'bg-primary-hover' : 'bg-primary'} text-text-inverse rounded-t-full flex items-center justify-center`}
-          aria-label={isExpanded ? 'Collapse quote details' : 'Expand quote details'}
+          aria-label={
+            isExpanded ? 'Collapse quote details' : 'Expand quote details'
+          }
         >
           <svg
             className={`w-6 h-6 mt-1 text-text-inverse transition-transform ${isExpanded ? 'rotate-0' : 'rotate-180'}`}
@@ -347,7 +410,12 @@ export function MyQuote({
             viewBox="0 0 24 24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
           </svg>
         </button>
 
@@ -355,18 +423,29 @@ export function MyQuote({
           className="transition-all bg-primary-hover duration-300 ease-in-out overflow-hidden"
           style={{ maxHeight: isExpanded ? `${contentHeight}px` : '0px' }}
         >
-          <div ref={contentRef} className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+          <div
+            ref={contentRef}
+            className="overflow-y-auto"
+            style={{ maxHeight: 'calc(100vh - 200px)' }}
+          >
             <div className="pt-4 px-4">
               <div className="flex justify-between items-center mb-4">
                 <div>
-                  <h3 className="text-2xl font-semibold text-text-inverse">{displayTitle}</h3>
+                  <h3 className="text-2xl font-semibold text-text-inverse">
+                    {displayTitle}
+                  </h3>
                   {isEditMode && appointmentId && (
                     <p className="text-sm text-text-tertiary mt-1">
                       Appointment #{appointmentId}
                     </p>
                   )}
                 </div>
-                {showSendQuoteEmail && <SendQuoteEmail quoteData={quoteData} iconClassName="text-text-inverse" />}
+                {showSendQuoteEmail && (
+                  <SendQuoteEmail
+                    quoteData={quoteData}
+                    iconClassName="text-text-inverse"
+                  />
+                )}
               </div>
               <div className="pb-4 mb-4 border-b border-border-inverse">
                 <div className="rounded-md mb-4">
@@ -376,8 +455,8 @@ export function MyQuote({
                     zoom={mapZoom}
                     options={{
                       styles: mapStyles,
-                      disableDefaultUI: false, 
-                      fullscreenControl: false, 
+                      disableDefaultUI: false,
+                      fullscreenControl: false,
                     }}
                   >
                     {mapCenter && <Marker position={mapCenter} />}
@@ -385,48 +464,88 @@ export function MyQuote({
                 </div>
                 <p className="text-sm text-text-secondary mb-1">Address</p>
                 <p className="mb-4 text-text-inverse">{address || '---'}</p>
-                <p className="text-sm text-text-secondary mb-1">Date and Time</p>
-                <p id="date-time-input" className="text-text-inverse">{formatVerboseDate(scheduledDate)} {scheduledTimeSlot ? `between ${scheduledTimeSlot}` : ''}</p>
+                <p className="text-sm text-text-secondary mb-1">
+                  Date and Time
+                </p>
+                <p id="date-time-input" className="text-text-inverse">
+                  {formatVerboseDate(scheduledDate)}{' '}
+                  {scheduledTimeSlot ? `between ${scheduledTimeSlot}` : ''}
+                </p>
               </div>
-              <h3 className="text-xl font-semibold mb-4 text-text-inverse">Price details</h3>
+              <h3 className="text-xl font-semibold mb-4 text-text-inverse">
+                Price details
+              </h3>
               <div className="pb-4">
-                {storageUnitCount !== undefined && storageUnitText !== undefined && (
+                {storageUnitCount !== undefined &&
+                  storageUnitText !== undefined && (
+                    <div className="flex justify-between mb-4">
+                      <p className="text-text-inverse">
+                        {storageUnitCount} Boombox
+                        {storageUnitCount > 1 ? 'es' : ''}
+                      </p>
+                      <p className="text-text-inverse">
+                        {boomboxPrice !== null ? (
+                          <>
+                            <span className="text-text-secondary line-through text-xs mr-1">
+                              {
+                                formatStorageUnitPrice(
+                                  boomboxPrice,
+                                  storageUnitCount
+                                ).strikethroughPrice
+                              }
+                            </span>
+                            {
+                              formatStorageUnitPrice(
+                                boomboxPrice,
+                                storageUnitCount
+                              ).price
+                            }
+                          </>
+                        ) : (
+                          '---'
+                        )}
+                      </p>
+                    </div>
+                  )}
+                {accessStorageUnitCount !== undefined && (
                   <div className="flex justify-between mb-4">
-                    <p className="text-text-inverse">{storageUnitCount} Boombox{storageUnitCount > 1 ? 'es' : ''}</p>
                     <p className="text-text-inverse">
-                      {boomboxPrice !== null ? (
-                        <>
-                          <span className="text-text-secondary line-through text-xs mr-1">
-                            {formatStorageUnitPrice(boomboxPrice, storageUnitCount).strikethroughPrice}
-                          </span> 
-                          {formatStorageUnitPrice(boomboxPrice, storageUnitCount).price}
-                        </>
-                      ) : (
-                        '---'
-                      )}
+                      {accessStorageUnitCount > 0 ? accessStorageUnitCount : ''}{' '}
+                      Storage Unit{' '}
+                      {accessStorageUnitCount > 1
+                        ? 'Deliveries'
+                        : 'Delivery'}{' '}
+                    </p>
+                    <p className="text-text-inverse">
+                      {accessStorageUnitCount > 0
+                        ? `$${accessStorageUnitCount * accessStorageUnitPricing}`
+                        : '---'}
                     </p>
                   </div>
                 )}
-                {accessStorageUnitCount !== undefined && (
-                  <div className="flex justify-between mb-4">
-                    <p className="text-text-inverse">{accessStorageUnitCount > 0 ? accessStorageUnitCount : ''} Storage Unit {accessStorageUnitCount > 1 ? 'Deliveries' : 'Delivery'} </p>
-                    <p className="text-text-inverse">{accessStorageUnitCount > 0 ? `$${accessStorageUnitCount * accessStorageUnitPricing}` : '---'}</p>
-                  </div>
-                )}
                 <div className="flex justify-between mb-4">
-                  <p className="text-text-inverse">{selectedPlanName || 'Loading Help'}</p>
                   <p className="text-text-inverse">
-                    <span className="text-text-secondary text-xs mr-1">{loadingHelpDescription}</span> 
+                    {selectedPlanName || 'Loading Help'}
+                  </p>
+                  <p className="text-text-inverse">
+                    <span className="text-text-secondary text-xs mr-1">
+                      {loadingHelpDescription}
+                    </span>
                     {loadingHelpPrice || '---'}
                   </p>
                 </div>
                 {selectedInsurance && (
                   <div className="text-text-inverse flex justify-between mb-4">
-                    <p className="text-text-inverse">{selectedInsurance.label}</p>
+                    <p className="text-text-inverse">
+                      {selectedInsurance.label}
+                    </p>
                     <p className="text-text-inverse">
                       {selectedInsurance.price ? (
                         <span>
-                          {formatInsurancePrice(selectedInsurance, storageUnitCount || 1)}
+                          {formatInsurancePrice(
+                            selectedInsurance,
+                            storageUnitCount || 1
+                          )}
                         </span>
                       ) : (
                         <span className="text-text-inverse">---</span>
@@ -443,23 +562,30 @@ export function MyQuote({
           <div className="flex justify-between items-center">
             <div>
               <div className="flex items-center">
-                <p className="text-xl font-semibold mr-1 text-text-inverse">Total</p>
-                <Tooltip 
-                  text={isEditMode 
-                    ? "This is the updated total amount for your appointment changes." 
-                    : "This is the total amount you will pay on the day of your initial appointment."
-                  } 
-                  className="text-text-inverse" 
+                <p className="text-xl font-semibold mr-1 text-text-inverse">
+                  Total
+                </p>
+                <Tooltip
+                  text={
+                    isEditMode
+                      ? 'This is the updated total amount for your appointment changes.'
+                      : 'This is the total amount you will pay on the day of your initial appointment.'
+                  }
+                  className="text-text-inverse"
                 />
               </div>
               <div>
                 <p className="text-text-secondary mr-1">Due Today</p>
                 {priceComparison && (
-                  <p className={`text-sm ${
-                    priceComparison.type === 'increase' ? 'text-status-warning' :
-                    priceComparison.type === 'decrease' ? 'text-status-success' :
-                    'text-text-secondary'
-                  }`}>
+                  <p
+                    className={`text-sm ${
+                      priceComparison.type === 'increase'
+                        ? 'text-status-warning'
+                        : priceComparison.type === 'decrease'
+                          ? 'text-status-success'
+                          : 'text-text-secondary'
+                    }`}
+                  >
                     {priceComparison.message}
                   </p>
                 )}
@@ -467,27 +593,42 @@ export function MyQuote({
             </div>
             <div className="flex items-center">
               <div className="mr-4 text-right">
-                <p id="total-price" className="text-xl text-text-inverse font-semibold">
+                <p
+                  id="total-price"
+                  className="text-xl text-text-inverse font-semibold"
+                >
                   {pricing.total > 0 ? `$${pricing.total}` : '___'}
                 </p>
                 <div className="flex flex-col items-end">
                   <p className="text-text-secondary">$0</p>
-                  {isEditMode && originalTotal && originalTotal !== pricing.total && (
-                    <p className="text-sm text-text-secondary line-through">
-                      ${originalTotal.toFixed(2)}
-                    </p>
-                  )}
+                  {isEditMode &&
+                    originalTotal &&
+                    originalTotal !== pricing.total && (
+                      <p className="text-sm text-text-secondary line-through">
+                        ${originalTotal.toFixed(2)}
+                      </p>
+                    )}
                 </div>
               </div>
               <button
                 className="btn-secondary disabled:bg-surface-disabled disabled:cursor-not-allowed disabled:text-text-tertiary"
                 onClick={handleSubmit}
-                disabled={isButtonDisabled || (isAccessStorage && accessStorageUnitCount === 0)}
+                disabled={
+                  isButtonDisabled ||
+                  (isAccessStorage && accessStorageUnitCount === 0)
+                }
               >
                 {(() => {
-                  const text = buttonTexts?.[currentStep] || (currentStep === 2 ? "Add Help" : currentStep === 3 ? "Confirm" : "Reserve");
-                  if (text === "Schedule Appointment") return "Schedule";
-                  if (text === "Reserve Appointment") return "Reserve";
+                  const text =
+                    buttonTexts?.[currentStep] ||
+                    (currentStep === 2
+                      ? 'Add Help'
+                      : currentStep === 3
+                        ? 'Confirm'
+                        : 'Reserve');
+                  if (text === 'Schedule Appointment') return 'Schedule';
+                  if (text === 'Reserve Appointment') return 'Reserve';
+                  if (text === 'Confirm Appointment') return 'Confirm';
                   return text;
                 })()}
               </button>
@@ -500,7 +641,10 @@ export function MyQuote({
       <div className="hidden px-4 pt-6 md:flex items-center">
         <HelpIcon className="w-8 h-8 text-text-primary mr-4 shrink-0" />
         <div>
-          <p className="text-xs text-text-primary">Need help? Send us an email at help@boomboxstorage.com if you have any questions</p>
+          <p className="text-xs text-text-primary">
+            Need help? Send us an email at help@boomboxstorage.com if you have
+            any questions
+          </p>
         </div>
       </div>
     </>

@@ -67,7 +67,7 @@ export function CalculatorResults({
       </div>
 
       {/* Action buttons - flex-shrink-0 to stay at bottom */}
-      <div className="flex gap-3 mt-4 pt-4 flex-shrink-0">
+      <div className="flex items-center gap-3 mt-4 pt-4 flex-shrink-0">
         <Button variant="secondary" onClick={onEdit} className="w-1/3">
           Edit
         </Button>

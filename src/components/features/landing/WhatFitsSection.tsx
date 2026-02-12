@@ -70,7 +70,7 @@ export interface WhatFitsSectionProps {
 
   /**
    * Image source for the storage unit visualization
-   * @default '/placeholder.jpg'
+   * @default '/what-fits.png'
    */
   imageSrc?: string;
 
@@ -88,14 +88,14 @@ export interface WhatFitsSectionProps {
 
 /**
  * WhatFitsSection Component
- * 
+ *
  * Displays information about storage unit capacity with a visual and call-to-action.
- * 
+ *
  * @example
  * ```tsx
  * <WhatFitsSection />
  * ```
- * 
+ *
  * @example With custom content
  * ```tsx
  * <WhatFitsSection
@@ -112,7 +112,7 @@ export function WhatFitsSection({
   description = 'More than you think. Our 5ft x 8ft storage unit is designed to fit all your household and office items',
   buttonText = 'Calculate your space',
   buttonHref = '/storage-calculator',
-  imageSrc = '/placeholder.jpg',
+  imageSrc = '/what-fits.png',
   imageAlt = 'Storage unit capacity visualization showing household and office items that fit in a 5ft x 8ft Boombox storage unit',
   className,
 }: WhatFitsSectionProps) {
@@ -153,4 +153,3 @@ export function WhatFitsSection({
     </section>
   );
 }
-

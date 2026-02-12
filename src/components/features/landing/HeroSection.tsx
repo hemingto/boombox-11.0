@@ -76,7 +76,7 @@ export interface HeroSectionProps {
 
   /**
    * Hero image source path
-   * @default '/boombox-trailer-sf.png'
+   * @default '/hero-imgs/hero-2.png'
    */
   imageSrc?: string;
 
@@ -156,7 +156,7 @@ const BLUR_DATA_URL =
 export function HeroSection({
   title,
   buttontext,
-  imageSrc = '/boombox-trailer-sf.png',
+  imageSrc = '/hero-imgs/hero-2.png',
   imageAlt = 'San Francisco Bay Area mobile storage service',
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   fallbackSrc: _fallbackSrc,

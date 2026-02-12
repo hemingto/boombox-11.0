@@ -41,7 +41,10 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { AccordionContainer, type AccordionData } from '@/components/ui/primitives/Accordion/AccordionContainer';
+import {
+  AccordionContainer,
+  type AccordionData,
+} from '@/components/ui/primitives/Accordion/AccordionContainer';
 import { cn } from '@/lib/utils';
 
 /**
@@ -83,19 +86,22 @@ export interface TechEnabledSectionProps {
 const DEFAULT_FEATURES: TechFeature[] = [
   {
     question: 'Calculate your space',
-    answer: 'Take the guess work of storage by estimating your space with our storage calculator',
+    answer:
+      'Take the guess work of storage by estimating your space with our storage calculator',
     category: 'tech-feature',
-    image: '/placeholder.jpg',
+    image: '/test-iphone.png',
   },
   {
     question: 'Real time tracking',
-    answer: "You've got better things to do than wait by the door for your Boombox - so we include real time delivery tracking",
+    answer:
+      "You've got better things to do than wait by the door for your Boombox - so we include real time delivery tracking",
     category: 'tech-feature',
     image: '/placeholder.jpg',
   },
   {
     question: 'Remember what you stored',
-    answer: "Upload photos of the items you have stored, so you'll never forget what's in your storage unit.",
+    answer:
+      "Upload photos of the items you have stored, so you'll never forget what's in your storage unit.",
     category: 'tech-feature',
     image: '/placeholder.jpg',
   },
@@ -103,19 +109,19 @@ const DEFAULT_FEATURES: TechFeature[] = [
 
 /**
  * TechEnabledSection Component
- * 
+ *
  * Displays tech-enabled storage features with an interactive accordion and synchronized images.
- * 
+ *
  * @example
  * ```tsx
  * <TechEnabledSection />
  * ```
- * 
+ *
  * @example With custom heading
  * ```tsx
  * <TechEnabledSection heading="Smart Storage Features" />
  * ```
- * 
+ *
  * @example With custom features
  * ```tsx
  * <TechEnabledSection
@@ -173,4 +179,3 @@ export function TechEnabledSection({
     </section>
   );
 }
-

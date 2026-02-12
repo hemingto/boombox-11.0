@@ -226,14 +226,15 @@ export function StorageCalculatorWidget({
                 </div>
 
                 {/* Action buttons */}
-                <div className="flex gap-3 mt-4 pt-4 flex-shrink-0">
+                <div className="flex items-center gap-3 mt-4 pt-4 flex-shrink-0">
                   <Button
                     variant="secondary"
                     onClick={reset}
                     disabled={totalSelectedCount === 0 || isCalculating}
                     className="w-1/3"
                   >
-                    Reset List
+                    <span className="md:hidden">Reset</span>
+                    <span className="hidden md:inline">Reset List</span>
                   </Button>
                   <Button
                     variant="primary"
