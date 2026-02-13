@@ -114,8 +114,6 @@
     @apply font-inter;
   }
 
-
-
   /* Input field pattern from boombox-10.0 */
   .input-field {
     @apply w-full px-3 py-2.5 text-sm rounded-md;
@@ -126,7 +124,7 @@
     @apply disabled:bg-surface-disabled disabled:cursor-not-allowed;
     @apply disabled:text-text-secondary disabled:placeholder:text-text-secondary;
   }
-  
+
   /* Apply focus ring only when there's no error */
   .input-field:not(.input-field--error):focus {
     @apply ring-2 ring-border-focus;
@@ -241,7 +239,8 @@
 
   .datepicker-calendar .react-datepicker {
     @apply font-inter border-0 rounded-lg text-sm;
-    font-family: var(--font-inter), 'Inter', ui-sans-serif, system-ui, sans-serif !important;
+    font-family:
+      var(--font-inter), 'Inter', ui-sans-serif, system-ui, sans-serif !important;
     border: none !important;
     border-radius: 0.5rem !important;
     font-size: 0.875rem !important;
@@ -257,7 +256,8 @@
   .datepicker-calendar .react-datepicker__header button {
     @apply text-xl font-poppins;
     font-size: 1.25rem !important;
-    font-family: var(--font-poppins), 'Poppins', ui-sans-serif, system-ui, sans-serif !important;
+    font-family:
+      var(--font-poppins), 'Poppins', ui-sans-serif, system-ui, sans-serif !important;
   }
 
   .datepicker-calendar .react-datepicker__month {
@@ -308,7 +308,8 @@
     font-weight: bold !important;
   }
 
-  .datepicker-calendar .react-datepicker__day:not(.react-datepicker__day--selected):hover {
+  .datepicker-calendar
+    .react-datepicker__day:not(.react-datepicker__day--selected):hover {
     @apply bg-surface-tertiary rounded-full text-primary;
     background-color: rgb(241 245 249) !important;
     border-radius: 9999px !important;
@@ -322,13 +323,19 @@
     color: rgb(24 24 27) !important;
   }
 
-  .datepicker-calendar .react-datepicker__day--keyboard-selected:not(.react-datepicker__day--selected) {
+  .datepicker-calendar
+    .react-datepicker__day--keyboard-selected:not(
+      .react-datepicker__day--selected
+    ) {
     @apply bg-transparent rounded-full;
     background-color: transparent !important;
     border-radius: 9999px !important;
   }
 
-  .datepicker-calendar .react-datepicker__day--keyboard-selected:not(.react-datepicker__day--selected):hover {
+  .datepicker-calendar
+    .react-datepicker__day--keyboard-selected:not(
+      .react-datepicker__day--selected
+    ):hover {
     @apply bg-surface-tertiary;
     background-color: rgb(241 245 249) !important;
   }
@@ -339,7 +346,8 @@
     font-weight: 600 !important;
     font-size: 1rem !important;
     margin-bottom: 0.5rem !important;
-    font-family: var(--font-poppins), 'Poppins', ui-sans-serif, system-ui, sans-serif !important;
+    font-family:
+      var(--font-poppins), 'Poppins', ui-sans-serif, system-ui, sans-serif !important;
   }
 
   .datepicker-calendar .react-datepicker__navigation {
@@ -376,7 +384,8 @@
   .datepicker-calendar .react-datepicker__day,
   .datepicker-calendar .react-datepicker__time-name {
     @apply font-poppins;
-    font-family: var(--font-poppins), 'Poppins', ui-sans-serif, system-ui, sans-serif !important;
+    font-family:
+      var(--font-poppins), 'Poppins', ui-sans-serif, system-ui, sans-serif !important;
   }
 
   /* Hide dates from next/previous months */
@@ -442,6 +451,11 @@
     @apply animate-slideIn;
   }
 
+  /* Opacity-only fade in (no translateY motion) */
+  .animate-fade-in-opacity {
+    animation: fade-in-opacity 0.4s ease-out;
+  }
+
   /* Hide scrollbar for Chrome, Safari and Opera */
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
@@ -451,5 +465,51 @@
   .scrollbar-hide {
     -ms-overflow-style: none; /* IE and Edge */
     scrollbar-width: none; /* Firefox */
+  }
+}
+
+@keyframes fade-in-opacity {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-float {
+  animation: float 5s ease-in-out infinite;
+}
+
+/* Decorative icon sizing & positioning – mobile-first */
+.decorative-icon {
+  width: calc(var(--icon-size) * 0.65);
+  height: calc(var(--icon-size) * 0.65);
+  /* Mobile: use mobile override if set, otherwise fall back to desktop value */
+  top: var(--icon-top-mobile, var(--icon-top));
+  left: var(--icon-left-mobile, var(--icon-left));
+  right: var(--icon-right-mobile, var(--icon-right));
+  bottom: var(--icon-bottom-mobile, var(--icon-bottom));
+}
+
+@media (min-width: 768px) {
+  .decorative-icon {
+    width: var(--icon-size);
+    height: var(--icon-size);
+    /* Desktop: always use the base values */
+    top: var(--icon-top);
+    left: var(--icon-left);
+    right: var(--icon-right);
+    bottom: var(--icon-bottom);
   }
 }

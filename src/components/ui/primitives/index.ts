@@ -18,6 +18,7 @@ export * from './FileUpload';
 
 // Media primitives
 export * from './ProfilePicture';
+export * from './IPhoneFrame';
 
 // Layout primitives
 export * from './Modal';
