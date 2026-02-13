@@ -60,6 +60,13 @@
     color: rgb(var(--color-text-primary));
   }
 
+  @media (max-width: 767px) {
+    h1 {
+      font-size: 2rem;
+      line-height: 1.2;
+    }
+  }
+
   h2 {
     font-size: 24px;
     font-weight: 400;
@@ -474,42 +481,5 @@
   }
   to {
     opacity: 1;
-  }
-}
-
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-8px);
-  }
-}
-
-.animate-float {
-  animation: float 5s ease-in-out infinite;
-}
-
-/* Decorative icon sizing & positioning – mobile-first */
-.decorative-icon {
-  width: calc(var(--icon-size) * 0.65);
-  height: calc(var(--icon-size) * 0.65);
-  /* Mobile: use mobile override if set, otherwise fall back to desktop value */
-  top: var(--icon-top-mobile, var(--icon-top));
-  left: var(--icon-left-mobile, var(--icon-left));
-  right: var(--icon-right-mobile, var(--icon-right));
-  bottom: var(--icon-bottom-mobile, var(--icon-bottom));
-}
-
-@media (min-width: 768px) {
-  .decorative-icon {
-    width: var(--icon-size);
-    height: var(--icon-size);
-    /* Desktop: always use the base values */
-    top: var(--icon-top);
-    left: var(--icon-left);
-    right: var(--icon-right);
-    bottom: var(--icon-bottom);
   }
 }

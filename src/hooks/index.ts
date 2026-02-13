@@ -139,6 +139,9 @@ export {
   useRecentArticles,
 } from './useBlogData';
 
+// Google Reviews hook
+export { useGoogleReviews } from './useGoogleReviews';
+
 // UI interaction hooks
 export { useClickOutside } from './useClickOutside';
 export { useHorizontalScroll } from './useHorizontalScroll';

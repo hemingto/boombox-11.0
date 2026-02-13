@@ -52,7 +52,7 @@ const config: Config = {
         surface: {
           primary: 'rgb(255 255 255)', // white
           secondary: 'rgb(226 232 240)', // slate-200
-          tertiary: 'rgb(241 245 249)', // slate-100
+          tertiary: 'rgb(248 250 252)', // slate-50
           disabled: 'rgb(248 250 252)', // slate-50
           pressed: 'rgb(203 213 225)', // slate-300
         },

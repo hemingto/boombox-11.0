@@ -245,12 +245,12 @@ export function HowItWorksSection({
             <Link
               key={index}
               href={linkUrl}
-              className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-md shadow-none focus:shadow-none active:shadow-none active:ring-0"
+              className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-3xl shadow-none focus:shadow-none active:shadow-none active:ring-0"
               aria-label={`Learn more about ${step.subtitle}: ${step.description}`}
             >
               <div
                 data-step-card
-                className="bg-surface-tertiary w-[297.6px] sm:w-[372px] h-[569.6px] sm:h-[712px] rounded-md flex-none transform transition-transform duration-300 sm:hover:scale-[102%] cursor-pointer hover:z-10 relative overflow-hidden"
+                className="bg-surface-tertiary w-[297.6px] sm:w-[372px] h-[569.6px] sm:h-[712px] rounded-3xl flex-none transform transition-transform duration-300 sm:hover:scale-[102%] cursor-pointer hover:z-10 relative overflow-hidden"
               >
                 {/* Background image */}
                 {step.image && (

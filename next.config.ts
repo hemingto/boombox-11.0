@@ -41,6 +41,11 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'd15p8tr8p0vffz.cloudfront.net',
       },
+      {
+        // Google user profile photos (used by Google Places API reviewer avatars)
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+      },
     ],
   },
 

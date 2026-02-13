@@ -115,19 +115,19 @@ const DEFAULT_FEATURES: SecurityFeature[] = [
 
 /**
  * SecuritySection Component
- * 
+ *
  * Displays key security features of Boombox storage services in a responsive grid.
- * 
+ *
  * @example
  * ```tsx
  * <SecuritySection />
  * ```
- * 
+ *
  * @example With custom heading
  * ```tsx
  * <SecuritySection heading="Why Choose Boombox" />
  * ```
- * 
+ *
  * @example With custom features
  * ```tsx
  * <SecuritySection
@@ -155,7 +155,7 @@ export function SecuritySection({
           return (
             <article
               key={index}
-              className="rounded-md p-6 border border-border transition-transform duration-300 sm:hover:scale-[102%] cursor-pointer"
+              className="rounded-3xl p-6 border border-border transition-transform duration-300 sm:hover:scale-[102%] cursor-pointer"
             >
               <div className="h-12" aria-hidden="true">
                 <Icon className={feature.iconClassName} />
@@ -169,4 +169,3 @@ export function SecuritySection({
     </section>
   );
 }
-

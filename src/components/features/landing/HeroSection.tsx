@@ -212,20 +212,22 @@ export function HeroSection({
       {/* Left column: Form */}
       <div className="place-content-center basis-1/2 mb-10 md:mb-0">
         <div className="max-w-xl mx-auto">
-          <h1 className="mb-10">{title}</h1>
+          <h1 className="mb-10 max-md:text-5xl max-md:leading-tight">
+            {title}
+          </h1>
 
           {/* Storage amount selection */}
           <fieldset className="mb-8">
             <legend className="mb-4">How much are you storing?</legend>
             <div
-              className="flex gap-2 text-center"
+              className="flex gap-1 sm:gap-2 text-center"
               role="radiogroup"
               aria-label="Storage amount selection"
             >
               {storageOptions.map(option => (
                 <label
                   key={option.value}
-                  className="w-20 cursor-pointer flex flex-col items-center"
+                  className="flex-1 min-w-0 cursor-pointer flex flex-col items-center"
                 >
                   <input
                     type="radio"
@@ -237,7 +239,7 @@ export function HeroSection({
                     aria-label={`${option.label} - ${option.unitCount} storage ${option.unitCount === 1 ? 'unit' : 'units'}`}
                   />
                   <div
-                    className={`flex items-center justify-center w-14 h-14 rounded-md place-content-center mb-1 ${
+                    className={`flex items-center justify-center w-11 h-11 sm:w-14 sm:h-14 rounded-lg place-content-center mb-1 ${
                       selectedValue === option.value
                         ? 'bg-surface-tertiary'
                         : 'hover:bg-surface-tertiary active:bg-surface-disabled'
@@ -252,7 +254,7 @@ export function HeroSection({
                     />
                   </div>
                   <p
-                    className={`text-xs ${selectedValue === option.value ? 'text-text-primary' : 'text-text-secondary'}`}
+                    className={`text-[11px] sm:text-xs ${selectedValue === option.value ? 'text-text-primary' : 'text-text-secondary'}`}
                   >
                     {option.label}
                   </p>
@@ -293,7 +295,7 @@ export function HeroSection({
 
       {/* Right column: Image */}
       <div className="flex place-content-center basis-1/2">
-        <div className="relative w-full max-w-xl aspect-square rounded-md overflow-hidden bg-gradient-to-br from-surface-secondary to-surface-tertiary">
+        <div className="relative w-full max-w-xl aspect-square rounded-lg overflow-hidden bg-gradient-to-br from-surface-secondary to-surface-tertiary">
           {imageError ? (
             <div
               className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-surface-secondary to-surface-tertiary"
@@ -324,7 +326,7 @@ export function HeroSection({
               quality={90}
               placeholder="blur"
               blurDataURL={BLUR_DATA_URL}
-              className="rounded-md object-cover"
+              className="rounded-lg object-cover"
               sizes="(max-width: 768px) 100vw, 50vw"
               onError={() => setImageError(true)}
             />

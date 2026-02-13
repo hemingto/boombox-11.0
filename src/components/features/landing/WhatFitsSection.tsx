@@ -112,7 +112,7 @@ export function WhatFitsSection({
   description = 'More than you think. Our 5ft x 8ft storage unit is designed to fit all your household and office items',
   buttonText = 'Calculate your space',
   buttonHref = '/storage-calculator',
-  imageSrc = '/what-fits.png',
+  imageSrc = '/boombox-warehouse-square.png',
   imageAlt = 'Storage unit capacity visualization showing household and office items that fit in a 5ft x 8ft Boombox storage unit',
   className,
 }: WhatFitsSectionProps) {
@@ -122,7 +122,7 @@ export function WhatFitsSection({
       aria-labelledby="what-fits-section-heading"
     >
       {/* Left column: Content */}
-      <div className="place-content-center basis-1/2 mb-8">
+      <div className="place-content-center basis-1/2 mb-10 sm:mb-0">
         <h1 id="what-fits-section-heading" className="mb-8">
           {heading}
         </h1>
@@ -138,12 +138,12 @@ export function WhatFitsSection({
 
       {/* Right column: Image */}
       <div className="flex place-content-end basis-1/2">
-        <div className="relative w-full h-full md:ml-8 aspect-square rounded-md overflow-hidden">
+        <div className="relative w-full h-full md:ml-8 aspect-square rounded-lg overflow-hidden">
           <Image
             src={imageSrc}
             alt={imageAlt}
             fill
-            className="rounded-md object-cover"
+            className="rounded-lg object-cover"
             loading="lazy"
             quality={85}
             sizes="(max-width: 768px) 100vw, 50vw"

@@ -811,6 +811,22 @@ model BlogContentBlock {
   @@index([blogPostId, order])
 }
 
+model GoogleReview {
+  id            Int       @id @default(autoincrement())
+  customer      String
+  date          String
+  publishTime   DateTime?
+  description   String
+  rating        Int
+  photoUrl      String?
+  googleMapsUrl String?
+  contentHash   String    @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([rating])
+}
+
 enum MovingPartnerStatus {
   ACTIVE
   INACTIVE

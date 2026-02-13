@@ -51,6 +51,11 @@ const envSchema = z.object({
   CRON_SECRET: z.string().min(1).optional(),
   INTERNAL_API_SECRET: z.string().min(1).optional(),
 
+  // Google Maps & Places
+  GOOGLE_MAPS_API_KEY: z.string().min(1).optional(),
+  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: z.string().min(1).optional(),
+  GOOGLE_PLACE_ID: z.string().min(1).optional(),
+
   // Admin Configuration
   ADMIN_EMAILS: z.string().optional(),
 });
@@ -130,6 +135,13 @@ export const config = {
     apiSecret: env.CRON_API_SECRET,
     secret: env.CRON_SECRET,
     internalApiSecret: env.INTERNAL_API_SECRET,
+  },
+
+  // Google Maps & Places
+  google: {
+    mapsApiKey: env.GOOGLE_MAPS_API_KEY,
+    publicMapsApiKey: env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+    placeId: env.GOOGLE_PLACE_ID,
   },
 
   // Admin Configuration

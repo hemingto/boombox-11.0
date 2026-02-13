@@ -10,12 +10,17 @@ const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
 // Use a placeholder URL during build if DATABASE_URL is not set
 // This prevents build errors on Vercel while still allowing the build to complete
-const databaseUrl = process.env.DATABASE_URL || 'postgresql://placeholder:placeholder@localhost:5432/placeholder';
+const databaseUrl =
+  process.env.DATABASE_URL ||
+  'postgresql://placeholder:placeholder@localhost:5432/placeholder';
 
 export const prisma =
   globalForPrisma.prisma ||
   new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
+    log:
+      process.env.NODE_ENV === 'development'
+        ? ['query', 'info', 'warn', 'error']
+        : ['error'],
     datasources: {
       db: {
         url: databaseUrl,
@@ -23,4 +28,5 @@ export const prisma =
     },
   });
 
+// Re-create the client if the model set has changed (e.g., after prisma migrate dev)
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
