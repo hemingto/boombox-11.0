@@ -156,7 +156,7 @@ const BLUR_DATA_URL =
 export function HeroSection({
   title,
   buttontext,
-  imageSrc = '/hero-imgs/hero-2.png',
+  imageSrc = '/hero-imgs/hero-square.png',
   imageAlt = 'San Francisco Bay Area mobile storage service',
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   fallbackSrc: _fallbackSrc,
@@ -206,7 +206,7 @@ export function HeroSection({
 
   return (
     <section
-      className={`md:flex mt-12 sm:mt-24 lg:px-16 px-6 sm:mb-48 mb-24 ${className || ''}`}
+      className={`md:flex mt-12 sm:mt-24 lg:px-16 px-6 sm:mb-48 mb-24 mr-6 sm:mr-0 ${className || ''}`}
       aria-label="Get a storage quote"
     >
       {/* Left column: Form */}
@@ -220,7 +220,7 @@ export function HeroSection({
           <fieldset className="mb-8">
             <legend className="mb-4">How much are you storing?</legend>
             <div
-              className="flex gap-1 sm:gap-2 text-center"
+              className="flex gap-1 sm:gap-2 text-center max-w-lg"
               role="radiogroup"
               aria-label="Storage amount selection"
             >

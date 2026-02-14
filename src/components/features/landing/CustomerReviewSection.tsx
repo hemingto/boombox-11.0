@@ -252,7 +252,7 @@ export function CustomerReviewSection({
           {reviews.map(review => (
             <article
               key={review.id}
-              className={`${cardBackgroundClass} w-[405px] rounded-3xl shadow-sm flex-none transform transition-transform duration-300 hover:scale-[102%] focus-within:scale-[102%]`}
+              className={`${cardBackgroundClass} w-[405px] rounded-lg flex-none transform transition-transform duration-300 hover:scale-[102%] focus-within:scale-[102%]`}
             >
               {/* Customer info header */}
               <div className="flex p-4 mb-2 items-center">
@@ -274,7 +274,7 @@ export function CustomerReviewSection({
               </div>
 
               {/* Review description */}
-              <div className="w-[385px] h-[145px] mx-5 mb-2">
+              <div className="w-[385px] h-[145px] mx-2 px-3 mb-2">
                 <p className="overflow-hidden text-ellipsis whitespace-normal line-clamp-6 text-text-primary">
                   {review.description}
                 </p>
@@ -309,7 +309,13 @@ export function CustomerReviewSection({
       {totalReviewCount && googleMapsUrl && (
         <div className="lg:px-16 px-6 mt-8">
           <Link href={googleMapsUrl} target="_blank" rel="noopener noreferrer">
-            <Button variant="white" borderRadius="full" size="md" tabIndex={-1}>
+            <Button
+              variant="white"
+              borderRadius="full"
+              size="md"
+              tabIndex={-1}
+              className="hover:bg-slate-50"
+            >
               Read all {totalReviewCount.toLocaleString()} reviews
             </Button>
           </Link>

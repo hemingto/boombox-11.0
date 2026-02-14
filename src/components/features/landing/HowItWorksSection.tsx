@@ -205,7 +205,7 @@ export function HowItWorksSection({
       aria-labelledby="how-it-works-heading"
     >
       {/* Header with navigation buttons */}
-      <div className="flex flex-col sm:flex-row w-full lg:px-16 px-6 justify-between items-left sm:items-center mb-10">
+      <div className="flex flex-col sm:flex-row w-full lg:px-16 px-6 justify-between items-left sm:items-center sm:mb-10 mb-4">
         <h1 id="how-it-works-heading" className="text-left">
           {heading}
         </h1>

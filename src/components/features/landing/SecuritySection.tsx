@@ -155,7 +155,7 @@ export function SecuritySection({
           return (
             <article
               key={index}
-              className="rounded-3xl p-6 border border-border transition-transform duration-300 sm:hover:scale-[102%] cursor-pointer"
+              className="rounded-lg p-6 border border-border transition-transform duration-300 sm:hover:scale-[102%] cursor-pointer"
             >
               <div className="h-12" aria-hidden="true">
                 <Icon className={feature.iconClassName} />
