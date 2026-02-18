@@ -39,6 +39,8 @@ export {
   getUnitSpecificStartTime,
   formatVerboseDate,
   addDateSuffix,
+  formatDate,
+  TIME_ZONE,
 } from './dateUtils';
 
 // NOTE: cancellationUtils contains server-side code (MessageService) and should

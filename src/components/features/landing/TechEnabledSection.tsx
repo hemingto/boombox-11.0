@@ -43,7 +43,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Image from 'next/image';
 import {
   AccordionContainer,
@@ -115,7 +115,8 @@ const DEFAULT_FEATURES: TechFeature[] = [
     answer:
       "Upload photos of the items you have stored, so you'll never forget what's in your storage unit.",
     category: 'tech-feature',
-    image: '/placeholder.jpg',
+    image: '/tech-enabled-storage/remember.jpg',
+    video: '/tech-enabled-storage/remember-2.mp4',
   },
 ];
 
@@ -149,6 +150,18 @@ export function TechEnabledSection({
   showMedia = true,
 }: TechEnabledSectionProps) {
   const [currentMediaIndex, setCurrentMediaIndex] = useState<number>(0);
+
+  const advanceToNext = useCallback(() => {
+    setCurrentMediaIndex((prev) => (prev + 1) % features.length);
+  }, [features.length]);
+
+  // Auto-advance for features without a video (static image fallback)
+  useEffect(() => {
+    if (!features[currentMediaIndex]?.video) {
+      const timer = setTimeout(advanceToNext, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [currentMediaIndex, features, advanceToNext]);
 
   // Get current feature for media display
   const currentFeature = features[currentMediaIndex];
@@ -205,7 +218,7 @@ export function TechEnabledSection({
         <AccordionContainer
           data={accordionData}
           onAccordionChange={setCurrentMediaIndex}
-          defaultOpenIndex={0}
+          defaultOpenIndex={currentMediaIndex}
           alwaysOpen={true}
           ariaLabel="Tech-enabled storage features"
         />
@@ -220,8 +233,8 @@ export function TechEnabledSection({
                 src={currentFeature.video}
                 autoPlay
                 muted
-                loop
                 playsInline
+                onEnded={advanceToNext}
                 className="w-full h-full object-cover animate-fade-in-opacity"
                 aria-hidden="true"
               />

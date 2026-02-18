@@ -12,18 +12,16 @@ import {
   storageTermEndedTemplate,
   storageAccessCompletedTemplate
 } from '@/lib/messaging/templates/sms/booking';
+// eslint-disable-next-line no-restricted-imports -- onfleetWebhookUtils uses prisma/crypto/jwt (server-only), not re-exported from barrel
 import {
   createTrackingToken,
   getWorkerName,
   buildTrackingUrl,
-  extractAllDeliveryPhotoUrls,
-  type WebhookTaskDetails
 } from '@/lib/utils/onfleetWebhookUtils';
+// eslint-disable-next-line no-restricted-imports -- webhookQueries uses prisma (server-only), not re-exported from barrel
 import {
   findAppointmentByOnfleetTask,
   updateAppointmentStatus,
-  updateStorageUnitPhotosFromWebhook,
-  findOnfleetTaskByShortId
 } from '@/lib/utils/webhookQueries';
 import { AppointmentBillingService } from '@/lib/services/billing/AppointmentBillingService';
 import type { OnfleetWebhookPayload } from '@/lib/validations/api.validations';
@@ -237,9 +235,8 @@ export class StepTwoHandler {
       return;
     }
 
-    // Handle StorageUnitUsage photos update for Step 2 completion (mainImage + uploadedImages)
-    console.log('[StepTwoHandler:Completed] Updating StorageUnitUsage photos if needed...');
-    await this.updateStorageUnitPhotosIfNeeded(taskDetails);
+    // Note: StorageUnitUsage photo update is now handled in StorageUnitWebhookService
+    // for ALL units (not just unitNumber === 1), so it's no longer called here.
 
     // Generate new tracking token for completion
     console.log('[StepTwoHandler:Completed] Generating completion tracking token...');
@@ -298,53 +295,6 @@ export class StepTwoHandler {
       return 'Access Complete';
     }
     return 'Complete';
-  }
-
-  /**
-   * Update StorageUnitUsage with all completion photos from webhook
-   * First photo becomes mainImage, additional photos are added to uploadedImages
-   */
-  private static async updateStorageUnitPhotosIfNeeded(taskDetails: WebhookTaskDetails): Promise<void> {
-    console.log(`[StepTwoHandler:Photos] Looking up OnfleetTask: ${taskDetails.shortId}`);
-    const onfleetTask = await findOnfleetTaskByShortId(taskDetails.shortId);
-
-    console.log(`[StepTwoHandler:Photos] OnfleetTask result:`, onfleetTask ? {
-      storageUnitId: onfleetTask.storageUnitId
-    } : 'NOT FOUND');
-
-    if (!onfleetTask?.storageUnitId) {
-      console.log('[StepTwoHandler:Photos] Skipping - no storageUnitId found on OnfleetTask');
-      return;
-    }
-
-    // Extract ALL photo URLs from the webhook payload
-    const allPhotoUrls = extractAllDeliveryPhotoUrls(taskDetails);
-    console.log(`[StepTwoHandler:Photos] Extracted ${allPhotoUrls.length} photos from webhook:`, allPhotoUrls);
-
-    if (allPhotoUrls.length === 0) {
-      console.log('[StepTwoHandler:Photos] Skipping - no completion photos found in webhook data');
-      return;
-    }
-
-    try {
-      // First photo is the main image, rest go to uploadedImages
-      const mainImage = allPhotoUrls[0];
-      const additionalImages = allPhotoUrls.slice(1);
-
-      console.log(`[StepTwoHandler:Photos] Updating storageUnitId: ${onfleetTask.storageUnitId}`);
-      console.log(`[StepTwoHandler:Photos] mainImage: ${mainImage}`);
-      console.log(`[StepTwoHandler:Photos] additionalImages count: ${additionalImages.length}`);
-
-      await updateStorageUnitPhotosFromWebhook(
-        onfleetTask.storageUnitId,
-        mainImage,
-        additionalImages
-      );
-
-      console.log(`[StepTwoHandler:Photos] SUCCESS: Updated photos for storage unit: ${onfleetTask.storageUnitId}`);
-    } catch (error) {
-      console.error('[StepTwoHandler:Photos] ERROR updating photos:', error);
-    }
   }
 
   /**

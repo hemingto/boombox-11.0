@@ -264,7 +264,19 @@ export async function getActiveStorageUnits(userId: string | number): Promise<St
         },
       },
       include: {
-        storageUnit: true,
+        storageUnit: {
+          include: {
+            onfleetTasks: {
+              where: {
+                stepNumber: 2,
+                completionPhotoUrl: { not: null },
+              },
+              select: { completionPhotoUrl: true },
+              orderBy: { completedAt: 'desc' },
+              take: 1,
+            },
+          },
+        },
         startAppointment: {
           select: {
             id: true,
@@ -275,20 +287,25 @@ export async function getActiveStorageUnits(userId: string | number): Promise<St
       },
     });
 
-    return storageUnits.map(usage => ({
-      id: usage.id,
-      usageStartDate: usage.usageStartDate.toISOString(),
-      usageEndDate: usage.usageEndDate ? usage.usageEndDate.toISOString() : null,
-      storageUnit: {
-        id: usage.storageUnit.id,
-        storageUnitNumber: usage.storageUnit.storageUnitNumber,
-        mainImage: usage.mainImage || '/placeholder.jpg', // Use mainImage from DB, fallback to default
-      },
-      location: usage.startAppointment?.address || 'Not available',
-      uploadedImages: usage.uploadedImages,
-      description: usage.description || null,
-      mainImage: usage.mainImage, // For reference, this will now hold the Onfleet photo directly
-    }));
+    return storageUnits.map(usage => {
+      const onfleetPhoto = usage.storageUnit.onfleetTasks[0]?.completionPhotoUrl ?? null;
+      const resolvedImage = usage.mainImage || onfleetPhoto;
+
+      return {
+        id: usage.id,
+        usageStartDate: usage.usageStartDate.toISOString(),
+        usageEndDate: usage.usageEndDate ? usage.usageEndDate.toISOString() : null,
+        storageUnit: {
+          id: usage.storageUnit.id,
+          storageUnitNumber: usage.storageUnit.storageUnitNumber,
+          mainImage: resolvedImage || '/placeholder.jpg',
+        },
+        location: usage.startAppointment?.address || 'Not available',
+        uploadedImages: usage.uploadedImages,
+        description: usage.description || null,
+        mainImage: resolvedImage,
+      };
+    });
   } catch (error) {
     console.error('Error fetching storage units:', error);
     throw new Error('Failed to fetch storage units');

@@ -6,11 +6,13 @@
 
 import {
   updateTaskCompletionPhoto,
-  getMetadataValue
+  getMetadataValue,
+  extractAllDeliveryPhotoUrls
 } from '@/lib/utils/onfleetWebhookUtils';
 import {
   findOnfleetTaskByShortId,
-  updateOnfleetTaskWebhookTime
+  updateOnfleetTaskWebhookTime,
+  updateStorageUnitPhotosFromWebhook
 } from '@/lib/utils/webhookQueries';
 import { StepOneHandler } from './storage/StepOneHandler';
 import { StepTwoHandler } from './storage/StepTwoHandler';
@@ -84,6 +86,26 @@ export class StorageUnitWebhookService {
           console.log(`[StorageUnitWebhook] Completion photo saved`);
         } else {
           console.log(`[StorageUnitWebhook] Skipping completion photo save - OnfleetTask not found in database for shortId: ${taskDetails.shortId}`);
+        }
+      }
+
+      // Update StorageUnitUsage photos for ALL units on step 2 completion
+      // Previously this only ran for unitNumber === 1 inside StepTwoHandler,
+      // causing multi-unit appointments to miss photo updates for units 2+.
+      if (triggerName === 'taskCompleted' && stepNumber === 2 && onfleetTask?.storageUnitId) {
+        const allPhotoUrls = extractAllDeliveryPhotoUrls(taskDetails);
+        if (allPhotoUrls.length > 0) {
+          const mainImage = allPhotoUrls[0];
+          const additionalImages = allPhotoUrls.slice(1);
+          console.log(`[StorageUnitWebhook] Updating StorageUnitUsage photos for storageUnitId: ${onfleetTask.storageUnitId}, unitNumber: ${onfleetTask.unitNumber}`);
+          try {
+            await updateStorageUnitPhotosFromWebhook(onfleetTask.storageUnitId, mainImage, additionalImages);
+            console.log(`[StorageUnitWebhook] StorageUnitUsage photos updated successfully`);
+          } catch (error) {
+            console.error(`[StorageUnitWebhook] Error updating StorageUnitUsage photos:`, error);
+          }
+        } else {
+          console.log(`[StorageUnitWebhook] No completion photos found in webhook for storageUnitId: ${onfleetTask.storageUnitId}`);
         }
       }
 

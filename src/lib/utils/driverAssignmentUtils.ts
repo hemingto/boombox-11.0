@@ -11,9 +11,8 @@ import { driverJobOfferSms } from '@/lib/messaging/templates/sms/booking/driverJ
 import { movingPartnerNewJobSms, movingPartnerNewJobWithDriverSms } from '@/lib/messaging/templates/sms/appointment/movingPartnerNewJob';
 import { movingPartnerNewJobEmail } from '@/lib/messaging/templates/email/appointment/movingPartnerNewJob';
 import { calculateDriverPayment, calculateMovingPartnerPayment, getShortAddress } from '@/lib/services/payment-calculator';
-import { formatTime, formatDate, TIME_ZONE } from '@/lib/utils/dateUtils';
+import { formatTime, formatDate, TIME_ZONE, normalizePhoneNumberToE164 } from '@/lib/utils';
 import { toZonedTime } from 'date-fns-tz';
-import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
 import { NotificationService } from '@/lib/services/NotificationService';
 import { JOB_TIMING, calculateJobBlockedWindow, doWindowsOverlap } from '@/lib/constants/jobTiming';
 

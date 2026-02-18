@@ -4,6 +4,7 @@
  * @refactor Extracted step 3 specific logic for warehouse arrival and payout processing
  */
 
+// eslint-disable-next-line no-restricted-imports -- webhookQueries uses prisma (server-only), not re-exported from barrel
 import {
   findAppointmentByOnfleetTask,
   updateAppointmentStatus

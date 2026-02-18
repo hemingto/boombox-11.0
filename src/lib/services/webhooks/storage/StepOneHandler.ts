@@ -6,11 +6,13 @@
 
 import { MessageService } from '@/lib/messaging/MessageService';
 import { storagePickupStartedTemplate } from '@/lib/messaging/templates/sms/booking';
+// eslint-disable-next-line no-restricted-imports -- onfleetWebhookUtils uses prisma/crypto/jwt (server-only), not re-exported from barrel
 import {
   createTrackingToken,
   getWorkerName,
   buildTrackingUrl
 } from '@/lib/utils/onfleetWebhookUtils';
+// eslint-disable-next-line no-restricted-imports -- webhookQueries uses prisma (server-only), not re-exported from barrel
 import {
   findAppointmentByOnfleetTask,
   updateAppointmentStatus
