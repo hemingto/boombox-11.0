@@ -94,28 +94,28 @@ const DEFAULT_STEPS: Step[] = [
     title: 'Step 1',
     subtitle: 'Request',
     description: "Book online. We'll arrive where and when you need us.",
-    image: '/howitworks/step-1a.png',
+    image: '/howitworks/step-1.png',
   },
   {
     title: 'Step 2',
     subtitle: 'Pack',
     description:
       'Our team will help you pack your belongings safely and securely.',
-    image: '/howitworks/step-2d.png',
+    image: '/howitworks/step-2.png',
   },
   {
     title: 'Step 3',
     subtitle: 'Store',
     description:
       'We provide a safe and secure storage solution for your items.',
-    image: '/howitworks/step-3b.png',
+    image: '/howitworks/step-3.png',
   },
   {
     title: 'Step 4',
     subtitle: 'Deliver',
     description:
       'We deliver your items to your desired location at your convenience.',
-    image: '/howitworks/step-4c.png',
+    image: '/howitworks/step-4.png',
   },
 ];
 
