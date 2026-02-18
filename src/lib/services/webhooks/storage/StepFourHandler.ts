@@ -11,6 +11,8 @@ import {
 import type { OnfleetWebhookPayload } from '@/lib/validations/api.validations';
 
 export class StepFourHandler {
+  private static readonly CANCELED_STATUSES = ['Canceled', 'Cancelled'];
+
   /**
    * Handle taskCompleted event for Step 4 (Final Completion)
    * Updates appointment status to "Complete"
@@ -42,7 +44,12 @@ export class StepFourHandler {
       return;
     }
 
-    console.log(`[StepFourHandler] Appointment found: ${appointment.id}`);
+    console.log(`[StepFourHandler] Appointment found: ${appointment.id}, status: ${appointment.status}`);
+
+    if (this.CANCELED_STATUSES.includes(appointment.status)) {
+      console.log(`[StepFourHandler] SKIPPING: Appointment ${appointment.id} is ${appointment.status}`);
+      return;
+    }
 
     // Update appointment status to complete
     console.log(`[StepFourHandler] Updating appointment ${appointment.id} status to "Complete"`);

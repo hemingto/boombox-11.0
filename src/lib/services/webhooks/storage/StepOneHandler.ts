@@ -18,6 +18,8 @@ import {
 import type { OnfleetWebhookPayload } from '@/lib/validations/api.validations';
 
 export class StepOneHandler {
+  private static readonly CANCELED_STATUSES = ['Canceled', 'Cancelled'];
+
   /**
    * Handle taskStarted event for Step 1 (Pickup Started)
    * Updates appointment status to "In Transit" and sends customer notification
@@ -61,6 +63,11 @@ export class StepOneHandler {
       userPhone: appointment.user?.phoneNumber,
       movingPartnerName: appointment.movingPartner?.name
     });
+
+    if (this.CANCELED_STATUSES.includes(appointment.status)) {
+      console.log(`[StepOneHandler] SKIPPING: Appointment ${appointment.id} is ${appointment.status}`);
+      return;
+    }
 
     // Generate tracking token and URL
     console.log('[StepOneHandler] Generating tracking token...');

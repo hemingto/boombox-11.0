@@ -306,7 +306,7 @@ export function CustomerReviewSection({
       </div>
 
       {/* "Read all reviews" button */}
-      {totalReviewCount && googleMapsUrl && (
+      {googleMapsUrl && (
         <div className="lg:px-16 px-6 mt-8">
           <Link href={googleMapsUrl} target="_blank" rel="noopener noreferrer">
             <Button
@@ -316,7 +316,9 @@ export function CustomerReviewSection({
               tabIndex={-1}
               className="hover:bg-slate-50"
             >
-              Read all {totalReviewCount.toLocaleString()} reviews
+              {totalReviewCount
+                ? `Read all ${totalReviewCount.toLocaleString()} reviews`
+                : 'Read all reviews'}
             </Button>
           </Link>
         </div>

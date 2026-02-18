@@ -59,7 +59,12 @@ export class StepTwoHandler {
       return;
     }
 
-    console.log(`[StepTwoHandler:Started] Appointment found: ${appointment.id}`);
+    console.log(`[StepTwoHandler:Started] Appointment found: ${appointment.id}, status: ${appointment.status}`);
+
+    if (this.CANCELED_STATUSES.includes(appointment.status)) {
+      console.log(`[StepTwoHandler:Started] SKIPPING: Appointment ${appointment.id} is ${appointment.status}`);
+      return;
+    }
 
     // Send delivery started notification
     const driverName = getWorkerName(worker);
@@ -120,6 +125,11 @@ export class StepTwoHandler {
 
     console.log(`[StepTwoHandler:Arrival] Appointment found: ${appointment.id}, current status: ${appointment.status}`);
 
+    if (this.CANCELED_STATUSES.includes(appointment.status)) {
+      console.log(`[StepTwoHandler:Arrival] SKIPPING: Appointment ${appointment.id} is ${appointment.status}`);
+      return;
+    }
+
     // Generate new tracking token for arrival
     console.log('[StepTwoHandler:Arrival] Generating tracking token for arrival...');
     const token = createTrackingToken({
@@ -155,6 +165,8 @@ export class StepTwoHandler {
 
     console.log('=== [StepTwoHandler] handleTaskArrival COMPLETE ===');
   }
+
+  private static readonly CANCELED_STATUSES = ['Canceled', 'Cancelled'];
 
   /**
    * Statuses that indicate Step 2 completion has already been processed.
@@ -211,6 +223,11 @@ export class StepTwoHandler {
       status: appointment.status,
       stripeCustomerId: appointment.user.stripeCustomerId
     });
+
+    if (this.CANCELED_STATUSES.includes(appointment.status)) {
+      console.log(`[StepTwoHandler:Completed] SKIPPING: Appointment ${appointment.id} is ${appointment.status} — no billing or notifications`);
+      return;
+    }
 
     // IDEMPOTENCY CHECK: Skip if appointment has already been completed
     // This prevents duplicate SMS notifications on Onfleet webhook retries

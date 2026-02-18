@@ -12,6 +12,8 @@ import { AppointmentPayoutService } from '@/lib/services/payments/AppointmentPay
 import type { OnfleetWebhookPayload } from '@/lib/validations/api.validations';
 
 export class StepThreeHandler {
+  private static readonly CANCELED_STATUSES = ['Canceled', 'Cancelled'];
+
   /**
    * Handle taskCompleted event for Step 3 (Warehouse Arrival)
    * Updates appointment status and processes driver payout
@@ -43,7 +45,12 @@ export class StepThreeHandler {
       return;
     }
 
-    console.log(`[StepThreeHandler] Appointment found: ${appointment.id}`);
+    console.log(`[StepThreeHandler] Appointment found: ${appointment.id}, status: ${appointment.status}`);
+
+    if (this.CANCELED_STATUSES.includes(appointment.status)) {
+      console.log(`[StepThreeHandler] SKIPPING: Appointment ${appointment.id} is ${appointment.status} — no status update or payout`);
+      return;
+    }
 
     // Update appointment status to awaiting admin check-in
     console.log(`[StepThreeHandler] Updating appointment ${appointment.id} status to "Awaiting Admin Check In"`);

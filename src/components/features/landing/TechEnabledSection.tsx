@@ -100,14 +100,15 @@ const DEFAULT_FEATURES: TechFeature[] = [
       'Take the guess work of storage by estimating your space with our storage calculator',
     category: 'tech-feature',
     image: '/tech-enabled-storage/storage-calculator.jpg',
-    video: '/tech-enabled-storage/storage-calculator-2.mp4',
+    video: '/tech-enabled-storage/storage-calculator.mp4',
   },
   {
     question: 'Real time tracking',
     answer:
       "You've got better things to do than wait by the door for your Boombox - so we include real time delivery tracking",
     category: 'tech-feature',
-    image: '/placeholder.jpg',
+    image: '/tech-enabled-storage/tracking.jpg',
+    video: '/tech-enabled-storage/tracking-3.mp4',
   },
   {
     question: 'Remember what you stored',

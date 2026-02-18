@@ -51,7 +51,11 @@ export async function GET() {
     totalReviewCount = googleResult.totalReviewCount;
     googleMapsUrl = googleResult.googleMapsUrl;
   } catch {
-    // Google metadata unavailable — will use null values
+    // Google metadata unavailable — construct fallback URL from Place ID
+    const placeId = process.env.GOOGLE_PLACE_ID;
+    if (placeId) {
+      googleMapsUrl = `https://www.google.com/maps/place/?q=place_id:${placeId}`;
+    }
   }
 
   try {
@@ -99,13 +103,16 @@ export async function GET() {
   } catch (error) {
     console.error('Reviews API route error:', error);
 
+    const fallbackPlaceId = process.env.GOOGLE_PLACE_ID;
     return NextResponse.json(
       {
         reviews: CUSTOMER_REVIEWS,
         source: 'fallback',
         totalReviews: CUSTOMER_REVIEWS.length,
         totalReviewCount: null,
-        googleMapsUrl: null,
+        googleMapsUrl: fallbackPlaceId
+          ? `https://www.google.com/maps/place/?q=place_id:${fallbackPlaceId}`
+          : null,
       },
       { headers: FALLBACK_CACHE_HEADERS }
     );

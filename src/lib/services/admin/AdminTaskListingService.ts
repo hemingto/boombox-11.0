@@ -252,15 +252,18 @@ export class AdminTaskListingService {
           appointmentType: {
             in: ['Initial Pickup', 'Additional Storage']
           },
-          date: {
-            gte: new Date(),
-            lt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) // Next 2 days
-          },
-          // Appointments without storage unit usages that should have them
+          OR: [
+            {
+              date: {
+                gte: new Date(),
+                lt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
+              }
+            },
+            { status: 'In Transit' }
+          ],
           storageStartUsages: {
             none: {}
           },
-          // Exclude canceled and completed appointments
           status: {
             notIn: EXCLUDED_APPOINTMENT_STATUSES
           }
@@ -481,10 +484,15 @@ export class AdminTaskListingService {
     
     return await prisma.appointment.findMany({
       where: {
-        date: {
-          gte: today,
-          lt: new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000)
-        },
+        OR: [
+          {
+            date: {
+              gte: today,
+              lt: new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000)
+            }
+          },
+          { status: 'In Transit' }
+        ],
         onfleetTasks: {
           none: {
             driverId: { not: null }
@@ -493,7 +501,6 @@ export class AdminTaskListingService {
         movingPartner: {
           isNot: null
         },
-        // Exclude canceled and completed appointments
         status: {
           notIn: EXCLUDED_APPOINTMENT_STATUSES
         }

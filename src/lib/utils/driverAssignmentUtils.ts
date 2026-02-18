@@ -11,7 +11,8 @@ import { driverJobOfferSms } from '@/lib/messaging/templates/sms/booking/driverJ
 import { movingPartnerNewJobSms, movingPartnerNewJobWithDriverSms } from '@/lib/messaging/templates/sms/appointment/movingPartnerNewJob';
 import { movingPartnerNewJobEmail } from '@/lib/messaging/templates/email/appointment/movingPartnerNewJob';
 import { calculateDriverPayment, calculateMovingPartnerPayment, getShortAddress } from '@/lib/services/payment-calculator';
-import { formatTime, formatDate } from '@/lib/utils/dateUtils';
+import { formatTime, formatDate, TIME_ZONE } from '@/lib/utils/dateUtils';
+import { toZonedTime } from 'date-fns-tz';
 import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
 import { NotificationService } from '@/lib/services/NotificationService';
 import { JOB_TIMING, calculateJobBlockedWindow, doWindowsOverlap } from '@/lib/constants/jobTiming';
@@ -120,11 +121,13 @@ export async function findAvailableDrivers(
   const newJobUnitSpecificStartTime = getUnitSpecificStartTime(originalAppointmentTimeForNewJob, unitNumberForNewJob);
   const newJobDate = new Date(appointment.date);
 
-  const dayOfWeek = newJobDate.toLocaleDateString("en-US", { weekday: "long" });
+  const dayOfWeek = newJobDate.toLocaleDateString("en-US", { weekday: "long", timeZone: TIME_ZONE });
   
   // Format the original appointment time for general availability check (HH:MM)
-  const hours = originalAppointmentTimeForNewJob.getHours();
-  const minutes = originalAppointmentTimeForNewJob.getMinutes();
+  // Convert to PST so we compare against driver availability stored in local time
+  const pstTime = toZonedTime(originalAppointmentTimeForNewJob, TIME_ZONE);
+  const hours = pstTime.getHours();
+  const minutes = pstTime.getMinutes();
   const formattedOriginalTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 
   // Determine required team based on appointment type
@@ -877,12 +880,13 @@ export async function createDriverTimeSlotBooking(
     const bookingStart = getUnitSpecificStartTime(appointmentTime, unitNumber);
     const bookingEnd = getUnitCompletionTime(appointmentTime, unitNumber);
     
-    // Get the day of week for finding the availability slot
-    const dayOfWeek = appointmentDate.toLocaleDateString("en-US", { weekday: "long" });
+    // Get the day of week for finding the availability slot (in PST)
+    const dayOfWeek = appointmentDate.toLocaleDateString("en-US", { weekday: "long", timeZone: TIME_ZONE });
     
-    // Format time for availability lookup (HH:MM)
-    const hours = appointmentTime.getHours();
-    const minutes = appointmentTime.getMinutes();
+    // Format time for availability lookup (HH:MM) - convert to PST
+    const pstAppointmentTime = toZonedTime(appointmentTime, TIME_ZONE);
+    const hours = pstAppointmentTime.getHours();
+    const minutes = pstAppointmentTime.getMinutes();
     const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 
     // Find the driver's availability slot for this day/time
@@ -998,12 +1002,13 @@ export async function updateDriverTimeSlotBooking(
     const bookingStart = getUnitSpecificStartTime(newTime, unitNumber);
     const bookingEnd = getUnitCompletionTime(newTime, unitNumber);
 
-    // Get the day of week for the new date
-    const dayOfWeek = newDate.toLocaleDateString("en-US", { weekday: "long" });
+    // Get the day of week for the new date (in PST)
+    const dayOfWeek = newDate.toLocaleDateString("en-US", { weekday: "long", timeZone: TIME_ZONE });
 
-    // Format time for availability lookup (HH:MM)
-    const hours = newTime.getHours();
-    const minutes = newTime.getMinutes();
+    // Format time for availability lookup (HH:MM) - convert to PST
+    const pstNewTime = toZonedTime(newTime, TIME_ZONE);
+    const hours = pstNewTime.getHours();
+    const minutes = pstNewTime.getMinutes();
     const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 
     // Find the driver's availability slot for the new day/time

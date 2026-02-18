@@ -210,6 +210,7 @@ export class PrepUnitsDeliveryService {
         select: {
           appointmentType: true,
           date: true,
+          status: true,
           requestedStorageUnits: {
             select: { unitsReady: true }
           }
@@ -223,12 +224,13 @@ export class PrepUnitsDeliveryService {
         return false;
       }
 
-      // Must be within next 2 days
+      // Must be within next 2 days OR appointment is already In Transit
       const today = new Date();
       const twoDaysFromNow = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
       const appointmentDate = new Date(appointment.date);
+      const isInTransit = appointment.status === 'In Transit';
       
-      if (appointmentDate < today || appointmentDate > twoDaysFromNow) {
+      if (!isInTransit && (appointmentDate < today || appointmentDate > twoDaysFromNow)) {
         return false;
       }
 
@@ -256,16 +258,20 @@ export class PrepUnitsDeliveryService {
           appointmentType: {
             in: ['Storage Unit Access', 'End Storage Plan']
           },
-          date: {
-            gte: today,
-            lt: twoDaysFromNow
-          },
+          OR: [
+            {
+              date: {
+                gte: today,
+                lt: twoDaysFromNow
+              }
+            },
+            { status: 'In Transit' }
+          ],
           requestedStorageUnits: {
             some: {
-              unitsReady: false  // Only get appointments where units are not ready
+              unitsReady: false
             }
           },
-          // Exclude canceled and completed appointments
           status: {
             notIn: EXCLUDED_APPOINTMENT_STATUSES
           }
