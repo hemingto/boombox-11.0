@@ -34,12 +34,11 @@ export default function Locations() {
     <>
       <LocationsHeroSection />
       <PopularLocationsSection />
-      <GetQuoteLocations />
+      <GetQuoteLocations imageSrc="/locations/2829-steiner-2.png" />
       <CitiesSection />
       <ZipCodeSection />
       <LocationsFaqSection />
-      <HelpCenterSection />
+      <HelpCenterSection imageSrc="/locations/relaxed-customer-4.png" />
     </>
   );
 }
-

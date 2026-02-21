@@ -13,7 +13,11 @@ import {
   CompetitorChartSection,
   PricingFAQSection,
 } from '@/components/features/storage-unit-prices';
-import { WhatFitsSection, CustomerReviewSection, HelpCenterSection } from '@/components/features/landing';
+import {
+  WhatFitsSection,
+  CustomerReviewSection,
+  HelpCenterSection,
+} from '@/components/features/landing';
 
 // Note: Page is client component
 // SEO metadata should be added via generateMetadata when converting to server component
@@ -21,7 +25,11 @@ import { WhatFitsSection, CustomerReviewSection, HelpCenterSection } from '@/com
 export default function StorageUnitPrices() {
   const featuresData = [
     { feature: 'Affordability', boombox: true, competitors: false },
-    { feature: "Don't need to rent a truck", boombox: true, competitors: false },
+    {
+      feature: "Don't need to rent a truck",
+      boombox: true,
+      competitors: false,
+    },
     { feature: 'Only load and unload once', boombox: true, competitors: false },
     { feature: 'Optional labor', boombox: true, competitors: false },
     { feature: 'Optional packing supplies', boombox: true, competitors: false },
@@ -30,14 +38,17 @@ export default function StorageUnitPrices() {
 
   return (
     <>
-      <HeroSection title="Cheaper than self storage" buttontext="Check Rate" />
+      <HeroSection
+        title="Cheaper than self storage"
+        buttontext="Check Rate"
+        imageSrc="/storage-unit-prices/grateful-dead-square.png"
+      />
       <AdditionalPricingInfoSection />
       <CompetitorChartSection features={featuresData} />
       <CustomerReviewSection />
-      <WhatFitsSection />
+      <WhatFitsSection imageSrc="/boombox-warehouse-square-2.png" />
       <PricingFAQSection />
-      <HelpCenterSection />
+      <HelpCenterSection imageSrc="/storage-unit-prices/relaxed-customer-5.png" />
     </>
   );
 }
-

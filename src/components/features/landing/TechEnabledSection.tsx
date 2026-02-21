@@ -43,7 +43,7 @@
 
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import {
   AccordionContainer,
@@ -150,18 +150,58 @@ export function TechEnabledSection({
   showMedia = true,
 }: TechEnabledSectionProps) {
   const [currentMediaIndex, setCurrentMediaIndex] = useState<number>(0);
+  const [isInView, setIsInView] = useState(false);
+  const sectionRef = useRef<HTMLElement>(null);
+  const desktopVideoRef = useRef<HTMLVideoElement>(null);
+  const isDesktopRef = useRef(false);
+
+  // Track the sm breakpoint (640px) to gate auto-advance to desktop only
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 640px)');
+    isDesktopRef.current = mql.matches;
+    const handler = (e: MediaQueryListEvent) => {
+      isDesktopRef.current = e.matches;
+    };
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
+  // Only activate videos once the section scrolls into the viewport
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsInView(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.05 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Play the desktop video when the section enters the viewport (or on video swap)
+  useEffect(() => {
+    if (isInView && desktopVideoRef.current) {
+      desktopVideoRef.current.play().catch(() => {});
+    }
+  }, [isInView, currentMediaIndex]);
 
   const advanceToNext = useCallback(() => {
-    setCurrentMediaIndex((prev) => (prev + 1) % features.length);
+    if (!isDesktopRef.current) return;
+    setCurrentMediaIndex(prev => (prev + 1) % features.length);
   }, [features.length]);
 
   // Auto-advance for features without a video (static image fallback)
   useEffect(() => {
-    if (!features[currentMediaIndex]?.video) {
+    if (isInView && !features[currentMediaIndex]?.video) {
       const timer = setTimeout(advanceToNext, 5000);
       return () => clearTimeout(timer);
     }
-  }, [currentMediaIndex, features, advanceToNext]);
+  }, [isInView, currentMediaIndex, features, advanceToNext]);
 
   // Get current feature for media display
   const currentFeature = features[currentMediaIndex];
@@ -180,10 +220,13 @@ export function TechEnabledSection({
             {video ? (
               <video
                 src={video}
-                autoPlay
+                preload="metadata"
                 muted
                 loop
                 playsInline
+                ref={el => {
+                  if (el && isInView) el.play().catch(() => {});
+                }}
                 className="w-full h-full object-cover"
                 aria-hidden="true"
               />
@@ -207,6 +250,7 @@ export function TechEnabledSection({
 
   return (
     <section
+      ref={sectionRef}
       className={cn('md:flex mt-14 lg:px-16 px-6 sm:mb-48 mb-24', className)}
       aria-labelledby="tech-enabled-section-heading"
     >
@@ -230,8 +274,9 @@ export function TechEnabledSection({
           <IPhoneFrame key={currentMediaIndex} className="h-full">
             {currentFeature.video ? (
               <video
+                ref={desktopVideoRef}
                 src={currentFeature.video}
-                autoPlay
+                preload="metadata"
                 muted
                 playsInline
                 onEnded={advanceToNext}
