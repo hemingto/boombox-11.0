@@ -1,12 +1,12 @@
 /**
  * @fileoverview Packing supplies kit selector component with horizontal scroll
  * @source boombox-10.0/src/app/components/packing-supplies/packingkits.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * Displays horizontal scrollable gallery of packing supply kits (Apartment, 1-2 Bedroom, 3-4 Bedroom).
  * Each kit shows pricing, description, and includes a modal for detailed item breakdown.
  * Allows users to add entire kit to cart with a single click.
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Replaced InformationalPopup with Modal component (per user preference)
  * - Replaced emerald-500/emerald-100 with status-success/status-bg-success for free delivery badge
@@ -14,7 +14,7 @@
  * - Replaced zinc-950/zinc-800/zinc-700 with primary/primary-hover/primary-active for Add to Cart button
  * - Replaced slate-100 with surface-tertiary for card background
  * - Maintained gradient overlays for image cards (black with opacity)
- * 
+ *
  * @refactor Replaced InformationalPopup with Modal, applied design system colors, preserved scroll functionality
  */
 
@@ -54,7 +54,9 @@ export const PackingKits: React.FC<PackingKitsProps> = ({ onAddToCart }) => {
   useEffect(() => {
     const updateItemWidth = () => {
       if (scrollContainerRef.current) {
-        const firstItem = scrollContainerRef.current.querySelector('#item-container > article');
+        const firstItem = scrollContainerRef.current.querySelector(
+          '#item-container > article'
+        );
         if (firstItem) {
           const width = firstItem.getBoundingClientRect().width;
           setItemWidth(width + 16); // width + gap
@@ -73,7 +75,10 @@ export const PackingKits: React.FC<PackingKitsProps> = ({ onAddToCart }) => {
       const offset = direction === 'left' ? -itemWidth : itemWidth;
       const nearestIndex = Math.round(scrollLeft / itemWidth);
       const newScrollPosition = nearestIndex * itemWidth + offset;
-      scrollContainerRef.current.scrollTo({ left: newScrollPosition, behavior: 'smooth' });
+      scrollContainerRef.current.scrollTo({
+        left: newScrollPosition,
+        behavior: 'smooth',
+      });
     }
   };
 
@@ -101,7 +106,7 @@ export const PackingKits: React.FC<PackingKitsProps> = ({ onAddToCart }) => {
       description: 'studio or small moving project',
       detailedDescription:
         'This kit is perfect for a studio or small moving project. It includes a variety of boxes, packing materials, and moving supplies to help you pack and move your belongings safely and efficiently.',
-      imageSrc: '/golden-gate.png',
+      imageSrc: '/packing-supplies/apartment-kit.png',
       items: [
         { name: 'Medium Box', quantity: 5, price: 3.15 },
         { name: 'Large Box', quantity: 10, price: 4.15 },
@@ -119,7 +124,7 @@ export const PackingKits: React.FC<PackingKitsProps> = ({ onAddToCart }) => {
       description: 'one to two bedroom house/apt',
       detailedDescription:
         'This kit is perfect for a one to two bedroom house or apartment. It includes a variety of boxes, packing materials, and moving supplies to help you pack and move your belongings safely and efficiently.',
-      imageSrc: '/berkeley.png',
+      imageSrc: '/packing-supplies/1-2-bedroom-apartment-kit.png',
       items: [
         { name: 'Small Box', quantity: 2, price: 2.15 },
         { name: 'Medium Box', quantity: 5, price: 3.15 },
@@ -139,7 +144,7 @@ export const PackingKits: React.FC<PackingKitsProps> = ({ onAddToCart }) => {
       description: 'three to four bedroom household',
       detailedDescription:
         'This kit is perfect for a three to four bedroom household. It includes a variety of boxes, packing materials, and moving supplies to help you pack and move your belongings safely and efficiently.',
-      imageSrc: '/mountain-view.png',
+      imageSrc: '/packing-supplies/3-4-bedroom-kit.png',
       items: [
         { name: 'Small Box', quantity: 5, price: 2.15 },
         { name: 'Medium Box', quantity: 10, price: 3.15 },
@@ -168,7 +173,11 @@ export const PackingKits: React.FC<PackingKitsProps> = ({ onAddToCart }) => {
             <p className="text-xs text-status-success">Free delivery</p>
           </div>
         </div>
-        <div className="flex mt-4 sm:mt-0 gap-1" role="group" aria-label="Scroll navigation">
+        <div
+          className="flex mt-4 sm:mt-0 gap-1"
+          role="group"
+          aria-label="Scroll navigation"
+        >
           <button
             onClick={handleScrollLeft}
             className="rounded-full bg-surface-tertiary active:bg-surface-disabled hover:bg-surface-disabled cursor-pointer p-2"
@@ -196,7 +205,10 @@ export const PackingKits: React.FC<PackingKitsProps> = ({ onAddToCart }) => {
         role="region"
         aria-label="Packing kits gallery"
       >
-        <div id="item-container" className="lg:px-16 px-6 py-4 flex gap-4 flex-nowrap">
+        <div
+          id="item-container"
+          className="lg:px-16 px-6 py-4 flex gap-4 flex-nowrap"
+        >
           {packingKits.map((kit, index) => (
             <article
               key={index}
@@ -209,20 +221,26 @@ export const PackingKits: React.FC<PackingKitsProps> = ({ onAddToCart }) => {
                 objectFit="cover"
                 className="rounded-md"
               />
-              <div className="absolute w-full p-4">
+              <div className="absolute w-full p-4 flex justify-between items-start">
                 <div
-                  className="absolute inset-0 bg-gradient-to-b from-black to-transparent rounded-md opacity-60 top-0 rounded-md z-10"
+                  className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 via-[60%] to-transparent rounded-md z-10"
                   aria-hidden="true"
                 ></div>
-                <p className="relative font-semibold text-lg text-white -mb-1 z-20">
+                <p className="relative font-semibold text-xl text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)] z-20">
                   {kit.price}
                 </p>
-                <h3 className="relative text-white z-20">{kit.title}</h3>
-                <p className="relative text-white text-xs z-20">{kit.description}</p>
+                <div className="relative text-right z-20">
+                  <h3 className="text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
+                    {kit.title}
+                  </h3>
+                  <p className="text-white text-xs drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
+                    {kit.description}
+                  </p>
+                </div>
               </div>
               <div className="absolute z-10 bottom-0 p-4 w-full">
                 <div
-                  className="absolute inset-0 bg-gradient-to-t from-black to-transparent rounded-md opacity-60 top-0 rounded-md z-10"
+                  className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent rounded-md z-10"
                   aria-hidden="true"
                 ></div>
                 <div className="relative flex gap-2 items-center mt-4 z-20">
@@ -235,7 +253,7 @@ export const PackingKits: React.FC<PackingKitsProps> = ({ onAddToCart }) => {
                   </button>
                   <button
                     onClick={() => openModal(kit)}
-                    className="text-sm text-white underline decoration-dotted hover:decoration-solid underline-offset-4"
+                    className="text-sm text-white underline decoration-dotted hover:decoration-solid underline-offset-4 drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]"
                     aria-label={`View more details about ${kit.title}`}
                   >
                     More Details
@@ -261,34 +279,41 @@ export const PackingKits: React.FC<PackingKitsProps> = ({ onAddToCart }) => {
           showCloseButton={true}
           closeOnOverlayClick={true}
         >
-          <div className="flex gap-4">
-            {/* Image */}
-            <div className="hidden sm:block relative shrink-0 w-44 h-44 aspect-square bg-surface-tertiary rounded-md">
-              <Image
-                src={activeModalKit.imageSrc}
-                alt={`${activeModalKit.title} packing supplies kit`}
-                layout="fill"
-                objectFit="cover"
-                className="rounded-md"
-              />
-            </div>
+          {/* Image */}
+          <div className="relative w-full h-48 sm:h-64 bg-surface-tertiary rounded-md overflow-hidden">
+            <Image
+              src={activeModalKit.imageSrc}
+              alt={`${activeModalKit.title} packing supplies kit`}
+              layout="fill"
+              objectFit="cover"
+              className="rounded-md"
+            />
+          </div>
 
-            {/* Description */}
-            <div>
-              <div className="mb-4 leading-5">{activeModalKit.detailedDescription}</div>
-            </div>
+          {/* Description */}
+          <div className="mt-4 leading-5">
+            {activeModalKit.detailedDescription}
           </div>
 
           {/* Items Included Section */}
           <div className="mt-6">
             <h3 className="text-xl font-semibold mb-2">Items Included</h3>
-            <ul className="list-disc pl-5">
-              {activeModalKit.items.map((item, index) => (
-                <li key={index}>
-                  {item.quantity}x {item.name}
-                </li>
-              ))}
-            </ul>
+            <div className="flex gap-6">
+              {Array.from(
+                { length: Math.ceil(activeModalKit.items.length / 5) },
+                (_, colIndex) => (
+                  <ul key={colIndex} className="list-disc pl-5">
+                    {activeModalKit.items
+                      .slice(colIndex * 5, colIndex * 5 + 5)
+                      .map((item, index) => (
+                        <li key={index}>
+                          {item.quantity}x {item.name}
+                        </li>
+                      ))}
+                  </ul>
+                )
+              )}
+            </div>
           </div>
 
           {/* Total and Add to Cart */}
@@ -320,5 +345,3 @@ export const PackingKits: React.FC<PackingKitsProps> = ({ onAddToCart }) => {
     </div>
   );
 };
-
-

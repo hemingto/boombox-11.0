@@ -11,7 +11,10 @@ import {
   GetQuoteHowItWorks,
   HowItWorksFaqSection,
 } from '@/components/features/howitworks';
-import { HelpCenterSection, CustomerReviewSection } from '@/components/features/landing';
+import {
+  HelpCenterSection,
+  CustomerReviewSection,
+} from '@/components/features/landing';
 
 export const metadata: Metadata = {
   title: 'How It Works - Storage Delivery Process | Boombox Storage',
@@ -34,8 +37,7 @@ export default function HowItWorks() {
       <GetQuoteHowItWorks />
       <CustomerReviewSection variant="white" />
       <HowItWorksFaqSection />
-      <HelpCenterSection />
+      <HelpCenterSection imageSrc="/howitworks/relaxed-customer-6.png" />
     </>
   );
 }
-

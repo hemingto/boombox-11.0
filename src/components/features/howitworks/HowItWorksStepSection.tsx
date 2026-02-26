@@ -84,7 +84,7 @@ const defaultSteps: Step[] = [
     title: 'Request',
     description:
       "Book online. We'll arrive when and where you need us. Get a storage unit delivered to your door at the push of a button. Storage has never been this simple.",
-    image: '/howitworks/step-1-union-roast.png',
+    image: '/howitworks/step-1-fort-mason.png',
     imageAlt:
       'Customer booking Boombox storage online - request delivery service',
   },
@@ -93,7 +93,7 @@ const defaultSteps: Step[] = [
     title: 'Pack',
     description:
       'Save money by packing your storage unit or hire a local pro. You can pack the unit yourself or we can match you with a local pro to help with the heavy lifting.',
-    image: '/howitworks/step-2-pierce.png',
+    image: '/howitworks/step-2-pierce-3.png',
     imageAlt:
       'Packing belongings into Boombox storage unit with professional help',
   },
@@ -102,7 +102,7 @@ const defaultSteps: Step[] = [
     title: 'Store',
     description:
       "We'll transport your storage unit to our secure facility. Just sit back and relax, as our friendly Boombox driver delivers your Boombox to our 24/7 monitored facility",
-    image: '/placeholder.jpg',
+    image: '/howitworks/step-3-ssf-2.png',
     imageAlt: 'Boombox driver transporting storage unit to secure facility',
   },
   {
@@ -110,7 +110,7 @@ const defaultSteps: Step[] = [
     title: 'Deliver',
     description:
       "Need to access your storage unit? We'll deliver right to your door. It's self storage that comes to you. If you need to grab a box or add a couple items simply request your unit back and we'll deliver it right to your door.",
-    image: '/placeholder.jpg',
+    image: '/howitworks/step-4-sacramento-3.png',
     imageAlt: 'Boombox storage unit being delivered back to customer location',
   },
 ];

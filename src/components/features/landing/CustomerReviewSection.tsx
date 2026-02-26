@@ -314,7 +314,11 @@ export function CustomerReviewSection({
               borderRadius="full"
               size="md"
               tabIndex={-1}
-              className="hover:bg-slate-50"
+              className={
+                variant === 'white'
+                  ? 'bg-slate-100 hover:bg-slate-200'
+                  : 'hover:bg-slate-50'
+              }
             >
               {totalReviewCount
                 ? `Read all ${totalReviewCount.toLocaleString()} reviews`

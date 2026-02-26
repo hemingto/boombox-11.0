@@ -56,10 +56,9 @@ export async function GET(request: NextRequest) {
         isOutOfStock: true,
         restockDate: true,
       },
-      orderBy: [
-        { isOutOfStock: 'asc' }, // In stock items first
-        { title: 'asc' },
-      ],
+      orderBy: {
+        id: 'asc',
+      },
     });
 
     return NextResponse.json({
