@@ -252,7 +252,7 @@ export function CustomerReviewSection({
           {reviews.map(review => (
             <article
               key={review.id}
-              className={`${cardBackgroundClass} w-[405px] rounded-lg flex-none transform transition-transform duration-300 hover:scale-[102%] focus-within:scale-[102%]`}
+              className={`${cardBackgroundClass} w-[405px] rounded-lg flex-none transform transition-transform duration-300 hover:scale-[102%] focus-within:scale-[102%] ${variant === 'white' ? 'border border-slate-100' : ''}`}
             >
               {/* Customer info header */}
               <div className="flex p-4 mb-2 items-center">

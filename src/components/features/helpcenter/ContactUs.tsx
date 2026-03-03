@@ -1,23 +1,23 @@
 /**
  * @fileoverview Help Center contact information component
  * @source boombox-10.0/src/app/components/helpcenter/helpcentercontactus.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * Displays contact information card with image, heading, and contact details.
  * Shows phone number and email address with icons for easy access.
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - bg-slate-100 → bg-surface-tertiary (semantic background color)
  * - text-zinc-950 → text-primary (semantic text color)
  * - Applied consistent spacing using design system tokens
  * - Used semantic HTML elements (section, address)
- * 
+ *
  * IMAGE OPTIMIZATION:
  * - Updated Next.js Image component from deprecated layout="fill" to fill prop
  * - Replaced objectFit="cover" with object-fit style
  * - Added proper sizes attribute for responsive images
  * - Maintained aspect ratio with responsive design
- * 
+ *
  * ACCESSIBILITY IMPROVEMENTS:
  * - Added semantic HTML structure (section, address)
  * - Proper heading hierarchy (h2)
@@ -25,7 +25,7 @@
  * - Added aria-hidden to decorative icons
  * - Clickable phone and email links with proper href
  * - Descriptive alt text for contact image
- * 
+ *
  * @refactor Refactored with design system compliance, enhanced accessibility, and Next.js 15 image optimization
  */
 
@@ -87,7 +87,7 @@ export interface ContactUsProps {
 
 /**
  * ContactUs Component
- * 
+ *
  * Displays a contact information card with image and contact details.
  * Implements WCAG 2.1 AA accessibility standards with proper semantic HTML.
  */
@@ -96,71 +96,68 @@ export function ContactUs({
   subtitle = 'No problem! Contact our support team',
   phone = '415-322-3135',
   email = 'help@boomboxstorage.com',
-  imageSrc = '/berkeley.png',
+  imageSrc = '/help-center/contact-us.png',
   imageAlt = 'Contact Us customer service representative',
   className,
   showImage = true,
 }: ContactUsProps) {
   return (
-    <section 
-      className={cn('flex bg-surface-tertiary py-12', className)}
+    <section
+      className={cn('bg-surface-tertiary lg:px-16 px-6 pt-14 pb-24', className)}
       aria-label="Contact information"
     >
-      <div className="flex flex-col sm:flex-row bg-white w-full h-full sm:min-h-[300px] rounded-md place-content-center m-12">
-          {showImage && (
-            <div className="relative sm:w-2/5 w-full aspect-video overflow-hidden rounded-tr-md sm:rounded-tr-none rounded-tl-md sm:rounded-bl-md">
-            <Image 
+      <div className="bg-surface-primary rounded-3xl w-full overflow-hidden flex flex-col md:flex-row min-h-[480px]">
+        {showImage && (
+          <div className="relative min-h-[250px] md:min-h-0 md:w-1/2">
+            <Image
               src={imageSrc}
               alt={imageAlt}
               fill
               className="object-cover"
-              sizes="(max-width: 640px) 100vw, 40vw"
+              sizes="(max-width: 768px) 100vw, 50vw"
               priority
             />
           </div>
+        )}
+
+        <div
+          className={cn(
+            'flex flex-col items-center text-center md:items-start md:text-left justify-center p-8 md:p-12 lg:p-16',
+            showImage ? 'md:w-1/2' : 'w-full'
           )}
-        <div className={cn(
-          'flex flex-col items-center justify-center p-8 sm:p-6 mx-auto',
-          showImage ? 'w-full sm:w-3/5' : 'w-full'
-        )}>
-          <div>
-            <h2 className="mb-1">{title}</h2>
-            <p className="mt-1 mb-8 text-text-primary">
-              {subtitle}
-            </p>
-            
-            <address className="not-italic">
-              {/* Phone contact */}
-              <div className="flex gap-4 mb-2">
-                <PhoneIcon 
-                  className="h-6 w-6 text-primary flex-shrink-0" 
-                  aria-hidden="true"
-                />
-                <a 
-                  href={`tel:${phone.replace(/\D/g, '')}`}
-                  className="text-text-primary"
-                  aria-label={`Call us at ${phone}`}
-                >
-                  {phone}
-                </a>
-              </div>
-              
-              {/* Email contact */}
-              <div className="flex gap-4 mb-1">
-                <EnvelopeIcon 
-                  className="h-6 w-6 text-primary flex-shrink-0" 
-                  aria-hidden="true"
-                />
-                <a 
-                  href={`mailto:${email}`}
-                  className="text-text-primary"
-                  aria-label={`Email us at ${email}`}
-                >
-                  {email}
-                </a>
-              </div>
-            </address>
-          </div>
+        >
+          <h2 className="mb-2 mt-10 sm:mt-0 text-2xl sm:text-3xl">{title}</h2>
+          <p className="mb-8">{subtitle}</p>
+
+          <address className="not-italic">
+            <div className="flex gap-4 mb-2">
+              <PhoneIcon
+                className="h-6 w-6 text-primary flex-shrink-0"
+                aria-hidden="true"
+              />
+              <a
+                href={`tel:${phone.replace(/\D/g, '')}`}
+                className="text-text-primary"
+                aria-label={`Call us at ${phone}`}
+              >
+                {phone}
+              </a>
+            </div>
+
+            <div className="flex gap-4 mb-1">
+              <EnvelopeIcon
+                className="h-6 w-6 text-primary flex-shrink-0"
+                aria-hidden="true"
+              />
+              <a
+                href={`mailto:${email}`}
+                className="text-text-primary"
+                aria-label={`Email us at ${email}`}
+              >
+                {email}
+              </a>
+            </div>
+          </address>
         </div>
       </div>
     </section>
@@ -168,4 +165,3 @@ export function ContactUs({
 }
 
 export default ContactUs;
-

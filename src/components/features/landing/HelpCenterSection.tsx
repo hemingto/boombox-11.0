@@ -107,7 +107,7 @@ export function HelpCenterSection({
   description = 'No problem! Find more answers at our help center page.',
   buttonText = 'Go to Help Center',
   helpCenterUrl = '/help-center',
-  imageSrc = '/relaxed-customer.png',
+  imageSrc = '/customers/customer.png',
   imageAlt = 'Boombox storage unit',
   className,
 }: HelpCenterSectionProps) {

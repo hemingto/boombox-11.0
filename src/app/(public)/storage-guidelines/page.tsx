@@ -22,8 +22,7 @@ export default function StorageGuidelines() {
       <StorageGuidelinesHero />
       <StorageGuidelinesList />
       <FaqSection />
-      <HelpCenterSection />
+      <HelpCenterSection imageSrc="/customers/customer-12.png" />
     </>
   );
 }
-

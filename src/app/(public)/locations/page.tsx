@@ -38,7 +38,7 @@ export default function Locations() {
       <CitiesSection />
       <ZipCodeSection />
       <LocationsFaqSection />
-      <HelpCenterSection imageSrc="/locations/relaxed-customer-4.png" />
+      <HelpCenterSection imageSrc="/customers/customer-3.png" />
     </>
   );
 }

@@ -108,7 +108,7 @@ const DEFAULT_STEPS: Step[] = [
     subtitle: 'Store',
     description:
       'We provide a safe and secure storage solution for your items.',
-    image: '/howitworks/step-3.png',
+    image: '/howitworks/step-3-3.png',
   },
   {
     title: 'Step 4',

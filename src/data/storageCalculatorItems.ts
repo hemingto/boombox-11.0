@@ -295,13 +295,6 @@ export const STORAGE_ITEMS: StorageItem[] = [
     category: 'boxes',
     iconPath: '/boombox-icons/clear-plastic-bin.png',
   },
-  {
-    id: 'wardrobe-box',
-    name: 'Wardrobe Box',
-    dimensions: { length: 25, width: 24, height: 36 },
-    category: 'boxes',
-    iconPath: '/boombox-icons/wardrobe-box.png',
-  },
 ];
 
 /**

@@ -47,8 +47,7 @@ export default function Home() {
       <TechEnabledSection />
       <SecuritySection />
       <FaqSection />
-      <HelpCenterSection />
+      <HelpCenterSection imageSrc="/customers/customer-9.png" />
     </>
   );
 }
-

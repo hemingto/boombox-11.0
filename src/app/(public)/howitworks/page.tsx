@@ -37,7 +37,7 @@ export default function HowItWorks() {
       <GetQuoteHowItWorks />
       <CustomerReviewSection variant="white" />
       <HowItWorksFaqSection />
-      <HelpCenterSection imageSrc="/howitworks/relaxed-customer-6.png" />
+      <HelpCenterSection imageSrc="/customers/customer-6.png" />
     </>
   );
 }
