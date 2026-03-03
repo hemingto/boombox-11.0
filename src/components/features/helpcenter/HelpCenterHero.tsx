@@ -92,7 +92,7 @@ export function HelpCenterHero({
   return (
     <section
       className={cn(
-        'flex-col mt-12 sm:mt-24 lg:px-16 px-6 sm:mb-12 mb-6',
+        'flex-col mt-12 sm:mt-18 lg:px-16 px-6 sm:mb-12 mb-6',
         className
       )}
       aria-label="Help center introduction"
@@ -102,8 +102,7 @@ export function HelpCenterHero({
           className={cn('mb-4 w-12 h-12', iconClassName)}
           aria-hidden="true"
         />
-        <h1 className="mb-4">{title}</h1>
-        <p className="text-text-primary">{subtitle}</p>
+        <h1>{title}</h1>
       </header>
 
       {showImage && (

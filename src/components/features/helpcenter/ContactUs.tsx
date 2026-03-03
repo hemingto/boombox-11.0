@@ -45,7 +45,7 @@ export interface ContactUsProps {
 
   /**
    * Subtitle text
-   * @default 'No problem! Contact our support team'
+   * @default 'No problem! Contact us at the info below'
    */
   subtitle?: string;
 
@@ -93,10 +93,10 @@ export interface ContactUsProps {
  */
 export function ContactUs({
   title = 'Need to get in touch?',
-  subtitle = 'No problem! Contact our support team',
+  subtitle = 'No problem! Contact us at the info below',
   phone = '415-322-3135',
   email = 'help@boomboxstorage.com',
-  imageSrc = '/help-center/contact-us.png',
+  imageSrc = '/customers/customer-1.png',
   imageAlt = 'Contact Us customer service representative',
   className,
   showImage = true,
@@ -122,11 +122,11 @@ export function ContactUs({
 
         <div
           className={cn(
-            'flex flex-col items-center text-center md:items-start md:text-left justify-center p-8 md:p-12 lg:p-16',
+            'flex flex-col items-center text-center justify-center p-8 md:p-12 lg:p-16',
             showImage ? 'md:w-1/2' : 'w-full'
           )}
         >
-          <h2 className="mb-2 mt-10 sm:mt-0 text-2xl sm:text-3xl">{title}</h2>
+          <h1 className="mb-2 text-2xl sm:text-3xl">{title}</h1>
           <p className="mb-8">{subtitle}</p>
 
           <address className="not-italic">
