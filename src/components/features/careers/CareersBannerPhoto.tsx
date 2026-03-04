@@ -34,13 +34,13 @@ export interface CareersBannerPhotoProps {
 }
 
 export function CareersBannerPhoto({
-  src = '/careers/careers-banner.png',
-  alt = 'Boombox driver looking back at camera from window of truck pulling a Boombox storage container',
+  src = '/careers/career-banner-2.png',
+  alt = 'Inside of boombox warehouse showing employees working together',
   className,
 }: CareersBannerPhotoProps) {
   return (
     <section
-      className="md:flex lg:px-16 px-6 sm:mb-48 mb-24"
+      className="md:flex lg:px-16 px-6 sm:mb-24 mb-12"
       aria-label="Careers banner section"
     >
       <div className="relative w-full h-[500px] rounded-md overflow-hidden">
