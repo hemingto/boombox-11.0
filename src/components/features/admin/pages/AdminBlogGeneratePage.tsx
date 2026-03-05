@@ -48,7 +48,7 @@ export function AdminBlogGeneratePage() {
   useEffect(() => {
     fetch('/api/blog/categories')
       .then(res => res.json())
-      .then(data => setCategories(data))
+      .then(data => setCategories(data.categories ?? []))
       .catch(() => {});
   }, []);
 

@@ -17,6 +17,7 @@
  */
 
 import { accessStorageUnitPricing } from '@/data/accessStorageUnitPricing';
+import { PROCESSING_FEE_RATE } from '@/data/processingFeeConfig';
 
 // Billing calculation results
 export interface LoadingHelpCalculation {
@@ -38,6 +39,12 @@ export interface AccessStorageCalculation {
   unitCount: number;
   accessRatePerUnit: number;
   total: number;
+}
+
+export interface ProcessingFeeCalculation {
+  subtotal: number;
+  rate: number;
+  fee: number;
 }
 
 export interface EarlyTerminationCalculation {
@@ -153,6 +160,18 @@ export class BillingCalculator {
   }
 
   /**
+   * Calculate processing fee on a subtotal
+   */
+  static calculateProcessingFee(subtotal: number): ProcessingFeeCalculation {
+    const fee = Math.round(subtotal * PROCESSING_FEE_RATE * 100) / 100;
+    return {
+      subtotal,
+      rate: PROCESSING_FEE_RATE,
+      fee
+    };
+  }
+
+  /**
    * Calculate total invoice amount for storage appointments (Initial Pickup, Additional Storage)
    */
   static calculateStorageAppointmentTotal(
@@ -164,8 +183,10 @@ export class BillingCalculator {
   ): number {
     const storageCharges = this.calculateStorageCharges(numberOfUnits, monthlyStorageRate, monthlyInsuranceRate);
     const loadingHelp = this.calculateLoadingHelpTotal(serviceTimeMinutes, hourlyRate);
+    const subtotal = storageCharges.storageTotal + storageCharges.insuranceTotal + loadingHelp.total;
+    const processingFee = this.calculateProcessingFee(subtotal);
     
-    return storageCharges.storageTotal + storageCharges.insuranceTotal + loadingHelp.total;
+    return subtotal + processingFee.fee;
   }
 
   /**
@@ -178,8 +199,10 @@ export class BillingCalculator {
   ): number {
     const accessCharges = this.calculateAccessStorageTotal(unitCount);
     const loadingHelp = this.calculateLoadingHelpTotal(serviceTimeMinutes, hourlyRate);
+    const subtotal = accessCharges.total + loadingHelp.total;
+    const processingFee = this.calculateProcessingFee(subtotal);
     
-    return accessCharges.total + loadingHelp.total;
+    return subtotal + processingFee.fee;
   }
 
   /**

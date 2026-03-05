@@ -511,7 +511,7 @@ export const faqs: { question: string; answer: React.ReactNode; category: string
             Billing is automatic so you don't have to worry about putting in your credit card information every month.
             <br />
             <br />
-            Due to banking fees associated with automatic payments, we charge a payment processing fee of 3.5% of your total storage bill.
+            Due to banking fees associated with automatic payments, we charge a payment processing fee of 2.9% of your total storage bill.
           </>
         ),
         category: "Pricing",

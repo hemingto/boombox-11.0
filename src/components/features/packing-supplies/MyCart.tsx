@@ -37,6 +37,7 @@ import { useStripe, useElements } from '@stripe/react-stripe-js';
 import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
 import { isValidEmail } from '@/lib/utils/validationUtils';
 import { formatCurrency } from '@/lib/utils/currencyUtils';
+import { calculateProcessingFee, PROCESSING_FEE_LABEL } from '@/data/processingFeeConfig';
 import { LoadingOverlay } from '@/components/ui/primitives/LoadingOverlay';
 
 interface CartItem {
@@ -127,8 +128,10 @@ export function MyCart({
   const stripe = useStripe();
   const elements = useElements();
 
-  // Calculate total price
-  const totalPrice = cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
+  const cartSubtotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
+  const processingFee = calculateProcessingFee(cartSubtotal);
+  const totalPrice = cartSubtotal + processingFee;
+  const displayTotal = isCheckout ? totalPrice : cartSubtotal;
 
   // Update mobile content height when expanded state changes
   useEffect(() => {
@@ -353,12 +356,27 @@ export function MyCart({
             )}
           </div>
 
+          {isCheckout && processingFee > 0 && (
+            <div className="flex justify-between mt-4">
+              <div className="flex items-center gap-1">
+                <p className="text-text-tertiary text-sm">{PROCESSING_FEE_LABEL}</p>
+                <Tooltip
+                  text="This fee covers taxes and fees related to payment processing"
+                  mobilePosition="right"
+                  iconSize="sm"
+                  className="text-text-tertiary"
+                />
+              </div>
+              <p className="text-text-tertiary text-sm mr-1">{formatCurrency(processingFee)}</p>
+            </div>
+          )}
+
           <div className="flex justify-between items-center mt-4 mb-8">
             <div className="flex items-center gap-1">
               <p className="text-xl font-semibold text-text-primary">Total</p>
-              <Tooltip text="This is the total amount you will pay including taxes and delivery fees" />
+              <Tooltip text="This is the total amount you will pay including taxes and delivery fees" mobilePosition="right" />
             </div>
-            <p className="text-xl font-semibold text-text-primary">{formatCurrency(totalPrice)}</p>
+            <p className="text-xl font-semibold text-text-primary">{formatCurrency(displayTotal)}</p>
           </div>
 
           {submitError && (
@@ -469,11 +487,11 @@ export function MyCart({
           <div className="flex justify-between items-center">
             <div className="flex gap-1">
               <p className="text-xl font-semibold text-text-inverse">Total</p>
-              <Tooltip text="This is the total amount you will pay including taxes and delivery fees" className="text-text-inverse" />
+              <Tooltip text="This is the total amount you will pay including taxes and delivery fees" mobilePosition="right" className="text-text-inverse" />
             </div>
             <div>
               <div className="flex items-center">
-                <p className="text-xl font-semibold text-text-inverse mr-4">{formatCurrency(totalPrice)}</p>
+                <p className="text-xl font-semibold text-text-inverse mr-4">{formatCurrency(displayTotal)}</p>
                 <Button
                   variant="white"
                   size="md"

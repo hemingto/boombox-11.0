@@ -39,6 +39,7 @@ export * from './storageGuidelines';
 // Pricing Data
 export * from './accessStorageUnitPricing';
 export * from './cancelationpricing';
+export * from './processingFeeConfig';
 export * from './zipcodeprices';
 
 // Storage Calculator Items

@@ -28,10 +28,10 @@ export interface PayoutSummary {
 }
 
 /**
- * Calculate platform fee (3% with $0.30 minimum)
+ * Calculate platform fee (15% with $0.30 minimum)
  */
 function calculatePlatformFee(amount: number): number {
-  const percentageFee = amount * 0.03;
+  const percentageFee = amount * 0.15;
   const minimumFee = 0.30;
   return Math.max(percentageFee, minimumFee);
 }

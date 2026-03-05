@@ -6,21 +6,19 @@
 
 export const PAYMENT_STRUCTURE = {
   // BOOMBOX DELIVERY DRIVERS ONLY
-  // Base fee: covers "show up" + minimal parking/search time.
-  // In SF, a $40–$45 base means a 5- or 10-mile run still nets the driver something worthwhile.
-  fixed: 45.00,
+  // Base fee: covers "show up" + parking/search time.
+  fixed: 30.00,
 
   // Per-mile: covers gas + wear-and-tear + insurance.
-  // The IRS rate (2024) is $0.67/mile; bumping that to $0.75+ reflects the higher insurance and maintenance costs in the Bay.
+  // The IRS rate is $0.67/mile; $0.75 reflects the higher insurance and maintenance costs in the Bay Area.
   mileage: 0.75,
 
-  // Drive-time: actual time behind the wheel. 
-  // Paying $24–$26/hr (i.e. ~$0.40 per minute) ensures the driver's "wage" is above SF living-wage thresholds.
-  // Here we've used $24/hr.
-  driveTime: 24.00,
+  // Drive-time: set to 0 — transportation costs are fully covered by mileage.
+  // Paying both mileage and drive-time double-counted transportation (see Section 9 of financial model).
+  driveTime: 0,
 
-  // Service-time: minimal time for delivery/pickup (customer or moving partner loads)
-  // Lower rate since Boombox drivers don't do the loading work
+  // Service-time: on-site time for delivery/pickup (customer or moving partner loads).
+  // Lower rate since Boombox drivers don't do the loading work.
   serviceTime: 15.00
 };
 
@@ -527,12 +525,12 @@ export async function calculateTotalBoomboxDriverEstimate(
     console.error('Error calculating total Boombox driver estimate:', error);
     // Return fallback estimate
     return {
-      fixed: 45,
+      fixed: 30,
       mileage: 15, // Fallback estimate
-      driveTime: 10, // Fallback estimate  
+      driveTime: 0,
       serviceTime: 7.5, // Fallback estimate
-      total: 77.5,
-      formattedEstimate: '$78',
+      total: 52.5,
+      formattedEstimate: '$53',
       travelMetrics: { distanceMiles: 10, durationMinutes: 20 },
       workerType: 'boombox_driver'
     };

@@ -43,6 +43,7 @@ import { Button } from '@/components/ui/primitives/Button';
 import { mapStyles } from '@/app/mapstyles';
 import { cancelationPricing } from '@/data/cancelationpricing';
 import { accessStorageUnitPricing } from '@/data/accessStorageUnitPricing';
+import { calculateProcessingFee, PROCESSING_FEE_LABEL } from '@/data/processingFeeConfig';
 import { isAppointmentWithin24Hours } from '@/lib/utils/dateUtils';
 import { formatCurrency, formatCurrencyCompact } from '@/lib/utils/currencyUtils';
 
@@ -182,9 +183,7 @@ export function AppointmentCard({
   router.push(`/customer/${userId}/edit-appointment?${params.toString()}`);
  };
 
- // Calculate total price
- // Note: monthlyStorageRate and monthlyInsuranceRate are already total values (not per-unit)
- const calculateTotal = () => {
+ const calculateSubtotal = () => {
   if (appointmentType === 'Storage Unit Access' || appointmentType === 'End Storage Term') {
    const accessCost =
     requestedStorageUnits.length > 0
@@ -199,6 +198,10 @@ export function AppointmentCard({
    (loadingHelpPrice || 0)
   );
  };
+
+ const subtotal = calculateSubtotal();
+ const processingFee = calculateProcessingFee(subtotal);
+ const calculateTotal = () => subtotal + processingFee;
 
  const containerStyle = {
   width: '100%',
@@ -354,11 +357,24 @@ export function AppointmentCard({
              </span>
             </div>
            )}
+           {processingFee > 0 && (
+            <div className="flex justify-between items-center">
+             <div className="flex items-center gap-1">
+              <span className="text-sm">{PROCESSING_FEE_LABEL}</span>
+              <Tooltip
+               text="This fee covers taxes and fees related to payment processing"
+               mobilePosition="right"
+               iconSize="sm"
+              />
+             </div>
+             <span className="text-sm font-medium">{formatCurrencyCompact(processingFee)}</span>
+            </div>
+           )}
            <div className="h-px bg-border my-2"></div>
            <div className="flex justify-between items-center">
             <div className="flex items-center">
              <span className="text-sm font-semibold mr-1">Total</span>
-             <Tooltip text="This is the total amount you will pay on the day of your appointment" />
+             <Tooltip text="This is the total amount you will pay on the day of your appointment" mobilePosition="right" />
             </div>
             <span className="text-sm font-semibold">{formatCurrencyCompact(calculateTotal())}</span>
            </div>

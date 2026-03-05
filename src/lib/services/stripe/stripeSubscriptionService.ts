@@ -17,6 +17,7 @@
 import { stripe } from '@/lib/integrations/stripeClient';
 import { StripeCustomerService, type StoragePeriodInfo } from './stripeCustomerService';
 import { StripeInvoiceService } from './stripeInvoiceService';
+import { PROCESSING_FEE_RATE } from '@/data/processingFeeConfig';
 import type Stripe from 'stripe';
 
 // Import types from existing system (matches Prisma schema nullability)
@@ -92,7 +93,11 @@ export class StripeSubscriptionService {
         };
       }
 
-      // Create subscription with storage and insurance items
+      // Calculate processing fee on the monthly total
+      const monthlySubtotal = (appointment.monthlyStorageRate! + appointment.monthlyInsuranceRate!) * appointment.numberOfUnits!;
+      const processingFeeAmount = Math.round(monthlySubtotal * PROCESSING_FEE_RATE * 100) / 100;
+
+      // Create subscription with storage, insurance, and processing fee items
       const subscription = await stripe.subscriptions.create({
         customer: customerId,
         items: [
@@ -113,6 +118,15 @@ export class StripeSubscriptionService {
               unit_amount: Math.round(appointment.monthlyInsuranceRate! * 100)
             },
             quantity: appointment.numberOfUnits!
+          },
+          {
+            price_data: {
+              currency: 'usd',
+              product: process.env.STRIPE_PROCESSING_FEE_PRODUCT_ID || process.env.STRIPE_STORAGE_PRODUCT_ID!,
+              recurring: { interval: 'month' },
+              unit_amount: Math.round(processingFeeAmount * 100)
+            },
+            quantity: 1
           }
         ],
         trial_period_days: 30,

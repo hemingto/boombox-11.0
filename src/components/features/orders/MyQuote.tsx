@@ -35,6 +35,7 @@ import {
 } from '@/lib/utils';
 import { useQuote } from '@/hooks/useQuote';
 import { accessStorageUnitPricing } from '@/data/accessStorageUnitPricing';
+import { PROCESSING_FEE_LABEL } from '@/data/processingFeeConfig';
 
 interface MyQuoteProps {
   title?: string;
@@ -140,6 +141,11 @@ export function MyQuote({
   // Get Boombox price for display
   const boomboxPrice = getBoomboxPriceByZipCode(zipCode);
 
+  // Only include the processing fee in the displayed total on the confirm step
+  const displayTotal = currentStep >= 4
+    ? pricing.total
+    : pricing.total - pricing.processingFee;
+
   // Determine the display title based on edit mode
   const displayTitle = useMemo(() => {
     if (editModeTitle) return editModeTitle;
@@ -155,8 +161,7 @@ export function MyQuote({
       return null;
     }
 
-    const currentTotal = pricing.total;
-    const difference = currentTotal - originalTotal;
+    const difference = displayTotal - originalTotal;
 
     if (Math.abs(difference) < 0.01) {
       return { type: 'same', difference: 0, message: 'No price change' };
@@ -173,7 +178,7 @@ export function MyQuote({
         message: `-$${Math.abs(difference).toFixed(2)} from original`,
       };
     }
-  }, [isEditMode, originalTotal, showPriceComparison, pricing.total]);
+  }, [isEditMode, originalTotal, showPriceComparison, displayTotal]);
 
   // Prepare quote data for email
   const quoteData: QuoteData = useMemo(
@@ -193,7 +198,7 @@ export function MyQuote({
           }
         : null,
       accessStorageUnitCount,
-      totalPrice: pricing.total,
+      totalPrice: displayTotal,
       isAccessStorage,
       zipCode,
     }),
@@ -208,7 +213,7 @@ export function MyQuote({
       loadingHelpDescription,
       selectedInsurance,
       accessStorageUnitCount,
-      pricing.total,
+      displayTotal,
       isAccessStorage,
       zipCode,
     ]
@@ -328,10 +333,27 @@ export function MyQuote({
             </div>
           )}
         </div>
+        
         <div className="flex justify-between mb-2">
-          <p className="text-text-tertiary mr-1">Due Today</p>
-          <p className="text-text-tertiary mr-1">$0</p>
+          <p className="text-text-tertiary mr-1 text-sm">Due Today</p>
+          <p className="text-text-tertiary mr-1 text-sm">$0</p>
         </div>
+        {currentStep >= 4 && pricing.processingFee > 0 && (
+            <div className="flex justify-between mb-4">
+              <div className="flex items-center gap-1">
+                <p className="text-text-tertiary text-sm">{PROCESSING_FEE_LABEL}</p>
+                <Tooltip
+                  text="This fee covers taxes and fees related to payment processing"
+                  mobilePosition="right"
+                  iconSize="sm"
+                  className="text-text-tertiary"
+                />
+              </div>
+              <p className="text-text-tertiary text-sm mr-1">
+                ${pricing.processingFee.toFixed(2)}
+              </p>
+            </div>
+          )}
         <div className="flex justify-between mb-8">
           <div className="flex items-center">
             <div>
@@ -345,6 +367,7 @@ export function MyQuote({
                       ? 'This is the updated total amount for your appointment changes.'
                       : 'This is the total amount you will pay on the day of your initial appointment.'
                   }
+                  mobilePosition="right"
                 />
               </div>
               {priceComparison && (
@@ -367,9 +390,9 @@ export function MyQuote({
               id="total-price"
               className="text-xl font-semibold text-text-primary"
             >
-              {pricing.total > 0 ? `$${pricing.total}` : '---'}
+              {displayTotal > 0 ? `$${displayTotal}` : '---'}
             </p>
-            {isEditMode && originalTotal && originalTotal !== pricing.total && (
+            {isEditMode && originalTotal && originalTotal !== displayTotal && (
               <p className="text-sm text-text-tertiary line-through">
                 ${originalTotal.toFixed(2)}
               </p>
@@ -553,6 +576,22 @@ export function MyQuote({
                     </p>
                   </div>
                 )}
+                {currentStep >= 4 && pricing.processingFee > 0 && (
+                  <div className="flex justify-between mb-4">
+                    <div className="flex items-center gap-1">
+                      <p className="text-text-inverse">{PROCESSING_FEE_LABEL}</p>
+                      <Tooltip
+                        text="This fee covers taxes and fees related to payment processing"
+                        mobilePosition="right"
+                        iconSize="sm"
+                        className="text-text-inverse"
+                      />
+                    </div>
+                    <p className="text-text-inverse">
+                      ${pricing.processingFee.toFixed(2)}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -571,6 +610,7 @@ export function MyQuote({
                       ? 'This is the updated total amount for your appointment changes.'
                       : 'This is the total amount you will pay on the day of your initial appointment.'
                   }
+                  mobilePosition="right"
                   className="text-text-inverse"
                 />
               </div>
@@ -597,13 +637,13 @@ export function MyQuote({
                   id="total-price"
                   className="text-xl text-text-inverse font-semibold"
                 >
-                  {pricing.total > 0 ? `$${pricing.total}` : '___'}
+                  {displayTotal > 0 ? `$${displayTotal}` : '___'}
                 </p>
                 <div className="flex flex-col items-end">
                   <p className="text-text-secondary">$0</p>
                   {isEditMode &&
                     originalTotal &&
-                    originalTotal !== pricing.total && (
+                    originalTotal !== displayTotal && (
                       <p className="text-sm text-text-secondary line-through">
                         ${originalTotal.toFixed(2)}
                       </p>

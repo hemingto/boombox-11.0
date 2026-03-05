@@ -17,6 +17,7 @@
 import { stripe } from '@/lib/integrations/stripeClient';
 import type Stripe from 'stripe';
 import { accessStorageUnitPricing } from '@/data/accessStorageUnitPricing';
+import { PROCESSING_FEE_RATE, PROCESSING_FEE_LABEL, calculateProcessingFee } from '@/data/processingFeeConfig';
 
 // Import types from existing system (matches Prisma schema nullability)
 interface AppointmentWithRelations {
@@ -141,7 +142,9 @@ export class StripeInvoiceService {
   ): Promise<{ invoice: Stripe.Invoice; total: number }> {
     const storageTotal = (appointment.monthlyStorageRate! * appointment.numberOfUnits!);
     const insuranceTotal = (appointment.monthlyInsuranceRate! * appointment.numberOfUnits!);
-    const total = storageTotal + insuranceTotal + loadingHelpTotal;
+    const subtotal = storageTotal + insuranceTotal + loadingHelpTotal;
+    const processingFee = calculateProcessingFee(subtotal);
+    const total = subtotal + processingFee;
 
     // Create invoice
     const invoice = await stripe.invoices.create({
@@ -159,21 +162,27 @@ export class StripeInvoiceService {
     const invoiceItems: InvoiceItemData[] = [
       {
         customer: appointment.user.stripeCustomerId!,
-        amount: Math.round(storageTotal * 100), // Total storage in cents
+        amount: Math.round(storageTotal * 100),
         currency: 'usd',
         description: `Monthly Storage Rate (${numberOfUnits} unit${numberOfUnits > 1 ? 's' : ''} @ $${appointment.monthlyStorageRate}/unit)`
       },
       {
         customer: appointment.user.stripeCustomerId!,
-        amount: Math.round(insuranceTotal * 100), // Total insurance in cents
+        amount: Math.round(insuranceTotal * 100),
         currency: 'usd',
         description: `${appointment.insuranceCoverage || 'Insurance'} (${numberOfUnits} unit${numberOfUnits > 1 ? 's' : ''} @ $${appointment.monthlyInsuranceRate}/unit)`
       },
       {
         customer: appointment.user.stripeCustomerId!,
-        amount: Math.round(loadingHelpTotal * 100), // Total amount
+        amount: Math.round(loadingHelpTotal * 100),
         currency: 'usd',
         description: `Loading Help Service (${Math.round(loadingHelpTotal / (appointment.loadingHelpPrice! / 60))} minutes, 1 hr minimum)`
+      },
+      {
+        customer: appointment.user.stripeCustomerId!,
+        amount: Math.round(processingFee * 100),
+        currency: 'usd',
+        description: PROCESSING_FEE_LABEL
       }
     ];
 
@@ -191,7 +200,9 @@ export class StripeInvoiceService {
   ): Promise<{ invoice: Stripe.Invoice; total: number }> {
     const storageUnitCount = appointment.requestedStorageUnits.length;
     const accessStorageTotal = accessStorageUnitPricing * storageUnitCount;
-    const total = loadingHelpTotal + accessStorageTotal;
+    const subtotal = loadingHelpTotal + accessStorageTotal;
+    const processingFee = calculateProcessingFee(subtotal);
+    const total = subtotal + processingFee;
 
     // Create invoice
     const invoice = await stripe.invoices.create({
@@ -204,11 +215,10 @@ export class StripeInvoiceService {
       ]
     });
 
-    // Add invoice items - use amount alone (no quantity) for total amounts
     const invoiceItems: InvoiceItemData[] = [
       {
         customer: appointment.user.stripeCustomerId!,
-        amount: Math.round(accessStorageTotal * 100), // Total amount, no quantity needed
+        amount: Math.round(accessStorageTotal * 100),
         currency: 'usd',
         description: `Storage Unit Access (${storageUnitCount} units)`
       },
@@ -217,6 +227,12 @@ export class StripeInvoiceService {
         amount: Math.round(loadingHelpTotal * 100),
         currency: 'usd',
         description: `Loading Help Service (${Math.round(loadingHelpTotal / (appointment.loadingHelpPrice! / 60))} minutes, 1 hr minimum)`
+      },
+      {
+        customer: appointment.user.stripeCustomerId!,
+        amount: Math.round(processingFee * 100),
+        currency: 'usd',
+        description: PROCESSING_FEE_LABEL
       }
     ];
 
@@ -245,9 +261,11 @@ export class StripeInvoiceService {
     appointment: AppointmentWithRelations,
     remainingMonths: number
   ): Promise<Stripe.Invoice> {
-    const earlyTerminationFee = 
-      (appointment.monthlyStorageRate! * appointment.numberOfUnits! * remainingMonths) +
-      (appointment.monthlyInsuranceRate! * appointment.numberOfUnits! * remainingMonths);
+    const numberOfUnits = appointment.numberOfUnits || 1;
+    const storageTerminationFee = appointment.monthlyStorageRate! * numberOfUnits * remainingMonths;
+    const insuranceTerminationFee = appointment.monthlyInsuranceRate! * numberOfUnits * remainingMonths;
+    const subtotal = storageTerminationFee + insuranceTerminationFee;
+    const processingFee = calculateProcessingFee(subtotal);
 
     // Create invoice for early termination
     const invoice = await stripe.invoices.create({
@@ -261,23 +279,24 @@ export class StripeInvoiceService {
       ]
     });
 
-    // Add invoice items - use pre-calculated totals
-    const numberOfUnits = appointment.numberOfUnits || 1;
-    const storageTerminationFee = appointment.monthlyStorageRate! * numberOfUnits * remainingMonths;
-    const insuranceTerminationFee = appointment.monthlyInsuranceRate! * numberOfUnits * remainingMonths;
-    
     const invoiceItems: InvoiceItemData[] = [
       {
         customer: customerId,
-        amount: Math.round(storageTerminationFee * 100), // Total in cents
+        amount: Math.round(storageTerminationFee * 100),
         currency: 'usd',
         description: `Early Termination Fee - Storage (${numberOfUnits} unit${numberOfUnits > 1 ? 's' : ''} × ${remainingMonths} months @ $${appointment.monthlyStorageRate}/mo)`
       },
       {
         customer: customerId,
-        amount: Math.round(insuranceTerminationFee * 100), // Total in cents
+        amount: Math.round(insuranceTerminationFee * 100),
         currency: 'usd',
         description: `Early Termination Fee - Insurance (${numberOfUnits} unit${numberOfUnits > 1 ? 's' : ''} × ${remainingMonths} months @ $${appointment.monthlyInsuranceRate}/mo)`
+      },
+      {
+        customer: customerId,
+        amount: Math.round(processingFee * 100),
+        currency: 'usd',
+        description: PROCESSING_FEE_LABEL
       }
     ];
 

@@ -7,6 +7,7 @@
 
 import { zipCodePrices } from '@/data/zipcodeprices';
 import { accessStorageUnitPricing } from '@/data/accessStorageUnitPricing';
+import { calculateProcessingFee } from '@/data/processingFeeConfig';
 import { InsuranceOption } from '@/types/insurance';
 
 export interface PricingCalculation {
@@ -14,6 +15,7 @@ export interface PricingCalculation {
   insuranceRate: number;
   loadingHelpRate: number;
   accessStorageRate: number;
+  processingFee: number;
   total: number;
 }
 
@@ -140,13 +142,16 @@ export function calculateQuotePricing(params: {
   const loadingHelpRate = parseLoadingHelpPrice(loadingHelpPrice);
   const accessStorageRate = calculateAccessStorageRate(accessStorageUnitCount);
 
-  const total = monthlyStorageRate + insuranceRate + loadingHelpRate + accessStorageRate;
+  const subtotal = monthlyStorageRate + insuranceRate + loadingHelpRate + accessStorageRate;
+  const processingFee = calculateProcessingFee(subtotal);
+  const total = subtotal + processingFee;
 
   return {
     monthlyStorageRate,
     insuranceRate,
     loadingHelpRate,
     accessStorageRate,
+    processingFee,
     total,
   };
 }

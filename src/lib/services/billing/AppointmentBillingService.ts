@@ -17,6 +17,7 @@
  */
 
 import { BillingCalculator, type LoadingHelpCalculation, type StorageChargesCalculation, type AccessStorageCalculation } from './BillingCalculator';
+import { calculateProcessingFee, PROCESSING_FEE_LABEL } from '@/data/processingFeeConfig';
 import type { ServiceMetrics } from '../stripe/stripeInvoiceService';
 // Webhook processing imports
 import {
@@ -230,26 +231,33 @@ export class AppointmentBillingService {
     loadingHelp: LoadingHelpCalculation,
     insuranceCoverage: string
   ): InvoiceItemData[] {
-    // Use pre-calculated totals for Stripe invoiceItems.create
     const numberOfUnits = storageCharges.numberOfUnits;
+    const subtotal = storageCharges.storageTotal + storageCharges.insuranceTotal + loadingHelp.total;
+    const fee = calculateProcessingFee(subtotal);
     return [
       {
         customer: customerId,
-        amount: BillingCalculator.toCents(storageCharges.storageTotal), // Total storage
+        amount: BillingCalculator.toCents(storageCharges.storageTotal),
         currency: 'usd',
         description: `Monthly Storage Rate (${numberOfUnits} unit${numberOfUnits > 1 ? 's' : ''} @ $${storageCharges.monthlyStorageRate}/unit)`
       },
       {
         customer: customerId,
-        amount: BillingCalculator.toCents(storageCharges.insuranceTotal), // Total insurance
+        amount: BillingCalculator.toCents(storageCharges.insuranceTotal),
         currency: 'usd',
         description: `${insuranceCoverage} (${numberOfUnits} unit${numberOfUnits > 1 ? 's' : ''} @ $${storageCharges.monthlyInsuranceRate}/unit)`
       },
       {
         customer: customerId,
-        amount: BillingCalculator.toCents(loadingHelp.total), // Total loading help
+        amount: BillingCalculator.toCents(loadingHelp.total),
         currency: 'usd',
         description: `Loading Help Service (${loadingHelp.billedMinutes} minutes, 1 hr minimum)`
+      },
+      {
+        customer: customerId,
+        amount: BillingCalculator.toCents(fee),
+        currency: 'usd',
+        description: PROCESSING_FEE_LABEL
       }
     ];
   }
@@ -262,19 +270,26 @@ export class AppointmentBillingService {
     accessCharges: AccessStorageCalculation,
     loadingHelp: LoadingHelpCalculation
   ): InvoiceItemData[] {
-    // Use amount alone for total amounts (no quantity needed)
+    const subtotal = accessCharges.total + loadingHelp.total;
+    const fee = calculateProcessingFee(subtotal);
     return [
       {
         customer: customerId,
-        amount: BillingCalculator.toCents(accessCharges.total), // Total amount
+        amount: BillingCalculator.toCents(accessCharges.total),
         currency: 'usd',
         description: `Storage Unit Access (${accessCharges.unitCount} units)`
       },
       {
         customer: customerId,
-        amount: BillingCalculator.toCents(loadingHelp.total), // Total amount
+        amount: BillingCalculator.toCents(loadingHelp.total),
         currency: 'usd',
         description: `Loading Help Service (${loadingHelp.billedMinutes} minutes, 1 hr minimum)`
+      },
+      {
+        customer: customerId,
+        amount: BillingCalculator.toCents(fee),
+        currency: 'usd',
+        description: PROCESSING_FEE_LABEL
       }
     ];
   }
@@ -318,32 +333,40 @@ export class AppointmentBillingService {
       const loadingHelp = BillingCalculator.calculateLoadingHelpTotal(estimatedServiceTimeMinutes, loadingHelpPrice);
       
       let breakdown: { item: string; amount: number }[] = [];
-      let total = 0;
+      let subtotal = 0;
 
       if (appointmentType === 'Initial Pickup' || appointmentType === 'Additional Storage') {
         const storageCharges = BillingCalculator.calculateStorageCharges(numberOfUnits, monthlyStorageRate, monthlyInsuranceRate);
         
+        subtotal = storageCharges.storageTotal + storageCharges.insuranceTotal + loadingHelp.total;
+        const fee = calculateProcessingFee(subtotal);
+        
         breakdown = [
           { item: 'Monthly Storage Rate', amount: storageCharges.storageTotal },
           { item: 'Monthly Insurance', amount: storageCharges.insuranceTotal },
-          { item: 'Loading Help Service', amount: loadingHelp.total }
+          { item: 'Loading Help Service', amount: loadingHelp.total },
+          { item: PROCESSING_FEE_LABEL, amount: fee }
         ];
         
-        total = storageCharges.storageTotal + storageCharges.insuranceTotal + loadingHelp.total;
+        subtotal += fee;
       } else {
         const accessCharges = BillingCalculator.calculateAccessStorageTotal(numberOfUnits);
         
+        subtotal = accessCharges.total + loadingHelp.total;
+        const fee = calculateProcessingFee(subtotal);
+        
         breakdown = [
           { item: 'Storage Unit Access', amount: accessCharges.total },
-          { item: 'Loading Help Service', amount: loadingHelp.total }
+          { item: 'Loading Help Service', amount: loadingHelp.total },
+          { item: PROCESSING_FEE_LABEL, amount: fee }
         ];
         
-        total = accessCharges.total + loadingHelp.total;
+        subtotal += fee;
       }
 
       return {
         success: true,
-        total,
+        total: subtotal,
         breakdown
       };
 
