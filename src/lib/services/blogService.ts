@@ -1,23 +1,28 @@
 /**
  * @fileoverview Database-driven blog service for boombox-11.0
  * @source Replaces boombox-11.0/src/lib/services/contentService.ts (static data)
- * 
+ *
  * SERVICE FUNCTIONALITY:
  * - Fetches blog posts from Prisma database
  * - Provides pagination and filtering capabilities
  * - Handles blog categories and featured articles
  * - Replaces static ContentService with dynamic database queries
- * 
+ *
  * INTEGRATION NOTES:
  * - Uses Prisma client for database operations
  * - Maintains same interface as ContentService for easy migration
  * - Adds new capabilities like search, filtering, and analytics
- * 
+ *
  * @refactor Migrated from static data to database-driven approach
  */
 
 import { prisma } from '@/lib/database/prismaClient';
-import { BlogPost, BlogCategory, BlogStatus, BlogContentBlockType } from '@prisma/client';
+import {
+  BlogPost,
+  BlogCategory,
+  BlogStatus,
+  BlogContentBlockType,
+} from '@prisma/client';
 
 // Extended types that include relations
 export interface BlogPostWithCategory extends BlogPost {
@@ -56,13 +61,15 @@ export class BlogService {
   /**
    * Get paginated blog posts with optional filtering
    */
-  static async getBlogPosts(options: {
-    page?: number;
-    limit?: number;
-    categorySlug?: string;
-    status?: BlogStatus;
-    search?: string;
-  } = {}): Promise<BlogPaginationResult> {
+  static async getBlogPosts(
+    options: {
+      page?: number;
+      limit?: number;
+      categorySlug?: string;
+      status?: BlogStatus;
+      search?: string;
+    } = {}
+  ): Promise<BlogPaginationResult> {
     const {
       page = 1,
       limit = 6,
@@ -123,10 +130,12 @@ export class BlogService {
   /**
    * Get a single blog post by slug
    */
-  static async getBlogPostBySlug(slug: string): Promise<BlogPostWithCategory | null> {
+  static async getBlogPostBySlug(
+    slug: string
+  ): Promise<BlogPostWithCategory | null> {
     // Build where clause based on environment
     const where: any = { slug };
-    
+
     // Only show published posts in production
     if (process.env.NODE_ENV === 'production') {
       where.status = BlogStatus.PUBLISHED;
@@ -166,7 +175,9 @@ export class BlogService {
   /**
    * Get featured blog posts (for hero sections)
    */
-  static async getFeaturedBlogPosts(limit: number = 1): Promise<BlogPostWithCategory[]> {
+  static async getFeaturedBlogPosts(
+    limit: number = 1
+  ): Promise<BlogPostWithCategory[]> {
     return prisma.blogPost.findMany({
       where: {
         status: BlogStatus.PUBLISHED,
@@ -174,10 +185,7 @@ export class BlogService {
       include: {
         category: true,
       },
-      orderBy: [
-        { viewCount: 'desc' },
-        { publishedAt: 'desc' },
-      ],
+      orderBy: [{ viewCount: 'desc' }, { publishedAt: 'desc' }],
       take: limit,
     });
   }
@@ -185,7 +193,9 @@ export class BlogService {
   /**
    * Get popular blog posts (most viewed)
    */
-  static async getPopularBlogPosts(limit: number = 6): Promise<BlogPostWithCategory[]> {
+  static async getPopularBlogPosts(
+    limit: number = 6
+  ): Promise<BlogPostWithCategory[]> {
     return prisma.blogPost.findMany({
       where: {
         status: BlogStatus.PUBLISHED,
@@ -203,7 +213,9 @@ export class BlogService {
   /**
    * Get recent blog posts
    */
-  static async getRecentBlogPosts(limit: number = 5): Promise<BlogPostWithCategory[]> {
+  static async getRecentBlogPosts(
+    limit: number = 5
+  ): Promise<BlogPostWithCategory[]> {
     return prisma.blogPost.findMany({
       where: {
         status: BlogStatus.PUBLISHED,
@@ -243,7 +255,9 @@ export class BlogService {
   /**
    * Get blog category by slug
    */
-  static async getBlogCategoryBySlug(slug: string): Promise<BlogCategory | null> {
+  static async getBlogCategoryBySlug(
+    slug: string
+  ): Promise<BlogCategory | null> {
     return prisma.blogCategory.findUnique({
       where: { slug },
     });
@@ -331,7 +345,9 @@ export class BlogService {
    * Get blog posts by category (legacy method)
    * @deprecated Use getBlogPosts({ categorySlug }) instead
    */
-  static async getBlogPostsByCategory(categoryName: string): Promise<BlogPostWithCategory[]> {
+  static async getBlogPostsByCategory(
+    categoryName: string
+  ): Promise<BlogPostWithCategory[]> {
     // Convert category name to slug for database lookup
     const categorySlug = categoryName.toLowerCase().replace(/\s+/g, '-');
     const result = await this.getBlogPosts({ categorySlug, limit: 100 });
@@ -380,6 +396,8 @@ export class BlogService {
     authorId: number;
     authorName?: string;
     authorImage?: string;
+    generatedByAI?: boolean;
+    aiPrompt?: string;
     contentBlocks: {
       type: BlogContentBlockType;
       content: string;
@@ -387,15 +405,16 @@ export class BlogService {
       order: number;
     }[];
   }) {
-    // Generate plain text content from blocks
-    const plainTextContent = this.generatePlainTextFromBlocks(data.contentBlocks);
+    const plainTextContent = this.generatePlainTextFromBlocks(
+      data.contentBlocks
+    );
 
     return prisma.blogPost.create({
       data: {
         title: data.title,
         slug: data.slug,
         excerpt: data.excerpt,
-        content: plainTextContent, // Auto-generated from blocks
+        content: plainTextContent,
         featuredImage: data.featuredImage,
         featuredImageAlt: data.featuredImageAlt,
         metaTitle: data.metaTitle,
@@ -407,6 +426,8 @@ export class BlogService {
         authorId: data.authorId,
         authorName: data.authorName,
         authorImage: data.authorImage,
+        generatedByAI: data.generatedByAI ?? false,
+        aiPrompt: data.aiPrompt,
         contentBlocks: {
           create: data.contentBlocks,
         },
@@ -439,6 +460,8 @@ export class BlogService {
       readTime?: number;
       authorName?: string;
       authorImage?: string;
+      generatedByAI?: boolean;
+      aiPrompt?: string;
       contentBlocks?: {
         type: BlogContentBlockType;
         content: string;
@@ -466,16 +489,30 @@ export class BlogService {
         ...(data.slug && { slug: data.slug }),
         ...(data.excerpt !== undefined && { excerpt: data.excerpt }),
         ...(plainTextContent && { content: plainTextContent }),
-        ...(data.featuredImage !== undefined && { featuredImage: data.featuredImage }),
-        ...(data.featuredImageAlt !== undefined && { featuredImageAlt: data.featuredImageAlt }),
+        ...(data.featuredImage !== undefined && {
+          featuredImage: data.featuredImage,
+        }),
+        ...(data.featuredImageAlt !== undefined && {
+          featuredImageAlt: data.featuredImageAlt,
+        }),
         ...(data.metaTitle !== undefined && { metaTitle: data.metaTitle }),
-        ...(data.metaDescription !== undefined && { metaDescription: data.metaDescription }),
+        ...(data.metaDescription !== undefined && {
+          metaDescription: data.metaDescription,
+        }),
         ...(data.categoryId !== undefined && { categoryId: data.categoryId }),
         ...(data.status && { status: data.status }),
-        ...(data.publishedAt !== undefined && { publishedAt: data.publishedAt }),
+        ...(data.publishedAt !== undefined && {
+          publishedAt: data.publishedAt,
+        }),
         ...(data.readTime !== undefined && { readTime: data.readTime }),
         ...(data.authorName !== undefined && { authorName: data.authorName }),
-        ...(data.authorImage !== undefined && { authorImage: data.authorImage }),
+        ...(data.authorImage !== undefined && {
+          authorImage: data.authorImage,
+        }),
+        ...(data.generatedByAI !== undefined && {
+          generatedByAI: data.generatedByAI,
+        }),
+        ...(data.aiPrompt !== undefined && { aiPrompt: data.aiPrompt }),
         ...(data.contentBlocks && {
           contentBlocks: {
             create: data.contentBlocks,
@@ -487,6 +524,39 @@ export class BlogService {
         contentBlocks: {
           orderBy: { order: 'asc' },
         },
+      },
+    });
+  }
+
+  /**
+   * Update blog post status (publish, archive, or revert to draft)
+   */
+  static async updateBlogPostStatus(id: number, status: BlogStatus) {
+    const data: any = { status };
+    if (status === BlogStatus.PUBLISHED) {
+      data.publishedAt = new Date();
+    }
+    return prisma.blogPost.update({
+      where: { id },
+      data,
+      include: {
+        category: true,
+        contentBlocks: { orderBy: { order: 'asc' } },
+      },
+    });
+  }
+
+  /**
+   * Get a single blog post by ID (for admin review)
+   */
+  static async getBlogPostById(
+    id: number
+  ): Promise<BlogPostWithCategory | null> {
+    return prisma.blogPost.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        contentBlocks: { orderBy: { order: 'asc' } },
       },
     });
   }
@@ -514,7 +584,7 @@ export class BlogService {
   ): string {
     return blocks
       .sort((a, b) => a.order - b.order)
-      .map((block) => {
+      .map(block => {
         switch (block.type) {
           case BlogContentBlockType.HEADING:
             return `\n\n${block.content}\n`;
@@ -528,7 +598,9 @@ export class BlogService {
             return `\n\`\`\`\n${block.content}\n\`\`\`\n`;
           case BlogContentBlockType.IMAGE:
             // For images, include alt text if available
-            return block.metadata?.alt ? `\n[Image: ${block.metadata.alt}]\n` : '';
+            return block.metadata?.alt
+              ? `\n[Image: ${block.metadata.alt}]\n`
+              : '';
           default:
             return block.content;
         }

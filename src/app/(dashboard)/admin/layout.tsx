@@ -28,6 +28,7 @@ import {
   UserCircleIcon,
   CircleStackIcon,
   MapIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import { BoomboxLogo } from '@/components/icons/BoomboxLogo';
 import { useSessionMonitor } from '@/hooks/useSessionMonitor';
@@ -41,9 +42,10 @@ export default function AdminLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
   const { data: session } = useSession();
-  
+
   // Monitor session expiration
-  const { showWarning, secondsRemaining, isExpired, resetMonitor } = useSessionMonitor();
+  const { showWarning, secondsRemaining, isExpired, resetMonitor } =
+    useSessionMonitor();
 
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: HomeIcon },
@@ -56,13 +58,26 @@ export default function AdminLayout({
     { name: 'Vehicles', href: '/admin/vehicles', icon: TruckIcon },
     { name: 'Customers', href: '/admin/customers', icon: UserCircleIcon },
     { name: 'Storage Units', href: '/admin/storage-units', icon: CubeIcon },
-    { name: 'Inventory', href: '/admin/inventory', icon: ClipboardDocumentListIcon },
-    { name: 'Feedback', href: '/admin/feedback', icon: ChatBubbleLeftRightIcon },
-    { name: 'Ask Database', href: '/admin/ask-database', icon: CircleStackIcon },
+    {
+      name: 'Inventory',
+      href: '/admin/inventory',
+      icon: ClipboardDocumentListIcon,
+    },
+    {
+      name: 'Feedback',
+      href: '/admin/feedback',
+      icon: ChatBubbleLeftRightIcon,
+    },
+    {
+      name: 'Ask Database',
+      href: '/admin/ask-database',
+      icon: CircleStackIcon,
+    },
+    { name: 'Blog', href: '/admin/blog', icon: DocumentTextIcon },
     // Only show admin invites link for SUPERADMIN
-    ...(session?.user?.role === 'SUPERADMIN' ? [
-      { name: 'Admin Invites', href: '/admin/invites', icon: EnvelopeIcon },
-    ] : []),
+    ...(session?.user?.role === 'SUPERADMIN'
+      ? [{ name: 'Admin Invites', href: '/admin/invites', icon: EnvelopeIcon }]
+      : []),
   ];
 
   return (
@@ -77,7 +92,9 @@ export default function AdminLayout({
           <span className="sr-only">Open sidebar</span>
           <Bars3Icon className="h-6 w-6" aria-hidden="true" />
         </button>
-        <div className="flex-1 text-sm font-semibold text-gray-900">Dashboard</div>
+        <div className="flex-1 text-sm font-semibold text-gray-900">
+          Dashboard
+        </div>
       </div>
 
       {/* Mobile sidebar */}
@@ -120,7 +137,7 @@ export default function AdminLayout({
                 <ul role="list" className="flex flex-1 flex-col gap-y-7">
                   <li>
                     <ul role="list" className="-mx-2 space-y-1">
-                      {navigation.map((item) => (
+                      {navigation.map(item => (
                         <li key={item.name}>
                           <Link
                             href={item.href}
@@ -176,7 +193,7 @@ export default function AdminLayout({
             <ul role="list" className="flex flex-1 flex-col gap-y-7">
               <li>
                 <ul role="list" className="-mx-2 space-y-1">
-                  {navigation.map((item) => (
+                  {navigation.map(item => (
                     <li key={item.name}>
                       <Link
                         href={item.href}
@@ -226,7 +243,7 @@ export default function AdminLayout({
           <div>{children}</div>
         </main>
       </div>
-      
+
       {/* Session expiration modal */}
       <SessionExpirationModal
         open={showWarning}
@@ -237,4 +254,3 @@ export default function AdminLayout({
     </div>
   );
 }
-

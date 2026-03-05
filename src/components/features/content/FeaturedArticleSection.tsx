@@ -1,16 +1,16 @@
 /**
  * @fileoverview Featured article section component with author info and call-to-action
  * @source boombox-10.0/src/app/components/blog/featuredarticlesection.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * - Displays featured article with large image and detailed content
  * - Shows author information with profile image
  * - Includes call-to-action button for reading full article
  * - Responsive two-column layout (content + image)
- * 
+ *
  * API ROUTES UPDATED:
  * - No API routes used (static content only)
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Replaced hardcoded colors with design system tokens (zinc-950 → primary, slate-100 → surface-secondary)
  * - Used semantic button classes (btn-primary) from design system
@@ -18,11 +18,11 @@
  * - Used design system border utilities (border-border)
  * - Replaced bg-slate placeholder with proper Next.js Image component
  * - Uses Next.js Image for better performance
- * 
+ *
  * BUSINESS LOGIC EXTRACTED:
  * - Featured article data moved to ContentService
  * - Article selection logic centralized in service method
- * 
+ *
  * @refactor Migrated to content domain with design system compliance and improved accessibility
  */
 
@@ -34,7 +34,7 @@ import { Button } from '@/components/ui/primitives/Button';
 
 /**
  * Featured article section component
- * 
+ *
  * Displays the primary featured article with author information and call-to-action.
  * Uses responsive layout with content on left and image on right.
  */
@@ -56,11 +56,9 @@ export const FeaturedArticleSection: React.FC = () => {
             {article.blogTitle}
           </h2>
         </Link>
-        
-        <p className="max-w-lg mb-4 text-text-primary">
-          {article.description}
-        </p>
-        
+
+        <p className="max-w-lg mb-4 text-text-primary">{article.description}</p>
+
         {/* Author information */}
         <Link href={article.link} className="group">
           <div className="flex items-center mb-8">
@@ -78,11 +76,11 @@ export const FeaturedArticleSection: React.FC = () => {
             </p>
           </div>
         </Link>
-        
+
         {/* Call-to-action button */}
         <Link href={article.link}>
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             size="md"
             className="font-inter"
             aria-label={`Read full article: ${article.blogTitle}`}
@@ -91,11 +89,11 @@ export const FeaturedArticleSection: React.FC = () => {
           </Button>
         </Link>
       </div>
-      
+
       {/* Featured image section */}
       <div className="flex place-content-end basis-7/12 md:ml-6 mt-8 md:mt-0">
         <Link href={article.link} className="group w-full">
-          <div className="relative w-full aspect-video rounded-md overflow-hidden">
+          <div className="relative w-full aspect-video rounded-3xl overflow-hidden">
             <Image
               src={article.articleImage}
               alt={article.blogTitle}
