@@ -39,18 +39,17 @@ const BlogPostSchema = z.object({
           .object({
             level: z
               .number()
-              .optional()
-              .describe('Heading level 2-4, only for HEADING blocks'),
+              .nullable()
+              .describe('Heading level 2-4, only for HEADING blocks. null for other block types.'),
             ordered: z
               .boolean()
-              .optional()
-              .describe('Whether the list is ordered, only for LIST blocks'),
+              .nullable()
+              .describe('Whether the list is ordered, only for LIST blocks. null for other block types.'),
             alt: z
               .string()
-              .optional()
-              .describe('Image alt text, only for IMAGE blocks'),
-          })
-          .optional(),
+              .nullable()
+              .describe('Image alt text, only for IMAGE blocks. null for other block types.'),
+          }),
         order: z.number().describe('Display order starting from 0'),
       })
     )
@@ -167,14 +166,21 @@ The image should feel premium and professional, fitting for a vehicle logistics 
       this.generateFeaturedImage(input.topic, input.keywords.join(', ')),
     ]);
 
-    const contentBlocks = generatedPost.contentBlocks.map(block => ({
-      type: BlogContentBlockType[
-        block.type as keyof typeof BlogContentBlockType
-      ],
-      content: block.content,
-      metadata: block.metadata ?? undefined,
-      order: block.order,
-    }));
+    const contentBlocks = generatedPost.contentBlocks.map(block => {
+      const raw = block.metadata;
+      const cleaned: Record<string, any> = {};
+      if (raw?.level != null) cleaned.level = raw.level;
+      if (raw?.ordered != null) cleaned.ordered = raw.ordered;
+      if (raw?.alt != null) cleaned.alt = raw.alt;
+      return {
+        type: BlogContentBlockType[
+          block.type as keyof typeof BlogContentBlockType
+        ],
+        content: block.content,
+        metadata: Object.keys(cleaned).length > 0 ? cleaned : undefined,
+        order: block.order,
+      };
+    });
 
     const savedPost = await withRetry(() =>
       BlogService.createBlogPost({
