@@ -37,6 +37,7 @@ const MINIMAL_NAVBAR_PATHS = [
   '/checklist',
   '/sitemap',
   '/terms',
+  '/privacy-policy',
   '/insurance',
   '/storage-guidelines',
   '/vehicle-requirements',

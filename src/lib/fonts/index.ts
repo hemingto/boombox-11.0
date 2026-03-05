@@ -3,7 +3,7 @@
  * Optimized font loading for better Core Web Vitals (CLS) scores
  */
 
-import { Inter, Poppins } from 'next/font/google';
+import { Inter, Poppins, Press_Start_2P } from 'next/font/google';
 import localFont from 'next/font/local';
 
 /**
@@ -53,6 +53,17 @@ export const poppins = Poppins({
 });
 
 /**
+ * Pixel font: Press Start 2P
+ * Used for retro/pixel art UI elements (e.g. 404 page)
+ */
+export const pixelFont = Press_Start_2P({
+  subsets: ['latin'],
+  variable: '--font-pixel',
+  display: 'swap',
+  weight: '400',
+});
+
+/**
  * Monospace font for code blocks (using system fonts)
  */
 export const mono = {
@@ -69,6 +80,7 @@ export const mono = {
 export const fontClasses = {
   inter: inter.className,
   poppins: poppins.className,
+  pixel: pixelFont.className,
   mono: mono.className,
 } as const;
 
@@ -78,6 +90,7 @@ export const fontClasses = {
 export const fontVariables = [
   inter.variable,
   poppins.variable,
+  pixelFont.variable,
   mono.variable,
 ].join(' ');
 

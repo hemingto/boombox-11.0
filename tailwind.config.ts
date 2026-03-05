@@ -11,6 +11,7 @@ const config: Config = {
       fontFamily: {
         inter: ['var(--font-inter)'],
         poppins: ['var(--font-poppins)'],
+        pixel: ['var(--font-pixel)', 'monospace'],
       },
       colors: {
         // Payment provider colors (existing)

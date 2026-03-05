@@ -36,6 +36,7 @@ export const sitemapData: SitemapSection[] = [
       { name: 'Storage Unit Prices', href: '/storage-unit-prices' },
       { name: 'Locations', href: '/locations' },
       { name: 'Terms', href: '/terms' },
+      { name: 'Privacy Policy', href: '/privacy-policy' },
       { name: 'Careers', href: '/careers' },
       { name: 'Storage Guidelines', href: '/storage-guidelines' },
       { name: 'Holiday Storage', href: '/holiday-storage' },

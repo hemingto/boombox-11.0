@@ -4,6 +4,7 @@ import { BlogContentBlockType, BlogStatus } from '@prisma/client';
 import openai from '@/lib/integrations/openaiClient';
 import cloudinary from '@/lib/integrations/cloudinaryClient';
 import { BlogService } from '@/lib/services/blogService';
+import { withRetry } from '@/lib/database/prismaClient';
 
 const BlogPostSchema = z.object({
   title: z.string().describe('SEO-optimized blog post title, 50-70 characters'),
@@ -175,22 +176,24 @@ The image should feel premium and professional, fitting for a vehicle logistics 
       order: block.order,
     }));
 
-    const savedPost = await BlogService.createBlogPost({
-      title: generatedPost.title,
-      slug: generatedPost.slug,
-      excerpt: generatedPost.excerpt,
-      metaTitle: generatedPost.metaTitle,
-      metaDescription: generatedPost.metaDescription,
-      readTime: generatedPost.readTime,
-      featuredImage: featuredImage.url,
-      featuredImageAlt: featuredImage.alt,
-      categoryId: input.categoryId,
-      status: BlogStatus.DRAFT,
-      authorId: input.authorId,
-      generatedByAI: true,
-      aiPrompt: `Topic: ${input.topic} | Tone: ${input.tone} | Keywords: ${input.keywords.join(', ')}`,
-      contentBlocks,
-    });
+    const savedPost = await withRetry(() =>
+      BlogService.createBlogPost({
+        title: generatedPost.title,
+        slug: generatedPost.slug,
+        excerpt: generatedPost.excerpt,
+        metaTitle: generatedPost.metaTitle,
+        metaDescription: generatedPost.metaDescription,
+        readTime: generatedPost.readTime,
+        featuredImage: featuredImage.url,
+        featuredImageAlt: featuredImage.alt,
+        categoryId: input.categoryId,
+        status: BlogStatus.DRAFT,
+        authorId: input.authorId,
+        generatedByAI: true,
+        aiPrompt: `Topic: ${input.topic} | Tone: ${input.tone} | Keywords: ${input.keywords.join(', ')}`,
+        contentBlocks,
+      })
+    );
 
     return savedPost;
   }

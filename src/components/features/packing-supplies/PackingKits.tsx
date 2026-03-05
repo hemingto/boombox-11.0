@@ -279,8 +279,8 @@ export const PackingKits: React.FC<PackingKitsProps> = ({ onAddToCart }) => {
           showCloseButton={true}
           closeOnOverlayClick={true}
         >
-          {/* Image */}
-          <div className="relative w-full h-48 sm:h-64 bg-surface-tertiary rounded-md overflow-hidden">
+          {/* Image - hidden on mobile */}
+          <div className="hidden sm:block relative w-full sm:h-64 bg-surface-tertiary rounded-md overflow-hidden">
             <Image
               src={activeModalKit.imageSrc}
               alt={`${activeModalKit.title} packing supplies kit`}
