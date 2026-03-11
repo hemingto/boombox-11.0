@@ -4,6 +4,8 @@
  * @refactor Extracted sitemap data to centralized data folder for better maintainability
  */
 
+import { SERVED_CITIES } from './locations';
+
 /**
  * Individual sitemap link interface
  */
@@ -22,11 +24,11 @@ export interface SitemapSection {
 
 /**
  * Sitemap navigation data organized by categories
- * 
+ *
  * Contains all public-facing pages organized into logical sections:
  * - General: Main navigation pages
  * - Blog Posts: Content articles
- * - Locations: Service area cities
+ * - Locations: Dynamically generated from SERVED_CITIES
  */
 export const sitemapData: SitemapSection[] = [
   {
@@ -59,21 +61,13 @@ export const sitemapData: SitemapSection[] = [
       { name: 'Blog Post', href: '/blog-post-3' },
       { name: 'Blog Post', href: '/blog-post-4' },
       { name: 'Blog Post', href: '/blog-post-5' },
-      // add more blog posts as needed...
     ],
   },
   {
     category: 'Locations',
-    links: [
-      { name: 'Burlingame', href: '/locations/burlingame' },
-      { name: 'Cupertino', href: '/locations/cupertino' },
-      { name: 'San Jose', href: '/locations/san-jose' },
-      { name: 'Santa Clara', href: '/locations/santa-clara' },
-      { name: 'Mountain View', href: '/locations/mountain-view' },
-      { name: 'Palo Alto', href: '/locations/palo-alto' },
-      { name: 'Berkeley', href: '/locations/berkeley' },
-      // add more locations as needed...
-    ],
+    links: SERVED_CITIES.map(loc => ({
+      name: loc.city,
+      href: loc.href,
+    })),
   },
 ];
-

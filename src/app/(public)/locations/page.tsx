@@ -14,6 +14,7 @@ import {
   LocationsFaqSection,
 } from '@/components/features/locations';
 import { HelpCenterSection } from '@/components/features/landing';
+import { LocationPageService } from '@/lib/services/locationPageService';
 
 export const metadata: Metadata = {
   title: 'Storage Locations - San Francisco Bay Area | Boombox Storage',
@@ -29,13 +30,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function Locations() {
+export default async function Locations() {
+  const publishedSlugs = await LocationPageService.getAllPublishedSlugs();
+  const slugs = publishedSlugs.map(loc => loc.slug);
+
   return (
     <>
       <LocationsHeroSection />
       <PopularLocationsSection />
       <GetQuoteLocations imageSrc="/locations/2829-steiner-2.png" />
-      <CitiesSection />
+      <CitiesSection publishedSlugs={slugs} />
       <ZipCodeSection />
       <LocationsFaqSection />
       <HelpCenterSection imageSrc="/customers/customer-3.png" />

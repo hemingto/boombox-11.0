@@ -53,9 +53,11 @@ export function BlogPostHero({
   const readTimeDisplay = post.readTime
     ? `${post.readTime} min read`
     : '5 min read';
-  const authorDisplay = post.authorName || 'BoomBox Team';
-  const authorImageSrc = post.authorImage || '/img/berkeley.png';
-  const featuredImageSrc = post.featuredImage || '/img/palo-alto.png';
+  const authorDisplay = post.authorName || 'Calvin';
+  const authorImageSrc =
+    post.authorImage ||
+    'https://res.cloudinary.com/daezxeevr/image/upload/v1773181381/author-calvin_dk982x.png';
+  const featuredImageSrc = post.featuredImage || '/hero-imgs/hero.png';
   const featuredImageAlt = post.featuredImageAlt || post.title;
 
   return (
@@ -90,6 +92,18 @@ export function BlogPostHero({
               {readTimeDisplay}
             </p>
           </div>
+          {post.tags && post.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {post.tags.slice(0, 5).map(t => (
+                <span
+                  key={t.blogTag.slug}
+                  className="text-xs px-2.5 py-1 rounded-full bg-surface-secondary text-text-primary"
+                >
+                  {t.blogTag.name}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

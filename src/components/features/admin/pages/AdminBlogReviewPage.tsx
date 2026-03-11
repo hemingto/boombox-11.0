@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -60,6 +60,13 @@ export function AdminBlogReviewPage({ postId }: { postId: number }) {
   const [metaDescription, setMetaDescription] = useState('');
   const [editingBlockId, setEditingBlockId] = useState<number | null>(null);
   const [editingBlockContent, setEditingBlockContent] = useState('');
+
+  // Inline image insertion
+  const [insertAtOrder, setInsertAtOrder] = useState<number | null>(null);
+  const [insertImagePrompt, setInsertImagePrompt] = useState('');
+  const [insertImageGenerating, setInsertImageGenerating] = useState(false);
+  const [insertImageError, setInsertImageError] = useState<string | null>(null);
+  const insertFileRef = useRef<HTMLInputElement>(null);
 
   const fetchPost = useCallback(async () => {
     setLoading(true);
@@ -157,6 +164,97 @@ export function AdminBlogReviewPage({ postId }: { postId: number }) {
       alert('Failed to save block');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const insertImageBlock = async (imageUrl: string, alt: string) => {
+    if (!post || insertAtOrder === null) return;
+    setSaving(true);
+    try {
+      const updatedBlocks = post.contentBlocks.map(b => ({
+        type: b.type,
+        content: b.content,
+        metadata: b.metadata,
+        order: b.order >= insertAtOrder ? b.order + 1 : b.order,
+      }));
+      updatedBlocks.push({
+        type: 'IMAGE',
+        content: imageUrl,
+        metadata: { alt },
+        order: insertAtOrder,
+      });
+      updatedBlocks.sort((a, b) => a.order - b.order);
+
+      const res = await fetch(`/api/admin/blog/${postId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contentBlocks: updatedBlocks }),
+      });
+      if (!res.ok) throw new Error('Failed to insert image');
+      const updated = await res.json();
+      setPost(updated);
+      setInsertAtOrder(null);
+      setInsertImagePrompt('');
+      setInsertImageError(null);
+    } catch {
+      alert('Failed to insert image block');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleInsertImageGenerate = async () => {
+    if (!insertImagePrompt.trim()) return;
+    setInsertImageGenerating(true);
+    setInsertImageError(null);
+    try {
+      const res = await fetch('/api/blog/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: insertImagePrompt.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Image generation failed');
+      }
+      const { url, alt } = await res.json();
+      await insertImageBlock(url, alt);
+    } catch (err) {
+      setInsertImageError(
+        err instanceof Error ? err.message : 'Failed to generate image'
+      );
+    } finally {
+      setInsertImageGenerating(false);
+    }
+  };
+
+  const handleInsertImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setInsertImageGenerating(true);
+    setInsertImageError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/blog/generate-image', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Upload failed');
+      }
+      const { url, alt } = await res.json();
+      await insertImageBlock(url, alt);
+    } catch (err) {
+      setInsertImageError(
+        err instanceof Error ? err.message : 'Failed to upload image'
+      );
+    } finally {
+      setInsertImageGenerating(false);
+      if (insertFileRef.current) insertFileRef.current.value = '';
     }
   };
 
@@ -435,58 +533,209 @@ export function AdminBlogReviewPage({ postId }: { postId: number }) {
 
         {/* Edit Content Blocks Tab */}
         {activeTab === 'edit-blocks' && (
-          <div className="max-w-3xl space-y-4">
-            {post.contentBlocks.map(block => (
-              <div
-                key={block.id}
-                className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
-                    {block.type}
-                    {block.metadata?.level ? ` (H${block.metadata.level})` : ''}
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    Block {block.order}
-                  </span>
+          <div className="max-w-3xl space-y-2">
+            {post.contentBlocks.map((block, idx) => (
+              <div key={block.id}>
+                {/* Add Image button above each block */}
+                <div className="flex justify-center py-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInsertAtOrder(block.order);
+                      setInsertImagePrompt('');
+                      setInsertImageError(null);
+                    }}
+                    className="text-xs text-gray-400 hover:text-indigo-600 transition-colors"
+                  >
+                    + Add Image
+                  </button>
                 </div>
 
-                {editingBlockId === block.id ? (
-                  <div>
-                    <textarea
-                      value={editingBlockContent}
-                      onChange={e => setEditingBlockContent(e.target.value)}
-                      rows={block.type === 'PARAGRAPH' ? 6 : 3}
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono"
-                    />
-                    <div className="flex gap-2 mt-2">
+                {/* Insertion panel */}
+                {insertAtOrder === block.order && (
+                  <div className="border border-indigo-200 bg-indigo-50 rounded-lg p-4 mb-2 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-indigo-800">
+                        Insert image here
+                      </span>
                       <button
-                        onClick={() => handleSaveBlock(block.id)}
-                        disabled={saving}
-                        className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
-                      >
-                        {saving ? 'Saving...' : 'Save Block'}
-                      </button>
-                      <button
-                        onClick={() => setEditingBlockId(null)}
-                        className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                        type="button"
+                        onClick={() => setInsertAtOrder(null)}
+                        className="text-xs text-gray-500 hover:text-gray-700"
                       >
                         Cancel
                       </button>
                     </div>
+                    <textarea
+                      value={insertImagePrompt}
+                      onChange={e => setInsertImagePrompt(e.target.value)}
+                      placeholder="Describe the image you want to generate..."
+                      rows={2}
+                      disabled={insertImageGenerating}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100"
+                    />
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={handleInsertImageGenerate}
+                        disabled={
+                          insertImageGenerating || !insertImagePrompt.trim()
+                        }
+                        className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+                      >
+                        {insertImageGenerating ? 'Generating...' : 'Generate'}
+                      </button>
+                      <label className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 cursor-pointer">
+                        Upload
+                        <input
+                          ref={insertFileRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleInsertImageUpload}
+                          disabled={insertImageGenerating}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                    {insertImageError && (
+                      <p className="text-xs text-red-600">{insertImageError}</p>
+                    )}
                   </div>
-                ) : (
-                  <div
-                    onClick={() => {
-                      setEditingBlockId(block.id);
-                      setEditingBlockContent(block.content);
-                    }}
-                    className="cursor-pointer text-sm text-gray-700 whitespace-pre-wrap hover:bg-gray-50 rounded p-2 -m-2"
-                  >
-                    {block.content.length > 300
-                      ? `${block.content.slice(0, 300)}...`
-                      : block.content}
+                )}
+
+                {/* Block card */}
+                <div className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
+                      {block.type}
+                      {block.metadata?.level
+                        ? ` (H${block.metadata.level})`
+                        : ''}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      Block {block.order}
+                    </span>
                   </div>
+
+                  {block.type === 'IMAGE' ? (
+                    <div className="relative w-full aspect-video rounded overflow-hidden bg-gray-100">
+                      <Image
+                        src={block.content}
+                        alt={block.metadata?.alt || 'Content image'}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, 640px"
+                      />
+                    </div>
+                  ) : editingBlockId === block.id ? (
+                    <div>
+                      <textarea
+                        value={editingBlockContent}
+                        onChange={e => setEditingBlockContent(e.target.value)}
+                        rows={block.type === 'PARAGRAPH' ? 6 : 3}
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono"
+                      />
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => handleSaveBlock(block.id)}
+                          disabled={saving}
+                          className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+                        >
+                          {saving ? 'Saving...' : 'Save Block'}
+                        </button>
+                        <button
+                          onClick={() => setEditingBlockId(null)}
+                          className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => {
+                        setEditingBlockId(block.id);
+                        setEditingBlockContent(block.content);
+                      }}
+                      className="cursor-pointer text-sm text-gray-700 whitespace-pre-wrap hover:bg-gray-50 rounded p-2 -m-2"
+                    >
+                      {block.content.length > 300
+                        ? `${block.content.slice(0, 300)}...`
+                        : block.content}
+                    </div>
+                  )}
+                </div>
+
+                {/* Add Image button after last block */}
+                {idx === post.contentBlocks.length - 1 && (
+                  <>
+                    <div className="flex justify-center py-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setInsertAtOrder(block.order + 1);
+                          setInsertImagePrompt('');
+                          setInsertImageError(null);
+                        }}
+                        className="text-xs text-gray-400 hover:text-indigo-600 transition-colors"
+                      >
+                        + Add Image
+                      </button>
+                    </div>
+                    {insertAtOrder === block.order + 1 && (
+                      <div className="border border-indigo-200 bg-indigo-50 rounded-lg p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-indigo-800">
+                            Insert image at end
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setInsertAtOrder(null)}
+                            className="text-xs text-gray-500 hover:text-gray-700"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                        <textarea
+                          value={insertImagePrompt}
+                          onChange={e => setInsertImagePrompt(e.target.value)}
+                          placeholder="Describe the image you want to generate..."
+                          rows={2}
+                          disabled={insertImageGenerating}
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100"
+                        />
+                        <div className="flex gap-3">
+                          <button
+                            type="button"
+                            onClick={handleInsertImageGenerate}
+                            disabled={
+                              insertImageGenerating || !insertImagePrompt.trim()
+                            }
+                            className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+                          >
+                            {insertImageGenerating
+                              ? 'Generating...'
+                              : 'Generate'}
+                          </button>
+                          <label className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 cursor-pointer">
+                            Upload
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleInsertImageUpload}
+                              disabled={insertImageGenerating}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
+                        {insertImageError && (
+                          <p className="text-xs text-red-600">
+                            {insertImageError}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             ))}

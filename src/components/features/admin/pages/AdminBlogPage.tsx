@@ -54,8 +54,9 @@ export function AdminBlogPage() {
         limit: '10',
       });
       if (search) params.set('search', search);
+      if (statusFilter !== 'all') params.set('status', statusFilter);
 
-      const res = await fetch(`/api/blog/posts?${params}`);
+      const res = await fetch(`/api/admin/blog?${params}`);
       if (!res.ok) throw new Error('Failed to fetch posts');
 
       const data: PaginationResult = await res.json();
@@ -67,16 +68,13 @@ export function AdminBlogPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search]);
+  }, [page, search, statusFilter]);
 
   useEffect(() => {
     fetchPosts();
   }, [fetchPosts]);
 
-  const filteredPosts =
-    statusFilter === 'all'
-      ? posts
-      : posts.filter(p => p.status === statusFilter);
+  const filteredPosts = posts;
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this post?')) return;
@@ -93,8 +91,12 @@ export function AdminBlogPage() {
     <div>
       <AdminPageHeader title="Blog Management">
         <select
+          key="status-filter"
           value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
+          onChange={e => {
+            setStatusFilter(e.target.value);
+            setPage(1);
+          }}
           className="rounded-md border border-gray-300 px-3 py-1.5 text-sm"
         >
           <option value="all">All Statuses</option>
@@ -103,6 +105,7 @@ export function AdminBlogPage() {
           <option value="ARCHIVED">Archived</option>
         </select>
         <input
+          key="search"
           type="text"
           placeholder="Search posts..."
           value={search}
@@ -113,6 +116,7 @@ export function AdminBlogPage() {
           className="rounded-md border border-gray-300 px-3 py-1.5 text-sm w-48"
         />
         <Link
+          key="generate"
           href="/admin/blog/generate"
           className="rounded-md bg-indigo-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
         >

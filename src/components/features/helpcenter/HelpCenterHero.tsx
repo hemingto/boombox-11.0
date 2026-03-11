@@ -97,7 +97,7 @@ export function HelpCenterHero({
       )}
       aria-label="Help center introduction"
     >
-      <header className="place-content-center mb-8">
+      <header className="place-content-center mb-4">
         <HelpIcon
           className={cn('mb-4 w-12 h-12', iconClassName)}
           aria-hidden="true"

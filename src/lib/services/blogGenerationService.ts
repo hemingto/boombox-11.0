@@ -35,59 +35,104 @@ const BlogPostSchema = z.object({
           .describe(
             'Block content. For LIST blocks, separate items with newlines.'
           ),
-        metadata: z
-          .object({
-            level: z
-              .number()
-              .nullable()
-              .describe('Heading level 2-4, only for HEADING blocks. null for other block types.'),
-            ordered: z
-              .boolean()
-              .nullable()
-              .describe('Whether the list is ordered, only for LIST blocks. null for other block types.'),
-            alt: z
-              .string()
-              .nullable()
-              .describe('Image alt text, only for IMAGE blocks. null for other block types.'),
-          }),
+        metadata: z.object({
+          level: z
+            .number()
+            .nullable()
+            .describe(
+              'Heading level 2-4, only for HEADING blocks. null for other block types.'
+            ),
+          ordered: z
+            .boolean()
+            .nullable()
+            .describe(
+              'Whether the list is ordered, only for LIST blocks. null for other block types.'
+            ),
+          alt: z
+            .string()
+            .nullable()
+            .describe(
+              'Image alt text, only for IMAGE blocks. null for other block types.'
+            ),
+        }),
         order: z.number().describe('Display order starting from 0'),
       })
     )
     .describe('Structured content blocks that compose the blog post body'),
+  suggestedTags: z
+    .array(z.string())
+    .describe(
+      '3-6 additional SEO tags relevant to the post content, lowercase hyphenated slugs (e.g. "portable-storage", "sf-moving-tips")'
+    ),
 });
 
 type GeneratedBlogPost = z.infer<typeof BlogPostSchema>;
 
 export interface BlogGenerationInput {
   topic: string;
-  tone: 'professional' | 'casual' | 'educational';
   keywords: string[];
   categoryId?: number;
   authorId: number;
+  authorName?: string;
+  authorImage?: string;
+  featuredImageUrl: string;
+  featuredImageAlt: string;
 }
 
-const SYSTEM_PROMPT = `You are a senior content writer for Boombox, a vehicle logistics and auto transport company. 
-Boombox provides services including vehicle shipping, enclosed transport, open transport, storage solutions, and moving services.
+const SYSTEM_PROMPT = `You are a senior content writer for Boombox Storage, a mobile storage company \
+serving the San Francisco Bay Area. Boombox delivers portable storage containers directly to customers' \
+doors, picks them up when packed, stores them securely, and redelivers on demand — eliminating the \
+hassle of traditional self-storage.
 
-You write high-quality, SEO-optimized blog posts that educate customers and drive organic traffic.
+COMPANY FACTS (use accurately, never fabricate specifics):
+- Container size: 5'W x 8'L x 8'H, 257 cubic feet, 1,000 lb weight limit
+- Service area: San Francisco Bay Area
+- Pricing: $45 flat-rate delivery fee, first 60 minutes of loading free, $55/hr after
+- Monthly billing with 2-month minimum term
+- Optional add-ons: moving labor (local pros), insurance coverage, moving blankets (5 included)
+- Facilities are 24/7 monitored, closed to public; customers access units via scheduled redelivery
+- Contact: help@boomboxstorage.com
+
+VOICE & TONE:
+- Friendly, confident, and practical — like advice from a knowledgeable neighbor
+- Avoid corporate jargon; write conversationally but informatively
+- Empathize with the stress of moving and storage; position Boombox as the relief
+- Never make claims that can't be verified (e.g., "the cheapest in SF") — instead say \
+  "competitively priced" or "often below traditional self-storage rates"
+
+SEO GUIDELINES:
+- Naturally incorporate the provided target keywords 2-4 times each; never force them
+- Use long-tail variations of keywords throughout (e.g., "portable storage San Francisco" \
+  alongside "mobile storage Bay Area")
+- Write descriptive H2/H3 headings that include keywords where natural
+- First paragraph should establish the topic and include the primary keyword
+- Meta-friendly: write as if the first 150 characters of the intro could serve as a meta description
 
 CONTENT GUIDELINES:
-- Write authoritative, informative content relevant to auto transport, vehicle shipping, moving, and logistics
-- Naturally incorporate the provided keywords without keyword stuffing
-- Use clear, scannable structure with descriptive headings
-- Include practical tips, data points, or industry insights when relevant
-- End with a subtle call-to-action encouraging readers to explore Boombox's services
+- Lead with the reader's problem or situation, not with Boombox features
+- Include practical, actionable tips (packing advice, sizing guidance, move prep checklists)
+- Reference real scenarios Bay Area residents face: apartment moves, seasonal storage, \
+  downsizing, renovation displacement, college move-outs
+- When citing data or statistics, only include information you're confident is accurate; \
+  otherwise frame as general industry context
+- End with a soft CTA that feels helpful, not salesy (e.g., "Get a free quote" or \
+  "See if Boombox serves your neighborhood")
 
 STRUCTURE RULES:
-- Start with a HEADING (level 2) followed by an introductory PARAGRAPH
-- Use HEADING blocks (level 2-3) to break content into 3-5 major sections
-- Mix PARAGRAPH, LIST, and QUOTE blocks for visual variety
+- Open with an H2 heading + introductory paragraph that hooks the reader with a relatable scenario
+- 3–5 major sections using H2 headings; subsections may use H3
+- Mix paragraph, bulleted list, and blockquote blocks for visual variety
+- At least one LIST block (packing tips, a checklist, a comparison, or step-by-step)
+- At least one QUOTE block — frame as an expert insight, customer perspective, or \
+  industry observation (do not fabricate attributions; use "storage experts note that..." \
+  or similar framing)
 - Do NOT include IMAGE blocks — images are handled separately
-- Each section should have 2-4 paragraphs
-- Include at least one LIST block (tips, steps, or comparisons)
-- Include at least one QUOTE block (industry insight or expert perspective)
-- Total word count: 1000-1500 words
-- Content blocks should be ordered sequentially starting from 0`;
+- Each section: 2–4 paragraphs or equivalent content
+- Total word count: 1,000–1,500 words
+- Content blocks numbered sequentially starting from 0
+- Close with a brief, helpful CTA section (H2: "Ready to Simplify Your Move?" or similar)`;
+
+export { DEFAULT_IMAGE_STYLE } from '@/lib/constants/blogDefaults';
 
 export class BlogGenerationService {
   static async generateBlogPost(
@@ -95,7 +140,6 @@ export class BlogGenerationService {
   ): Promise<GeneratedBlogPost> {
     const userPrompt = `Write a blog post about: "${input.topic}"
 
-Tone: ${input.tone}
 Target keywords: ${input.keywords.join(', ')}
 
 Generate a complete, structured blog post following the content and structure guidelines.`;
@@ -120,32 +164,30 @@ Generate a complete, structured blog post following the content and structure gu
     return parsed;
   }
 
+  /**
+   * Generate an image from a prompt. Used by the generate-image API route.
+   * Accepts a full custom prompt, or builds one from topic context + default style.
+   */
   static async generateFeaturedImage(
-    title: string,
-    excerpt: string
+    prompt: string
   ): Promise<{ url: string; alt: string }> {
-    const imagePrompt = `Create a professional, modern blog header image for an article titled "${title}". 
-The article is about: ${excerpt}. 
-Style: Clean, corporate photography or modern illustration style. 
-No text overlays. Wide aspect ratio suitable for a blog hero banner.
-The image should feel premium and professional, fitting for a vehicle logistics company.`;
-
     const imageResponse = await openai.images.generate({
-      model: 'dall-e-3',
-      prompt: imagePrompt,
+      model: 'gpt-image-1',
+      prompt,
       n: 1,
-      size: '1792x1024',
-      quality: 'standard',
+      size: '1536x1024',
+      quality: 'medium',
     });
 
-    const dalleUrl = imageResponse.data[0]?.url;
-    if (!dalleUrl) {
+    const b64 = imageResponse.data?.[0]?.b64_json;
+    if (!b64) {
       throw new Error(
-        'Failed to generate featured image: no image URL returned'
+        'Failed to generate featured image: no image data returned'
       );
     }
 
-    const cloudinaryResult = await cloudinary.uploader.upload(dalleUrl, {
+    const dataUri = `data:image/png;base64,${b64}`;
+    const cloudinaryResult = await cloudinary.uploader.upload(dataUri, {
       folder: 'blog/featured-images',
       resource_type: 'image',
       transformation: [{ quality: 'auto', fetch_format: 'auto' }],
@@ -153,18 +195,16 @@ The image should feel premium and professional, fitting for a vehicle logistics 
 
     return {
       url: cloudinaryResult.secure_url,
-      alt: `Featured image for: ${title}`,
+      alt: 'Blog image',
     };
   }
 
   /**
-   * Full pipeline: generate text + image, save as DRAFT
+   * Generate text content and save as DRAFT.
+   * Image is pre-approved and passed in via input.featuredImageUrl.
    */
   static async generateAndSaveBlogPost(input: BlogGenerationInput) {
-    const [generatedPost, featuredImage] = await Promise.all([
-      this.generateBlogPost(input),
-      this.generateFeaturedImage(input.topic, input.keywords.join(', ')),
-    ]);
+    const generatedPost = await this.generateBlogPost(input);
 
     const contentBlocks = generatedPost.contentBlocks.map(block => {
       const raw = block.metadata;
@@ -182,6 +222,20 @@ The image should feel premium and professional, fitting for a vehicle logistics 
       };
     });
 
+    const toSlug = (s: string) =>
+      s
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+
+    const tagSlugs = [
+      ...new Set([
+        ...input.keywords.map(toSlug),
+        ...(generatedPost.suggestedTags ?? []).map(toSlug),
+      ]),
+    ].filter(Boolean);
+
     const savedPost = await withRetry(() =>
       BlogService.createBlogPost({
         title: generatedPost.title,
@@ -190,14 +244,17 @@ The image should feel premium and professional, fitting for a vehicle logistics 
         metaTitle: generatedPost.metaTitle,
         metaDescription: generatedPost.metaDescription,
         readTime: generatedPost.readTime,
-        featuredImage: featuredImage.url,
-        featuredImageAlt: featuredImage.alt,
+        featuredImage: input.featuredImageUrl,
+        featuredImageAlt: input.featuredImageAlt,
         categoryId: input.categoryId,
         status: BlogStatus.DRAFT,
         authorId: input.authorId,
+        authorName: input.authorName,
+        authorImage: input.authorImage,
         generatedByAI: true,
-        aiPrompt: `Topic: ${input.topic} | Tone: ${input.tone} | Keywords: ${input.keywords.join(', ')}`,
+        aiPrompt: `Topic: ${input.topic} | Keywords: ${input.keywords.join(', ')}`,
         contentBlocks,
+        tagSlugs,
       })
     );
 

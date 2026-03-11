@@ -212,9 +212,7 @@ export function HeroSection({
       {/* Left column: Form */}
       <div className="place-content-center basis-1/2 mb-10 md:mb-0">
         <div className="max-w-xl mx-auto">
-          <h1 className="mb-10 max-md:text-5xl max-md:leading-tight">
-            {title}
-          </h1>
+          <h1 className="mb-10 max-md:text-5xl">{title}</h1>
 
           {/* Storage amount selection */}
           <fieldset className="mb-8">

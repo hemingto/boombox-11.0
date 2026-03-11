@@ -4,7 +4,16 @@ import { BlogGenerationService } from '@/lib/services/blogGenerationService';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { topic, tone, keywords, categoryId, authorId } = body;
+    const {
+      topic,
+      keywords,
+      categoryId,
+      authorId,
+      authorName,
+      authorImage,
+      featuredImageUrl,
+      featuredImageAlt,
+    } = body;
 
     if (!topic || typeof topic !== 'string' || topic.trim().length === 0) {
       return NextResponse.json({ error: 'Topic is required' }, { status: 400 });
@@ -17,15 +26,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const validTones = ['professional', 'casual', 'educational'] as const;
-    const selectedTone = validTones.includes(tone) ? tone : 'professional';
+    if (!featuredImageUrl || typeof featuredImageUrl !== 'string') {
+      return NextResponse.json(
+        { error: 'A featured image is required' },
+        { status: 400 }
+      );
+    }
 
     const post = await BlogGenerationService.generateAndSaveBlogPost({
       topic: topic.trim(),
-      tone: selectedTone,
       keywords: Array.isArray(keywords) ? keywords : [],
       categoryId: categoryId ? Number(categoryId) : undefined,
       authorId,
+      authorName: authorName || undefined,
+      authorImage: authorImage || undefined,
+      featuredImageUrl,
+      featuredImageAlt:
+        featuredImageAlt || `Featured image for: ${topic.trim()}`,
     });
 
     return NextResponse.json({ post }, { status: 201 });

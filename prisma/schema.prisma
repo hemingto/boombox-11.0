@@ -916,6 +916,41 @@ enum BlogStatus {
   ARCHIVED
 }
 
+model LocationPage {
+  id              String             @id @default(cuid())
+  slug            String             @unique
+  city            String
+  state           String             @default("CA")
+  zipCode         String?
+
+  heroImageUrl    String?
+  heroImageAlt    String?
+
+  aboutImageUrl   String?
+  aboutImageAlt   String?
+
+  aboutContent    String             @db.Text
+  aboutContentTwo String?            @db.Text
+  stats           Json?
+
+  nearbyLocationSlugs Json?
+
+  metaTitle       String?
+  metaDescription String?
+  ogImageUrl      String?
+
+  status          LocationPageStatus @default(DRAFT)
+  publishedAt     DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+}
+
+enum LocationPageStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 enum BlogContentBlockType {
   PARAGRAPH
   HEADING

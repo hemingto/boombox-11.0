@@ -74,6 +74,7 @@ export default function AdminLayout({
       icon: CircleStackIcon,
     },
     { name: 'Blog', href: '/admin/blog', icon: DocumentTextIcon },
+    { name: 'Locations', href: '/admin/locations', icon: MapIcon },
     // Only show admin invites link for SUPERADMIN
     ...(session?.user?.role === 'SUPERADMIN'
       ? [{ name: 'Admin Invites', href: '/admin/invites', icon: EnvelopeIcon }]

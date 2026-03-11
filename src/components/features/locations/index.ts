@@ -10,4 +10,5 @@ export { LocationsFaqSection } from './LocationsFaqSection';
 export { LocationsHeroSection } from './LocationsHeroSection';
 export { PopularLocationsSection } from './PopularLocationsSection';
 export { ZipCodeSection } from './ZipCodeSection';
-
+export { LocationAboutSection } from './LocationAboutSection';
+export { NearbyLocationsSection } from './NearbyLocationsSection';

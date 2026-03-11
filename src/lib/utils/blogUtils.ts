@@ -4,23 +4,25 @@
  * @refactor Utilities to convert between database and component formats
  */
 
-import { 
-  BlogPostWithDetails, 
-  LegacyBlogPost, 
-  PopularArticle, 
-  FeaturedArticle 
+import {
+  BlogPostWithDetails,
+  LegacyBlogPost,
+  PopularArticle,
+  FeaturedArticle,
 } from '@/types/content.types';
 
 /**
  * Convert database blog post to legacy format for existing components
  */
-export function convertToLegacyBlogPost(post: BlogPostWithDetails): LegacyBlogPost {
+export function convertToLegacyBlogPost(
+  post: BlogPostWithDetails
+): LegacyBlogPost {
   return {
     category: post.category?.name || 'Uncategorized',
     thumbnail: post.featuredImage || '/img/default-blog.png',
     blogTitle: post.title,
     blogDescription: post.excerpt || '',
-    author: post.authorName || 'Anonymous',
+    author: post.authorName || 'Calvin',
     readTime: formatReadTime(post.readTime),
     datePublished: formatPublishDate(post.publishedAt),
     link: `/blog/${post.slug}`,
@@ -30,10 +32,12 @@ export function convertToLegacyBlogPost(post: BlogPostWithDetails): LegacyBlogPo
 /**
  * Convert database blog post to popular article format
  */
-export function convertToPopularArticle(post: BlogPostWithDetails): PopularArticle {
+export function convertToPopularArticle(
+  post: BlogPostWithDetails
+): PopularArticle {
   return {
     title: post.title,
-    author: post.authorName || 'Anonymous',
+    author: post.authorName || 'Calvin',
     readTime: formatReadTime(post.readTime),
     imageSrc: post.featuredImage || '/img/default-blog.png',
     imageAlt: post.featuredImageAlt || post.title,
@@ -44,10 +48,12 @@ export function convertToPopularArticle(post: BlogPostWithDetails): PopularArtic
 /**
  * Convert database blog post to featured article format
  */
-export function convertToFeaturedArticle(post: BlogPostWithDetails): FeaturedArticle {
+export function convertToFeaturedArticle(
+  post: BlogPostWithDetails
+): FeaturedArticle {
   return {
     title: post.title,
-    author: post.authorName || 'Anonymous',
+    author: post.authorName || 'Calvin',
     date: formatPublishDate(post.publishedAt),
     readTime: formatReadTime(post.readTime),
     description: post.excerpt || '',
@@ -70,7 +76,7 @@ export function formatReadTime(readTime: number | null): string {
  */
 export function formatPublishDate(publishedAt: Date | null): string {
   if (!publishedAt) return 'Recently';
-  
+
   return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'long',
@@ -99,14 +105,18 @@ export function extractReadTime(readTimeString: string): number {
 /**
  * Batch convert database posts to legacy format
  */
-export function convertBlogPostsToLegacy(posts: BlogPostWithDetails[]): LegacyBlogPost[] {
+export function convertBlogPostsToLegacy(
+  posts: BlogPostWithDetails[]
+): LegacyBlogPost[] {
   return posts.map(convertToLegacyBlogPost);
 }
 
 /**
  * Batch convert database posts to popular articles format
  */
-export function convertBlogPostsToPopular(posts: BlogPostWithDetails[]): PopularArticle[] {
+export function convertBlogPostsToPopular(
+  posts: BlogPostWithDetails[]
+): PopularArticle[] {
   return posts.map(convertToPopularArticle);
 }
 

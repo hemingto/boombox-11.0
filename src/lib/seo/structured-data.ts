@@ -8,16 +8,17 @@ import { SITE_CONFIG } from './metadata';
 // Business contact information
 const BUSINESS_INFO = {
   name: 'Boombox',
-  description: 'Mobile storage and moving services company serving the San Francisco Bay Area',
+  description:
+    'Mobile storage and moving services company serving the San Francisco Bay Area',
   address: {
-    streetAddress: '',  // TODO: Add actual business address
+    streetAddress: '', // TODO: Add actual business address
     addressLocality: 'San Francisco',
     addressRegion: 'CA',
-    postalCode: '',     // TODO: Add postal code
+    postalCode: '', // TODO: Add postal code
     addressCountry: 'US',
   },
   contactPoint: {
-    telephone: '',      // TODO: Add business phone
+    telephone: '', // TODO: Add business phone
     contactType: 'customer service',
     availableLanguage: 'English',
   },
@@ -76,7 +77,8 @@ export function generateLocalBusinessSchema() {
           itemOffered: {
             '@type': 'Service',
             name: 'Mobile Storage Units',
-            description: 'Portable storage containers delivered to your location',
+            description:
+              'Portable storage containers delivered to your location',
           },
         },
         {
@@ -109,7 +111,12 @@ export function generateServiceSchema(service: {
   serviceType: string;
   areaServed?: string[];
 }) {
-  const { name, description, serviceType, areaServed = ['San Francisco Bay Area'] } = service;
+  const {
+    name,
+    description,
+    serviceType,
+    areaServed = ['San Francisco Bay Area'],
+  } = service;
 
   return {
     '@context': 'https://schema.org',
@@ -198,7 +205,9 @@ export function generateReviewSchema(review: {
 /**
  * Generate FAQ schema for common questions
  */
-export function generateFAQSchema(faqs: Array<{ question: string; answer: string }>) {
+export function generateFAQSchema(
+  faqs: Array<{ question: string; answer: string }>
+) {
   return {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
@@ -216,7 +225,9 @@ export function generateFAQSchema(faqs: Array<{ question: string; answer: string
 /**
  * Generate BreadcrumbList schema for navigation
  */
-export function generateBreadcrumbSchema(breadcrumbs: Array<{ name: string; url: string }>) {
+export function generateBreadcrumbSchema(
+  breadcrumbs: Array<{ name: string; url: string }>
+) {
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -230,6 +241,78 @@ export function generateBreadcrumbSchema(breadcrumbs: Array<{ name: string; url:
 }
 
 /**
+ * Generate LocalBusiness schema for a specific location page
+ */
+export function generateLocationPageSchema(location: {
+  city: string;
+  state: string;
+  zipCode?: string;
+  slug: string;
+}) {
+  const { city, state, zipCode, slug } = location;
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'MovingCompany',
+    name: `Boombox - ${city}`,
+    description: `Mobile storage and moving services in ${city}, ${state}. Storage units delivered to your door.`,
+    url: `${SITE_CONFIG.url}/locations/${slug}`,
+    telephone: BUSINESS_INFO.contactPoint.telephone || undefined,
+    address: {
+      '@type': 'PostalAddress',
+      addressLocality: city,
+      addressRegion: state,
+      postalCode: zipCode || undefined,
+      addressCountry: 'US',
+    },
+    areaServed: {
+      '@type': 'City',
+      name: city,
+      containedInPlace: {
+        '@type': 'State',
+        name: state === 'CA' ? 'California' : state,
+      },
+    },
+    parentOrganization: {
+      '@type': 'Organization',
+      name: BUSINESS_INFO.name,
+      '@id': `${SITE_CONFIG.url}#organization`,
+    },
+    priceRange: '$$',
+    hasOfferCatalog: {
+      '@type': 'OfferCatalog',
+      name: `Storage and Moving Services in ${city}`,
+      itemListElement: [
+        {
+          '@type': 'Offer',
+          itemOffered: {
+            '@type': 'Service',
+            name: 'Mobile Storage Units',
+            description: `Portable storage containers delivered to your location in ${city}`,
+          },
+        },
+        {
+          '@type': 'Offer',
+          itemOffered: {
+            '@type': 'Service',
+            name: 'Packing Supplies',
+            description: 'Professional packing materials and supplies',
+          },
+        },
+        {
+          '@type': 'Offer',
+          itemOffered: {
+            '@type': 'Service',
+            name: 'Moving Services',
+            description: `Professional moving and relocation services in ${city}`,
+          },
+        },
+      ],
+    },
+  };
+}
+
+/**
  * Utility function to generate JSON-LD script tag content
  */
 export function generateStructuredDataScript(schema: object): string {
@@ -239,4 +322,4 @@ export function generateStructuredDataScript(schema: object): string {
 /**
  * Export business info for reuse
  */
-export { BUSINESS_INFO }; 
+export { BUSINESS_INFO };

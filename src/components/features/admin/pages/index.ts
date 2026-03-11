@@ -23,3 +23,7 @@ export { AdminInvitesPage } from './AdminInvitesPage';
 export { AdminBlogPage } from './AdminBlogPage';
 export { AdminBlogGeneratePage } from './AdminBlogGeneratePage';
 export { AdminBlogReviewPage } from './AdminBlogReviewPage';
+
+// Phase 7: Location Page Management
+export { AdminLocationsPage } from './AdminLocationsPage';
+export { AdminLocationEditPage } from './AdminLocationEditPage';

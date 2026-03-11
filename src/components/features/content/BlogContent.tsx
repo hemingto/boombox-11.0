@@ -1,22 +1,22 @@
 /**
  * @fileoverview Dynamic blog content component with database-driven content blocks
  * @source boombox-10.0/src/app/components/blog-post/blogcontent.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * - Renders structured blog content from content blocks
  * - Supports multiple content block types (paragraph, heading, image, quote, list, code)
  * - Server component that receives data as props
  * - Maintains responsive image layout and typography
- * 
+ *
  * API ROUTES UPDATED:
  * - No API calls (receives data from server component parent)
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Uses semantic spacing (section-spacing)
  * - Applied typography scale from design system
  * - Uses Next.js Image component
  * - Consistent color tokens (text-text-primary, text-text-secondary)
- * 
+ *
  * @refactor Converted from client-side fetching to server-side prop-based rendering
  */
 
@@ -46,15 +46,18 @@ interface BlogContentProps {
   className?: string;
 }
 
-export function BlogContent({ contentBlocks, className = '' }: BlogContentProps) {
+export function BlogContent({
+  contentBlocks,
+  className = '',
+}: BlogContentProps) {
   const renderContentBlock = (block: BlogContentBlock) => {
     const { type, content, metadata = {} } = block;
 
     switch (type) {
       case BlogContentBlockType.PARAGRAPH:
         return (
-          <div 
-            key={block.id} 
+          <div
+            key={block.id}
             className="text-text-primary leading-relaxed"
             dangerouslySetInnerHTML={{ __html: content }}
           />
@@ -62,10 +65,16 @@ export function BlogContent({ contentBlocks, className = '' }: BlogContentProps)
 
       case BlogContentBlockType.HEADING:
         const level = metadata.level || 2;
-        const HeadingTag = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+        const HeadingTag = `h${level}` as
+          | 'h1'
+          | 'h2'
+          | 'h3'
+          | 'h4'
+          | 'h5'
+          | 'h6';
         return (
-          <HeadingTag 
-            key={block.id} 
+          <HeadingTag
+            key={block.id}
             className="text-text-primary font-semibold mb-4"
           >
             {content}
@@ -74,22 +83,25 @@ export function BlogContent({ contentBlocks, className = '' }: BlogContentProps)
 
       case BlogContentBlockType.IMAGE:
         return (
-          <div key={block.id} className="my-6">
+          <div
+            key={block.id}
+            className="relative w-full aspect-[3/2] my-6 rounded-3xl overflow-hidden"
+          >
             <Image
               src={content}
               alt={metadata.alt || 'Blog content image'}
-              width={metadata.width || 324}
-              height={metadata.height || 276}
-              className="rounded-md float-left mr-4 w-full sm:w-1/2 mb-4 sm:mb-1"
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 720px"
             />
           </div>
         );
 
       case BlogContentBlockType.QUOTE:
         return (
-          <blockquote 
-            key={block.id} 
-            className="border-l-4 border-primary pl-4 py-2 my-6 text-text-secondary italic"
+          <blockquote
+            key={block.id}
+            className="border-l-4 border-zinc-600 pl-4 py-2 my-6 text-text-tertiary italic"
           >
             {content}
           </blockquote>
@@ -99,8 +111,8 @@ export function BlogContent({ contentBlocks, className = '' }: BlogContentProps)
         const listItems = content.split('\n').filter(item => item.trim());
         const ListTag = metadata.ordered ? 'ol' : 'ul';
         return (
-          <ListTag 
-            key={block.id} 
+          <ListTag
+            key={block.id}
             className={`text-text-primary space-y-2 my-4 ${
               metadata.ordered ? 'list-decimal' : 'list-disc'
             } list-inside`}
@@ -115,8 +127,8 @@ export function BlogContent({ contentBlocks, className = '' }: BlogContentProps)
 
       case BlogContentBlockType.CODE:
         return (
-          <pre 
-            key={block.id} 
+          <pre
+            key={block.id}
             className="bg-surface-tertiary p-4 rounded-md overflow-x-auto my-6"
           >
             <code className="text-sm text-text-primary font-mono">
@@ -127,8 +139,8 @@ export function BlogContent({ contentBlocks, className = '' }: BlogContentProps)
 
       default:
         return (
-          <div 
-            key={block.id} 
+          <div
+            key={block.id}
             className="text-text-primary"
             dangerouslySetInnerHTML={{ __html: content }}
           />
@@ -139,7 +151,7 @@ export function BlogContent({ contentBlocks, className = '' }: BlogContentProps)
   if (!contentBlocks || contentBlocks.length === 0) {
     return (
       <div className={`flex-col space-y-6 mb-10 ${className}`}>
-        <div className="text-text-secondary text-center py-8">
+        <div className="text-text-primary text-center py-8">
           <p>No content available for this blog post.</p>
         </div>
       </div>

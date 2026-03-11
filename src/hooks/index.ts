@@ -117,6 +117,7 @@ export type {
 export {
   useResponsiveGridPagination,
   DEFAULT_CITY_GRID_BREAKPOINTS,
+  DEFAULT_ZIPCODE_GRID_BREAKPOINTS,
 } from './useResponsiveGridPagination';
 export type {
   ResponsiveBreakpoint,

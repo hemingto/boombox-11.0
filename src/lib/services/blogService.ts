@@ -24,10 +24,15 @@ import {
   BlogContentBlockType,
 } from '@prisma/client';
 
+export interface BlogTagInfo {
+  blogTag: { id: number; name: string; slug: string };
+}
+
 // Extended types that include relations
 export interface BlogPostWithCategory extends BlogPost {
   category: BlogCategory | null;
   contentBlocks?: BlogContentBlockWithMetadata[];
+  tags?: BlogTagInfo[];
 }
 
 export interface BlogContentBlockWithMetadata {
@@ -66,7 +71,7 @@ export class BlogService {
       page?: number;
       limit?: number;
       categorySlug?: string;
-      status?: BlogStatus;
+      status?: BlogStatus | null;
       search?: string;
     } = {}
   ): Promise<BlogPaginationResult> {
@@ -80,10 +85,10 @@ export class BlogService {
 
     const skip = (page - 1) * limit;
 
-    // Build where clause
-    const where: any = {
-      status,
-    };
+    const where: any = {};
+    if (status !== null) {
+      where.status = status;
+    }
 
     if (categorySlug) {
       where.category = {
@@ -148,11 +153,11 @@ export class BlogService {
         contentBlocks: {
           orderBy: { order: 'asc' },
         },
+        tags: { include: { blogTag: true } },
       },
     });
 
     if (post) {
-      // Increment view count
       await prisma.blogPost.update({
         where: { id: post.id },
         data: { viewCount: { increment: 1 } },
@@ -404,6 +409,7 @@ export class BlogService {
       metadata?: any;
       order: number;
     }[];
+    tagSlugs?: string[];
   }) {
     const plainTextContent = this.generatePlainTextFromBlocks(
       data.contentBlocks
@@ -431,12 +437,25 @@ export class BlogService {
         contentBlocks: {
           create: data.contentBlocks,
         },
+        tags: data.tagSlugs?.length
+          ? {
+              create: data.tagSlugs.map(slug => ({
+                blogTag: {
+                  connectOrCreate: {
+                    where: { slug },
+                    create: { name: slug.replace(/-/g, ' '), slug },
+                  },
+                },
+              })),
+            }
+          : undefined,
       },
       include: {
         category: true,
         contentBlocks: {
           orderBy: { order: 'asc' },
         },
+        tags: { include: { blogTag: true } },
       },
     });
   }
