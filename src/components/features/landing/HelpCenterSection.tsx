@@ -35,9 +35,17 @@
  * @refactor Migrated to features/landing with design system compliance, accessibility improvements, and pattern corrections
  */
 
+'use client';
+
+import { useState, useEffect } from 'react';
 import { HelpIcon } from '@/components/icons';
 import Image from 'next/image';
 import Link from 'next/link';
+
+const CUSTOMER_IMAGES = [
+  '/customers/customer.png',
+  ...Array.from({ length: 13 }, (_, i) => `/customers/customer-${i + 1}.png`),
+];
 
 export interface HelpCenterSectionProps {
   /**
@@ -107,10 +115,20 @@ export function HelpCenterSection({
   description = 'No problem! Find more answers at our help center page.',
   buttonText = 'Go to Help Center',
   helpCenterUrl = '/help-center',
-  imageSrc = '/customers/customer.png',
+  imageSrc,
   imageAlt = 'Boombox storage unit',
   className,
 }: HelpCenterSectionProps) {
+  const [randomImage, setRandomImage] = useState(CUSTOMER_IMAGES[0]);
+
+  useEffect(() => {
+    setRandomImage(
+      CUSTOMER_IMAGES[Math.floor(Math.random() * CUSTOMER_IMAGES.length)]
+    );
+  }, []);
+
+  const heroImage = imageSrc ?? randomImage;
+
   return (
     <section
       className={`bg-surface-tertiary lg:px-16 px-6 pt-14 pb-24 ${className || ''}`}
@@ -134,7 +152,7 @@ export function HelpCenterSection({
         {/* Image — right column on desktop, bottom on mobile */}
         <div className="relative min-h-[250px] md:min-h-0 md:w-1/2">
           <Image
-            src={imageSrc}
+            src={heroImage}
             alt={imageAlt}
             fill
             className="object-cover"

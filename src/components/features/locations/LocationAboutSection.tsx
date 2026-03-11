@@ -24,7 +24,7 @@ export function LocationAboutSection({
   return (
     <div className={cn('sm:mb-48 mb-24', className)}>
       <section
-        className="pt-6 sm:pt-12 pb-8 lg:px-16 px-12 ml-4"
+        className="pt-6 sm:pt-12 pb-8 lg:px-16 px-6"
         aria-labelledby="location-about-heading"
       >
         <h1 id="location-about-heading" className="mb-6">
@@ -37,7 +37,7 @@ export function LocationAboutSection({
       </section>
 
       {imageSrc && (
-        <div className="relative h-[300px] sm:h-[500px] w-full overflow-hidden rounded-md lg:px-16 px-12 mx-4">
+        <div className="relative h-[300px] sm:h-[500px] w-full overflow-hidden rounded-md lg:px-16 px-6">
           <div className="relative h-full w-full overflow-hidden rounded-md">
             <Image
               src={imageSrc}
@@ -52,7 +52,7 @@ export function LocationAboutSection({
       )}
 
       {aboutContentTwo && (
-        <section className="pt-8 sm:pt-12 lg:px-16 px-12 mr-4 flex justify-end">
+        <section className="pt-8 sm:pt-12 lg:px-16 px-6 flex justify-end">
           <p className="text-base sm:text-lg text-text-primary max-w-3xl leading-relaxed text-right">
             {aboutContentTwo}
           </p>

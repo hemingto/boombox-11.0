@@ -78,3 +78,6 @@ export * from './storage-calculator';
 
 // Terms of Service Features
 export * from './terms';
+
+// Guide Features
+export * from './guides';

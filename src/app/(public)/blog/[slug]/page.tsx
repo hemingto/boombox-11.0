@@ -2,18 +2,18 @@
  * @fileoverview Dynamic blog post page - individual article display
  * @source boombox-10.0/src/app/blog-post/page.tsx
  * @refactor Migrated to server component with dynamic metadata and static generation
- * 
+ *
  * ROUTE STRUCTURE:
  * - URL: /blog/[slug]
  * - Example: /blog/how-to-store-paintings-the-right-way
  * - Server-side data fetching with static generation at build time
- * 
+ *
  * FEATURES:
  * - Server component with generateMetadata for SEO
  * - Static generation with generateStaticParams
  * - Error handling for non-existent posts (404)
  * - Full blog post rendering with hero and content
- * 
+ *
  * ARCHITECTURE:
  * - Fetches data on server using BlogService
  * - Passes data as props to child components
@@ -36,7 +36,9 @@ interface BlogPostPageProps {
  * Generate metadata for SEO
  * Includes title, description, OpenGraph, and Twitter cards
  */
-export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: BlogPostPageProps): Promise<Metadata> {
   const { slug } = await params;
   const post = await BlogService.getBlogPostBySlug(slug);
 
@@ -48,7 +50,10 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   }
 
   const title = post.metaTitle || post.title;
-  const description = post.metaDescription || post.excerpt || `Read ${post.title} on the BoomBox Storage blog`;
+  const description =
+    post.metaDescription ||
+    post.excerpt ||
+    `Read ${post.title} on the BoomBox Storage blog`;
   const imageUrl = post.featuredImage || '/img/palo-alto.png';
   const url = `/blog/${post.slug}`;
 
@@ -90,7 +95,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
  */
 export async function generateStaticParams() {
   const slugs = await BlogService.getAllPublishedSlugs();
-  return slugs.map((post) => ({
+  return slugs.map(post => ({
     slug: post.slug,
   }));
 }
@@ -110,11 +115,12 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
   return (
     <>
-      <BlogPostHero post={post} />
-      <FullBlogPost post={post} />
+      <div className="max-w-6xl mx-auto">
+        <BlogPostHero post={post} />
+        <FullBlogPost post={post} />
+      </div>
       <FaqSection />
       <HelpCenterSection />
     </>
   );
 }
-

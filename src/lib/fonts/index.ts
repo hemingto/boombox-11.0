@@ -3,7 +3,7 @@
  * Optimized font loading for better Core Web Vitals (CLS) scores
  */
 
-import { Inter, Poppins, Press_Start_2P } from 'next/font/google';
+import { Inter, Poppins } from 'next/font/google';
 import localFont from 'next/font/local';
 
 /**
@@ -30,7 +30,7 @@ export const inter = Inter({
 });
 
 /**
- * Secondary font: Poppins  
+ * Secondary font: Poppins
  * Used for headings and marketing content
  */
 export const poppins = Poppins({
@@ -53,24 +53,14 @@ export const poppins = Poppins({
 });
 
 /**
- * Pixel font: Press Start 2P
- * Used for retro/pixel art UI elements (e.g. 404 page)
- */
-export const pixelFont = Press_Start_2P({
-  subsets: ['latin'],
-  variable: '--font-pixel',
-  display: 'swap',
-  weight: '400',
-});
-
-/**
  * Monospace font for code blocks (using system fonts)
  */
 export const mono = {
   className: 'font-mono',
   variable: '--font-mono',
   style: {
-    fontFamily: 'ui-monospace, SFMono-Regular, Monaco, Consolas, Liberation Mono, Courier New, monospace',
+    fontFamily:
+      'ui-monospace, SFMono-Regular, Monaco, Consolas, Liberation Mono, Courier New, monospace',
   },
 };
 
@@ -80,7 +70,6 @@ export const mono = {
 export const fontClasses = {
   inter: inter.className,
   poppins: poppins.className,
-  pixel: pixelFont.className,
   mono: mono.className,
 } as const;
 
@@ -90,7 +79,6 @@ export const fontClasses = {
 export const fontVariables = [
   inter.variable,
   poppins.variable,
-  pixelFont.variable,
   mono.variable,
 ].join(' ');
 
@@ -107,16 +95,16 @@ export const fontConfig = {
       crossOrigin: 'anonymous',
     },
     {
-      href: '/_next/static/media/poppins.woff2', 
+      href: '/_next/static/media/poppins.woff2',
       as: 'font',
       type: 'font/woff2',
       crossOrigin: 'anonymous',
     },
   ],
-  
+
   // Font display strategy
   displayStrategy: 'swap' as const,
-  
+
   // Font loading optimization
   optimization: {
     // Use font-display: swap for better CLS
@@ -146,11 +134,14 @@ export function generateFontPreloads() {
  */
 export const fontUtilities = {
   // Font families
-  'font-inter': 'font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif',
-  'font-poppins': 'font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif',
+  'font-inter':
+    'font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif',
+  'font-poppins':
+    'font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif',
   'font-mono': 'font-family: var(--font-mono), ui-monospace, monospace',
-  
+
   // Font optimization
   'font-display-swap': 'font-display: swap',
-  'font-smooth': '-webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale',
-} as const; 
+  'font-smooth':
+    '-webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale',
+} as const;

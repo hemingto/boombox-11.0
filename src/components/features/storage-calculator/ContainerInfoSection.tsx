@@ -195,7 +195,7 @@ export function ContainerInfoSection() {
           </button>
         </>
       ),
-      imageSrc: '/storage-calculator/exact-dimensions-2.png',
+      imageSrc: '/storage-calculator/exact-dimensions.png',
       imageAlt:
         'Boombox storage unit in warehouse showing the exact dimensions of the storage unit.',
     },
@@ -203,7 +203,7 @@ export function ContainerInfoSection() {
       title: 'Sturdy steel construction',
       content:
         'Boomboxes are constructed out of the highest grade steel to ensure your belongings are stored safely and securely',
-      imageSrc: '/storage-calculator/sturdy-steel-2.png',
+      imageSrc: '/storage-calculator/sturdy-steel.png',
       imageAlt:
         'Sturdy steel construction Boombox storage container. Man locking steel sturdy locking mechanism.',
     },
@@ -211,7 +211,7 @@ export function ContainerInfoSection() {
       title: 'Weatherproof',
       content:
         'Boomboxes are designed to hold up against the toughest of weather conditions and are water, wind, and dust proof',
-      imageSrc: '/storage-calculator/weatherproof-2.png',
+      imageSrc: '/storage-calculator/weatherproof.png',
       imageAlt:
         'Weatherproof Boombox storage container crossing a san francisco bay bridge in the rain.',
     },

@@ -34,7 +34,7 @@ export interface CareersBannerPhotoProps {
 }
 
 export function CareersBannerPhoto({
-  src = '/careers/career-banner-2.png',
+  src = '/careers/career-banner.png',
   alt = 'Inside of boombox warehouse showing employees working together',
   className,
 }: CareersBannerPhotoProps) {

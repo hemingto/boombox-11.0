@@ -170,10 +170,13 @@ export class BlogService {
   /**
    * Get all published blog post slugs (for static generation)
    */
-  static async getAllPublishedSlugs(): Promise<{ slug: string }[]> {
+  static async getAllPublishedSlugs(): Promise<
+    { slug: string; title: string }[]
+  > {
     return prisma.blogPost.findMany({
       where: { status: BlogStatus.PUBLISHED },
-      select: { slug: true },
+      select: { slug: true, title: true },
+      orderBy: { publishedAt: 'desc' },
     });
   }
 

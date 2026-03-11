@@ -26,7 +26,7 @@ export function NearbyLocationsSection({
 
   return (
     <section
-      className={cn('lg:px-16 px-12 sm:mb-48 mb-24', className)}
+      className={cn('lg:px-16 px-6 sm:mb-48 mb-24', className)}
       aria-labelledby="nearby-locations-heading"
     >
       <div className="flex flex-col sm:flex-row w-full justify-between items-left sm:items-center sm:mb-10 mb-4 py-4">

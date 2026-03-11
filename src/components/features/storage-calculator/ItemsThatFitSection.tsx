@@ -52,7 +52,7 @@ export function ItemsThatFitSection() {
       subtitle: 'King Mattress',
       description:
         'A Boombox can fit a California King mattress standing up. The height of the container is 90" giving you about 6 inches of clearance for your mattress.',
-      imageSrc: '/storage-calculator/king-mattress-3.png',
+      imageSrc: '/storage-calculator/king-mattress.png',
     },
     {
       icon: <CheckIcon className="w-6 h-6" />,

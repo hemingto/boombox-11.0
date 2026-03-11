@@ -1,58 +1,41 @@
-/**
- * @fileoverview Global 404 page with retro pixel art theme.
- * Renders under root layout (not public layout), so navbar is embedded directly.
- */
-
+import Image from 'next/image';
 import Link from 'next/link';
 import { MinimalNavbar } from '@/components/ui/navigation/MinimalNavbar';
-import { PixelBoombox } from '@/components/features/not-found/PixelBoombox';
-import { BlockWall } from '@/components/features/not-found/BlockWall';
-
-const quickLinks = [
-  { name: 'Homepage', href: '/' },
-  { name: 'Get Quote', href: '/get-quote' },
-  { name: 'How It Works', href: '/howitworks' },
-  { name: 'Storage Prices', href: '/storage-unit-prices' },
-  { name: 'Locations', href: '/locations' },
-  { name: 'Blog', href: '/blog' },
-  { name: 'Help Center', href: '/help-center' },
-  { name: 'Packing Supplies', href: '/packing-supplies' },
-];
+import { Button } from '@/components/ui/primitives';
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex flex-col bg-primary">
-      <MinimalNavbar theme="dark" showGetQuoteButton={true} />
+    <div className="min-h-screen flex flex-col bg-background">
+      <MinimalNavbar theme="light" />
 
-      <div className="flex-1 flex flex-col items-center justify-center text-center px-6 relative">
-        <h1 className="font-pixel text-6xl sm:text-8xl text-text-inverse mb-4 tracking-wider">
-          404
-        </h1>
+      <div className="flex-1 flex items-center justify-center px-6">
+        <div className="flex flex-col md:flex-row items-center gap-10 md:gap-16 max-w-3xl w-full">
+          <Image
+            src="/404.png"
+            alt="Boombox with tangled tape"
+            width={420}
+            height={420}
+            priority
+            className="w-64 sm:w-80 md:w-[420px] h-auto flex-shrink-0"
+          />
 
-        <p className="font-pixel text-sm sm:text-lg text-text-inverse mb-12 tracking-wide">
-          Page Not Found!
-        </p>
-
-        <nav aria-label="Quick links" className="mb-16 max-w-xl">
-          <div className="flex flex-wrap justify-center gap-3">
-            {quickLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="bg-zinc-800 text-text-inverse text-sm py-2 px-4 rounded-full hover:bg-zinc-700 active:bg-zinc-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
-              >
-                {link.name}
-              </Link>
-            ))}
+          <div className="text-center md:text-left">
+            <h1 className="font-poppins text-5xl sm:text-6xl font-bold text-text-primary mb-3">
+              Oops!
+            </h1>
+            <p className="text-lg text-text-tertiary mb-8">
+              Looks like you&apos;ve lost
+              <br />
+              the beat
+            </p>
+            <Link href="/">
+              <Button variant="primary" size="sm" borderRadius="full">
+                Homepage
+              </Button>
+            </Link>
           </div>
-        </nav>
-
-        <div className="absolute bottom-24 left-8 sm:left-16">
-          <PixelBoombox />
         </div>
       </div>
-
-      <BlockWall />
     </div>
   );
 }

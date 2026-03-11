@@ -48,7 +48,7 @@ export default function StorageUnitPrices() {
       <CustomerReviewSection />
       <WhatFitsSection imageSrc="/boombox-warehouse-square-2.png" />
       <PricingFAQSection />
-      <HelpCenterSection imageSrc="/customers/customer-11.png" />
+      <HelpCenterSection />
     </>
   );
 }

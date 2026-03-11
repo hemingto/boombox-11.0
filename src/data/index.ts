@@ -44,3 +44,6 @@ export * from './zipcodeprices';
 
 // Storage Calculator Items
 export * from './storageCalculatorItems';
+
+// Guide Pages
+export * from './guidePages';

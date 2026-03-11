@@ -22,7 +22,7 @@ export const FeaturedArticleSection: React.FC<FeaturedArticleSectionProps> = ({
   }
 
   return (
-    <article className="md:flex lg:mx-16 mx-6 sm:pb-24 sm:mb-24 pb-12 mb-12 md:border-b md:border-border">
+    <article className="flex flex-col-reverse md:flex-row lg:mx-16 mx-6 sm:pb-24 sm:mb-24 pb-12 mb-12 md:border-b md:border-border">
       <div className="place-content-center items-center basis-5/12 mr-4">
         <Link href={article.link} className="group">
           <h2 className="mb-4 group-hover:underline transition-all duration-200">
@@ -61,7 +61,7 @@ export const FeaturedArticleSection: React.FC<FeaturedArticleSectionProps> = ({
         </Link>
       </div>
 
-      <div className="flex place-content-end basis-7/12 md:ml-6 mt-8 md:mt-0">
+      <div className="flex place-content-end basis-7/12 md:ml-6 mb-8 md:mb-0">
         <Link href={article.link} className="group w-full">
           <div className="relative w-full aspect-video rounded-3xl overflow-hidden">
             <Image

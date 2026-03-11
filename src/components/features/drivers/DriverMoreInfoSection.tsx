@@ -42,7 +42,7 @@ export const DriverMoreInfoSection: React.FC = () => {
         <div className="flex place-content-start lg:items-center shrink-0 basis-1/2 mb-10 lg:mb-0">
           <div className="relative aspect-video w-full rounded-md overflow-hidden">
             <Image
-              src="/driver-signup/boombox-delivery-driver-2.png"
+              src="/driver-signup/boombox-delivery-driver.png"
               alt="Boombox storage containers being delivered"
               fill
               className="object-cover rounded-md"

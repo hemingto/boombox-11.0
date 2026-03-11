@@ -38,11 +38,11 @@ export default async function Locations() {
     <>
       <LocationsHeroSection />
       <PopularLocationsSection />
-      <GetQuoteLocations imageSrc="/locations/2829-steiner-2.png" />
+      <GetQuoteLocations imageSrc="/locations/2829-steiner.png" />
       <CitiesSection publishedSlugs={slugs} />
       <ZipCodeSection />
       <LocationsFaqSection />
-      <HelpCenterSection imageSrc="/customers/customer-3.png" />
+      <HelpCenterSection />
     </>
   );
 }

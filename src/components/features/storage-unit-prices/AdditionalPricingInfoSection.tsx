@@ -61,7 +61,7 @@ export function AdditionalPricingInfoSection(): React.ReactElement {
       subtitle: 'Optional Loading Help',
       description:
         'Need help loading your Boombox? We partner with local moving pros to save your back and your wallet.',
-      imageSrc: '/storage-unit-prices/loading-help-5.png',
+      imageSrc: '/storage-unit-prices/loading-help.png',
       imageAlt: 'Professional movers helping load items into storage unit',
     },
     {
@@ -69,7 +69,7 @@ export function AdditionalPricingInfoSection(): React.ReactElement {
       subtitle: 'Storage Unit Access',
       description:
         "If you ever need something back, book a return delivery, and we'll deliver your storage unit to where you need us. Labor is not included",
-      imageSrc: '/storage-unit-prices/storage-access-2.png',
+      imageSrc: '/storage-unit-prices/storage-access.png',
       imageAlt:
         'Storage unit access service - unit being delivered for customer access',
     },
