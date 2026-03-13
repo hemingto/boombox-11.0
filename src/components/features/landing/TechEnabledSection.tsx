@@ -52,6 +52,8 @@ import {
 import { IPhoneFrame } from '@/components/ui/primitives/IPhoneFrame';
 import { cn } from '@/lib/utils';
 
+const STATIC_IMAGE_DISPLAY_MS = 5000;
+
 /**
  * Tech feature interface extending AccordionData with media support
  */
@@ -150,12 +152,8 @@ export function TechEnabledSection({
   showMedia = true,
 }: TechEnabledSectionProps) {
   const [currentMediaIndex, setCurrentMediaIndex] = useState<number>(0);
-  const [isInView, setIsInView] = useState(false);
-  const sectionRef = useRef<HTMLElement>(null);
-  const desktopVideoRef = useRef<HTMLVideoElement>(null);
   const isDesktopRef = useRef(false);
 
-  // Track the sm breakpoint (640px) to gate auto-advance to desktop only
   useEffect(() => {
     const mql = window.matchMedia('(min-width: 640px)');
     isDesktopRef.current = mql.matches;
@@ -166,42 +164,17 @@ export function TechEnabledSection({
     return () => mql.removeEventListener('change', handler);
   }, []);
 
-  // Only activate videos once the section scrolls into the viewport
-  useEffect(() => {
-    const el = sectionRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsInView(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.05 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  // Play the desktop video when the section enters the viewport (or on video swap)
-  useEffect(() => {
-    if (isInView && desktopVideoRef.current) {
-      desktopVideoRef.current.play().catch(() => {});
-    }
-  }, [isInView, currentMediaIndex]);
-
   const advanceToNext = useCallback(() => {
     if (!isDesktopRef.current) return;
     setCurrentMediaIndex(prev => (prev + 1) % features.length);
   }, [features.length]);
 
-  // Auto-advance for features without a video (static image fallback)
   useEffect(() => {
-    if (isInView && !features[currentMediaIndex]?.video) {
-      const timer = setTimeout(advanceToNext, 5000);
+    if (!features[currentMediaIndex]?.video) {
+      const timer = setTimeout(advanceToNext, STATIC_IMAGE_DISPLAY_MS);
       return () => clearTimeout(timer);
     }
-  }, [isInView, currentMediaIndex, features, advanceToNext]);
+  }, [currentMediaIndex, features, advanceToNext]);
 
   // Get current feature for media display
   const currentFeature = features[currentMediaIndex];
@@ -220,13 +193,10 @@ export function TechEnabledSection({
             {video ? (
               <video
                 src={video}
-                preload="metadata"
+                autoPlay
                 muted
                 loop
                 playsInline
-                ref={el => {
-                  if (el && isInView) el.play().catch(() => {});
-                }}
                 className="w-full h-full object-cover"
                 aria-hidden="true"
               />
@@ -250,7 +220,6 @@ export function TechEnabledSection({
 
   return (
     <section
-      ref={sectionRef}
       className={cn('md:flex mt-14 lg:px-16 px-6 sm:mb-48 mb-24', className)}
       aria-labelledby="tech-enabled-section-heading"
     >
@@ -274,9 +243,8 @@ export function TechEnabledSection({
           <IPhoneFrame key={currentMediaIndex} className="h-full">
             {currentFeature.video ? (
               <video
-                ref={desktopVideoRef}
                 src={currentFeature.video}
-                preload="metadata"
+                autoPlay
                 muted
                 playsInline
                 onEnded={advanceToNext}

@@ -266,7 +266,7 @@ export function Guides({
             <Link
               key={index}
               href={guide.link}
-              className="flex-none focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-3xl"
+              className="flex-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-3xl"
               aria-label={`Learn more about ${guide.subtitle}: ${guide.description}`}
             >
               <div

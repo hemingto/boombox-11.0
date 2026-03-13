@@ -42,9 +42,7 @@ export function GuideHero({
         </nav>
 
         <div>
-          <h1 className="mb-2 text-text-primary">{title}</h1>
-          <p className="text-lg text-text-primary mb-3">{subtitle}</p>
-          <p className="text-sm text-text-tertiary">{readTime}</p>
+          <h1 className="mb-5 text-text-primary">{title}</h1>
         </div>
       </div>
 

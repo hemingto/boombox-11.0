@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 export interface RelatedCategory {
   slug: string;
   title: string;
+  imageUrl: string;
 }
 
 export interface RelatedCategoriesSectionProps {
@@ -46,7 +47,7 @@ export function RelatedCategoriesSection({
         {related.map(cat => (
           <div key={cat.slug} role="listitem">
             <Card
-              imageSrc="/hero-imgs/hero-square.png"
+              imageSrc={cat.imageUrl}
               imageAlt={`${cat.title} storage service`}
               location={cat.title}
               link={`/${cat.slug}`}

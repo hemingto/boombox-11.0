@@ -26,14 +26,14 @@ export const categoryPages: Record<string, CategoryPageData> = {
     slug: 'holiday-storage',
     title: 'Holiday Storage',
     heroTitle: 'Holiday storage, delivered.',
-    heroImagePath: '/hero-imgs/hero-square.png',
+    heroImagePath: '/categories/holiday-storage-hero.png',
     heroImageAlt: 'Boombox mobile storage unit for holiday decoration storage',
     aboutHeading: 'Holiday Storage Made Simple',
     aboutContent:
       'Holiday decorations, artificial trees, lights, and seasonal furniture take up valuable space in your home for months on end. Boombox holiday storage gives you a better option — a secure, climate-aware storage unit delivered right to your door. Pack your holiday items at your own pace, and we pick it up and store it at our monitored facility until the next season rolls around.',
     aboutContentTwo:
       'When the holidays approach again, simply request a delivery and your decorations arrive ready to go. No driving to a self-storage facility, no hauling boxes through a parking lot. Boombox handles the logistics so you can focus on what matters — spending time with family and enjoying the season.',
-    aboutImagePath: '/hero-imgs/hero-square.png',
+    aboutImagePath: '/categories/holiday-storage-about.png',
     aboutImageAlt:
       'Holiday decorations packed securely in a Boombox storage unit',
     securityHeading: 'Holiday storage you can trust',
@@ -83,7 +83,7 @@ export const categoryPages: Record<string, CategoryPageData> = {
     slug: 'commercial-storage',
     title: 'Commercial Storage',
     heroTitle: 'Commercial storage units, delivered.',
-    heroImagePath: '/hero-imgs/hero-square.png',
+    heroImagePath: '/categories/commercial-storage-hero.png',
     heroImageAlt:
       'Boombox commercial storage unit for business inventory and equipment',
     aboutHeading: 'Commercial Storage for Your Business',
@@ -91,7 +91,7 @@ export const categoryPages: Record<string, CategoryPageData> = {
       'Whether you need to store office furniture during a renovation, archive business inventory between seasons, or free up workspace for your growing team, Boombox commercial storage units are built for the job. We deliver a secure, steel-constructed container directly to your business location. Load it on your schedule, and we transport it to our monitored storage facility.',
     aboutContentTwo:
       'Boombox eliminates the overhead of leasing warehouse space or renting a traditional self-storage unit across town. Our flat-rate delivery pricing and flexible month-to-month plans let you scale storage up or down as your business needs change — no long-term contracts, no surprise fees.',
-    aboutImagePath: '/hero-imgs/hero-square.png',
+    aboutImagePath: '/categories/commercial-storage-about.png',
     aboutImageAlt:
       'Office equipment and inventory stored in a Boombox commercial storage unit',
     securityHeading: 'Commercial storage you can trust',
@@ -139,14 +139,14 @@ export const categoryPages: Record<string, CategoryPageData> = {
     slug: 'archival-storage',
     title: 'Archival Storage',
     heroTitle: 'Archival storage, delivered.',
-    heroImagePath: '/hero-imgs/hero-square.png',
+    heroImagePath: '/categories/archival-storage-hero.png',
     heroImageAlt: 'Boombox archival storage unit for documents and records',
     aboutHeading: 'Archival Storage for Documents and Records',
     aboutContent:
       'Important documents, business records, legal files, and personal archives deserve more than a dusty attic or overpriced filing room. Boombox archival storage gives you a dedicated, secure container for your paper records, boxed files, photo collections, and media archives. We deliver the unit, you pack it, and we store it safely at our 24/7 monitored facility.',
     aboutContentTwo:
       'Need to retrieve a specific file box? Request a delivery and your entire unit comes back to your door. No digging through a warehouse, no appointment windows at a remote facility. Boombox makes archival storage as convenient as it should be — organized, secure, and always accessible when you need it.',
-    aboutImagePath: '/hero-imgs/hero-square.png',
+    aboutImagePath: '/categories/archival-storage-about.png',
     aboutImageAlt:
       'Archived documents and file boxes in a Boombox storage unit',
     securityHeading: 'Archival storage you can trust',
@@ -195,15 +195,15 @@ export const categoryPages: Record<string, CategoryPageData> = {
     slug: 'moving-and-storage',
     title: 'Moving and Storage',
     heroTitle: 'Moving and storage, delivered.',
-    heroImagePath: '/hero-imgs/hero-square.png',
+    heroImagePath: '/categories/moving-and-storage-hero.png',
     heroImageAlt:
       'Boombox moving and storage service with delivered storage unit',
-    aboutHeading: 'Moving and Storage in One Service',
+    aboutHeading: 'Bay Area Moving and Storage',
     aboutContent:
       'Moving is complicated enough without juggling separate movers and storage facilities. Boombox combines moving and storage into a single, streamlined service. We deliver a portable storage unit to your current address, you pack it on your own schedule — or hire our loading pros — and we pick it up and store it securely until your new place is ready.',
     aboutContentTwo:
       'When you are ready to move in, we deliver your packed unit directly to your new address. No double-handling, no renting a truck and a storage unit separately, no wasted weekends shuttling boxes. Boombox moving and storage simplifies your entire relocation, whether you are moving across town or need temporary storage between leases.',
-    aboutImagePath: '/hero-imgs/hero-square.png',
+    aboutImagePath: '/categories/moving-and-storage-about.png',
     aboutImageAlt:
       'Household items being loaded into a Boombox storage unit during a move',
     securityHeading: 'Moving storage you can trust',

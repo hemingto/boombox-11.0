@@ -26,6 +26,7 @@ const page = categoryPages['archival-storage'];
 const relatedCategories = allCategorySlugs.map(slug => ({
   slug,
   title: categoryPages[slug].title,
+  imageUrl: categoryPages[slug].heroImagePath,
 }));
 
 export const metadata: Metadata = {

@@ -34,7 +34,7 @@ export const guidePages: Record<string, GuidePage> = {
   'delivery-guide': {
     slug: 'delivery-guide',
     title: 'Delivery Guide',
-    subtitle: 'What to Expect on Delivery Day',
+    subtitle: 'What to expect on delivery day',
     excerpt:
       'Learn what to expect on the day of your first Boombox appointment, from scheduling to loading your container.',
     readTime: '5 min read',
@@ -148,7 +148,7 @@ export const guidePages: Record<string, GuidePage> = {
   'packing-guide': {
     slug: 'packing-guide',
     title: 'Packing Guide',
-    subtitle: 'How to Pack Your Boombox Safely',
+    subtitle: 'How to pack your Boombox safely',
     excerpt:
       'Learn how to pack your Boombox storage container safely and securely with these expert tips and guidelines.',
     readTime: '7 min read',
@@ -285,7 +285,7 @@ export const guidePages: Record<string, GuidePage> = {
   'storage-access-guide': {
     slug: 'storage-access-guide',
     title: 'Storage Access Guide',
-    subtitle: 'Accessing Your Items in Storage',
+    subtitle: 'Accessing your items in storage',
     excerpt:
       'Everything you need to know about accessing your stored items, from scheduling a delivery to ending your storage plan.',
     readTime: '5 min read',
@@ -403,7 +403,7 @@ export const guidePages: Record<string, GuidePage> = {
   'location-guide': {
     slug: 'location-guide',
     title: 'Location Guide',
-    subtitle: 'Where Boombox Delivers',
+    subtitle: 'Where Boombox delivers',
     excerpt:
       'Find out all the locations Boombox serves across the San Francisco Bay Area.',
     readTime: '3 min read',
