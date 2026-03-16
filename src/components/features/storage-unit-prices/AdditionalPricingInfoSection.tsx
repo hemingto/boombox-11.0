@@ -60,7 +60,7 @@ export function AdditionalPricingInfoSection(): React.ReactElement {
       title: '$189/hr on avg',
       subtitle: 'Optional Loading Help',
       description:
-        'Need help loading your Boombox? We partner with local moving pros to save your back and your wallet.',
+        'We partner with local moving pros to save your back and your wallet.',
       imageSrc: '/storage-unit-prices/loading-help.png',
       imageAlt: 'Professional movers helping load items into storage unit',
     },
@@ -68,7 +68,7 @@ export function AdditionalPricingInfoSection(): React.ReactElement {
       title: '$45 flat rate',
       subtitle: 'Storage Unit Access',
       description:
-        "If you ever need something back, book a return delivery, and we'll deliver your storage unit to where you need us. Labor is not included",
+        "Need something back? We'll deliver your storage unit to where you need us.",
       imageSrc: '/storage-unit-prices/storage-access.png',
       imageAlt:
         'Storage unit access service - unit being delivered for customer access',
@@ -77,7 +77,7 @@ export function AdditionalPricingInfoSection(): React.ReactElement {
       title: 'Boxes',
       subtitle: 'Packing Supplies',
       description:
-        'Need packing supplies? We have you covered. Order boxes, tape, and more from our online store.',
+        'Need packing supplies? Order boxes, tape, and more from our online store.',
       imageSrc: '/storage-unit-prices/packing-supplies.png',
       imageAlt: 'Packing supplies including boxes, tape, and moving materials',
     },
@@ -157,10 +157,12 @@ export function AdditionalPricingInfoSection(): React.ReactElement {
                   <p className="bg-surface-primary rounded-full py-2.5 px-4 font-semibold inline-block m-4 text-sm font-inter text-text-primary">
                     {step.title}
                   </p>
-                  <h2 className="ml-5 mb-2 text-text-inverse">
+                  <h2 className="ml-5 mb-2 text-text-inverse drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
                     {step.subtitle}
                   </h2>
-                  <p className="mx-5 text-text-inverse">{step.description}</p>
+                  <p className="mx-5 text-text-inverse drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
+                    {step.description}
+                  </p>
                 </div>
               </article>
             </div>

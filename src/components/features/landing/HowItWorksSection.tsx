@@ -86,6 +86,39 @@ export interface HowItWorksSectionProps {
   heading?: string;
 }
 
+const STEP_2_IMAGES = [
+  '/howitworks/step-2-vertical/step-2a.png',
+  '/howitworks/step-2-vertical/step-2b.png',
+  '/howitworks/step-2-vertical/step-2c.png',
+  '/howitworks/step-2-vertical/step-2d.png',
+  '/howitworks/step-2-vertical/step-2e.png',
+  '/howitworks/step-2-vertical/step-2f.png',
+  '/howitworks/step-2-vertical/step-2g.png',
+  '/howitworks/step-2-vertical/step-2h.png',
+  '/howitworks/step-2-vertical/step-2i.png',
+  '/howitworks/step-2-vertical/step-2j.png',
+  '/howitworks/step-2-vertical/step-2k.png',
+  '/howitworks/step-2-vertical/step-2l.png',
+  '/howitworks/step-2-vertical/step-2m.png',
+  '/howitworks/step-2-vertical/step-2n.png',
+  '/howitworks/step-2-vertical/step-2o.png',
+];
+
+const STEP_4_IMAGES = [
+  '/howitworks/step-4-vertical/step-4.png',
+  '/howitworks/step-4-vertical/step-4a.png',
+  '/howitworks/step-4-vertical/step-4b.png',
+  '/howitworks/step-4-vertical/step-4c.png',
+  '/howitworks/step-4-vertical/step-4d.png',
+  '/howitworks/step-4-vertical/step-4e.png',
+  '/howitworks/step-4-vertical/step-4f.png',
+  '/howitworks/step-4-vertical/step-4g.png',
+  '/howitworks/step-4-vertical/step-4h.png',
+  '/howitworks/step-4-vertical/step-4i.png',
+  '/howitworks/step-4-vertical/step-4j.png',
+  '/howitworks/step-4-vertical/step-4k.png',
+];
+
 /**
  * Default steps for the How It Works process
  */
@@ -100,21 +133,21 @@ const DEFAULT_STEPS: Step[] = [
     title: 'Step 2',
     subtitle: 'Pack',
     description:
-      'Our team will help you pack your belongings safely and securely.',
+      'Pack your belongings safely and securely. Do it yourself or hire a local pro.',
     image: '/howitworks/step-2.png',
   },
   {
     title: 'Step 3',
     subtitle: 'Store',
     description:
-      'We provide a safe and secure storage solution for your items.',
+      'We provide a safe and secure storage location for your items.',
     image: '/howitworks/step-3-3.png',
   },
   {
     title: 'Step 4',
     subtitle: 'Deliver',
     description:
-      'We deliver your items to your desired location at your convenience.',
+      'We deliver your items to your desired address at your convenience.',
     image: '/howitworks/step-4.png',
   },
 ];
@@ -146,6 +179,21 @@ export function HowItWorksSection({
 }: HowItWorksSectionProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [itemWidth, setItemWidth] = useState(297.6 + 16); // Default to mobile width + gap
+  const [step2Image] = useState(
+    () => STEP_2_IMAGES[Math.floor(Math.random() * STEP_2_IMAGES.length)]
+  );
+  const [step4Image] = useState(
+    () => STEP_4_IMAGES[Math.floor(Math.random() * STEP_4_IMAGES.length)]
+  );
+
+  const resolvedSteps =
+    steps === DEFAULT_STEPS
+      ? steps.map((step, i) => {
+          if (i === 1) return { ...step, image: step2Image };
+          if (i === 3) return { ...step, image: step4Image };
+          return step;
+        })
+      : steps;
 
   // Update item width dynamically for responsive scrolling
   useEffect(() => {
@@ -241,7 +289,7 @@ export function HowItWorksSection({
         aria-label="How it works steps - use arrow keys or scroll to navigate"
       >
         <div className="lg:px-16 px-6 py-4 flex gap-4 flex-nowrap">
-          {steps.map((step, index) => (
+          {resolvedSteps.map((step, index) => (
             <Link
               key={index}
               href={linkUrl}
@@ -275,10 +323,12 @@ export function HowItWorksSection({
                   <span className="bg-surface-primary rounded-full py-2.5 px-4 font-semibold inline-block m-4 text-sm font-inter">
                     {step.title}
                   </span>
-                  <h2 className="ml-5 mb-2 text-text-inverse">
+                  <h2 className="ml-5 mb-2 text-text-inverse drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
                     {step.subtitle}
                   </h2>
-                  <p className="mx-5 text-text-inverse">{step.description}</p>
+                  <p className="mx-5 text-text-inverse drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
+                    {step.description}
+                  </p>
                 </div>
               </div>
             </Link>

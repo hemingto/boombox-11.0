@@ -59,7 +59,7 @@ export function GetQuoteHowItWorks({
           Get a quote in as little as 2 minutes
         </p>
         <Link
-          href="/getquote"
+          href="/get-quote"
           className="btn-primary inline-block"
           aria-label="Get a quote for Boombox storage"
         >

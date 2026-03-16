@@ -1,14 +1,14 @@
-"use client";
+'use client';
 
 /**
  * @fileoverview Order confirmation component for packing supplies
  * @source boombox-10.0/src/app/components/packing-supplies/orderconfirmation.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * Displays order confirmation details after successful packing supply order placement.
  * Shows order tracking information, delivery window, driver assignment status, and
  * navigation options for users to track their order or continue shopping.
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Replaced emerald-500 with status-success for success icon
  * - Replaced zinc-950 with text-primary for headings
@@ -19,14 +19,14 @@
  * - Replaced zinc-950/zinc-800/zinc-700 with primary/primary-hover/primary-active for buttons
  * - Replaced slate-100/slate-300 with surface-disabled/text-secondary for loading states
  * - Replaced zinc-600 with text-tertiary for underline decoration
- * 
+ *
  * @refactor Applied design system colors, extracted date formatting to centralized utilities
  */
 
 import { CheckCircleIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { useState } from 'react';
-import { formatDateForDisplay } from '@/lib/utils/dateUtils';
+import { formatDateForDisplay } from '@/lib/utils';
 
 interface OrderConfirmationProps {
   email: string;
@@ -69,7 +69,7 @@ const formatDeliveryDate = (dateString: string): string => {
   // Parse date string in format "YYYY-MM-DD" to avoid timezone conversion
   const [year, month, day] = dateString.split('-').map(Number);
   const deliveryDate = new Date(year, month - 1, day); // month is 0-indexed
-  
+
   return formatDateForDisplay(deliveryDate);
 };
 
@@ -87,8 +87,8 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
 
   return (
     <div className="text-center max-w-xl mx-auto p-6 sm:p-0">
-      <CheckCircleIcon 
-        className="text-status-success w-16 h-16 mx-auto mb-2" 
+      <CheckCircleIcon
+        className="text-status-success w-16 h-16 mx-auto mb-2"
         aria-hidden="true"
       />
       <h2 className="text-2xl text-text-primary font-bold mb-4">
@@ -100,7 +100,7 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
       </p>
 
       {orderData && (
-        <div 
+        <div
           className="bg-surface-tertiary rounded-lg p-6 mb-8 text-left"
           role="region"
           aria-label="Order details"
@@ -112,7 +112,9 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
               <span className="text-text-primary">Tracking ID:</span>
-              <span className="font-medium">{orderData.onfleetTaskShortId}</span>
+              <span className="font-medium">
+                {orderData.onfleetTaskShortId}
+              </span>
             </div>
 
             <div className="flex justify-between">
@@ -157,7 +159,7 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
       )}
 
       <div className="mx-auto text-center flex p-4 bg-surface-tertiary rounded-md justify-between">
-        <Link href={isLoggedIn ? `/customer/${userId}` : '/getquote'}>
+        <Link href={isLoggedIn ? `/customer/${userId}` : '/get-quote'}>
           <button
             className="block py-3 ml-3 text-text-primary text-md mx-auto underline decoration-text-tertiary hover:decoration-solid decoration-dotted underline-offset-4"
             aria-label={
@@ -192,4 +194,3 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
     </div>
   );
 };
-

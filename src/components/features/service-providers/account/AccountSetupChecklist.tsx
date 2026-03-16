@@ -1,22 +1,22 @@
 /**
  * @fileoverview Account setup checklist for service providers
  * @source boombox-10.0/src/app/components/mover-account/accountsetupchecklist.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * Displays account setup progress checklist for both drivers and moving partners.
  * Shows different checklists based on user type and approval status.
  * Auto-updates application complete status when checklist is finished.
- * 
+ *
  * ACCOUNT TYPES SUPPORTED:
  * - Driver accounts (userType="driver")
  * - Moving partner accounts (userType="mover")
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Replaced amber-* colors with status-warning semantic tokens
  * - Replaced emerald-* colors with status-success semantic tokens
  * - Replaced red-* colors with status-error semantic tokens
  * - Applied semantic surface and text colors throughout
- * 
+ *
  * API ROUTES UPDATED:
  * - Old: /api/drivers/[id] → New: /api/drivers/[id]/profile
  * - Old: /api/movers/[id] → New: /api/moving-partners/[id]/profile
@@ -24,7 +24,7 @@
  * - Old: /api/movers/[id]/application-complete → New: /api/moving-partners/[id]/application-complete
  * - Old: /api/movers/[id]/approved-drivers → New: /api/moving-partners/[id]/approved-drivers
  * - Old: /api/movers/[id]/update-status → New: /api/moving-partners/[id]/update-status
- * 
+ *
  * @refactor Migrated to service-providers structure with extracted business logic
  */
 
@@ -81,7 +81,12 @@ export function AccountSetupChecklist({
 
   // Check if checklist is complete
   const isChecklistComplete = checklistStatus
-    ? checkIfChecklistComplete(checklistStatus, userType, isApproved, hasMovingPartner)
+    ? checkIfChecklistComplete(
+        checklistStatus,
+        userType,
+        isApproved,
+        hasMovingPartner
+      )
     : false;
 
   // Loading state - return null to show nothing while loading
@@ -144,8 +149,8 @@ export function AccountSetupChecklist({
             Account Status Pending
           </h2>
           <p className="text-status-info text-base">
-            We are looking over your application and will respond within the next
-            few days
+            We are looking over your application and will respond within the
+            next few days
           </p>
         </div>
       );
@@ -166,8 +171,8 @@ export function AccountSetupChecklist({
           You&rsquo;re all set!
         </h2>
         <p className="text-status-success text-base">
-          You have completed your application. We will review your application and
-          get back to you within the next few days
+          You have completed your application. We will review your application
+          and get back to you within the next few days
         </p>
       </div>
     );
@@ -267,7 +272,7 @@ export function AccountSetupChecklist({
                     <>
                       Review{' '}
                       <Link
-                        href="/terms-of-service"
+                        href="/terms"
                         onClick={handleTermsClick}
                         className="text-status-warning underline decoration-dotted hover:decoration-solid underline-offset-4"
                       >
@@ -322,7 +327,7 @@ export function AccountSetupChecklist({
                   <>
                     Review{' '}
                     <Link
-                      href="/terms-of-service"
+                      href="/terms"
                       onClick={handleTermsClick}
                       className="text-status-warning underline decoration-dotted underline-offset-4"
                     >
@@ -392,4 +397,3 @@ function ChecklistItem({ completed, label, href }: ChecklistItemProps) {
     </Link>
   );
 }
-

@@ -82,7 +82,7 @@ export interface HelpCenterHeroProps {
  */
 export function HelpCenterHero({
   title = 'Help Center',
-  subtitle = 'let us know how we can help',
+  subtitle: _subtitle = 'let us know how we can help',
   className,
   iconClassName,
   showImage = true,
@@ -106,7 +106,7 @@ export function HelpCenterHero({
       </header>
 
       {showImage && (
-        <div className="relative h-[300px] sm:h-[500px] w-full overflow-hidden rounded-md">
+        <div className="relative h-[300px] sm:h-[500px] w-full overflow-hidden rounded-3xl">
           <Image
             src={imageSrc}
             alt={imageAlt}

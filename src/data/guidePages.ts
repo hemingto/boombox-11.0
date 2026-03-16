@@ -38,7 +38,7 @@ export const guidePages: Record<string, GuidePage> = {
     excerpt:
       'Learn what to expect on the day of your first Boombox appointment, from scheduling to loading your container.',
     readTime: '5 min read',
-    heroImage: '/help-center/delivery-guide.png',
+    heroImage: '/guides/delivery-guide-hero.png',
     heroImageAlt: 'Boombox delivery truck arriving at a home',
     metaTitle: 'Delivery Day Guide | What to Expect | Boombox',
     metaDescription:
@@ -152,7 +152,7 @@ export const guidePages: Record<string, GuidePage> = {
     excerpt:
       'Learn how to pack your Boombox storage container safely and securely with these expert tips and guidelines.',
     readTime: '7 min read',
-    heroImage: '/help-center/packing-guide.png',
+    heroImage: '/guides/packing-guide-hero.png',
     heroImageAlt: 'Items being packed into a Boombox container',
     metaTitle: 'Packing Guide | Tips for Safe Storage | Boombox',
     metaDescription:
@@ -289,7 +289,7 @@ export const guidePages: Record<string, GuidePage> = {
     excerpt:
       'Everything you need to know about accessing your stored items, from scheduling a delivery to ending your storage plan.',
     readTime: '5 min read',
-    heroImage: '/help-center/storage-access-guide.png',
+    heroImage: '/guides/storage-access-guide-hero.png',
     heroImageAlt: 'Boombox storage facility with containers',
     metaTitle: 'Storage Access Guide | How to Get Your Items | Boombox',
     metaDescription:
@@ -407,7 +407,7 @@ export const guidePages: Record<string, GuidePage> = {
     excerpt:
       'Find out all the locations Boombox serves across the San Francisco Bay Area.',
     readTime: '3 min read',
-    heroImage: '/help-center/locations-guide.png',
+    heroImage: '/guides/location-guide-hero.png',
     heroImageAlt: 'Map showing Boombox service locations',
     metaTitle: 'Location Guide | Service Areas | Boombox',
     metaDescription:
