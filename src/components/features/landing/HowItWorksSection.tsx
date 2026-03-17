@@ -222,15 +222,21 @@ export function HowItWorksSection({
 }: HowItWorksSectionProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [itemWidth, setItemWidth] = useState(297.6 + 16); // Default to mobile width + gap
-  const [step1Image, setStep1Image] = useState(STEP_1_IMAGES[0]);
-  const [step2Image, setStep2Image] = useState(STEP_2_IMAGES[0]);
-  const [step4Image, setStep4Image] = useState(STEP_4_IMAGES[0]);
-
-  useEffect(() => {
-    setStep1Image(drawFromShuffleBag('hiw-step1', STEP_1_IMAGES));
-    setStep2Image(drawFromShuffleBag('hiw-step2', STEP_2_IMAGES));
-    setStep4Image(drawFromShuffleBag('hiw-step4', STEP_4_IMAGES));
-  }, []);
+  const [step1Image] = useState(() =>
+    typeof window !== 'undefined'
+      ? drawFromShuffleBag('hiw-step1', STEP_1_IMAGES)
+      : STEP_1_IMAGES[0]
+  );
+  const [step2Image] = useState(() =>
+    typeof window !== 'undefined'
+      ? drawFromShuffleBag('hiw-step2', STEP_2_IMAGES)
+      : STEP_2_IMAGES[0]
+  );
+  const [step4Image] = useState(() =>
+    typeof window !== 'undefined'
+      ? drawFromShuffleBag('hiw-step4', STEP_4_IMAGES)
+      : STEP_4_IMAGES[0]
+  );
 
   const resolvedSteps =
     steps === DEFAULT_STEPS
