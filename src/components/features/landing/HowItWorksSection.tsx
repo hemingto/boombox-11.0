@@ -147,6 +147,16 @@ const STEP_2_IMAGES = [
   '/howitworks/step-2-vertical/step-2o.png',
 ];
 
+const STEP_3_IMAGES = [
+  '/howitworks/step-3-vertical/step-3.png',
+  '/howitworks/step-3-vertical/step-3a.png',
+  '/howitworks/step-3-vertical/step-3b.png',
+  '/howitworks/step-3-vertical/step-3c.png',
+  '/howitworks/step-3-vertical/step-3d.png',
+  '/howitworks/step-3-vertical/step-3e.png',
+  '/howitworks/step-3-vertical/step-3f.png',
+];
+
 const STEP_4_IMAGES = [
   '/howitworks/step-4-vertical/step-4.png',
   '/howitworks/step-4-vertical/step-4a.png',
@@ -232,6 +242,11 @@ export function HowItWorksSection({
       ? drawFromShuffleBag('hiw-step2', STEP_2_IMAGES)
       : STEP_2_IMAGES[0]
   );
+  const [step3Image] = useState(() =>
+    typeof window !== 'undefined'
+      ? drawFromShuffleBag('hiw-step3', STEP_3_IMAGES)
+      : STEP_3_IMAGES[0]
+  );
   const [step4Image] = useState(() =>
     typeof window !== 'undefined'
       ? drawFromShuffleBag('hiw-step4', STEP_4_IMAGES)
@@ -243,6 +258,7 @@ export function HowItWorksSection({
       ? steps.map((step, i) => {
           if (i === 0) return { ...step, image: step1Image };
           if (i === 1) return { ...step, image: step2Image };
+          if (i === 2) return { ...step, image: step3Image };
           if (i === 3) return { ...step, image: step4Image };
           return step;
         })
