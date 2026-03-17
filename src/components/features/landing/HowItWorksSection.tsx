@@ -86,6 +86,49 @@ export interface HowItWorksSectionProps {
   heading?: string;
 }
 
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+/**
+ * Draws the next image from a shuffle bag stored in sessionStorage.
+ * Every image is shown once before the pool reshuffles, preventing repeats.
+ */
+function drawFromShuffleBag(storageKey: string, allImages: string[]): string {
+  try {
+    const stored = sessionStorage.getItem(storageKey);
+    let remaining: string[] = stored ? JSON.parse(stored) : [];
+
+    if (remaining.length === 0) {
+      remaining = shuffleArray(allImages);
+    }
+
+    const selected = remaining.pop()!;
+    sessionStorage.setItem(storageKey, JSON.stringify(remaining));
+    return selected;
+  } catch {
+    return allImages[Math.floor(Math.random() * allImages.length)];
+  }
+}
+
+const STEP_1_IMAGES = [
+  '/howitworks/step-1-vertical/step-1.png',
+  '/howitworks/step-1-vertical/step-1a.png',
+  '/howitworks/step-1-vertical/step-1b.png',
+  '/howitworks/step-1-vertical/step-1c.png',
+  '/howitworks/step-1-vertical/step-1d.png',
+  '/howitworks/step-1-vertical/step-1e.png',
+  '/howitworks/step-1-vertical/step-1f.png',
+  '/howitworks/step-1-vertical/step-1g.png',
+  '/howitworks/step-1-vertical/step-1h.png',
+  '/howitworks/step-1-vertical/step-1i.png',
+];
+
 const STEP_2_IMAGES = [
   '/howitworks/step-2-vertical/step-2a.png',
   '/howitworks/step-2-vertical/step-2b.png',
@@ -179,16 +222,20 @@ export function HowItWorksSection({
 }: HowItWorksSectionProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [itemWidth, setItemWidth] = useState(297.6 + 16); // Default to mobile width + gap
-  const [step2Image] = useState(
-    () => STEP_2_IMAGES[Math.floor(Math.random() * STEP_2_IMAGES.length)]
-  );
-  const [step4Image] = useState(
-    () => STEP_4_IMAGES[Math.floor(Math.random() * STEP_4_IMAGES.length)]
-  );
+  const [step1Image, setStep1Image] = useState(STEP_1_IMAGES[0]);
+  const [step2Image, setStep2Image] = useState(STEP_2_IMAGES[0]);
+  const [step4Image, setStep4Image] = useState(STEP_4_IMAGES[0]);
+
+  useEffect(() => {
+    setStep1Image(drawFromShuffleBag('hiw-step1', STEP_1_IMAGES));
+    setStep2Image(drawFromShuffleBag('hiw-step2', STEP_2_IMAGES));
+    setStep4Image(drawFromShuffleBag('hiw-step4', STEP_4_IMAGES));
+  }, []);
 
   const resolvedSteps =
     steps === DEFAULT_STEPS
       ? steps.map((step, i) => {
+          if (i === 0) return { ...step, image: step1Image };
           if (i === 1) return { ...step, image: step2Image };
           if (i === 3) return { ...step, image: step4Image };
           return step;
