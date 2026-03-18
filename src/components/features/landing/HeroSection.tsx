@@ -55,6 +55,49 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Input } from '@/components/ui/primitives/Input/Input';
 
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+function drawFromShuffleBag(storageKey: string, allImages: string[]): string {
+  try {
+    const stored = sessionStorage.getItem(storageKey);
+    let remaining: string[] = stored ? JSON.parse(stored) : [];
+
+    if (remaining.length === 0) {
+      remaining = shuffleArray(allImages);
+    }
+
+    const selected = remaining.pop()!;
+    sessionStorage.setItem(storageKey, JSON.stringify(remaining));
+    return selected;
+  } catch {
+    return allImages[Math.floor(Math.random() * allImages.length)];
+  }
+}
+
+const HERO_SQUARE_IMAGES = [
+  '/hero-imgs/hero-square/hero-square-a.png',
+  '/hero-imgs/hero-square/hero-square-b.png',
+  '/hero-imgs/hero-square/hero-square-c.png',
+  '/hero-imgs/hero-square/hero-square-d.png',
+  '/hero-imgs/hero-square/hero-square-e.png',
+  '/hero-imgs/hero-square/hero-square-f.png',
+  '/hero-imgs/hero-square/hero-square-g.png',
+  '/hero-imgs/hero-square/hero-square-h.png',
+  '/hero-imgs/hero-square/hero-square-i.png',
+  '/hero-imgs/hero-square/hero-square-j.png',
+  '/hero-imgs/hero-square/hero-square-k.png',
+  '/hero-imgs/hero-square/hero-square-l.png',
+];
+
+const DEFAULT_HERO_IMAGE = '/hero-imgs/hero-square.png';
+
 interface StorageOption {
   value: string;
   label: string;
@@ -156,7 +199,7 @@ const BLUR_DATA_URL =
 export function HeroSection({
   title,
   buttontext,
-  imageSrc = '/hero-imgs/hero-square.png',
+  imageSrc = DEFAULT_HERO_IMAGE,
   imageAlt = 'San Francisco Bay Area mobile storage service',
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   fallbackSrc: _fallbackSrc,
@@ -166,6 +209,15 @@ export function HeroSection({
   const [zipCode, setZipCode] = useState<string>('');
   const [imageError, setImageError] = useState<boolean>(false);
   const router = useRouter();
+
+  const [heroImage] = useState(() =>
+    typeof window !== 'undefined'
+      ? drawFromShuffleBag('hero-square', HERO_SQUARE_IMAGES)
+      : HERO_SQUARE_IMAGES[0]
+  );
+
+  const resolvedImageSrc =
+    imageSrc === DEFAULT_HERO_IMAGE ? heroImage : imageSrc;
 
   const handleRadioChange = (value: string) => {
     setSelectedValue(value);
@@ -317,7 +369,7 @@ export function HeroSection({
             </div>
           ) : (
             <Image
-              src={imageSrc}
+              src={resolvedImageSrc}
               alt={imageAlt}
               fill
               priority
