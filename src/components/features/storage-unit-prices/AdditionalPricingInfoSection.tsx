@@ -65,7 +65,7 @@ export function AdditionalPricingInfoSection(): React.ReactElement {
       imageAlt: 'Professional movers helping load items into storage unit',
     },
     {
-      title: '$45 flat rate',
+      title: '$75 flat rate',
       subtitle: 'Storage Unit Access',
       description:
         "Need something back? We'll deliver your storage unit to where you need us.",

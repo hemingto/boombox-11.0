@@ -10,7 +10,6 @@ import { MoverNavbar } from '@/components/ui/navigation/MoverNavbar';
 import { UserProvider } from '@/contexts/UserContext';
 import { useParams } from 'next/navigation';
 import { useSessionMonitor } from '@/hooks/useSessionMonitor';
-import { SessionExpirationModal } from '@/components/ui/session/SessionExpirationModal';
 
 export default function DriverLayout({
   children,
@@ -18,10 +17,10 @@ export default function DriverLayout({
   children: React.ReactNode;
 }>) {
   const params = useParams();
-  const driverId = (Array.isArray(params?.id) ? params.id[0] : params?.id) ?? '';
-  
-  // Monitor session expiration
-  const { showWarning, secondsRemaining, isExpired, resetMonitor } = useSessionMonitor();
+  const driverId =
+    (Array.isArray(params?.id) ? params.id[0] : params?.id) ?? '';
+
+  useSessionMonitor();
 
   if (!driverId) {
     return <div>Loading driver...</div>;
@@ -31,15 +30,6 @@ export default function DriverLayout({
     <UserProvider userId={driverId}>
       <MoverNavbar userType="driver" userId={driverId} />
       {children}
-      
-      {/* Session expiration modal */}
-      <SessionExpirationModal
-        open={showWarning}
-        secondsRemaining={secondsRemaining}
-        isExpired={isExpired}
-        onReauthenticated={resetMonitor}
-      />
     </UserProvider>
   );
 }
-

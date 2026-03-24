@@ -69,7 +69,7 @@ export const categoryPages: Record<string, CategoryPageData> = {
         question:
           'Can I access my holiday storage unit before the next season?',
         answer:
-          'Absolutely. You can request a delivery of your storage unit any time Monday through Saturday, 8:30 am to 5:30 pm. We deliver it right to your door at a flat $45 delivery rate so you can grab what you need.',
+          'Absolutely. You can request a delivery of your storage unit any time Monday through Saturday, 8:30 am to 5:30 pm. We deliver it right to your door at a flat $75 delivery rate so you can grab what you need.',
       },
       {
         question: 'How much does holiday storage cost?',
@@ -125,7 +125,7 @@ export const categoryPages: Record<string, CategoryPageData> = {
       {
         question: 'How do I access my commercial storage unit?',
         answer:
-          'Request a delivery through your Boombox account any time Monday through Saturday, 8:30 am to 5:30 pm. We bring your unit to your business location at a flat $45 delivery rate. Load or unload what you need, and we pick it back up.',
+          'Request a delivery through your Boombox account any time Monday through Saturday, 8:30 am to 5:30 pm. We bring your unit to your business location at a flat $75 delivery rate. Load or unload what you need, and we pick it back up.',
       },
       {
         question: 'Do you offer loading help for commercial storage?',
@@ -175,7 +175,7 @@ export const categoryPages: Record<string, CategoryPageData> = {
       {
         question: 'Can I retrieve individual file boxes from my unit?',
         answer:
-          'We deliver your entire storage unit to your door at a flat $45 rate. Once delivered, you can access any box inside. We recommend labeling and organizing boxes by date or category so you can quickly find what you need.',
+          'We deliver your entire storage unit to your door at a flat $75 rate. Once delivered, you can access any box inside. We recommend labeling and organizing boxes by date or category so you can quickly find what you need.',
       },
       {
         question:

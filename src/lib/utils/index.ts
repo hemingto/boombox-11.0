@@ -185,3 +185,6 @@ export * from './sortingUtils';
 
 // Tracking utilities
 export * from './trackingStatusUtils';
+
+// Session utilities
+export * from './sessionUtils';

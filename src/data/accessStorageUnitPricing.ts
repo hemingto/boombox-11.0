@@ -1,2 +1,1 @@
-export const accessStorageUnitPricing = 45;
-
+export const accessStorageUnitPricing = 75;

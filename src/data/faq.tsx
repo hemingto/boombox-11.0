@@ -226,7 +226,7 @@ export const faqs: {
           limiting the loading and unloading to just what's needed.
         </p>
         <br />
-        <strong>Delivery is a $45 flat rate</strong>
+        <strong>Delivery is a $75 flat rate</strong>
       </>
     ),
     category: 'Storage Access',
@@ -251,7 +251,7 @@ export const faqs: {
         logging on to your user page and setting up an appointment.
         <br />
         <br />
-        Delivery of an existing storage unit is a $45 flat rate.
+        Delivery of an existing storage unit is a $75 flat rate.
       </>
     ),
     category: 'Storage Access',

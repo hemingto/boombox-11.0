@@ -110,18 +110,6 @@ function AccessStorageForm() {
     [form, updateFormState]
   );
 
-  const handleDateBookingCountChange = useCallback(
-    (bookingCount: number | null) => {
-      const isDIY = formState.planType === 'Do It Yourself Plan';
-      const hasDiscount = isDIY && bookingCount === 0;
-      form.setValue('hasGreenDateDiscount', hasDiscount, {
-        shouldValidate: false,
-      });
-      updateFormState({ hasGreenDateDiscount: hasDiscount });
-    },
-    [formState.planType, form, updateFormState]
-  );
-
   // ===== STEP CONTENT RENDERING =====
 
   const renderStepContent = () => {
@@ -158,8 +146,6 @@ function AccessStorageForm() {
             errorMessage={errors.scheduleError}
             isEditMode={isEditMode}
             minimumDaysInAdvance={2}
-            onSelectedDateBookingCountChange={handleDateBookingCountChange}
-            showGreenDateIncentive
           />
         );
 
@@ -337,7 +323,7 @@ function AccessStorageForm() {
       setMonthlyStorageRate: handleSetMonthlyStorageRate,
       setMonthlyInsuranceRate: handleSetMonthlyInsuranceRate,
       isAccessStorage: true,
-      hasGreenDateDiscount: formState.hasGreenDateDiscount,
+      hasGreenDateDiscount: false,
       buttonTexts: MY_QUOTE_BUTTON_TEXTS,
       deliveryReason: formState.deliveryReason,
 
@@ -370,7 +356,6 @@ function AccessStorageForm() {
       formState.coordinates,
       formState.selectedStorageUnits.length,
       formState.deliveryReason,
-      formState.hasGreenDateDiscount,
       formState.calculatedTotal,
       currentStep,
       handleSubmitOrProceed,

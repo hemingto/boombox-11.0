@@ -6,6 +6,7 @@
 
 import { formatDateForDisplay } from './dateUtils';
 import { TemplateVariables } from '@/lib/messaging/types';
+import { accessStorageUnitPricing } from '@/data/accessStorageUnitPricing';
 
 /**
  * Quote data interface matching the original API
@@ -93,7 +94,7 @@ function generateAccessStorageHtml(data: QuoteEmailData): string {
   ) {
     const deliveryText =
       data.accessStorageUnitCount > 1 ? 'Deliveries' : 'Delivery';
-    const cost = data.accessStorageUnitCount * 45;
+    const cost = data.accessStorageUnitCount * accessStorageUnitPricing;
     return `
       <div class="quote-item">
         <span>${data.accessStorageUnitCount} Storage Unit ${deliveryText}</span>

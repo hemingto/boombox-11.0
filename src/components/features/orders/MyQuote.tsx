@@ -129,6 +129,16 @@ export function MyQuote({
   planType = '',
   hasGreenDateDiscount = false,
 }: MyQuoteProps) {
+  // Only treat as DIY once a plan has actually been selected (selectedPlanName
+  // is empty until the user picks one). This prevents the pickup fee from
+  // being added to the total before the loading-help option is chosen.
+  const isDIY = planType === 'Do It Yourself Plan' && !!selectedPlanName;
+  const effectivePlanType = isDIY
+    ? planType
+    : planType === 'Do It Yourself Plan'
+      ? ''
+      : planType;
+
   // Use custom hook for quote state management and calculations
   const {
     isExpanded,
@@ -150,14 +160,12 @@ export function MyQuote({
     setMonthlyStorageRate,
     setMonthlyInsuranceRate,
     storageTerm,
-    planType,
+    planType: effectivePlanType,
     hasGreenDateDiscount,
   });
 
   // Get Boombox price for display
   const boomboxPrice = getBoomboxPriceByZipCode(zipCode);
-
-  const isDIY = planType === 'Do It Yourself Plan';
   const units = storageUnitCount || 1;
 
   const pickupFeeWaived = storageTerm

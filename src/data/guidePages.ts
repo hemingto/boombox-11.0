@@ -315,7 +315,7 @@ export const guidePages: Record<string, GuidePage> = {
       {
         type: 'paragraph',
         content:
-          'You can access your storage unit Monday through Saturday, 8:30 am to 5:30 pm, by setting up a delivery request on your account page. A Boombox delivery driver will bring your storage unit straight to your door at a flat rate of $45 per delivery. Simply log in, select the unit you need, and choose a delivery window that works for you.',
+          'You can access your storage unit Monday through Saturday, 8:30 am to 5:30 pm, by setting up a delivery request on your account page. A Boombox delivery driver will bring your storage unit straight to your door at a flat rate of $75 per delivery. Simply log in, select the unit you need, and choose a delivery window that works for you.',
       },
       {
         type: 'heading',
@@ -325,7 +325,7 @@ export const guidePages: Record<string, GuidePage> = {
       {
         type: 'paragraph',
         content:
-          'Need to add items to your existing storage unit? Request a delivery from your account page and the driver will bring your container to you. Load your additional items, and the driver will return the unit to our facility. The same $45 flat-rate delivery fee applies.',
+          'Need to add items to your existing storage unit? Request a delivery from your account page and the driver will bring your container to you. Load your additional items, and the driver will return the unit to our facility. The same $75 flat-rate delivery fee applies.',
       },
       {
         type: 'paragraph',

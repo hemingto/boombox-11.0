@@ -231,7 +231,7 @@ export default function AddStorageStep1({
           )}
 
           {/* Plan Details Toggle */}
-          <div className="-mt-4 p-3 sm:mb-4 mb-2 bg-surface-primary border border-border rounded-md max-w-fit">
+          <div className="mt-4 p-3 sm:mb-4 mb-2 bg-surface-primary border border-border rounded-md max-w-fit">
             <p className="text-xs text-text-primary">
               To learn what&apos;s included in each plan click{' '}
               <button

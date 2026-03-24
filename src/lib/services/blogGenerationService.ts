@@ -87,7 +87,7 @@ hassle of traditional self-storage.
 COMPANY FACTS (use accurately, never fabricate specifics):
 - Container size: 5'W x 8'L x 8'H, 257 cubic feet, 1,000 lb weight limit
 - Service area: San Francisco Bay Area
-- Pricing: $45 flat-rate delivery fee, first 60 minutes of loading free, $55/hr after
+- Pricing: $75 flat-rate delivery fee, first 60 minutes of loading free, $55/hr after
 - Monthly billing with 2-month minimum term
 - Optional add-ons: moving labor (local pros), insurance coverage, moving blankets (5 included)
 - Facilities are 24/7 monitored, closed to public; customers access units via scheduled redelivery
