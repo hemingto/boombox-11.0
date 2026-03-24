@@ -37,10 +37,35 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import { HelpIcon } from '@/components/icons';
+import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+function drawFromShuffleBag(storageKey: string, allImages: string[]): string {
+  try {
+    const stored = sessionStorage.getItem(storageKey);
+    let remaining: string[] = stored ? JSON.parse(stored) : [];
+
+    if (remaining.length === 0) {
+      remaining = shuffleArray(allImages);
+    }
+
+    const selected = remaining.pop()!;
+    sessionStorage.setItem(storageKey, JSON.stringify(remaining));
+    return selected;
+  } catch {
+    return allImages[Math.floor(Math.random() * allImages.length)];
+  }
+}
 
 const CUSTOMER_IMAGES = [
   '/customers/customer.png',
@@ -119,15 +144,13 @@ export function HelpCenterSection({
   imageAlt = 'Boombox storage unit',
   className,
 }: HelpCenterSectionProps) {
-  const [randomImage, setRandomImage] = useState(CUSTOMER_IMAGES[0]);
+  const [customerImage] = useState(() =>
+    typeof window !== 'undefined'
+      ? drawFromShuffleBag('helpcenter-customer', CUSTOMER_IMAGES)
+      : CUSTOMER_IMAGES[0]
+  );
 
-  useEffect(() => {
-    setRandomImage(
-      CUSTOMER_IMAGES[Math.floor(Math.random() * CUSTOMER_IMAGES.length)]
-    );
-  }, []);
-
-  const heroImage = imageSrc ?? randomImage;
+  const heroImage = imageSrc ?? customerImage;
 
   return (
     <section

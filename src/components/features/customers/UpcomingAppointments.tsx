@@ -29,7 +29,9 @@ export interface UpcomingAppointmentsProps {
   userId: string;
   appointments: CustomerAppointmentDisplay[];
   hasActiveStorageUnits?: boolean;
-  onAppointmentsChange: React.Dispatch<React.SetStateAction<CustomerAppointmentDisplay[]>>;
+  onAppointmentsChange: React.Dispatch<
+    React.SetStateAction<CustomerAppointmentDisplay[]>
+  >;
 }
 
 export function UpcomingAppointments({
@@ -38,12 +40,12 @@ export function UpcomingAppointments({
   onAppointmentsChange,
 }: UpcomingAppointmentsProps) {
   const handleCancellation = (appointmentId: number) => {
-    onAppointmentsChange((prev) => prev.filter((apt) => apt.id !== appointmentId));
+    onAppointmentsChange(prev => prev.filter(apt => apt.id !== appointmentId));
   };
 
   return (
     <div className="flex flex-col sm:mb-4 mb-2">
-      {appointments.map((appointment) => (
+      {appointments.map(appointment => (
         <div key={appointment.id} className="mt-4">
           <AppointmentCard
             appointmentId={appointment.id}
@@ -53,17 +55,20 @@ export function UpcomingAppointments({
                 appointment.appointmentType === 'End Storage Term') &&
               appointment.requestedStorageUnits.length > 0
                 ? appointment.requestedStorageUnits
-                    .map((unit) => `Boombox ${unit.storageUnitNumber}`)
+                    .map(unit => `Boombox ${unit.storageUnitNumber}`)
                     .join(', ')
                 : appointment.movingPartnerName
-                ? appointment.movingPartnerName
-                : appointment.thirdPartyTitle
-                ? appointment.thirdPartyTitle
-                : appointment.planType || 'No plan type'
+                  ? appointment.movingPartnerName
+                  : appointment.thirdPartyTitle
+                    ? appointment.thirdPartyTitle
+                    : appointment.planType || 'No plan type'
             }${appointment.insuranceCoverage ? ` with ${appointment.insuranceCoverage}` : ''}`}
-            displaydate={`${new Date(appointment.date).toLocaleDateString('en-US', {
-              weekday: 'long',
-            })}, ${new Date(appointment.date).toLocaleDateString('en-US', {
+            displaydate={`${new Date(appointment.date).toLocaleDateString(
+              'en-US',
+              {
+                weekday: 'long',
+              }
+            )}, ${new Date(appointment.date).toLocaleDateString('en-US', {
               month: 'short',
             })} ${addDateSuffix(new Date(appointment.date).getDate())}`}
             time={`arriving between ${new Date(appointment.time)
@@ -73,7 +78,9 @@ export function UpcomingAppointments({
                 hour12: true,
               })
               .replace(' ', '')
-              .toLowerCase()} - ${new Date(new Date(appointment.time).getTime() + 60 * 60 * 1000)
+              .toLowerCase()} - ${new Date(
+              new Date(appointment.time).getTime() + 60 * 60 * 1000
+            )
               .toLocaleTimeString('en-US', {
                 hour: 'numeric',
                 minute: 'numeric',
@@ -97,6 +104,11 @@ export function UpcomingAppointments({
             status={appointment.status}
             trackingUrl={appointment.trackingUrl}
             requestedStorageUnits={appointment.requestedStorageUnits}
+            storageTerm={appointment.storageTerm}
+            pickupFee={appointment.pickupFee}
+            pickupFeeWaived={appointment.pickupFeeWaived}
+            returnFee={appointment.returnFee}
+            returnFeeWaived={appointment.returnFeeWaived}
           />
         </div>
       ))}

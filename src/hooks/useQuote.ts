@@ -7,7 +7,8 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { InsuranceOption } from '@/types/insurance';
-import { calculateQuotePricing, PricingCalculation } from '@/lib/utils/pricingUtils';
+import { type StorageTerm } from '@/data/storageTermPricing';
+import { calculateQuotePricing, type PricingCalculation } from '@/lib/utils';
 
 interface UseQuoteParams {
   zipCode: string;
@@ -16,10 +17,13 @@ interface UseQuoteParams {
   loadingHelpPrice: string;
   accessStorageUnitCount?: number;
   isAccessStorage: boolean;
+  storageTerm?: StorageTerm | null;
+  planType?: string;
   coordinates: google.maps.LatLngLiteral | null;
   onCalculateTotal?: (total: number) => void;
   setMonthlyStorageRate: (rate: number) => void;
   setMonthlyInsuranceRate: (rate: number) => void;
+  hasGreenDateDiscount?: boolean;
 }
 
 interface UseQuoteReturn {
@@ -28,11 +32,11 @@ interface UseQuoteReturn {
   setIsExpanded: (expanded: boolean) => void;
   contentHeight: number;
   contentRef: React.RefObject<HTMLDivElement | null>;
-  
+
   // Map state
   mapCenter: google.maps.LatLngLiteral | null;
   mapZoom: number;
-  
+
   // Pricing calculations
   pricing: PricingCalculation;
 }
@@ -45,19 +49,24 @@ export function useQuote(params: UseQuoteParams): UseQuoteReturn {
     loadingHelpPrice,
     accessStorageUnitCount = 0,
     isAccessStorage,
+    storageTerm = null,
+    planType = '',
     coordinates,
     onCalculateTotal,
     setMonthlyStorageRate,
     setMonthlyInsuranceRate,
+    hasGreenDateDiscount = false,
   } = params;
 
   // Mobile state
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [contentHeight, setContentHeight] = useState<number>(0);
   const contentRef = useRef<HTMLDivElement>(null);
-  
+
   // Map state
-  const [mapCenter, setMapCenter] = useState<google.maps.LatLngLiteral | null>(null);
+  const [mapCenter, setMapCenter] = useState<google.maps.LatLngLiteral | null>(
+    null
+  );
   const [mapZoom, setMapZoom] = useState<number>(10);
 
   // Set map center and zoom when coordinates change
@@ -84,6 +93,9 @@ export function useQuote(params: UseQuoteParams): UseQuoteReturn {
       loadingHelpPrice,
       accessStorageUnitCount,
       isAccessStorage,
+      storageTerm,
+      planType,
+      hasGreenDateDiscount,
     });
   }, [
     zipCode,
@@ -92,6 +104,9 @@ export function useQuote(params: UseQuoteParams): UseQuoteReturn {
     loadingHelpPrice,
     accessStorageUnitCount,
     isAccessStorage,
+    storageTerm,
+    planType,
+    hasGreenDateDiscount,
   ]);
 
   // Update parent component with total calculation
@@ -117,11 +132,11 @@ export function useQuote(params: UseQuoteParams): UseQuoteReturn {
     setIsExpanded,
     contentHeight,
     contentRef,
-    
+
     // Map state
     mapCenter,
     mapZoom,
-    
+
     // Pricing calculations
     pricing,
   };

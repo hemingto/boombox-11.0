@@ -12,7 +12,11 @@ export { default as CardNumberInput } from './CardNumberInput';
 export { default as CalendarView } from './CalendarView';
 export { default as CustomDatePicker } from './CustomDatePicker';
 export { default as EmailInput } from './EmailInput';
-export { default as SendQuoteEmail, SendQuoteEmailModal, SendQuoteEmailTrigger } from './SendQuoteEmailModal';
+export {
+  default as SendQuoteEmail,
+  SendQuoteEmailModal,
+  SendQuoteEmailTrigger,
+} from './SendQuoteEmailModal';
 export { default as InsuranceInput } from './InsuranceInput';
 export { default as LaborHelpDropdown } from './LaborHelpDropdown';
 export { default as LaborPlanDetails } from './LaborPlanDetails';
@@ -41,6 +45,9 @@ export { default as YesOrNoRadio } from './YesOrNoRadio';
 
 // Counter components
 export { default as StorageUnitCounter } from './StorageUnitCounter';
+
+// Storage term components
+export { StorageTermSelector } from './StorageTermSelector';
 
 // Storage unit selection components
 export { StorageUnitCheckboxList } from './StorageUnitCheckboxList';

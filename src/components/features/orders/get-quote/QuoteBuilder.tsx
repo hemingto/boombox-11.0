@@ -1,7 +1,7 @@
 /**
  * @fileoverview Interactive quote builder for storage unit selection
  * @source boombox-10.0/src/app/components/getquote/quotebuilder.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * Provides interactive UI for selecting number of storage units, loading help plan,
  * and insurance coverage. Includes:
@@ -10,14 +10,14 @@
  * - Plan selection (DIY vs Full Service)
  * - Collapsible plan details
  * - Insurance coverage selection
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Uses semantic color tokens (text-primary, bg-white, border-slate-100)
  * - Applies consistent spacing patterns
  * - Integrates with design system form components
  * - Maintains accessibility standards
- * 
- * @refactor 
+ *
+ * @refactor
  * - No local state (all managed by parent/provider)
  * - Uses existing form primitives from src/components/forms/
  * - Proper TypeScript interfaces for type safety
@@ -29,6 +29,7 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import AddressInput from '@/components/forms/AddressInput';
+import StorageTermSelector from '@/components/forms/StorageTermSelector';
 import StorageUnitCounter from '@/components/forms/StorageUnitCounter';
 import { RadioCards } from '@/components/forms/RadioCards';
 import InsuranceInput from '@/components/forms/InsuranceInput';
@@ -36,6 +37,7 @@ import LaborPlanDetails from '@/components/forms/LaborPlanDetails';
 import { MovingHelpIcon } from '@/components/icons/MovingHelpIcon';
 import { FurnitureIcon } from '@/components/icons/FurnitureIcon';
 import type { InsuranceOption } from '@/types/insurance';
+import type { StorageTerm } from '@/data/storageTermPricing';
 
 /**
  * QuoteBuilder component props
@@ -51,25 +53,31 @@ export interface QuoteBuilderProps {
     cityName: string
   ) => void;
   clearAddressError: () => void;
-  
+
+  // Storage term fields
+  selectedStorageTerm: StorageTerm | null;
+  storageTermError: string | null;
+  onStorageTermChange: (term: StorageTerm) => void;
+  clearStorageTermError: () => void;
+
   // Storage unit fields
   storageUnitCount: number;
   initialStorageUnitCount: number;
   onStorageUnitChange: (count: number, text: string) => void;
-  
+
   // Plan selection fields
   selectedPlan: string;
   planError: string | null;
   onPlanChange: (id: string, plan: string, description: string) => void;
   clearPlanError: () => void;
   onPlanTypeChange: (planType: string) => void;
-  
+
   // Plan details expansion
   isPlanDetailsVisible: boolean;
   togglePlanDetails: () => void;
   contentHeight: number | null;
   contentRef: React.RefObject<HTMLDivElement>;
-  
+
   // Insurance fields
   selectedInsurance: InsuranceOption | null;
   insuranceError: string | null;
@@ -79,10 +87,10 @@ export interface QuoteBuilderProps {
 
 /**
  * QuoteBuilder Component
- * 
+ *
  * Step 1 of the GetQuote flow - collects address, storage unit count,
  * loading help plan, and insurance coverage.
- * 
+ *
  * @param props - QuoteBuilder properties
  * @returns Quote builder form UI
  */
@@ -91,6 +99,10 @@ export function QuoteBuilder({
   addressError,
   onAddressChange,
   clearAddressError,
+  selectedStorageTerm,
+  storageTermError,
+  onStorageTermChange,
+  clearStorageTermError,
   storageUnitCount,
   initialStorageUnitCount: _initialStorageUnitCount,
   onStorageUnitChange,
@@ -136,33 +148,44 @@ export function QuoteBuilder({
           />
         </div>
 
+        {/* Storage Term Selection */}
+        <div className="mb-4 sm:mb-8">
+          <StorageTermSelector
+            selectedTerm={selectedStorageTerm}
+            onTermChange={onStorageTermChange}
+            hasError={!!storageTermError}
+            onClearError={clearStorageTermError}
+          />
+        </div>
+
         {/* Storage Unit Counter */}
         <div className="mb-4 sm:mb-8">
-        <StorageUnitCounter
-          onCountChange={onStorageUnitChange}
-          initialCount={storageUnitCount}
-        />
-    
-        {/* Storage Calculator Link */}
-        <div className="mt-4 p-3 mb-12 border border-slate-100 bg-white rounded-md max-w-fit">
-          <p className="text-xs">
-            If you are unsure how many units you need, check our storage calculator{' '}
-            <Link
-              href="/storage-calculator"
-              className="underline"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              here
-            </Link>
-          </p>
-        </div>
+          <StorageUnitCounter
+            onCountChange={onStorageUnitChange}
+            initialCount={storageUnitCount}
+          />
+
+          {/* Storage Calculator Link */}
+          <div className="mt-4 p-3 mb-12 border border-slate-100 bg-white rounded-md max-w-fit">
+            <p className="text-xs">
+              If you are unsure how many units you need, check our storage
+              calculator{' '}
+              <Link
+                href="/storage-calculator"
+                className="underline"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                here
+              </Link>
+            </p>
+          </div>
         </div>
 
         {/* Plan Selection */}
         <div className="pb-4">
           <p className="mb-4 mt-4">Do you need help loading your Boombox?</p>
-          
+
           {/* Plan Options */}
           <div className="flex flex-row gap-2">
             {/* DIY Plan */}
@@ -214,12 +237,14 @@ export function QuoteBuilder({
           {/* Plan Error Message */}
           {planError && (
             <div className="flex items-center mb-4 mt-1 text-red-500">
-              <p className="ml-1 text-sm text-red-500 font-medium">{planError}</p>
+              <p className="ml-1 text-sm text-red-500 font-medium">
+                {planError}
+              </p>
             </div>
           )}
 
           {/* Plan Details Toggle */}
-          <div className="mt-4 p-3 mb-4 sm:mb-8 bg-white border border-slate-100 rounded-md max-w-fit">
+          <div className="mt-4 p-3 mb-8 bg-white border border-slate-100 rounded-md max-w-fit">
             <p className="text-xs">
               To learn what&apos;s included in each plan click{' '}
               <span
@@ -227,7 +252,7 @@ export function QuoteBuilder({
                 onClick={togglePlanDetails}
                 role="button"
                 tabIndex={0}
-                onKeyDown={(e) => {
+                onKeyDown={e => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     togglePlanDetails();
@@ -250,7 +275,7 @@ export function QuoteBuilder({
               overflow: 'hidden',
               transition: 'height 0.5s ease',
             }}
-            className={`mt-4 rounded-md bg-slate-100 transition-all duration-500 ease-in-out ${
+            className={`-mt-4 rounded-md bg-slate-100 transition-all duration-500 ease-in-out ${
               isPlanDetailsVisible ? 'opacity-100' : 'opacity-0'
             }`}
             aria-hidden={!isPlanDetailsVisible}
@@ -274,4 +299,3 @@ export function QuoteBuilder({
 }
 
 export default QuoteBuilder;
-

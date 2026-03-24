@@ -1,10 +1,10 @@
 /**
  * @fileoverview Add Storage service for API integration
  * @source boombox-10.0/src/app/components/add-storage/userpageaddstorageform.tsx (API submission logic)
- * 
+ *
  * API ROUTES UPDATED:
  * - Old: /api/addAdditionalStorage → New: /api/orders/add-additional-storage
- * 
+ *
  * @refactor Extracted API calls to dedicated service layer with updated API endpoints following AccessStorageService patterns
  */
 
@@ -15,6 +15,7 @@ import {
 } from '@/types/addStorage.types';
 import { InsuranceOption } from '@/types/insurance';
 import { validateSubmissionPayload } from '@/lib/validations/addStorage.validations';
+import { getStorageTermSubmissionFields } from '@/data/storageTermPricing';
 
 // ===== SERVICE INTERFACES =====
 
@@ -55,7 +56,8 @@ export interface AddStorageServiceOptions {
 
 // ===== API RESPONSE TYPES =====
 
-export interface AddStorageApiResponse extends ApiResponse<AddStorageSubmissionResult> {
+export interface AddStorageApiResponse
+  extends ApiResponse<AddStorageSubmissionResult> {
   data: AddStorageSubmissionResult;
 }
 
@@ -92,8 +94,13 @@ class AddStorageService {
     // Validate payload before submission
     const validation = validateSubmissionPayload(payload);
     if (!validation.success) {
-      const errorMessage = validation.error.errors.map(err => err.message).join(', ');
-      throw new AddStorageServiceError(`Validation failed: ${errorMessage}`, 'VALIDATION_ERROR');
+      const errorMessage = validation.error.errors
+        .map(err => err.message)
+        .join(', ');
+      throw new AddStorageServiceError(
+        `Validation failed: ${errorMessage}`,
+        'VALIDATION_ERROR'
+      );
     }
 
     const validatedPayload = validation.data;
@@ -113,7 +120,10 @@ class AddStorageService {
 
       // Log successful submission
       if (response.appointmentId) {
-        console.log('Add Storage appointment submitted successfully:', response.appointmentId);
+        console.log(
+          'Add Storage appointment submitted successfully:',
+          response.appointmentId
+        );
       }
 
       return response;
@@ -153,6 +163,10 @@ class AddStorageService {
       monthlyStorageRate: formState.pricing.monthlyStorageRate,
       monthlyInsuranceRate: formState.pricing.monthlyInsuranceRate,
       calculatedTotal: formState.pricing.calculatedTotal,
+      ...getStorageTermSubmissionFields(
+        formState.storageTerm,
+        formState.storageUnit.count
+      ),
       appointmentType: formState.appointmentType,
       movingPartnerId: formState.movingPartnerId,
       thirdPartyMovingPartnerId: formState.thirdPartyMovingPartnerId,
@@ -179,12 +193,18 @@ class AddStorageService {
       return 'Please select an insurance option.';
     }
 
-    if (!formState.scheduling.scheduledDate || !formState.scheduling.scheduledTimeSlot) {
+    if (
+      !formState.scheduling.scheduledDate ||
+      !formState.scheduling.scheduledTimeSlot
+    ) {
       return 'Please select a date and time slot.';
     }
 
     // Check labor selection for non-DIY plans
-    if (formState.planType !== 'Do It Yourself Plan' && !formState.selectedLabor) {
+    if (
+      formState.planType !== 'Do It Yourself Plan' &&
+      !formState.selectedLabor
+    ) {
       return 'Please choose a moving help option.';
     }
 
@@ -217,14 +237,15 @@ class AddStorageService {
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new AddStorageServiceError(
-            errorData.message || `HTTP ${response.status}: ${response.statusText}`,
+            errorData.message ||
+              `HTTP ${response.status}: ${response.statusText}`,
             'HTTP_ERROR',
             `Status: ${response.status}`
           );
         }
 
         const data = await response.json();
-        
+
         // Handle API response format
         if (data.success === false) {
           throw new AddStorageServiceError(
@@ -235,13 +256,14 @@ class AddStorageService {
         }
 
         return data.data || data;
-
       } catch (error) {
         lastError = error instanceof Error ? error : new Error('Unknown error');
 
         // Don't retry on validation or client errors
-        if (error instanceof AddStorageServiceError && 
-            ['VALIDATION_ERROR', 'HTTP_ERROR'].includes(error.code)) {
+        if (
+          error instanceof AddStorageServiceError &&
+          ['VALIDATION_ERROR', 'HTTP_ERROR'].includes(error.code)
+        ) {
           throw error;
         }
 
@@ -255,7 +277,9 @@ class AddStorageService {
 
         // Wait before retry (except on last attempt)
         if (attempt < options.retries) {
-          await new Promise(resolve => setTimeout(resolve, options.retryDelay * attempt));
+          await new Promise(resolve =>
+            setTimeout(resolve, options.retryDelay * attempt)
+          );
         }
       }
     }
@@ -321,7 +345,9 @@ export { AddStorageService };
 /**
  * Check if error is an AddStorageServiceError
  */
-export function isAddStorageServiceError(error: unknown): error is AddStorageServiceError {
+export function isAddStorageServiceError(
+  error: unknown
+): error is AddStorageServiceError {
   return error instanceof AddStorageServiceError;
 }
 
@@ -359,8 +385,13 @@ export function validateAddStorageSubmission(
 ): void {
   const validation = validateSubmissionPayload(submissionData);
   if (!validation.success) {
-    const errorMessage = validation.error.errors.map(err => err.message).join(', ');
-    throw new AddStorageServiceError(`Validation failed: ${errorMessage}`, 'VALIDATION_ERROR');
+    const errorMessage = validation.error.errors
+      .map(err => err.message)
+      .join(', ');
+    throw new AddStorageServiceError(
+      `Validation failed: ${errorMessage}`,
+      'VALIDATION_ERROR'
+    );
   }
 }
 
@@ -377,15 +408,21 @@ export function transformAddStorageFormData(
     zipCode: formState.addressInfo.zipCode,
     storageUnitCount: formState.storageUnit.count,
     selectedInsurance: formState.selectedInsurance,
-    appointmentDateTime: new Date(formState.scheduling.scheduledDate!).toISOString(),
+    appointmentDateTime: new Date(
+      formState.scheduling.scheduledDate!
+    ).toISOString(),
     planType: formState.planType,
     description: formState.description || 'No added info',
     parsedLoadingHelpPrice: formState.pricing.parsedLoadingHelpPrice,
     monthlyStorageRate: formState.pricing.monthlyStorageRate,
     monthlyInsuranceRate: formState.pricing.monthlyInsuranceRate,
     calculatedTotal: formState.pricing.calculatedTotal,
+    ...getStorageTermSubmissionFields(
+      formState.storageTerm,
+      formState.storageUnit.count
+    ),
     appointmentType: 'Additional Storage',
     movingPartnerId: formState.movingPartnerId || null,
-    thirdPartyMovingPartnerId: formState.thirdPartyMovingPartnerId || null
+    thirdPartyMovingPartnerId: formState.thirdPartyMovingPartnerId || null,
   };
 }

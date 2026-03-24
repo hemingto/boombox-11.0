@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "Appointment" ADD COLUMN     "pickupFee" DOUBLE PRECISION DEFAULT 75,
+ADD COLUMN     "pickupFeeWaived" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "returnFee" DOUBLE PRECISION DEFAULT 75,
+ADD COLUMN     "returnFeeWaived" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "storageTerm" TEXT;

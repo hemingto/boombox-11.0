@@ -32,29 +32,34 @@ export interface UserPageInfoCardsProps {
 
 /**
  * UserPageInfoCards - Container component for displaying action cards
- * 
+ *
  * Features:
  * - Displays packing supplies order card for active appointments
  * - Shows move details collection cards for scheduled appointments
  * - Opens MoveDetailsForm modal for providing additional appointment info
  */
-export const UserPageInfoCards: React.FC<UserPageInfoCardsProps> = ({ 
+export const UserPageInfoCards: React.FC<UserPageInfoCardsProps> = ({
   userId,
   appointments,
 }) => {
-  const [activeAppointmentId, setActiveAppointmentId] = useState<number | null>(null);
+  const [activeAppointmentId, setActiveAppointmentId] = useState<number | null>(
+    null
+  );
   const [showPackingSuppliesCard, setShowPackingSuppliesCard] = useState(true);
   const [localAppointments, setLocalAppointments] = useState(appointments);
   const router = useRouter();
 
   // Filter for scheduled appointments without additional information
   const scheduledAppointments = localAppointments.filter(
-    (apt) => !['Complete', 'Canceled', 'Awaiting Admin Check In'].includes(apt.status) && !apt.hasAdditionalInfo
+    apt =>
+      !['Complete', 'Canceled', 'Awaiting Admin Check In'].includes(
+        apt.status
+      ) && !apt.hasAdditionalInfo
   );
 
   const handleUpdateAppointmentInfo = (appointmentId: number) => {
-    setLocalAppointments(prev => 
-      prev.map(apt => 
+    setLocalAppointments(prev =>
+      prev.map(apt =>
         apt.id === appointmentId ? { ...apt, hasAdditionalInfo: true } : apt
       )
     );
@@ -78,10 +83,7 @@ export const UserPageInfoCards: React.FC<UserPageInfoCardsProps> = ({
 
   return (
     <div className="flex flex-col lg:px-16 px-6 max-w-5xl w-full mx-auto mb-8">
-
-      {showPackingSuppliesCard && appointments.some((apt) => 
-        !['Complete', 'Canceled', 'Awaiting Admin Check In'].includes(apt.status)
-      ) && (
+      {showPackingSuppliesCard && (
         <InfoCard
           title="Need packing supplies?"
           description="Shop our selection of packing supplies to make sure your items are stored safely and securely. We'll deliver them right to your door when you need them."
@@ -90,36 +92,43 @@ export const UserPageInfoCards: React.FC<UserPageInfoCardsProps> = ({
           onButtonClick={handlePackingSuppliesClick}
           onClose={handleClosePackingSuppliesCard}
           showCloseIcon={true}
-          variant='info'
+          variant="info"
         />
       )}
 
-      {scheduledAppointments.map((appointment) => (
+      {scheduledAppointments.map(appointment => (
         <div key={appointment.id}>
           {appointment.appointmentType !== 'Storage Unit Access' &&
-          appointment.appointmentType !== 'End Storage Term' && (
-          <InfoCard
-            title={`Make sure your pickup goes smoothly`}
-            description={
-              <>
-                Please provide us with additional information about your upcoming appointment on{' '}
-                <span className="font-bold">
-                  {(() => {
-                    const date = new Date(appointment.date);
-                    const day = date.getDate();
-                    const suffixDay = addDateSuffix(day);
-                    const month = date.toLocaleDateString('en-US', { month: 'short' });
-                    const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
-                    return `${weekday}, ${month} ${suffixDay}`;
-                  })()}
-                </span>. This helps us ensure we&apos;ve scheduled enough hours and movers for your job.
-              </>
-            }
-            buttonText={`Tell us more about your ${appointment.appointmentType.toLowerCase()}`}
-            buttonIcon={<ClipboardIcon className="w-5 h-5 text-primary" />}
-            onButtonClick={() => handleMoreInfoClick(appointment.id)}
-          />
-        )}
+            appointment.appointmentType !== 'End Storage Term' && (
+              <InfoCard
+                title={`Make sure your pickup goes smoothly`}
+                description={
+                  <>
+                    Please provide us with additional information about your
+                    upcoming appointment on{' '}
+                    <span className="font-bold">
+                      {(() => {
+                        const date = new Date(appointment.date);
+                        const day = date.getDate();
+                        const suffixDay = addDateSuffix(day);
+                        const month = date.toLocaleDateString('en-US', {
+                          month: 'short',
+                        });
+                        const weekday = date.toLocaleDateString('en-US', {
+                          weekday: 'long',
+                        });
+                        return `${weekday}, ${month} ${suffixDay}`;
+                      })()}
+                    </span>
+                    . This helps us ensure we&apos;ve scheduled enough hours and
+                    movers for your job.
+                  </>
+                }
+                buttonText={`Tell us more about your ${appointment.appointmentType.toLowerCase()}`}
+                buttonIcon={<ClipboardIcon className="w-5 h-5 text-primary" />}
+                onButtonClick={() => handleMoreInfoClick(appointment.id)}
+              />
+            )}
 
           {activeAppointmentId === appointment.id && (
             <MoveDetailsForm
@@ -131,7 +140,6 @@ export const UserPageInfoCards: React.FC<UserPageInfoCardsProps> = ({
           )}
         </div>
       ))}
-
     </div>
   );
 };

@@ -36,6 +36,11 @@ import {
 import { useQuote } from '@/hooks/useQuote';
 import { accessStorageUnitPricing } from '@/data/accessStorageUnitPricing';
 import { PROCESSING_FEE_LABEL } from '@/data/processingFeeConfig';
+import type { StorageTerm } from '@/data/storageTermPricing';
+import {
+  getStorageTermTier,
+  PICKUP_FEE_PER_UNIT,
+} from '@/data/storageTermPricing';
 
 interface MyQuoteProps {
   title?: string;
@@ -71,6 +76,11 @@ interface MyQuoteProps {
 
   // Button state props
   isButtonDisabled?: boolean;
+  // Storage term
+  storageTerm?: StorageTerm | null;
+  planType?: string;
+  // Green date scheduling discount
+  hasGreenDateDiscount?: boolean;
 }
 
 const containerStyle = {
@@ -115,6 +125,9 @@ export function MyQuote({
 
   // Button state props
   isButtonDisabled = false,
+  storageTerm = null,
+  planType = '',
+  hasGreenDateDiscount = false,
 }: MyQuoteProps) {
   // Use custom hook for quote state management and calculations
   const {
@@ -136,15 +149,24 @@ export function MyQuote({
     onCalculateTotal,
     setMonthlyStorageRate,
     setMonthlyInsuranceRate,
+    storageTerm,
+    planType,
+    hasGreenDateDiscount,
   });
 
   // Get Boombox price for display
   const boomboxPrice = getBoomboxPriceByZipCode(zipCode);
 
+  const isDIY = planType === 'Do It Yourself Plan';
+  const units = storageUnitCount || 1;
+
+  const pickupFeeWaived = storageTerm
+    ? getStorageTermTier(storageTerm).pickupFeeWaived
+    : false;
+
   // Only include the processing fee in the displayed total on the confirm step
-  const displayTotal = currentStep >= 4
-    ? pricing.total
-    : pricing.total - pricing.processingFee;
+  const displayTotal =
+    currentStep >= 4 ? pricing.total : pricing.total - pricing.processingFee;
 
   // Determine the display title based on edit mode
   const displayTitle = useMemo(() => {
@@ -201,6 +223,7 @@ export function MyQuote({
       totalPrice: displayTotal,
       isAccessStorage,
       zipCode,
+      storageTerm,
     }),
     [
       address,
@@ -216,6 +239,7 @@ export function MyQuote({
       displayTotal,
       isAccessStorage,
       zipCode,
+      storageTerm,
     ]
   );
 
@@ -308,11 +332,33 @@ export function MyQuote({
             <p className="text-text-primary">
               {selectedPlanName || 'Loading Help'}
             </p>
-            <p className="text-text-primary">
-              <span className="text-text-tertiary text-xs mr-1">
-                {loadingHelpDescription}
-              </span>
-              {loadingHelpPrice || '--- '}
+            <p className="text-text-primary flex items-center gap-1">
+              {isDIY && storageTerm ? (
+                pickupFeeWaived ? (
+                  <>
+                    <span className="px-2.5 py-1 text-xs rounded-full bg-status-bg-success text-status-success font-medium">
+                      Free pickup
+                    </span>
+                    $0
+                  </>
+                ) : hasGreenDateDiscount ? (
+                  <>
+                    <span className="text-text-tertiary line-through text-xs mr-1">
+                      ${PICKUP_FEE_PER_UNIT * units}
+                    </span>
+                    ${pricing.pickupFee}
+                  </>
+                ) : (
+                  `$${PICKUP_FEE_PER_UNIT * units}`
+                )
+              ) : (
+                <>
+                  <span className="text-text-tertiary text-xs mr-1">
+                    {loadingHelpDescription}
+                  </span>
+                  {loadingHelpPrice || '--- '}
+                </>
+              )}
             </p>
           </div>
           {selectedInsurance && (
@@ -333,27 +379,29 @@ export function MyQuote({
             </div>
           )}
         </div>
-        
+
         <div className="flex justify-between mb-2">
           <p className="text-text-tertiary mr-1 text-sm">Due Today</p>
           <p className="text-text-tertiary mr-1 text-sm">$0</p>
         </div>
         {currentStep >= 4 && pricing.processingFee > 0 && (
-            <div className="flex justify-between mb-4">
-              <div className="flex items-center gap-1">
-                <p className="text-text-tertiary text-sm">{PROCESSING_FEE_LABEL}</p>
-                <Tooltip
-                  text="This fee covers taxes and fees related to payment processing"
-                  mobilePosition="right"
-                  iconSize="sm"
-                  className="text-text-tertiary"
-                />
-              </div>
-              <p className="text-text-tertiary text-sm mr-1">
-                ${pricing.processingFee.toFixed(2)}
+          <div className="flex justify-between mb-4">
+            <div className="flex items-center gap-1">
+              <p className="text-text-tertiary text-sm">
+                {PROCESSING_FEE_LABEL}
               </p>
+              <Tooltip
+                text="This fee covers taxes and fees related to payment processing"
+                mobilePosition="right"
+                iconSize="sm"
+                className="text-text-tertiary"
+              />
             </div>
-          )}
+            <p className="text-text-tertiary text-sm mr-1">
+              ${pricing.processingFee.toFixed(2)}
+            </p>
+          </div>
+        )}
         <div className="flex justify-between mb-8">
           <div className="flex items-center">
             <div>
@@ -550,11 +598,33 @@ export function MyQuote({
                   <p className="text-text-inverse">
                     {selectedPlanName || 'Loading Help'}
                   </p>
-                  <p className="text-text-inverse">
-                    <span className="text-text-secondary text-xs mr-1">
-                      {loadingHelpDescription}
-                    </span>
-                    {loadingHelpPrice || '---'}
+                  <p className="text-text-inverse flex items-center gap-1">
+                    {isDIY && storageTerm ? (
+                      pickupFeeWaived ? (
+                        <>
+                          <span className="px-2.5 py-1 text-xs rounded-full bg-status-bg-success text-status-success font-medium">
+                            Free pickup
+                          </span>
+                          $0
+                        </>
+                      ) : hasGreenDateDiscount ? (
+                        <>
+                          <span className="text-text-secondary line-through text-xs mr-1">
+                            ${PICKUP_FEE_PER_UNIT * units}
+                          </span>
+                          ${pricing.pickupFee}
+                        </>
+                      ) : (
+                        `$${PICKUP_FEE_PER_UNIT * units}`
+                      )
+                    ) : (
+                      <>
+                        <span className="text-text-secondary text-xs mr-1">
+                          {loadingHelpDescription}
+                        </span>
+                        {loadingHelpPrice || '---'}
+                      </>
+                    )}
                   </p>
                 </div>
                 {selectedInsurance && (
@@ -579,7 +649,9 @@ export function MyQuote({
                 {currentStep >= 4 && pricing.processingFee > 0 && (
                   <div className="flex justify-between mb-4">
                     <div className="flex items-center gap-1">
-                      <p className="text-text-inverse">{PROCESSING_FEE_LABEL}</p>
+                      <p className="text-text-inverse">
+                        {PROCESSING_FEE_LABEL}
+                      </p>
                       <Tooltip
                         text="This fee covers taxes and fees related to payment processing"
                         mobilePosition="right"

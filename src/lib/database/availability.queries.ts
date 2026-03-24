@@ -6,12 +6,12 @@
 
 import { prisma } from '@/lib/database/prismaClient';
 import { MovingPartnerStatus } from '@prisma/client';
-import { 
-  PlanType, 
-  PartnerWithAvailability, 
+import {
+  PlanType,
+  PartnerWithAvailability,
   DriverWithAvailability,
   ResourceAvailabilityData,
-  AvailabilityQueryFilters
+  AvailabilityQueryFilters,
 } from '@/types/availability.types';
 
 /**
@@ -26,21 +26,25 @@ export async function getBlockedUsersForDateRange(
     where: {
       blockedDate: {
         gte: startDate,
-        lt: endDate
-      }
+        lt: endDate,
+      },
     },
     select: {
       userId: true,
-      userType: true
-    }
+      userType: true,
+    },
   });
 
   const blockedMoverIds = new Set<number>(
-    blockedEntries.filter((b: { userType: string }) => b.userType === 'mover').map((b: { userId: number }) => b.userId)
+    blockedEntries
+      .filter((b: { userType: string }) => b.userType === 'mover')
+      .map((b: { userId: number }) => b.userId)
   );
-  
+
   const blockedDriverIds = new Set<number>(
-    blockedEntries.filter((b: { userType: string }) => b.userType === 'driver').map((b: { userId: number }) => b.userId)
+    blockedEntries
+      .filter((b: { userType: string }) => b.userType === 'driver')
+      .map((b: { userId: number }) => b.userId)
   );
 
   return { blockedMoverIds, blockedDriverIds };
@@ -55,7 +59,7 @@ export async function getAvailableMovingPartners(
   excludeBlockedIds: Set<number> = new Set()
 ): Promise<PartnerWithAvailability[]> {
   const excludeArray = Array.from(excludeBlockedIds);
-  
+
   return await prisma.movingPartner.findMany({
     where: {
       status: MovingPartnerStatus.ACTIVE,
@@ -64,18 +68,18 @@ export async function getAvailableMovingPartners(
         some: {
           dayOfWeek: { in: daysOfWeek },
           endTime: { gte: '08:00' }, // Business start hour
-          isBlocked: false
-        }
-      }
+          isBlocked: false,
+        },
+      },
     },
     include: {
       availability: {
         where: {
           dayOfWeek: { in: daysOfWeek },
-          isBlocked: false
-        }
-      }
-    }
+          isBlocked: false,
+        },
+      },
+    },
   });
 }
 
@@ -88,7 +92,7 @@ export async function getAvailableDrivers(
   excludeBlockedIds: Set<number> = new Set()
 ): Promise<DriverWithAvailability[]> {
   const excludeArray = Array.from(excludeBlockedIds);
-  
+
   return await prisma.driver.findMany({
     where: {
       status: 'Active',
@@ -97,18 +101,18 @@ export async function getAvailableDrivers(
         some: {
           dayOfWeek: { in: daysOfWeek },
           endTime: { gte: '08:00' }, // Business start hour
-          isBlocked: false
-        }
-      }
+          isBlocked: false,
+        },
+      },
     },
     include: {
       availability: {
         where: {
           dayOfWeek: { in: daysOfWeek },
-          isBlocked: false
-        }
-      }
-    }
+          isBlocked: false,
+        },
+      },
+    },
   });
 }
 
@@ -123,18 +127,23 @@ export async function getResourceAvailabilityForDays(
   endDate?: Date
 ): Promise<ResourceAvailabilityData> {
   // Get blocked users if date range provided
-  const { blockedMoverIds, blockedDriverIds } = startDate && endDate 
-    ? await getBlockedUsersForDateRange(startDate, endDate)
-    : { blockedMoverIds: new Set<number>(), blockedDriverIds: new Set<number>() };
+  const { blockedMoverIds, blockedDriverIds } =
+    startDate && endDate
+      ? await getBlockedUsersForDateRange(startDate, endDate)
+      : {
+          blockedMoverIds: new Set<number>(),
+          blockedDriverIds: new Set<number>(),
+        };
 
   // Get movers only if needed for FULL_SERVICE
-  const movers = planType === 'FULL_SERVICE' 
-    ? await getAvailableMovingPartners(daysOfWeek, blockedMoverIds)
-    : [];
+  const movers =
+    planType === 'FULL_SERVICE'
+      ? await getAvailableMovingPartners(daysOfWeek, blockedMoverIds)
+      : [];
 
   // Get drivers if needed
-  const driversNeeded = planType === 'DIY' || (planType === 'FULL_SERVICE');
-  const drivers = driversNeeded 
+  const driversNeeded = planType === 'DIY' || planType === 'FULL_SERVICE';
+  const drivers = driversNeeded
     ? await getAvailableDrivers(daysOfWeek, blockedDriverIds)
     : [];
 
@@ -142,7 +151,7 @@ export async function getResourceAvailabilityForDays(
     movers,
     drivers,
     blockedMoverIds,
-    blockedDriverIds
+    blockedDriverIds,
   };
 }
 
@@ -162,26 +171,31 @@ export async function getPartnerBookingConflicts(
   const bookings = await prisma.timeSlotBooking.findMany({
     where: {
       movingPartnerAvailability: {
-        movingPartnerId: { in: partnerIds }
+        movingPartnerId: { in: partnerIds },
       },
       bookingDate: {
         gte: dateStart,
-        lt: dateEnd
+        lt: dateEnd,
       },
       // Exclude the current appointment's booking when in edit mode
-      ...(excludeAppointmentId && { appointmentId: { not: excludeAppointmentId } })
+      ...(excludeAppointmentId && {
+        appointmentId: { not: excludeAppointmentId },
+      }),
     },
     select: {
       movingPartnerAvailability: {
-        select: { movingPartnerId: true }
+        select: { movingPartnerId: true },
       },
       bookingDate: true,
-      endDate: true
-    }
+      endDate: true,
+    },
   });
 
-  const conflictMap = new Map<number, Array<{ bookingDate: Date; endDate: Date }>>();
-  
+  const conflictMap = new Map<
+    number,
+    Array<{ bookingDate: Date; endDate: Date }>
+  >();
+
   for (const booking of bookings) {
     const partnerId = booking.movingPartnerAvailability.movingPartnerId;
     if (!conflictMap.has(partnerId)) {
@@ -189,7 +203,7 @@ export async function getPartnerBookingConflicts(
     }
     conflictMap.get(partnerId)!.push({
       bookingDate: booking.bookingDate,
-      endDate: booking.endDate
+      endDate: booking.endDate,
     });
   }
 
@@ -212,26 +226,31 @@ export async function getDriverBookingConflicts(
   const bookings = await prisma.driverTimeSlotBooking.findMany({
     where: {
       driverAvailability: {
-        driverId: { in: driverIds }
+        driverId: { in: driverIds },
       },
       bookingDate: {
         gte: dateStart,
-        lt: dateEnd
+        lt: dateEnd,
       },
       // Exclude the current appointment's booking when in edit mode
-      ...(excludeAppointmentId && { appointmentId: { not: excludeAppointmentId } })
+      ...(excludeAppointmentId && {
+        appointmentId: { not: excludeAppointmentId },
+      }),
     },
     select: {
       driverAvailability: {
-        select: { driverId: true }
+        select: { driverId: true },
       },
       bookingDate: true,
-      endDate: true
-    }
+      endDate: true,
+    },
   });
 
-  const conflictMap = new Map<number, Array<{ bookingDate: Date; endDate: Date }>>();
-  
+  const conflictMap = new Map<
+    number,
+    Array<{ bookingDate: Date; endDate: Date }>
+  >();
+
   for (const booking of bookings) {
     const driverId = booking.driverAvailability.driverId;
     if (!conflictMap.has(driverId)) {
@@ -239,7 +258,7 @@ export async function getDriverBookingConflicts(
     }
     conflictMap.get(driverId)!.push({
       bookingDate: booking.bookingDate,
-      endDate: booking.endDate
+      endDate: booking.endDate,
     });
   }
 
@@ -262,43 +281,55 @@ export async function getOnfleetTasksForDriversAndDate(
     where: {
       driverId: { in: driverIds },
       // Exclude tasks for the current appointment when in edit mode
-      ...(excludeAppointmentId && { appointmentId: { not: excludeAppointmentId } }),
+      ...(excludeAppointmentId && {
+        appointmentId: { not: excludeAppointmentId },
+      }),
       appointment: {
         date: {
           gte: new Date(`${dateString}T00:00:00.000Z`),
           lt: new Date(`${dateString}T23:59:59.999Z`),
         },
         NOT: {
-          status: { in: ['Completed', 'Canceled'] }
-        }
-      }
+          status: { in: ['Completed', 'Canceled'] },
+        },
+      },
     },
     select: {
       driverId: true,
       appointmentId: true,
       appointment: {
-        select: { time: true }
-      }
-    }
+        select: { time: true },
+      },
+    },
   });
 
   // Group tasks by driver, then by appointment (to avoid counting same appointment multiple times)
-  const appointmentsByDriver = allTasksForDay.reduce((acc: Record<number, Map<number, { appointment: { time: Date } }>>, task: any) => {
-    if (!task.driverId) return acc;
-    if (!acc[task.driverId]) {
-      acc[task.driverId] = new Map();
-    }
-    // Use appointmentId as key to deduplicate multiple tasks for same appointment
-    acc[task.driverId].set(task.appointmentId, { appointment: { time: task.appointment.time } });
-    return acc;
-  }, {} as Record<number, Map<number, { appointment: { time: Date } }>>);
+  const appointmentsByDriver = allTasksForDay.reduce(
+    (
+      acc: Record<number, Map<number, { appointment: { time: Date } }>>,
+      task: any
+    ) => {
+      if (!task.driverId) return acc;
+      if (!acc[task.driverId]) {
+        acc[task.driverId] = new Map();
+      }
+      // Use appointmentId as key to deduplicate multiple tasks for same appointment
+      acc[task.driverId].set(task.appointmentId, {
+        appointment: { time: task.appointment.time },
+      });
+      return acc;
+    },
+    {} as Record<number, Map<number, { appointment: { time: Date } }>>
+  );
 
   // Convert to the expected format
   return Object.fromEntries(
-    Object.entries(appointmentsByDriver).map(([driverId, appointmentMap]: [string, Map<number, { appointment: { time: Date } }>]) => [
-      parseInt(driverId), 
-      Array.from(appointmentMap.values())
-    ])
+    Object.entries(appointmentsByDriver).map(
+      ([driverId, appointmentMap]: [
+        string,
+        Map<number, { appointment: { time: Date } }>,
+      ]) => [parseInt(driverId), Array.from(appointmentMap.values())]
+    )
   );
 }
 
@@ -324,18 +355,20 @@ export async function getResourceCountsByDayOfWeek(
       by: ['id'],
       where: {
         status: MovingPartnerStatus.ACTIVE,
-        ...(excludeBlockedMoverIds.size > 0 && { id: { notIn: Array.from(excludeBlockedMoverIds) } }),
+        ...(excludeBlockedMoverIds.size > 0 && {
+          id: { notIn: Array.from(excludeBlockedMoverIds) },
+        }),
         availability: {
           some: {
             dayOfWeek: { in: daysOfWeek },
             endTime: { gte: '08:00' },
-            isBlocked: false
-          }
-        }
+            isBlocked: false,
+          },
+        },
       },
       _count: {
-        id: true
-      }
+        id: true,
+      },
     });
 
     // Initialize with 0 counts
@@ -348,22 +381,24 @@ export async function getResourceCountsByDayOfWeek(
       const availableForDay = await prisma.movingPartner.count({
         where: {
           status: MovingPartnerStatus.ACTIVE,
-          ...(excludeBlockedMoverIds.size > 0 && { id: { notIn: Array.from(excludeBlockedMoverIds) } }),
+          ...(excludeBlockedMoverIds.size > 0 && {
+            id: { notIn: Array.from(excludeBlockedMoverIds) },
+          }),
           availability: {
             some: {
               dayOfWeek: day,
               endTime: { gte: '08:00' },
-              isBlocked: false
-            }
-          }
-        }
+              isBlocked: false,
+            },
+          },
+        },
       });
       moversByDay[day] = availableForDay;
     }
   }
 
   // Get driver counts if needed
-  const driversNeeded = planType === 'DIY' || (planType === 'FULL_SERVICE');
+  const driversNeeded = planType === 'DIY' || planType === 'FULL_SERVICE';
   if (driversNeeded) {
     // Initialize with 0 counts
     daysOfWeek.forEach(day => {
@@ -375,15 +410,17 @@ export async function getResourceCountsByDayOfWeek(
       const availableForDay = await prisma.driver.count({
         where: {
           status: 'Active',
-          ...(excludeBlockedDriverIds.size > 0 && { id: { notIn: Array.from(excludeBlockedDriverIds) } }),
+          ...(excludeBlockedDriverIds.size > 0 && {
+            id: { notIn: Array.from(excludeBlockedDriverIds) },
+          }),
           availability: {
             some: {
               dayOfWeek: day,
               endTime: { gte: '08:00' },
-              isBlocked: false
-            }
-          }
-        }
+              isBlocked: false,
+            },
+          },
+        },
       });
       driversByDay[day] = availableForDay;
     }
@@ -403,8 +440,14 @@ export async function getDateSpecificAvailabilityData(
   excludeAppointmentId?: number
 ): Promise<{
   resourceData: ResourceAvailabilityData;
-  partnerBookingConflicts: Map<number, Array<{ bookingDate: Date; endDate: Date }>>;
-  driverBookingConflicts: Map<number, Array<{ bookingDate: Date; endDate: Date }>>;
+  partnerBookingConflicts: Map<
+    number,
+    Array<{ bookingDate: Date; endDate: Date }>
+  >;
+  driverBookingConflicts: Map<
+    number,
+    Array<{ bookingDate: Date; endDate: Date }>
+  >;
   onfleetTasks: Record<number, Array<{ appointment: { time: Date } }>>;
 }> {
   const dateStart = new Date(`${date}T00:00:00.000Z`);
@@ -420,16 +463,58 @@ export async function getDateSpecificAvailabilityData(
 
   // Get all conflict data in parallel
   // Pass excludeAppointmentId to skip the current appointment's booking/tasks in edit mode
-  const [partnerBookingConflicts, driverBookingConflicts, onfleetTasks] = await Promise.all([
-    getPartnerBookingConflicts(resourceData.movers.map(m => m.id), dateStart, dateEnd, excludeAppointmentId),
-    getDriverBookingConflicts(resourceData.drivers.map(d => d.id), dateStart, dateEnd, excludeAppointmentId),
-    getOnfleetTasksForDriversAndDate(resourceData.drivers.map(d => d.id), date, excludeAppointmentId)
-  ]);
+  const [partnerBookingConflicts, driverBookingConflicts, onfleetTasks] =
+    await Promise.all([
+      getPartnerBookingConflicts(
+        resourceData.movers.map(m => m.id),
+        dateStart,
+        dateEnd,
+        excludeAppointmentId
+      ),
+      getDriverBookingConflicts(
+        resourceData.drivers.map(d => d.id),
+        dateStart,
+        dateEnd,
+        excludeAppointmentId
+      ),
+      getOnfleetTasksForDriversAndDate(
+        resourceData.drivers.map(d => d.id),
+        date,
+        excludeAppointmentId
+      ),
+    ]);
 
   return {
     resourceData,
     partnerBookingConflicts,
     driverBookingConflicts,
-    onfleetTasks
+    onfleetTasks,
   };
-} 
+}
+
+/**
+ * Count active (non-cancelled/completed) appointments per date for a given month.
+ * Returns a map of YYYY-MM-DD date strings to booking counts.
+ */
+export async function getAppointmentCountsByMonth(
+  year: number,
+  month: number
+): Promise<Record<string, number>> {
+  const monthStart = new Date(Date.UTC(year, month - 1, 1));
+  const monthEnd = new Date(Date.UTC(year, month, 1));
+
+  const appointments = await prisma.appointment.findMany({
+    where: {
+      date: { gte: monthStart, lt: monthEnd },
+      NOT: { status: { in: ['Canceled', 'Cancelled', 'Completed'] } },
+    },
+    select: { date: true },
+  });
+
+  const counts: Record<string, number> = {};
+  for (const appt of appointments) {
+    const dateKey = appt.date.toISOString().split('T')[0];
+    counts[dateKey] = (counts[dateKey] || 0) + 1;
+  }
+  return counts;
+}

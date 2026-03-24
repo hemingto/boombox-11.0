@@ -1,7 +1,7 @@
 /**
  * @fileoverview Jest tests for addStorageService
  * @source boombox-11.0/src/lib/services/addStorageService.ts
- * 
+ *
  * TEST COVERAGE:
  * - Service initialization and configuration
  * - Form submission with validation and transformation
@@ -13,24 +13,27 @@
  * - Validation error processing
  * - Service utility functions and helpers
  * - Edge cases and error conditions
- * 
+ *
  * @refactor Comprehensive tests for the Add Storage service layer
  */
 
 import {
   submitAddStorageAppointment,
   validateAddStorageSubmission,
-  transformAddStorageFormData
+  transformAddStorageFormData,
 } from '@/lib/services/addStorageService';
 import {
   AddStorageSubmissionPayload,
   AddStorageFormState,
-  PlanType
+  PlanType,
 } from '@/types/addStorage.types';
 import { InsuranceOption } from '@/types/insurance';
 
 // Helper function to create mock response with headers
-const createMockResponse = (data: any, options: { ok?: boolean; status?: number; statusText?: string } = {}) => ({
+const createMockResponse = (
+  data: any,
+  options: { ok?: boolean; status?: number; statusText?: string } = {}
+) => ({
   ok: options.ok ?? true,
   status: options.status ?? 200,
   statusText: options.statusText ?? 'OK',
@@ -47,7 +50,7 @@ global.fetch = mockFetch;
 const consoleSpy = {
   log: jest.spyOn(console, 'log').mockImplementation(),
   error: jest.spyOn(console, 'error').mockImplementation(),
-  warn: jest.spyOn(console, 'warn').mockImplementation()
+  warn: jest.spyOn(console, 'warn').mockImplementation(),
 };
 
 // Sample submission data for testing
@@ -60,7 +63,7 @@ const mockSubmissionData: AddStorageSubmissionPayload = {
     label: 'Basic Coverage',
     price: '$15',
     value: 'basic',
-    description: '$1000 coverage'
+    description: '$1000 coverage',
   } as InsuranceOption,
   appointmentDateTime: '2024-12-01T10:00:00Z',
   planType: 'DIY',
@@ -69,9 +72,14 @@ const mockSubmissionData: AddStorageSubmissionPayload = {
   monthlyStorageRate: 89,
   monthlyInsuranceRate: 15,
   calculatedTotal: 104,
+  storageTerm: null,
+  pickupFee: null,
+  returnFee: null,
+  pickupFeeWaived: false,
+  returnFeeWaived: false,
   appointmentType: 'Additional Storage',
   movingPartnerId: null,
-  thirdPartyMovingPartnerId: null
+  thirdPartyMovingPartnerId: null,
 };
 
 const mockFullServiceSubmissionData: AddStorageSubmissionPayload = {
@@ -80,7 +88,7 @@ const mockFullServiceSubmissionData: AddStorageSubmissionPayload = {
   parsedLoadingHelpPrice: 189,
   calculatedTotal: 293, // Updated total with labor cost
   movingPartnerId: 1,
-  description: 'Full service with professional movers'
+  description: 'Full service with professional movers',
 };
 
 describe('addStorageService', () => {
@@ -107,50 +115,61 @@ describe('addStorageService', () => {
           data: {
             appointmentId: 'apt-123',
             scheduledDate: '2024-12-01T10:00:00Z',
-            estimatedTotal: 104
-          }
+            estimatedTotal: 104,
+          },
         };
 
         const expectedResult = {
           appointmentId: 'apt-123',
           scheduledDate: '2024-12-01T10:00:00Z',
-          estimatedTotal: 104
+          estimatedTotal: 104,
         };
 
         mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
         const result = await submitAddStorageAppointment(mockSubmissionData);
 
-        expect(mockFetch).toHaveBeenCalledWith('/api/orders/add-additional-storage', expect.objectContaining({
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(mockSubmissionData)
-        }));
+        expect(mockFetch).toHaveBeenCalledWith(
+          '/api/orders/add-additional-storage',
+          expect.objectContaining({
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(mockSubmissionData),
+          })
+        );
 
         expect(result).toEqual(expectedResult);
-        expect(consoleSpy.log).toHaveBeenCalledWith('Add Storage appointment submitted successfully:', 'apt-123');
+        expect(consoleSpy.log).toHaveBeenCalledWith(
+          'Add Storage appointment submitted successfully:',
+          'apt-123'
+        );
       });
 
       it('submits Full Service appointment successfully', async () => {
         const mockResponse = {
           success: true,
           appointmentId: 'apt-456',
-          message: 'Full Service appointment created successfully'
+          message: 'Full Service appointment created successfully',
         };
 
         mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
-        const result = await submitAddStorageAppointment(mockFullServiceSubmissionData);
+        const result = await submitAddStorageAppointment(
+          mockFullServiceSubmissionData
+        );
 
-        expect(mockFetch).toHaveBeenCalledWith('/api/orders/add-additional-storage', expect.objectContaining({
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(mockFullServiceSubmissionData)
-        }));
+        expect(mockFetch).toHaveBeenCalledWith(
+          '/api/orders/add-additional-storage',
+          expect.objectContaining({
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(mockFullServiceSubmissionData),
+          })
+        );
 
         expect(result).toEqual(mockResponse);
       });
@@ -159,13 +178,13 @@ describe('addStorageService', () => {
         const minimalData = {
           ...mockSubmissionData,
           selectedInsurance: null,
-          description: ''
+          description: '',
         };
 
         const mockResponse = {
           success: true,
           appointmentId: 'apt-minimal',
-          message: 'Minimal appointment created'
+          message: 'Minimal appointment created',
         };
 
         mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
@@ -173,13 +192,16 @@ describe('addStorageService', () => {
         const result = await submitAddStorageAppointment(minimalData);
 
         expect(result).toEqual(mockResponse);
-        expect(mockFetch).toHaveBeenCalledWith('/api/orders/add-additional-storage', expect.objectContaining({
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(minimalData)
-        }));
+        expect(mockFetch).toHaveBeenCalledWith(
+          '/api/orders/add-additional-storage',
+          expect.objectContaining({
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(minimalData),
+          })
+        );
       });
     });
 
@@ -189,67 +211,91 @@ describe('addStorageService', () => {
           success: false,
           error: 'Invalid appointment date',
           validationErrors: {
-            scheduledDate: 'Date must be in the future'
-          }
+            scheduledDate: 'Date must be in the future',
+          },
         };
 
         mockFetch.mockResolvedValueOnce(
-          createMockResponse(errorResponse, { ok: false, status: 400, statusText: 'Bad Request' })
+          createMockResponse(errorResponse, {
+            ok: false,
+            status: 400,
+            statusText: 'Bad Request',
+          })
         );
 
-        await expect(submitAddStorageAppointment(mockSubmissionData))
-          .rejects.toThrow('HTTP 400: Bad Request');
+        await expect(
+          submitAddStorageAppointment(mockSubmissionData)
+        ).rejects.toThrow('HTTP 400: Bad Request');
       });
 
       it('handles 401 Unauthorized errors', async () => {
         const errorResponse = {
           success: false,
-          error: 'Unauthorized access'
+          error: 'Unauthorized access',
         };
 
         mockFetch.mockResolvedValueOnce(
-          createMockResponse(errorResponse, { ok: false, status: 401, statusText: 'Unauthorized' })
+          createMockResponse(errorResponse, {
+            ok: false,
+            status: 401,
+            statusText: 'Unauthorized',
+          })
         );
 
-        await expect(submitAddStorageAppointment(mockSubmissionData))
-          .rejects.toThrow('HTTP 401: Unauthorized');
+        await expect(
+          submitAddStorageAppointment(mockSubmissionData)
+        ).rejects.toThrow('HTTP 401: Unauthorized');
       });
 
       it('handles 409 Conflict errors', async () => {
         const errorResponse = {
           success: false,
-          error: 'Time slot no longer available'
+          error: 'Time slot no longer available',
         };
 
         mockFetch.mockResolvedValueOnce(
-          createMockResponse(errorResponse, { ok: false, status: 409, statusText: 'Conflict' })
+          createMockResponse(errorResponse, {
+            ok: false,
+            status: 409,
+            statusText: 'Conflict',
+          })
         );
 
-        await expect(submitAddStorageAppointment(mockSubmissionData))
-          .rejects.toThrow('HTTP 409: Conflict');
+        await expect(
+          submitAddStorageAppointment(mockSubmissionData)
+        ).rejects.toThrow('HTTP 409: Conflict');
       });
 
       it('handles 500 Internal Server Error', async () => {
         const errorResponse = {
           success: false,
-          error: 'Internal server error'
+          error: 'Internal server error',
         };
 
         mockFetch.mockResolvedValueOnce(
-          createMockResponse(errorResponse, { ok: false, status: 500, statusText: 'Internal Server Error' })
+          createMockResponse(errorResponse, {
+            ok: false,
+            status: 500,
+            statusText: 'Internal Server Error',
+          })
         );
 
-        await expect(submitAddStorageAppointment(mockSubmissionData))
-          .rejects.toThrow('HTTP 500: Internal Server Error');
+        await expect(
+          submitAddStorageAppointment(mockSubmissionData)
+        ).rejects.toThrow('HTTP 500: Internal Server Error');
       });
 
       it('handles generic HTTP errors without error message', async () => {
         mockFetch.mockResolvedValueOnce(
-          createMockResponse({}, { ok: false, status: 503, statusText: 'Service Unavailable' })
+          createMockResponse(
+            {},
+            { ok: false, status: 503, statusText: 'Service Unavailable' }
+          )
         );
 
-        await expect(submitAddStorageAppointment(mockSubmissionData))
-          .rejects.toThrow('HTTP 503: Service Unavailable');
+        await expect(
+          submitAddStorageAppointment(mockSubmissionData)
+        ).rejects.toThrow('HTTP 503: Service Unavailable');
       });
     });
 
@@ -259,8 +305,9 @@ describe('addStorageService', () => {
         networkError.name = 'NetworkError';
         mockFetch.mockRejectedValueOnce(networkError);
 
-        await expect(submitAddStorageAppointment(mockSubmissionData))
-          .rejects.toThrow('Failed to connect to server');
+        await expect(
+          submitAddStorageAppointment(mockSubmissionData)
+        ).rejects.toThrow('Failed to connect to server');
       });
 
       it('handles timeout errors', async () => {
@@ -268,8 +315,9 @@ describe('addStorageService', () => {
         timeoutError.name = 'TimeoutError';
         mockFetch.mockRejectedValueOnce(timeoutError);
 
-        await expect(submitAddStorageAppointment(mockSubmissionData))
-          .rejects.toThrow('Failed to connect to server');
+        await expect(
+          submitAddStorageAppointment(mockSubmissionData)
+        ).rejects.toThrow('Failed to connect to server');
       });
 
       it('handles AbortError (request cancelled)', async () => {
@@ -277,16 +325,18 @@ describe('addStorageService', () => {
         abortError.name = 'AbortError';
         mockFetch.mockRejectedValueOnce(abortError);
 
-        await expect(submitAddStorageAppointment(mockSubmissionData))
-          .rejects.toThrow('Request timed out');
+        await expect(
+          submitAddStorageAppointment(mockSubmissionData)
+        ).rejects.toThrow('Request timed out');
       });
 
       it('handles generic fetch errors', async () => {
         const genericError = new Error('Something went wrong');
         mockFetch.mockRejectedValueOnce(genericError);
 
-        await expect(submitAddStorageAppointment(mockSubmissionData))
-          .rejects.toThrow('Failed to connect to server');
+        await expect(
+          submitAddStorageAppointment(mockSubmissionData)
+        ).rejects.toThrow('Failed to connect to server');
       });
     });
 
@@ -298,24 +348,26 @@ describe('addStorageService', () => {
           json: async () => {
             throw new Error('Invalid JSON');
           },
-          text: async () => 'Invalid response format'
+          text: async () => 'Invalid response format',
         });
 
-        await expect(submitAddStorageAppointment(mockSubmissionData))
-          .rejects.toThrow('Failed to connect to server');
+        await expect(
+          submitAddStorageAppointment(mockSubmissionData)
+        ).rejects.toThrow('Failed to connect to server');
       });
 
       it('handles empty responses', async () => {
         mockFetch.mockResolvedValueOnce(createMockResponse(null));
 
-        await expect(submitAddStorageAppointment(mockSubmissionData))
-          .rejects.toThrow('Failed to connect to server');
+        await expect(
+          submitAddStorageAppointment(mockSubmissionData)
+        ).rejects.toThrow('Failed to connect to server');
       });
 
       it('handles responses with minimal fields', async () => {
         const minimalResponse = {
           // Only appointmentId, no success field
-          appointmentId: 'apt-123'
+          appointmentId: 'apt-123',
         };
 
         mockFetch.mockResolvedValueOnce(createMockResponse(minimalResponse));
@@ -332,8 +384,9 @@ describe('addStorageService', () => {
           userId: '', // Missing required field
         };
 
-        await expect(submitAddStorageAppointment(invalidData))
-          .rejects.toThrow('User ID is required');
+        await expect(submitAddStorageAppointment(invalidData)).rejects.toThrow(
+          'User ID is required'
+        );
 
         expect(mockFetch).not.toHaveBeenCalled();
       });
@@ -344,8 +397,9 @@ describe('addStorageService', () => {
           address: '', // Missing required field
         };
 
-        await expect(submitAddStorageAppointment(invalidData))
-          .rejects.toThrow('Address is required');
+        await expect(submitAddStorageAppointment(invalidData)).rejects.toThrow(
+          'Address is required'
+        );
       });
 
       it('validates scheduling information', async () => {
@@ -354,8 +408,9 @@ describe('addStorageService', () => {
           scheduledDate: null as any, // Missing required field
         };
 
-        await expect(submitAddStorageAppointment(invalidData))
-          .rejects.toThrow('Failed to connect to server');
+        await expect(submitAddStorageAppointment(invalidData)).rejects.toThrow(
+          'Failed to connect to server'
+        );
       });
 
       it('validates labor selection for Full Service plans', async () => {
@@ -364,62 +419,76 @@ describe('addStorageService', () => {
           selectedLabor: null, // Missing labor for Full Service
         };
 
-        await expect(submitAddStorageAppointment(invalidData))
-          .rejects.toThrow('Failed to connect to server');
+        await expect(submitAddStorageAppointment(invalidData)).rejects.toThrow(
+          'Failed to connect to server'
+        );
       });
     });
   });
 
   describe('validateAddStorageSubmission', () => {
     it('validates complete submission data successfully', () => {
-      expect(() => validateAddStorageSubmission(mockSubmissionData)).not.toThrow();
+      expect(() =>
+        validateAddStorageSubmission(mockSubmissionData)
+      ).not.toThrow();
     });
 
     it('validates Full Service submission data successfully', () => {
-      expect(() => validateAddStorageSubmission(mockFullServiceSubmissionData)).not.toThrow();
+      expect(() =>
+        validateAddStorageSubmission(mockFullServiceSubmissionData)
+      ).not.toThrow();
     });
 
     it('throws error for missing user ID', () => {
       const invalidData = { ...mockSubmissionData, userId: '' };
-      expect(() => validateAddStorageSubmission(invalidData))
-        .toThrow('User ID is required');
+      expect(() => validateAddStorageSubmission(invalidData)).toThrow(
+        'User ID is required'
+      );
     });
 
     it('throws error for missing address', () => {
       const invalidData = { ...mockSubmissionData, address: '' };
-      expect(() => validateAddStorageSubmission(invalidData))
-        .toThrow('Address is required');
+      expect(() => validateAddStorageSubmission(invalidData)).toThrow(
+        'Address is required'
+      );
     });
 
     it('throws error for missing zip code', () => {
       const invalidData = { ...mockSubmissionData, zipCode: '' };
-      expect(() => validateAddStorageSubmission(invalidData))
-        .toThrow('Valid zip code required');
+      expect(() => validateAddStorageSubmission(invalidData)).toThrow(
+        'Valid zip code required'
+      );
     });
 
     it('throws error for invalid storage unit count', () => {
       const invalidData = { ...mockSubmissionData, storageUnitCount: 0 };
-      expect(() => validateAddStorageSubmission(invalidData))
-        .toThrow('Number must be greater than or equal to 1');
+      expect(() => validateAddStorageSubmission(invalidData)).toThrow(
+        'Number must be greater than or equal to 1'
+      );
     });
 
     it('throws error for missing plan type', () => {
       const invalidData = { ...mockSubmissionData, planType: '' };
-      expect(() => validateAddStorageSubmission(invalidData))
-        .toThrow('Plan type is required');
+      expect(() => validateAddStorageSubmission(invalidData)).toThrow(
+        'Plan type is required'
+      );
     });
 
     it('throws error for invalid appointment date time', () => {
-      const invalidData = { ...mockSubmissionData, appointmentDateTime: 'invalid-date' };
-      expect(() => validateAddStorageSubmission(invalidData))
-        .toThrow('Invalid appointment date time');
+      const invalidData = {
+        ...mockSubmissionData,
+        appointmentDateTime: 'invalid-date',
+      };
+      expect(() => validateAddStorageSubmission(invalidData)).toThrow(
+        'Invalid appointment date time'
+      );
     });
 
     it('allows null labor for DIY plans', () => {
-      const validData = { 
-        ...mockSubmissionData, 
+      const validData = {
+        ...mockSubmissionData,
         planType: PlanType.DIY,
-        selectedLabor: null 
+        selectedLabor: null,
       };
       expect(() => validateAddStorageSubmission(validData)).not.toThrow();
     });
@@ -440,12 +509,12 @@ describe('addStorageService', () => {
       addressInfo: {
         address: '123 Test St',
         zipCode: '12345',
-        coordinates: { lat: 40.7128, lng: -74.0060 },
-        cityName: 'New York'
+        coordinates: { lat: 40.7128, lng: -74.006 },
+        cityName: 'New York',
       },
       storageUnit: {
         count: 2,
-        text: '2 storage units'
+        text: '2 storage units',
       },
       selectedPlan: 'option1',
       selectedPlanName: 'Do It Yourself Plan',
@@ -456,11 +525,11 @@ describe('addStorageService', () => {
         value: 'basic',
         name: 'Basic Coverage',
         price: 15,
-        coverage: '$1000'
+        coverage: '$1000',
       },
       scheduling: {
         scheduledDate: new Date('2024-12-01T10:00:00Z'),
-        scheduledTimeSlot: '10:00 AM - 12:00 PM'
+        scheduledTimeSlot: '10:00 AM - 12:00 PM',
       },
       pricing: {
         loadingHelpPrice: '0',
@@ -468,11 +537,11 @@ describe('addStorageService', () => {
         parsedLoadingHelpPrice: 0,
         monthlyStorageRate: 89,
         monthlyInsuranceRate: 15,
-        calculatedTotal: 104
+        calculatedTotal: 104,
       },
       description: 'Test description',
       isPlanDetailsVisible: false,
-      contentHeight: 0
+      contentHeight: 0,
     };
 
     it('transforms form state to submission data correctly', () => {
@@ -488,7 +557,7 @@ describe('addStorageService', () => {
           value: 'basic',
           name: 'Basic Coverage',
           price: 15,
-          coverage: '$1000'
+          coverage: '$1000',
         },
         appointmentDateTime: '2024-12-01T10:00:00.000Z',
         planType: PlanType.DIY,
@@ -499,7 +568,7 @@ describe('addStorageService', () => {
         calculatedTotal: 104,
         appointmentType: 'Additional Storage',
         movingPartnerId: null,
-        thirdPartyMovingPartnerId: null
+        thirdPartyMovingPartnerId: null,
       });
     });
 
@@ -511,13 +580,16 @@ describe('addStorageService', () => {
           id: 'labor-1',
           price: '$189',
           title: 'Professional Movers',
-          onfleetTeamId: 'team-123'
+          onfleetTeamId: 'team-123',
         },
         movingPartnerId: 123,
-        thirdPartyMovingPartnerId: 456
+        thirdPartyMovingPartnerId: 456,
       };
 
-      const result = transformAddStorageFormData(fullServiceFormState, 'user-456');
+      const result = transformAddStorageFormData(
+        fullServiceFormState,
+        'user-456'
+      );
 
       expect(result.planType).toBe(PlanType.FULL_SERVICE);
       expect(result.userId).toBe('user-456');
@@ -529,10 +601,13 @@ describe('addStorageService', () => {
     it('handles null insurance correctly', () => {
       const formStateWithoutInsurance = {
         ...mockFormState,
-        selectedInsurance: null
+        selectedInsurance: null,
       };
 
-      const result = transformAddStorageFormData(formStateWithoutInsurance, 'user-123');
+      const result = transformAddStorageFormData(
+        formStateWithoutInsurance,
+        'user-123'
+      );
 
       expect(result.selectedInsurance).toBeNull();
     });
@@ -540,10 +615,13 @@ describe('addStorageService', () => {
     it('handles empty description correctly', () => {
       const formStateWithoutDescription = {
         ...mockFormState,
-        description: ''
+        description: '',
       };
 
-      const result = transformAddStorageFormData(formStateWithoutDescription, 'user-123');
+      const result = transformAddStorageFormData(
+        formStateWithoutDescription,
+        'user-123'
+      );
 
       expect(result.description).toBe('No added info');
     });
@@ -558,20 +636,23 @@ describe('addStorageService', () => {
 
   describe('Edge Cases and Error Conditions', () => {
     it('handles undefined submission data', async () => {
-      await expect(submitAddStorageAppointment(undefined as any))
-        .rejects.toThrow('Validation failed: Required');
+      await expect(
+        submitAddStorageAppointment(undefined as any)
+      ).rejects.toThrow('Validation failed: Required');
     });
 
     it('handles null submission data', async () => {
-      await expect(submitAddStorageAppointment(null as any))
-        .rejects.toThrow('Validation failed: Expected object, received null');
+      await expect(submitAddStorageAppointment(null as any)).rejects.toThrow(
+        'Validation failed: Expected object, received null'
+      );
     });
 
     it('handles fetch throwing non-Error objects', async () => {
       mockFetch.mockRejectedValueOnce('String error');
 
-      await expect(submitAddStorageAppointment(mockSubmissionData))
-        .rejects.toThrow('Failed to connect to server');
+      await expect(
+        submitAddStorageAppointment(mockSubmissionData)
+      ).rejects.toThrow('Failed to connect to server');
     });
 
     it('handles response with missing headers', async () => {
@@ -579,7 +660,7 @@ describe('addStorageService', () => {
         ok: true,
         status: 200,
         json: async () => ({ success: true, appointmentId: 'apt-123' }),
-        headers: new Map()
+        headers: new Map(),
       };
 
       mockFetch.mockResolvedValueOnce(responseWithoutHeaders);
@@ -594,7 +675,7 @@ describe('addStorageService', () => {
       const mockResponse = {
         success: true,
         appointmentId: 'apt-performance',
-        message: 'Success'
+        message: 'Success',
       };
 
       mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
@@ -610,15 +691,16 @@ describe('addStorageService', () => {
     it('logs error details for failed submissions', async () => {
       const errorResponse = {
         success: false,
-        error: 'Test error'
+        error: 'Test error',
       };
 
       mockFetch.mockResolvedValueOnce(
         createMockResponse(errorResponse, { ok: false, status: 400 })
       );
 
-      await expect(submitAddStorageAppointment(mockSubmissionData))
-        .rejects.toThrow('HTTP 400: OK');
+      await expect(
+        submitAddStorageAppointment(mockSubmissionData)
+      ).rejects.toThrow('HTTP 400: OK');
     });
   });
 });

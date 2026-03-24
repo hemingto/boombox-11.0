@@ -1,16 +1,16 @@
 /**
  * @fileoverview Stripe customer management service
  * @source boombox-11.0/src/app/api/onfleet/webhook/route.ts (extracted from webhook)
- * 
+ *
  * SERVICE FUNCTIONALITY:
  * Centralized service for Stripe customer operations including validation,
  * subscription retrieval, and customer-related utilities
- * 
+ *
  * USED BY:
  * - Onfleet webhook processing for payment validation
  * - Payment API routes for customer verification
  * - Subscription management workflows
- * 
+ *
  * @refactor Extracted from inline webhook code for better maintainability
  */
 
@@ -24,6 +24,10 @@ export interface CustomerValidationResult {
   error?: string;
 }
 
+/**
+ * @deprecated Replaced by term-based early termination logic in BillingCalculator.
+ * Use BillingCalculator.calculateEarlyTerminationFee() with StorageTerm instead.
+ */
 export interface StoragePeriodInfo {
   startDate: Date;
   daysInStorage: number;
@@ -37,27 +41,29 @@ export class StripeCustomerService {
   /**
    * Validate that a customer exists and has a valid Stripe customer ID
    */
-  static async validateCustomer(customerId: string): Promise<CustomerValidationResult> {
+  static async validateCustomer(
+    customerId: string
+  ): Promise<CustomerValidationResult> {
     try {
       if (!customerId) {
         return { isValid: false, error: 'No customer ID provided' };
       }
 
       const customer = await stripe.customers.retrieve(customerId);
-      
+
       if (customer.deleted) {
         return { isValid: false, error: 'Customer has been deleted' };
       }
 
-      return { 
-        isValid: true, 
-        customer: customer as Stripe.Customer 
+      return {
+        isValid: true,
+        customer: customer as Stripe.Customer,
       };
     } catch (error) {
       console.error('Error validating Stripe customer:', error);
-      return { 
-        isValid: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      return {
+        isValid: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
@@ -65,11 +71,13 @@ export class StripeCustomerService {
   /**
    * Get all active subscriptions for a customer
    */
-  static async getCustomerSubscriptions(customerId: string): Promise<Stripe.Subscription[]> {
+  static async getCustomerSubscriptions(
+    customerId: string
+  ): Promise<Stripe.Subscription[]> {
     try {
       const subscriptions = await stripe.subscriptions.list({
         customer: customerId,
-        status: 'all' // Include trial subscriptions
+        status: 'all', // Include trial subscriptions
       });
 
       return subscriptions.data;
@@ -80,30 +88,34 @@ export class StripeCustomerService {
   }
 
   /**
-   * Calculate storage period information for early termination logic
+   * @deprecated Replaced by term-based early termination logic in BillingCalculator.
+   * Use BillingCalculator.calculateEarlyTerminationFee() with StorageTerm instead.
    */
   static calculateStoragePeriod(storageStartDate: Date): StoragePeriodInfo {
     const currentDate = new Date();
     const daysInStorage = Math.floor(
-      (currentDate.getTime() - storageStartDate.getTime()) / (1000 * 60 * 60 * 24)
+      (currentDate.getTime() - storageStartDate.getTime()) /
+        (1000 * 60 * 60 * 24)
     );
 
     return {
       startDate: storageStartDate,
       daysInStorage,
       minimumDays: this.MINIMUM_STORAGE_DAYS,
-      isEarlyTermination: daysInStorage < this.MINIMUM_STORAGE_DAYS
+      isEarlyTermination: daysInStorage < this.MINIMUM_STORAGE_DAYS,
     };
   }
 
   /**
    * Get customer payment methods
    */
-  static async getCustomerPaymentMethods(customerId: string): Promise<Stripe.PaymentMethod[]> {
+  static async getCustomerPaymentMethods(
+    customerId: string
+  ): Promise<Stripe.PaymentMethod[]> {
     try {
       const paymentMethods = await stripe.paymentMethods.list({
         customer: customerId,
-        type: 'card'
+        type: 'card',
       });
 
       return paymentMethods.data;
@@ -119,15 +131,16 @@ export class StripeCustomerService {
   static async hasDefaultPaymentMethod(customerId: string): Promise<boolean> {
     try {
       const customer = await stripe.customers.retrieve(customerId);
-      
+
       if (customer.deleted) {
         return false;
       }
 
-      return !!(customer as Stripe.Customer).invoice_settings?.default_payment_method;
+      return !!(customer as Stripe.Customer).invoice_settings
+        ?.default_payment_method;
     } catch (error) {
       console.error('Error checking default payment method:', error);
       return false;
     }
   }
-} 
+}

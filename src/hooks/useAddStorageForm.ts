@@ -37,14 +37,16 @@ interface UseAddStorageFormParams {
   onSubmissionSuccess?: (appointmentId: number) => void;
 }
 
-export function useAddStorageForm(params: UseAddStorageFormParams = {}): UseAddStorageFormReturn {
-  const { 
-    initialStorageUnitCount = 1, 
-    initialZipCode = '', 
-    onStepChange, 
-    onSubmissionSuccess 
+export function useAddStorageForm(
+  params: UseAddStorageFormParams = {}
+): UseAddStorageFormReturn {
+  const {
+    initialStorageUnitCount = 1,
+    initialZipCode = '',
+    onStepChange,
+    onSubmissionSuccess,
   } = params;
-  
+
   const router = useRouter();
   const { data: session } = useSession();
   const userId = session?.user?.id;
@@ -62,8 +64,10 @@ export function useAddStorageForm(params: UseAddStorageFormParams = {}): UseAddS
     },
   });
 
-  const [errors, setErrors] = useState<AddStorageFormErrors>(DEFAULT_ADD_STORAGE_FORM_ERRORS);
-  
+  const [errors, setErrors] = useState<AddStorageFormErrors>(
+    DEFAULT_ADD_STORAGE_FORM_ERRORS
+  );
+
   // Content ref for plan details animation
   const contentRef = useRef<HTMLDivElement>(null!);
 
@@ -96,9 +100,12 @@ export function useAddStorageForm(params: UseAddStorageFormParams = {}): UseAddS
   /**
    * Update form state with partial updates
    */
-  const updateFormState = useCallback((updates: Partial<AddStorageFormState>) => {
-    setFormState(prev => ({ ...prev, ...updates }));
-  }, []);
+  const updateFormState = useCallback(
+    (updates: Partial<AddStorageFormState>) => {
+      setFormState(prev => ({ ...prev, ...updates }));
+    },
+    []
+  );
 
   /**
    * Update address information
@@ -124,89 +131,106 @@ export function useAddStorageForm(params: UseAddStorageFormParams = {}): UseAddS
   /**
    * Update plan selection with comprehensive state updates
    */
-  const updatePlanSelection = useCallback((planId: string, planName: string, planType: string) => {
-    const updates: Partial<AddStorageFormState> = {
-      selectedPlan: planId,
-      selectedPlanName: planName,
-      planType: planType as PlanType,
-    };
+  const updatePlanSelection = useCallback(
+    (planId: string, planName: string, planType: string) => {
+      const updates: Partial<AddStorageFormState> = {
+        selectedPlan: planId,
+        selectedPlanName: planName,
+        planType: planType as PlanType,
+      };
 
-    // Handle DIY plan special case
-    if (planName === 'Do It Yourself Plan') {
-      updates.selectedLabor = {
-        id: 'Do It Yourself Plan',
-        price: '$0/hr',
-        title: 'Do It Yourself Plan',
-      };
-      updates.pricing = {
-        ...formState.pricing,
-        loadingHelpPrice: '$0/hr',
-        loadingHelpDescription: 'Free! 1st hr',
-        parsedLoadingHelpPrice: 0,
-      };
-      updates.movingPartnerId = null;
-      updates.thirdPartyMovingPartnerId = null;
-    } else if (planName === 'Full Service Plan') {
-      // Reset labor selection for Full Service Plan
-      updates.selectedLabor = null;
-      updates.pricing = {
-        ...formState.pricing,
-        loadingHelpPrice: '$189/hr',
-        loadingHelpDescription: 'estimate',
-      };
-      updates.movingPartnerId = null;
-      updates.thirdPartyMovingPartnerId = null;
-    }
+      // Handle DIY plan special case
+      if (planName === 'Do It Yourself Plan') {
+        updates.selectedLabor = {
+          id: 'Do It Yourself Plan',
+          price: '$0/hr',
+          title: 'Do It Yourself Plan',
+        };
+        updates.pricing = {
+          ...formState.pricing,
+          loadingHelpPrice: '$0/hr',
+          loadingHelpDescription: 'Free! 1st hr',
+          parsedLoadingHelpPrice: 0,
+        };
+        updates.movingPartnerId = null;
+        updates.thirdPartyMovingPartnerId = null;
+      } else if (planName === 'Full Service Plan') {
+        // Reset labor selection for Full Service Plan
+        updates.selectedLabor = null;
+        updates.pricing = {
+          ...formState.pricing,
+          loadingHelpPrice: '$189/hr',
+          loadingHelpDescription: 'estimate',
+        };
+        updates.movingPartnerId = null;
+        updates.thirdPartyMovingPartnerId = null;
+      }
 
-    setFormState(prev => ({ ...prev, ...updates }));
-    clearError('planError');
-  }, [formState.pricing]);
+      setFormState(prev => ({ ...prev, ...updates }));
+      clearError('planError');
+    },
+    [formState.pricing]
+  );
 
   /**
    * Update labor selection with comprehensive state management
    */
-  const updateLaborSelection = useCallback((labor: SelectedLabor | null) => {
-    if (!labor) {
-      setFormState(prev => ({
-        ...prev,
-        selectedLabor: null,
-        movingPartnerId: null,
-        thirdPartyMovingPartnerId: null,
-      }));
-      return;
-    }
+  const updateLaborSelection = useCallback(
+    (labor: SelectedLabor | null) => {
+      if (!labor) {
+        setFormState(prev => ({
+          ...prev,
+          selectedLabor: null,
+          movingPartnerId: null,
+          thirdPartyMovingPartnerId: null,
+        }));
+        return;
+      }
 
-    const formattedPrice = `$${labor.price}/hr`;
-    const parsedPrice = parseLoadingHelpPriceCallback(formattedPrice);
-    
-    const updates: Partial<AddStorageFormState> = {
-      selectedLabor: { 
-        ...labor, 
-        price: formattedPrice 
-      },
-      selectedPlanName: labor.title,
-      pricing: {
-        ...formState.pricing,
-        loadingHelpPrice: formattedPrice,
-        parsedLoadingHelpPrice: parsedPrice,
-        loadingHelpDescription: labor.id === 'Do It Yourself Plan' ? 'Free 1st hr' : 
-                                labor.id.startsWith('thirdParty-') ? 'Third-party estimate' : 
-                                'Full Service Plan',
-      },
-      planType: labor.id === 'Do It Yourself Plan' ? PlanType.DIY :
-                labor.id.startsWith('thirdParty-') ? PlanType.THIRD_PARTY :
-                PlanType.FULL_SERVICE,
-      selectedPlan: labor.id === 'Do It Yourself Plan' ? 'option1' : 'option2',
-      movingPartnerId: labor.id === 'Do It Yourself Plan' ? null :
-                      labor.id.startsWith('thirdParty-') ? null :
-                      parseInt(labor.id, 10),
-      thirdPartyMovingPartnerId: labor.id.startsWith('thirdParty-') ? 
-                                parseInt(labor.id.replace('thirdParty-', ''), 10) : null,
-    };
+      const formattedPrice = `$${labor.price}/hr`;
+      const parsedPrice = parseLoadingHelpPriceCallback(formattedPrice);
 
-    setFormState(prev => ({ ...prev, ...updates }));
-    clearError('laborError');
-  }, [formState.pricing, parseLoadingHelpPriceCallback]);
+      const updates: Partial<AddStorageFormState> = {
+        selectedLabor: {
+          ...labor,
+          price: formattedPrice,
+        },
+        selectedPlanName: labor.title,
+        pricing: {
+          ...formState.pricing,
+          loadingHelpPrice: formattedPrice,
+          parsedLoadingHelpPrice: parsedPrice,
+          loadingHelpDescription:
+            labor.id === 'Do It Yourself Plan'
+              ? 'Free 1st hr'
+              : labor.id.startsWith('thirdParty-')
+                ? 'Third-party estimate'
+                : 'Full Service Plan',
+        },
+        planType:
+          labor.id === 'Do It Yourself Plan'
+            ? PlanType.DIY
+            : labor.id.startsWith('thirdParty-')
+              ? PlanType.THIRD_PARTY
+              : PlanType.FULL_SERVICE,
+        selectedPlan:
+          labor.id === 'Do It Yourself Plan' ? 'option1' : 'option2',
+        movingPartnerId:
+          labor.id === 'Do It Yourself Plan'
+            ? null
+            : labor.id.startsWith('thirdParty-')
+              ? null
+              : parseInt(labor.id, 10),
+        thirdPartyMovingPartnerId: labor.id.startsWith('thirdParty-')
+          ? parseInt(labor.id.replace('thirdParty-', ''), 10)
+          : null,
+      };
+
+      setFormState(prev => ({ ...prev, ...updates }));
+      clearError('laborError');
+    },
+    [formState.pricing, parseLoadingHelpPriceCallback]
+  );
 
   /**
    * Update insurance selection
@@ -222,28 +246,31 @@ export function useAddStorageForm(params: UseAddStorageFormParams = {}): UseAddS
   /**
    * Update scheduling information
    */
-  const updateScheduling = useCallback((date: Date | null, timeSlot: string | null) => {
-    setFormState(prev => ({
-      ...prev,
-      scheduling: {
-        scheduledDate: date,
-        scheduledTimeSlot: timeSlot,
-      },
-    }));
-    clearError('scheduleError');
-
-    // Reset labor selection if not DIY plan (following original logic)
-    if (formState.planType !== PlanType.DIY) {
+  const updateScheduling = useCallback(
+    (date: Date | null, timeSlot: string | null) => {
       setFormState(prev => ({
         ...prev,
-        selectedLabor: null,
-        movingPartnerId: null,
-        thirdPartyMovingPartnerId: null,
+        scheduling: {
+          scheduledDate: date,
+          scheduledTimeSlot: timeSlot,
+        },
       }));
-      clearError('unavailableLaborError');
-      clearError('laborError');
-    }
-  }, [formState.planType]);
+      clearError('scheduleError');
+
+      // Reset labor selection if not DIY plan (following original logic)
+      if (formState.planType !== PlanType.DIY) {
+        setFormState(prev => ({
+          ...prev,
+          selectedLabor: null,
+          movingPartnerId: null,
+          thirdPartyMovingPartnerId: null,
+        }));
+        clearError('unavailableLaborError');
+        clearError('laborError');
+      }
+    },
+    [formState.planType]
+  );
 
   /**
    * Update pricing information
@@ -261,61 +288,75 @@ export function useAddStorageForm(params: UseAddStorageFormParams = {}): UseAddS
   /**
    * Validate a specific form step
    */
-  const validateStep = useCallback((step: AddStorageStep): StepValidationResult => {
-    const stepErrors: Partial<AddStorageFormErrors> = {};
-    let isValid = true;
+  const validateStep = useCallback(
+    (step: AddStorageStep): StepValidationResult => {
+      const stepErrors: Partial<AddStorageFormErrors> = {};
+      let isValid = true;
 
-    switch (step) {
-      case AddStorageStep.ADDRESS_AND_PLAN:
-        if (!formState.addressInfo.address) {
-          stepErrors.addressError = "Please enter your address by selecting from the verified dropdown options";
+      switch (step) {
+        case AddStorageStep.ADDRESS_AND_PLAN:
+          if (!formState.addressInfo.address) {
+            stepErrors.addressError =
+              'Please enter your address by selecting from the verified dropdown options';
+            isValid = false;
+          }
+          if (!formState.selectedPlan) {
+            stepErrors.planError = 'Please choose a service plan option';
+            isValid = false;
+          }
+          if (!formState.selectedInsurance) {
+            stepErrors.insuranceError = 'Please select an insurance option';
+            isValid = false;
+          }
+          if (!formState.storageTerm) {
+            stepErrors.storageTermError = 'Please select a storage term';
+            isValid = false;
+          }
+          break;
+
+        case AddStorageStep.SCHEDULING:
+          if (
+            !formState.scheduling.scheduledDate ||
+            !formState.scheduling.scheduledTimeSlot
+          ) {
+            stepErrors.scheduleError = 'Please select a date and time slot';
+            isValid = false;
+          }
+          break;
+
+        case AddStorageStep.LABOR_SELECTION:
+          if (formState.planType !== PlanType.DIY && !formState.selectedLabor) {
+            stepErrors.laborError = 'Please choose a moving help option';
+            isValid = false;
+          }
+          break;
+
+        case AddStorageStep.CONFIRMATION:
+          // Validation handled in submission
+          break;
+
+        default:
           isValid = false;
-        }
-        if (!formState.selectedPlan) {
-          stepErrors.planError = "Please choose a service plan option";
-          isValid = false;
-        }
-        if (!formState.selectedInsurance) {
-          stepErrors.insuranceError = "Please select an insurance option";
-          isValid = false;
-        }
-        break;
+          break;
+      }
 
-      case AddStorageStep.SCHEDULING:
-        if (!formState.scheduling.scheduledDate || !formState.scheduling.scheduledTimeSlot) {
-          stepErrors.scheduleError = "Please select a date and time slot";
-          isValid = false;
-        }
-        break;
-
-      case AddStorageStep.LABOR_SELECTION:
-        if (formState.planType !== PlanType.DIY && !formState.selectedLabor) {
-          stepErrors.laborError = "Please choose a moving help option";
-          isValid = false;
-        }
-        break;
-
-      case AddStorageStep.CONFIRMATION:
-        // Validation handled in submission
-        break;
-
-      default:
-        isValid = false;
-        break;
-    }
-
-    return { isValid, errors: stepErrors };
-  }, [formState]);
+      return { isValid, errors: stepErrors };
+    },
+    [formState]
+  );
 
   /**
    * Set a specific error
    */
-  const setError = useCallback((errorKey: keyof AddStorageFormErrors, error: string | null) => {
-    setErrors(prev => ({
-      ...prev,
-      [errorKey]: error,
-    }));
-  }, []);
+  const setError = useCallback(
+    (errorKey: keyof AddStorageFormErrors, error: string | null) => {
+      setErrors(prev => ({
+        ...prev,
+        [errorKey]: error,
+      }));
+    },
+    []
+  );
 
   /**
    * Clear specific error
@@ -368,42 +409,45 @@ export function useAddStorageForm(params: UseAddStorageFormParams = {}): UseAddS
   }, [formState.isPlanDetailsVisible]);
 
   // Memoized return object for performance
-  const returnValue = useMemo((): UseAddStorageFormReturn => ({
-    formState,
-    errors,
-    updateFormState,
-    updateAddressInfo,
-    updateStorageUnit,
-    updatePlanSelection,
-    updateLaborSelection,
-    updateInsurance,
-    updateScheduling,
-    updatePricing,
-    validateStep,
-    setError,
-    clearError,
-    resetForm,
-    togglePlanDetails: togglePlanDetails,
-    updateContentHeight,
-    contentRef,
-  }), [
-    formState,
-    errors,
-    updateFormState,
-    updateAddressInfo,
-    updateStorageUnit,
-    updatePlanSelection,
-    updateLaborSelection,
-    updateInsurance,
-    updateScheduling,
-    updatePricing,
-    validateStep,
-    setError,
-    clearError,
-    resetForm,
-    togglePlanDetails,
-    updateContentHeight,
-  ]);
+  const returnValue = useMemo(
+    (): UseAddStorageFormReturn => ({
+      formState,
+      errors,
+      updateFormState,
+      updateAddressInfo,
+      updateStorageUnit,
+      updatePlanSelection,
+      updateLaborSelection,
+      updateInsurance,
+      updateScheduling,
+      updatePricing,
+      validateStep,
+      setError,
+      clearError,
+      resetForm,
+      togglePlanDetails: togglePlanDetails,
+      updateContentHeight,
+      contentRef,
+    }),
+    [
+      formState,
+      errors,
+      updateFormState,
+      updateAddressInfo,
+      updateStorageUnit,
+      updatePlanSelection,
+      updateLaborSelection,
+      updateInsurance,
+      updateScheduling,
+      updatePricing,
+      validateStep,
+      setError,
+      clearError,
+      resetForm,
+      togglePlanDetails,
+      updateContentHeight,
+    ]
+  );
 
   return returnValue;
 }

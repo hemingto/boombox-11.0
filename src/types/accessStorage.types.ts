@@ -12,25 +12,25 @@ import React from 'react';
 
 export enum DeliveryReason {
   ACCESS_ITEMS = 'Access items',
-  END_STORAGE_TERM = 'End storage term'
+  END_STORAGE_TERM = 'End storage term',
 }
 
 export enum PlanType {
   DO_IT_YOURSELF = 'Do It Yourself Plan',
   FULL_SERVICE = 'Full Service Plan',
-  THIRD_PARTY = 'Third Party Loading Help'
+  THIRD_PARTY = 'Third Party Loading Help',
 }
 
 export enum AppointmentType {
   STORAGE_UNIT_ACCESS = 'Storage Unit Access',
-  END_STORAGE_TERM = 'End Storage Term'
+  END_STORAGE_TERM = 'End Storage Term',
 }
 
 export enum AccessStorageStep {
   DELIVERY_PURPOSE = 1,
   SCHEDULING = 2,
   LABOR_SELECTION = 3,
-  CONFIRMATION = 4
+  CONFIRMATION = 4,
 }
 
 // ===== CORE INTERFACES =====
@@ -104,11 +104,12 @@ export interface AccessStorageFormState {
   selectedPlan: string;
   selectedPlanName: string;
   planType: PlanType | string;
-  
+
   // Step 2: Scheduling
   scheduledDate: Date | null;
   scheduledTimeSlot: string | null;
-  
+  hasGreenDateDiscount: boolean;
+
   // Step 3: Labor Selection (conditional)
   selectedLabor: SelectedLabor | null;
   movingPartnerId: number | null;
@@ -116,19 +117,19 @@ export interface AccessStorageFormState {
   loadingHelpPrice: string;
   loadingHelpDescription: string;
   parsedLoadingHelpPrice: number;
-  
+
   // Step 4: Confirmation
   description: string;
   appointmentType: AppointmentType;
-  
+
   // Calculated values
   calculatedTotal: number;
   monthlyStorageRate: number;
   monthlyInsuranceRate: number;
-  
+
   // Edit mode specific fields
   stripeCustomerId?: string | null;
-  
+
   // Navigation state
   currentStep: AccessStorageStep;
   isPlanDetailsVisible: boolean;
@@ -302,7 +303,8 @@ export interface AppointmentDetailsResponse {
   };
 }
 
-export interface EditAppointmentSubmissionData extends AccessStorageSubmissionData {
+export interface EditAppointmentSubmissionData
+  extends AccessStorageSubmissionData {
   appointmentId: number;
   status?: string;
   monthlyStorageRate: number;
@@ -315,7 +317,7 @@ export interface EditAppointmentSubmissionData extends AccessStorageSubmissionDa
 export interface UseAppointmentDataReturn {
   // Data
   appointmentData: AppointmentDetailsResponse | null;
-  
+
   // State
   isLoading: boolean;
   error: string | null;
@@ -324,12 +326,12 @@ export interface UseAppointmentDataReturn {
   isReady: boolean;
   hasError: boolean;
   canRetry?: boolean;
-  
+
   // Actions
   fetchAppointmentData: (appointmentId: string) => Promise<void>;
   refetch: () => Promise<void>;
   retry: () => Promise<void>;
-  
+
   // Utility functions
   populateFormFromAppointment: () => Partial<AccessStorageFormState>;
   validateAppointmentOwnership: (userId: string) => boolean;
@@ -358,38 +360,57 @@ export interface UseAccessStorageFormReturn {
   formState: AccessStorageFormState;
   errors: AccessStorageFormErrors;
   flags: AccessStorageFormFlags;
-  
+
   // Form actions
   updateFormState: (updates: Partial<AccessStorageFormState>) => void;
-  setError: (field: keyof AccessStorageFormErrors, error: string | null) => void;
+  setError: (
+    field: keyof AccessStorageFormErrors,
+    error: string | null
+  ) => void;
   clearError: (field: keyof AccessStorageFormErrors) => void;
   clearAllErrors: () => void;
-  
+
   // Specialized handlers
-  handleAddressChange: (address: string, zipCode: string, coordinates: google.maps.LatLngLiteral, cityName: string) => void;
+  handleAddressChange: (
+    address: string,
+    zipCode: string,
+    coordinates: google.maps.LatLngLiteral,
+    cityName: string
+  ) => void;
   handleDeliveryReasonChange: (reason: DeliveryReason | null) => void;
   handleStorageUnitSelection: (selectedIds: string[]) => void;
-  handleInitialPlanChoice: (id: string, planName: string, description: string) => void;
-  handleLaborChange: (id: string, price: string, title: string, onfleetTeamId?: string) => void;
+  handleInitialPlanChoice: (
+    id: string,
+    planName: string,
+    description: string
+  ) => void;
+  handleLaborChange: (
+    id: string,
+    price: string,
+    title: string,
+    onfleetTeamId?: string
+  ) => void;
   handleDateTimeSelected: (date: Date, timeSlot: string) => void;
   handleUnavailableLabor: (hasError: boolean, message?: string) => void;
   togglePlanDetails: () => void;
-  
+
   // Step validation
   validateStep: (step: AccessStorageStep) => boolean;
   canProceedToNextStep: () => boolean;
-  
+
   // Form submission
   submitForm: () => Promise<void>;
   resetForm: () => void;
-  
+
   // Edit mode methods
-  populateFromAppointment?: (appointmentData: AppointmentDetailsResponse) => void;
-  
+  populateFromAppointment?: (
+    appointmentData: AppointmentDetailsResponse
+  ) => void;
+
   // Computed values
   getAppointmentDateTime: () => Date | null;
   combinedDateTimeForLabor: Date | null;
-  
+
   // Refs
   contentRef: React.RefObject<HTMLDivElement | null>;
 }
@@ -399,21 +420,21 @@ export interface UseAccessStorageNavigationReturn {
   currentStep: AccessStorageStep;
   canGoBack: boolean;
   canGoForward: boolean;
-  
+
   // Navigation actions
   goToStep: (step: AccessStorageStep) => void;
   goToNextStep: () => void;
   goToPreviousStep: () => void;
-  
+
   // Specialized navigation
   goBackFromConfirmation: () => void;
   goBackToStep1: () => void;
   goBackToStep2: () => void;
-  
+
   // Step information
   getStepTitle: (step: AccessStorageStep) => string;
   getProgressPercentage: () => number;
-  
+
   // Step flow helpers
   getNextStepFromCurrent: () => AccessStorageStep | null;
   getPreviousStepFromCurrent: () => AccessStorageStep | null;
@@ -425,7 +446,7 @@ export interface UseStorageUnitsReturn {
   // Data
   storageUnits: FormattedStorageUnit[];
   rawStorageUnits: StorageUnitUsage[];
-  
+
   // State
   isLoading: boolean;
   error: string | null;
@@ -434,26 +455,29 @@ export interface UseStorageUnitsReturn {
   isReady: boolean;
   hasStorageUnits: boolean;
   storageUnitCount: number;
-  
+
   // Actions
   fetchStorageUnits: () => Promise<void>;
   refetch: () => Promise<void>;
   refreshStorageUnits: () => Promise<void>; // Alias for backward compatibility
   retry: () => Promise<void>;
-  
+
   // Utility functions
   getStorageUnitById: (id: string) => FormattedStorageUnit | null;
   findStorageUnitById: (id: string) => FormattedStorageUnit | null; // Alias for backward compatibility
   getStorageUnitsByIds: (ids: string[]) => FormattedStorageUnit[];
   getAllStorageUnitIds: () => string[];
-  
+
   // Selection helpers
   selectAllUnits: () => string[];
   clearSelection: () => string[];
   toggleUnitSelection: (unitId: string, currentSelection: string[]) => string[];
-  
+
   // Validation
-  validateStorageUnitSelection: (selectedIds: string[], isEndStorageTerm?: boolean) => { isValid: boolean; error: string | null };
+  validateStorageUnitSelection: (
+    selectedIds: string[],
+    isEndStorageTerm?: boolean
+  ) => { isValid: boolean; error: string | null };
 }
 
 export interface UseFormPersistenceReturn {
@@ -462,7 +486,9 @@ export interface UseFormPersistenceReturn {
   clearPersistedState: () => void;
   syncWithUrl: (state?: Partial<AccessStorageFormState>) => void;
   loadStateFromUrl: () => Partial<AccessStorageFormState> | null;
-  getPersistedValue: <K extends keyof AccessStorageFormState>(key: K) => AccessStorageFormState[K] | null;
+  getPersistedValue: <K extends keyof AccessStorageFormState>(
+    key: K
+  ) => AccessStorageFormState[K] | null;
   hasPersistedData: () => boolean;
   getFormStateAge: () => number | null;
   clearAllPersistedData: () => void;
@@ -479,7 +505,12 @@ export type StepValidationResult = {
 };
 
 export type FormUpdateAction = {
-  type: 'UPDATE_FIELD' | 'UPDATE_MULTIPLE' | 'SET_ERROR' | 'CLEAR_ERROR' | 'RESET';
+  type:
+    | 'UPDATE_FIELD'
+    | 'UPDATE_MULTIPLE'
+    | 'SET_ERROR'
+    | 'CLEAR_ERROR'
+    | 'RESET';
   field?: AccessStorageFormField;
   value?: any;
   updates?: Partial<AccessStorageFormState>;
@@ -493,28 +524,28 @@ export const ACCESS_STORAGE_STEPS = [
   AccessStorageStep.DELIVERY_PURPOSE,
   AccessStorageStep.SCHEDULING,
   AccessStorageStep.LABOR_SELECTION,
-  AccessStorageStep.CONFIRMATION
+  AccessStorageStep.CONFIRMATION,
 ] as const;
 
 export const STEP_TITLES: Record<AccessStorageStep, string> = {
   [AccessStorageStep.DELIVERY_PURPOSE]: 'Access your storage',
   [AccessStorageStep.SCHEDULING]: 'Schedule appointment',
   [AccessStorageStep.LABOR_SELECTION]: 'Choose labor help',
-  [AccessStorageStep.CONFIRMATION]: 'Confirm appointment'
+  [AccessStorageStep.CONFIRMATION]: 'Confirm appointment',
 };
 
 export const MY_QUOTE_BUTTON_TEXTS: Record<AccessStorageStep, string> = {
   [AccessStorageStep.DELIVERY_PURPOSE]: 'Schedule Appointment',
   [AccessStorageStep.SCHEDULING]: 'Reserve Appointment',
   [AccessStorageStep.LABOR_SELECTION]: 'Select Movers',
-  [AccessStorageStep.CONFIRMATION]: 'Confirm Appointment'
+  [AccessStorageStep.CONFIRMATION]: 'Confirm Appointment',
 };
 
 export const MOBILE_MY_QUOTE_BUTTON_TEXTS: Record<AccessStorageStep, string> = {
   [AccessStorageStep.DELIVERY_PURPOSE]: 'Schedule',
   [AccessStorageStep.SCHEDULING]: 'Reserve',
   [AccessStorageStep.LABOR_SELECTION]: 'Add Movers',
-  [AccessStorageStep.CONFIRMATION]: 'Confirm'
+  [AccessStorageStep.CONFIRMATION]: 'Confirm',
 };
 
 // ===== DEFAULT VALUES =====
@@ -530,11 +561,12 @@ export const DEFAULT_FORM_STATE: AccessStorageFormState = {
   selectedPlan: '',
   selectedPlanName: '',
   planType: '',
-  
+
   // Step 2
   scheduledDate: null,
   scheduledTimeSlot: null,
-  
+  hasGreenDateDiscount: false,
+
   // Step 3
   selectedLabor: null,
   movingPartnerId: null,
@@ -542,20 +574,20 @@ export const DEFAULT_FORM_STATE: AccessStorageFormState = {
   loadingHelpPrice: '---',
   loadingHelpDescription: '',
   parsedLoadingHelpPrice: 0,
-  
+
   // Step 4
   description: '',
   appointmentType: AppointmentType.STORAGE_UNIT_ACCESS,
-  
+
   // Calculated values
   calculatedTotal: 0,
   monthlyStorageRate: 0,
   monthlyInsuranceRate: 0,
-  
+
   // Navigation state
   currentStep: AccessStorageStep.DELIVERY_PURPOSE,
   isPlanDetailsVisible: false,
-  contentHeight: null
+  contentHeight: null,
 };
 
 export const DEFAULT_FORM_ERRORS: AccessStorageFormErrors = {
@@ -566,10 +598,10 @@ export const DEFAULT_FORM_ERRORS: AccessStorageFormErrors = {
   laborError: null,
   scheduleError: null,
   unavailableLaborError: null,
-  submitError: null
+  submitError: null,
 };
 
 export const DEFAULT_FORM_FLAGS: AccessStorageFormFlags = {
   isSubmitting: false,
-  isLoading: false
+  isLoading: false,
 };

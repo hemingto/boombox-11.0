@@ -1,20 +1,20 @@
 /**
  * @fileoverview Context provider for GetQuote form state management
  * @source boombox-10.0/src/app/components/getquote/getquoteform.tsx (state management)
- * 
+ *
  * PROVIDER FUNCTIONALITY:
  * Centralizes state management for entire quote flow using React Context and useReducer.
  * Consolidates 50+ useState hooks into a single, manageable state object with typed actions.
  * Provides state and action methods to all child components. Handles step navigation,
  * validation, and data persistence across the 5-step quote flow.
- * 
+ *
  * STEP FLOW:
  * 1. QuoteBuilder - Address, storage units, plan, insurance
  * 2. Scheduler - Date and time selection
  * 3. ChooseLabor - Moving partner selection (conditional - skipped for DIY)
  * 4. ConfirmAppointment - Payment and contact info
  * 5. VerifyPhoneNumber - Phone verification
- * 
+ *
  * @refactor Consolidated 50+ useState hooks into single reducer-based provider
  */
 
@@ -28,13 +28,17 @@ import type {
   InsuranceOption,
   StripeErrors,
 } from '@/types/getQuote.types';
-import { getStorageUnitText } from '@/lib/utils/storageUtils';
+import { getStorageUnitText } from '@/lib/utils';
 import {
   getQuoteStep1Schema,
   getQuoteStep2Schema,
   contactInfoSchema,
   laborSelectionSchema,
 } from '@/lib/validations/getQuote.validations';
+import {
+  getStorageTermTier,
+  type StorageTerm,
+} from '@/data/storageTermPricing';
 
 // ==================== INITIAL STATE ====================
 
@@ -54,12 +58,17 @@ const INITIAL_STATE: GetQuoteFormState = {
   planError: null,
   selectedInsurance: null,
   insuranceError: null,
-  
+
+  // Storage Term
+  storageTerm: null,
+  storageTermError: null,
+
   // Step 2: Scheduling
   scheduledDate: null,
   scheduledTimeSlot: null,
   scheduleError: null,
-  
+  hasGreenDateDiscount: false,
+
   // Step 3: Labor Selection
   selectedLabor: null,
   loadingHelpPrice: '---',
@@ -69,7 +78,7 @@ const INITIAL_STATE: GetQuoteFormState = {
   thirdPartyMovingPartnerId: null,
   laborError: null,
   unavailableLaborError: null,
-  
+
   // Step 4: Confirm Appointment
   firstName: '',
   firstNameError: null,
@@ -81,21 +90,21 @@ const INITIAL_STATE: GetQuoteFormState = {
   phoneError: null,
   stripeCustomerId: null,
   stripeErrors: {},
-  
+
   // Step 5: Phone Verification
   userId: null,
   verificationCodeSent: false,
-  
+
   // Pricing
   calculatedTotal: 0,
   monthlyStorageRate: 0,
   monthlyInsuranceRate: 0,
-  
+
   // UI State
   currentStep: 1,
   isSubmitting: false,
   submitError: null,
-  
+
   // Metadata
   appointmentType: 'Initial Pickup',
 };
@@ -104,31 +113,56 @@ const INITIAL_STATE: GetQuoteFormState = {
 
 type GetQuoteAction =
   // Address & Location
-  | { type: 'SET_ADDRESS'; payload: { address: string; zipCode: string; coordinates: google.maps.LatLngLiteral; cityName: string } }
+  | {
+      type: 'SET_ADDRESS';
+      payload: {
+        address: string;
+        zipCode: string;
+        coordinates: google.maps.LatLngLiteral;
+        cityName: string;
+      };
+    }
   | { type: 'CLEAR_ADDRESS_ERROR' }
-  
+
   // Storage Units
   | { type: 'SET_STORAGE_UNIT_COUNT'; payload: { count: number; text: string } }
-  
+
   // Plan Selection
-  | { type: 'SET_PLAN'; payload: { id: string; planName: string; description: string } }
+  | {
+      type: 'SET_PLAN';
+      payload: { id: string; planName: string; description: string };
+    }
   | { type: 'SET_PLAN_TYPE'; payload: string }
   | { type: 'TOGGLE_PLAN_DETAILS' }
   | { type: 'CLEAR_PLAN_ERROR' }
-  
+
   // Insurance
   | { type: 'SET_INSURANCE'; payload: InsuranceOption | null }
   | { type: 'CLEAR_INSURANCE_ERROR' }
-  
+  | { type: 'SET_STORAGE_TERM'; payload: StorageTerm }
+  | { type: 'CLEAR_STORAGE_TERM_ERROR' }
+
   // Scheduling
   | { type: 'SET_SCHEDULE'; payload: { date: Date; timeSlot: string } }
   | { type: 'CLEAR_SCHEDULE_ERROR' }
-  
+  | { type: 'SET_GREEN_DATE_DISCOUNT'; payload: boolean }
+
   // Labor
-  | { type: 'SET_LABOR'; payload: { id: string; price: string; title: string; onfleetTeamId?: string } }
+  | {
+      type: 'SET_LABOR';
+      payload: {
+        id: string;
+        price: string;
+        title: string;
+        onfleetTeamId?: string;
+      };
+    }
   | { type: 'CLEAR_LABOR_ERROR' }
-  | { type: 'SET_UNAVAILABLE_LABOR_ERROR'; payload: { hasError: boolean; message?: string } }
-  
+  | {
+      type: 'SET_UNAVAILABLE_LABOR_ERROR';
+      payload: { hasError: boolean; message?: string };
+    }
+
   // Contact Info
   | { type: 'SET_FIRST_NAME'; payload: string }
   | { type: 'SET_LAST_NAME'; payload: string }
@@ -139,27 +173,27 @@ type GetQuoteAction =
   | { type: 'SET_EMAIL_ERROR'; payload: string | null }
   | { type: 'SET_PHONE_ERROR'; payload: string | null }
   | { type: 'CLEAR_CONTACT_ERRORS' }
-  
+
   // Payment
   | { type: 'SET_STRIPE_CUSTOMER_ID'; payload: string }
   | { type: 'SET_STRIPE_ERRORS'; payload: StripeErrors }
-  
+
   // Pricing
   | { type: 'SET_CALCULATED_TOTAL'; payload: number }
   | { type: 'SET_MONTHLY_STORAGE_RATE'; payload: number }
   | { type: 'SET_MONTHLY_INSURANCE_RATE'; payload: number }
-  
+
   // Navigation
   | { type: 'NEXT_STEP' }
   | { type: 'PREVIOUS_STEP' }
   | { type: 'GO_TO_STEP'; payload: number }
-  
+
   // Submission
   | { type: 'SET_IS_SUBMITTING'; payload: boolean }
   | { type: 'SET_SUBMIT_ERROR'; payload: string | null }
   | { type: 'SET_USER_ID'; payload: number }
   | { type: 'SET_VERIFICATION_CODE_SENT'; payload: boolean }
-  
+
   // Utilities
   | { type: 'SET_VALIDATION_ERRORS'; payload: Partial<GetQuoteFormState> }
   | { type: 'CLEAR_ALL_ERRORS' }
@@ -167,7 +201,10 @@ type GetQuoteAction =
 
 // ==================== REDUCER ====================
 
-function getQuoteReducer(state: GetQuoteFormState, action: GetQuoteAction): GetQuoteFormState {
+function getQuoteReducer(
+  state: GetQuoteFormState,
+  action: GetQuoteAction
+): GetQuoteFormState {
   switch (action.type) {
     // Address & Location
     case 'SET_ADDRESS':
@@ -179,10 +216,10 @@ function getQuoteReducer(state: GetQuoteFormState, action: GetQuoteAction): GetQ
         cityName: action.payload.cityName,
         addressError: null,
       };
-    
+
     case 'CLEAR_ADDRESS_ERROR':
       return { ...state, addressError: null };
-    
+
     // Storage Units
     case 'SET_STORAGE_UNIT_COUNT':
       return {
@@ -190,12 +227,12 @@ function getQuoteReducer(state: GetQuoteFormState, action: GetQuoteAction): GetQ
         storageUnitCount: action.payload.count,
         storageUnitText: action.payload.text,
       };
-    
+
     // Plan Selection
     case 'SET_PLAN': {
       const { id, planName } = action.payload;
       const isDIY = planName === 'Do It Yourself Plan';
-      
+
       return {
         ...state,
         selectedPlan: id,
@@ -209,27 +246,38 @@ function getQuoteReducer(state: GetQuoteFormState, action: GetQuoteAction): GetQ
         planType: isDIY ? 'Do It Yourself Plan' : 'Full Service Plan',
       };
     }
-    
+
     case 'SET_PLAN_TYPE':
       return { ...state, planType: action.payload };
-    
+
     case 'TOGGLE_PLAN_DETAILS':
       return { ...state, isPlanDetailsVisible: !state.isPlanDetailsVisible };
-    
+
     case 'CLEAR_PLAN_ERROR':
       return { ...state, planError: null };
-    
+
     // Insurance
     case 'SET_INSURANCE':
-      return { ...state, selectedInsurance: action.payload, insuranceError: null };
-    
+      return {
+        ...state,
+        selectedInsurance: action.payload,
+        insuranceError: null,
+      };
+
     case 'CLEAR_INSURANCE_ERROR':
       return { ...state, insuranceError: null };
-    
+
+    case 'SET_STORAGE_TERM':
+      getStorageTermTier(action.payload);
+      return { ...state, storageTerm: action.payload, storageTermError: null };
+
+    case 'CLEAR_STORAGE_TERM_ERROR':
+      return { ...state, storageTermError: null };
+
     // Scheduling
     case 'SET_SCHEDULE': {
       const shouldResetLabor = state.selectedPlanName === 'Full Service Plan';
-      
+
       return {
         ...state,
         scheduledDate: action.payload.date,
@@ -244,10 +292,13 @@ function getQuoteReducer(state: GetQuoteFormState, action: GetQuoteAction): GetQ
         }),
       };
     }
-    
+
     case 'CLEAR_SCHEDULE_ERROR':
       return { ...state, scheduleError: null };
-    
+
+    case 'SET_GREEN_DATE_DISCOUNT':
+      return { ...state, hasGreenDateDiscount: action.payload };
+
     // Labor
     case 'SET_LABOR': {
       const { id, price, title, onfleetTeamId } = action.payload;
@@ -255,27 +306,29 @@ function getQuoteReducer(state: GetQuoteFormState, action: GetQuoteAction): GetQ
       const parsedPrice = parseLoadingHelpPrice(formattedPrice);
       const isDIY = id === 'Do It Yourself Plan';
       const isThirdParty = id.startsWith('thirdParty-');
-      
+
       // Parse moving partner ID safely
       let movingPartnerId: number | null = null;
       if (!isDIY && !isThirdParty) {
         const parsedId = parseInt(id, 10);
         movingPartnerId = isNaN(parsedId) ? null : parsedId;
       }
-      
+
       // Parse third party ID safely
       let thirdPartyMovingPartnerId: number | null = null;
       if (isThirdParty) {
         const parsedThirdPartyId = parseInt(id.replace('thirdParty-', ''), 10);
-        thirdPartyMovingPartnerId = isNaN(parsedThirdPartyId) ? null : parsedThirdPartyId;
+        thirdPartyMovingPartnerId = isNaN(parsedThirdPartyId)
+          ? null
+          : parsedThirdPartyId;
       }
-      
+
       return {
         ...state,
-        selectedLabor: { 
-          id, 
-          price: formattedPrice, 
-          title, 
+        selectedLabor: {
+          id,
+          price: formattedPrice,
+          title,
           // Ensure onfleetTeamId is undefined if null (Zod expects string | undefined, not null)
           onfleetTeamId: onfleetTeamId || undefined,
         },
@@ -285,61 +338,62 @@ function getQuoteReducer(state: GetQuoteFormState, action: GetQuoteAction): GetQ
         selectedPlanName: isDIY
           ? 'Do It Yourself Plan'
           : isThirdParty
-          ? title // Show third-party mover name (e.g., "Lugg", "Dolly", etc.)
-          : title, // Show Boombox partner name
+            ? title // Show third-party mover name (e.g., "Lugg", "Dolly", etc.)
+            : title, // Show Boombox partner name
         loadingHelpDescription: isDIY
           ? 'Free 1st hr'
           : isThirdParty
-          ? 'Third-party estimate'
-          : 'Full Service Plan',
+            ? 'Third-party estimate'
+            : 'Full Service Plan',
         planType: isDIY
           ? 'Do It Yourself Plan'
           : isThirdParty
-          ? 'Third Party Loading Help'
-          : 'Full Service Plan',
+            ? 'Third Party Loading Help'
+            : 'Full Service Plan',
         selectedPlan: isDIY ? 'option1' : 'option2',
         movingPartnerId,
         thirdPartyMovingPartnerId,
         laborError: null,
       };
     }
-    
+
     case 'CLEAR_LABOR_ERROR':
       return { ...state, laborError: null };
-    
+
     case 'SET_UNAVAILABLE_LABOR_ERROR':
       return {
         ...state,
         unavailableLaborError: action.payload.hasError
-          ? action.payload.message || 'Previously selected mover is unavailable. Please choose another.'
+          ? action.payload.message ||
+            'Previously selected mover is unavailable. Please choose another.'
           : null,
       };
-    
+
     // Contact Info
     case 'SET_FIRST_NAME':
       return { ...state, firstName: action.payload, firstNameError: null };
-    
+
     case 'SET_LAST_NAME':
       return { ...state, lastName: action.payload, lastNameError: null };
-    
+
     case 'SET_EMAIL':
       return { ...state, email: action.payload, emailError: null };
-    
+
     case 'SET_PHONE_NUMBER':
       return { ...state, phoneNumber: action.payload, phoneError: null };
-    
+
     case 'SET_FIRST_NAME_ERROR':
       return { ...state, firstNameError: action.payload };
-    
+
     case 'SET_LAST_NAME_ERROR':
       return { ...state, lastNameError: action.payload };
-    
+
     case 'SET_EMAIL_ERROR':
       return { ...state, emailError: action.payload };
-    
+
     case 'SET_PHONE_ERROR':
       return { ...state, phoneError: action.payload };
-    
+
     case 'CLEAR_CONTACT_ERRORS':
       return {
         ...state,
@@ -348,70 +402,74 @@ function getQuoteReducer(state: GetQuoteFormState, action: GetQuoteAction): GetQ
         emailError: null,
         phoneError: null,
       };
-    
+
     // Payment
     case 'SET_STRIPE_CUSTOMER_ID':
       return { ...state, stripeCustomerId: action.payload };
-    
+
     case 'SET_STRIPE_ERRORS':
       return { ...state, stripeErrors: action.payload };
-    
+
     // Pricing
     case 'SET_CALCULATED_TOTAL':
       return { ...state, calculatedTotal: action.payload };
-    
+
     case 'SET_MONTHLY_STORAGE_RATE':
       return { ...state, monthlyStorageRate: action.payload };
-    
+
     case 'SET_MONTHLY_INSURANCE_RATE':
       return { ...state, monthlyInsuranceRate: action.payload };
-    
+
     // Navigation
     case 'NEXT_STEP': {
       // Validate current step before advancing
       const validation = validateStep(state.currentStep, state);
-      
+
       if (!validation.isValid) {
         // Set validation errors and don't advance
         return { ...state, ...validation.errors };
       }
-      
+
       // Advance to next step if validation passes
       const nextStep = getNextStep(state.currentStep, state.selectedPlanName);
       return { ...state, currentStep: nextStep };
     }
-    
+
     case 'PREVIOUS_STEP': {
-      const prevStep = getPreviousStep(state.currentStep, state.selectedPlanName);
+      const prevStep = getPreviousStep(
+        state.currentStep,
+        state.selectedPlanName
+      );
       return { ...state, currentStep: prevStep };
     }
-    
+
     case 'GO_TO_STEP':
       return { ...state, currentStep: action.payload };
-    
+
     // Submission
     case 'SET_IS_SUBMITTING':
       return { ...state, isSubmitting: action.payload };
-    
+
     case 'SET_SUBMIT_ERROR':
       return { ...state, submitError: action.payload };
-    
+
     case 'SET_USER_ID':
       return { ...state, userId: action.payload };
-    
+
     case 'SET_VERIFICATION_CODE_SENT':
       return { ...state, verificationCodeSent: action.payload };
-    
+
     // Utilities
     case 'SET_VALIDATION_ERRORS':
       return { ...state, ...action.payload };
-    
+
     case 'CLEAR_ALL_ERRORS':
       return {
         ...state,
         addressError: null,
         planError: null,
         insuranceError: null,
+        storageTermError: null,
         scheduleError: null,
         laborError: null,
         unavailableLaborError: null,
@@ -422,10 +480,10 @@ function getQuoteReducer(state: GetQuoteFormState, action: GetQuoteAction): GetQ
         submitError: null,
         stripeErrors: {},
       };
-    
+
     case 'RESET_FORM':
       return INITIAL_STATE;
-    
+
     default:
       return state;
   }
@@ -463,7 +521,10 @@ function getNextStep(currentStep: number, selectedPlanName: string): number {
  * Get previous step with conditional logic for DIY plan
  * When going back from Step 4, DIY plan returns to Step 2
  */
-function getPreviousStep(currentStep: number, selectedPlanName: string): number {
+function getPreviousStep(
+  currentStep: number,
+  selectedPlanName: string
+): number {
   if (currentStep === 4 && selectedPlanName === 'Do It Yourself Plan') {
     return 2; // Skip Step 3 when going back for DIY
   }
@@ -474,12 +535,16 @@ function getPreviousStep(currentStep: number, selectedPlanName: string): number 
  * Validate current step before allowing progression
  * Returns validation errors for each step's required fields
  */
-function validateStep(step: number, state: GetQuoteFormState): { isValid: boolean; errors: Partial<GetQuoteFormState> } {
+function validateStep(
+  step: number,
+  state: GetQuoteFormState
+): { isValid: boolean; errors: Partial<GetQuoteFormState> } {
   const errors: Partial<GetQuoteFormState> = {};
-  
+
   try {
     switch (step) {
-      case 1: { // QuoteBuilder - Address, storage, plan, insurance (Zod validated)
+      case 1: {
+        // QuoteBuilder - Address, storage, plan, insurance (Zod validated)
         const step1Data = {
           address: state.address,
           zipCode: state.zipCode,
@@ -492,42 +557,69 @@ function validateStep(step: number, state: GetQuoteFormState): { isValid: boolea
           planType: state.planType,
           selectedInsurance: state.selectedInsurance,
         };
-        
+
         const result = getQuoteStep1Schema.safeParse(step1Data);
-        
+
         if (!result.success) {
           const zodErrors = result.error.flatten().fieldErrors;
-          
+
           // Map Zod errors to state error fields
-          if (zodErrors.address || zodErrors.zipCode || zodErrors.cityName || zodErrors.coordinates) {
-            errors.addressError = zodErrors.address?.[0] || zodErrors.zipCode?.[0] || zodErrors.cityName?.[0] || 'Please enter a valid address';
+          if (
+            zodErrors.address ||
+            zodErrors.zipCode ||
+            zodErrors.cityName ||
+            zodErrors.coordinates
+          ) {
+            errors.addressError =
+              zodErrors.address?.[0] ||
+              zodErrors.zipCode?.[0] ||
+              zodErrors.cityName?.[0] ||
+              'Please enter a valid address';
           }
-          if (zodErrors.selectedPlan || zodErrors.selectedPlanName || zodErrors.planType) {
-            errors.planError = zodErrors.selectedPlan?.[0] || zodErrors.selectedPlanName?.[0] || 'Please select a plan';
+          if (
+            zodErrors.selectedPlan ||
+            zodErrors.selectedPlanName ||
+            zodErrors.planType
+          ) {
+            errors.planError =
+              zodErrors.selectedPlan?.[0] ||
+              zodErrors.selectedPlanName?.[0] ||
+              'Please select a plan';
           }
           if (zodErrors.selectedInsurance) {
-            errors.insuranceError = zodErrors.selectedInsurance?.[0] || 'Please select an insurance option';
+            errors.insuranceError =
+              zodErrors.selectedInsurance?.[0] ||
+              'Please select an insurance option';
           }
+        }
+
+        if (!state.storageTerm) {
+          errors.storageTermError = 'Please select a storage term';
         }
         break;
       }
-      
-      case 2: { // Scheduler - Date and time (Zod validated)
+
+      case 2: {
+        // Scheduler - Date and time (Zod validated)
         const step2Data = {
           scheduledDate: state.scheduledDate,
           scheduledTimeSlot: state.scheduledTimeSlot,
         };
-        
+
         const result = getQuoteStep2Schema.safeParse(step2Data);
-        
+
         if (!result.success) {
           const zodErrors = result.error.flatten().fieldErrors;
-          errors.scheduleError = zodErrors.scheduledDate?.[0] || zodErrors.scheduledTimeSlot?.[0] || 'Please select a date and time';
+          errors.scheduleError =
+            zodErrors.scheduledDate?.[0] ||
+            zodErrors.scheduledTimeSlot?.[0] ||
+            'Please select a date and time';
         }
         break;
       }
-      
-      case 3: { // ChooseLabor - Labor selection (Full Service only, Zod validated)
+
+      case 3: {
+        // ChooseLabor - Labor selection (Full Service only, Zod validated)
         // Only validate if Full Service plan
         if (state.selectedPlanName !== 'Do It Yourself Plan') {
           const step3Data = {
@@ -535,35 +627,41 @@ function validateStep(step: number, state: GetQuoteFormState): { isValid: boolea
             movingPartnerId: state.movingPartnerId,
             parsedLoadingHelpPrice: state.parsedLoadingHelpPrice,
           };
-          
+
           console.log('[GetQuoteProvider] Validating step 3:', step3Data);
-          
+
           const result = laborSelectionSchema.safeParse(step3Data);
-          
+
           if (!result.success) {
-            console.error('[GetQuoteProvider] Step 3 Zod validation failed:', result.error.format());
+            console.error(
+              '[GetQuoteProvider] Step 3 Zod validation failed:',
+              result.error.format()
+            );
             errors.laborError = 'Please select a moving partner';
           } else if (!state.selectedLabor) {
-            console.error('[GetQuoteProvider] Step 3 validation failed: selectedLabor is null/undefined');
+            console.error(
+              '[GetQuoteProvider] Step 3 validation failed: selectedLabor is null/undefined'
+            );
             errors.laborError = 'Please select a moving partner';
           }
         }
         break;
       }
-      
-      case 4: { // ConfirmAppointment - Contact info (Zod validated, payment validated by Stripe)
+
+      case 4: {
+        // ConfirmAppointment - Contact info (Zod validated, payment validated by Stripe)
         const step4Data = {
           firstName: state.firstName,
           lastName: state.lastName,
           email: state.email,
           phoneNumber: state.phoneNumber,
         };
-        
+
         const result = contactInfoSchema.safeParse(step4Data);
-        
+
         if (!result.success) {
           const zodErrors = result.error.flatten().fieldErrors;
-          
+
           // Map Zod errors to state error fields
           if (zodErrors.firstName) {
             errors.firstNameError = zodErrors.firstName[0];
@@ -580,38 +678,46 @@ function validateStep(step: number, state: GetQuoteFormState): { isValid: boolea
         }
         break;
       }
-      
+
       case 5: // VerifyPhoneNumber - No validation needed (handled by component)
         break;
-        
+
       default:
         break;
     }
   } catch (error) {
     // Fallback to manual validation if Zod parsing fails unexpectedly
     console.error('Validation error:', error);
-    
+
     // Basic fallback validation
     if (step === 1) {
       if (!state.address) errors.addressError = 'Please enter a valid address';
       if (!state.selectedPlan) errors.planError = 'Please select a plan';
-      if (!state.selectedInsurance) errors.insuranceError = 'Please select an insurance option';
+      if (!state.selectedInsurance)
+        errors.insuranceError = 'Please select an insurance option';
+      if (!state.storageTerm)
+        errors.storageTermError = 'Please select a storage term';
     } else if (step === 2) {
       if (!state.scheduledDate || !state.scheduledTimeSlot) {
         errors.scheduleError = 'Please select a date and time';
       }
     } else if (step === 3) {
-      if (state.selectedPlanName !== 'Do It Yourself Plan' && !state.selectedLabor) {
+      if (
+        state.selectedPlanName !== 'Do It Yourself Plan' &&
+        !state.selectedLabor
+      ) {
         errors.laborError = 'Please select a moving partner';
       }
     } else if (step === 4) {
       if (!state.firstName) errors.firstNameError = 'First name is required';
       if (!state.lastName) errors.lastNameError = 'Last name is required';
-      if (!state.email) errors.emailError = 'Please enter a valid email address';
-      if (!state.phoneNumber) errors.phoneError = 'Please enter a valid phone number';
+      if (!state.email)
+        errors.emailError = 'Please enter a valid email address';
+      if (!state.phoneNumber)
+        errors.phoneError = 'Please enter a valid phone number';
     }
   }
-  
+
   return {
     isValid: Object.keys(errors).length === 0,
     errors,
@@ -648,178 +754,214 @@ export function GetQuoteProvider({
   // Create actions object with dispatch-based functions
   // These are stable because dispatch is stable from useReducer
 
-  const actions: GetQuoteFormActions = useMemo(() => ({
-    // Address & Location
-    setAddress: (address: string, zipCode: string, coordinates: google.maps.LatLngLiteral, cityName: string) => {
-      dispatch({ type: 'SET_ADDRESS', payload: { address, zipCode, coordinates, cityName } });
-    },
-    
-    clearAddressError: () => {
-      dispatch({ type: 'CLEAR_ADDRESS_ERROR' });
-    },
-    
-    // Storage Units
-    setStorageUnitCount: (count: number, text: string) => {
-      dispatch({ type: 'SET_STORAGE_UNIT_COUNT', payload: { count, text } });
-    },
-    
-    // Plan Selection
-    setPlan: (id: string, planName: string, description: string) => {
-      dispatch({ type: 'SET_PLAN', payload: { id, planName, description } });
-    },
-    
-    setPlanType: (planType: string) => {
-      dispatch({ type: 'SET_PLAN_TYPE', payload: planType });
-    },
-    
-    togglePlanDetails: () => {
-      dispatch({ type: 'TOGGLE_PLAN_DETAILS' });
-    },
-    
-    clearPlanError: () => {
-      dispatch({ type: 'CLEAR_PLAN_ERROR' });
-    },
-    
-    // Insurance
-    setInsurance: (insurance: InsuranceOption | null) => {
-      dispatch({ type: 'SET_INSURANCE', payload: insurance });
-    },
-    
-    clearInsuranceError: () => {
-      dispatch({ type: 'CLEAR_INSURANCE_ERROR' });
-    },
-    
-    // Scheduling
-    setSchedule: (date: Date, timeSlot: string) => {
-      dispatch({ type: 'SET_SCHEDULE', payload: { date, timeSlot } });
-    },
-    
-    clearScheduleError: () => {
-      dispatch({ type: 'CLEAR_SCHEDULE_ERROR' });
-    },
-    
-    // Labor
-    setLabor: (id: string, price: string, title: string, onfleetTeamId?: string) => {
-      dispatch({ type: 'SET_LABOR', payload: { id, price, title, onfleetTeamId } });
-    },
-    
-    clearLaborError: () => {
-      dispatch({ type: 'CLEAR_LABOR_ERROR' });
-    },
-    
-    setUnavailableLaborError: (hasError: boolean, message?: string) => {
-      dispatch({ type: 'SET_UNAVAILABLE_LABOR_ERROR', payload: { hasError, message } });
-    },
-    
-    // Contact Info
-    setFirstName: (name: string) => {
-      dispatch({ type: 'SET_FIRST_NAME', payload: name });
-    },
-    
-    setLastName: (name: string) => {
-      dispatch({ type: 'SET_LAST_NAME', payload: name });
-    },
-    
-    setEmail: (email: string) => {
-      dispatch({ type: 'SET_EMAIL', payload: email });
-    },
-    
-    setPhoneNumber: (phone: string) => {
-      dispatch({ type: 'SET_PHONE_NUMBER', payload: phone });
-    },
-    
-    setFirstNameError: (error: string | null) => {
-      dispatch({ type: 'SET_FIRST_NAME_ERROR', payload: error });
-    },
-    
-    setLastNameError: (error: string | null) => {
-      dispatch({ type: 'SET_LAST_NAME_ERROR', payload: error });
-    },
-    
-    setEmailError: (error: string | null) => {
-      dispatch({ type: 'SET_EMAIL_ERROR', payload: error });
-    },
-    
-    setPhoneError: (error: string | null) => {
-      dispatch({ type: 'SET_PHONE_ERROR', payload: error });
-    },
-    
-    clearContactErrors: () => {
-      dispatch({ type: 'CLEAR_CONTACT_ERRORS' });
-    },
-    
-    // Payment
-    setStripeCustomerId: (id: string) => {
-      dispatch({ type: 'SET_STRIPE_CUSTOMER_ID', payload: id });
-    },
-    
-    setStripeErrors: (errors: StripeErrors) => {
-      dispatch({ type: 'SET_STRIPE_ERRORS', payload: errors });
-    },
-    
-    // Submission
-    setUserId: (id: number) => {
-      dispatch({ type: 'SET_USER_ID', payload: id });
-    },
-    
-    setSubmitError: (error: string | null) => {
-      dispatch({ type: 'SET_SUBMIT_ERROR', payload: error });
-    },
-    
-    // Pricing
-    setCalculatedTotal: (total: number) => {
-      dispatch({ type: 'SET_CALCULATED_TOTAL', payload: total });
-    },
-    
-    setMonthlyStorageRate: (rate: number) => {
-      dispatch({ type: 'SET_MONTHLY_STORAGE_RATE', payload: rate });
-    },
-    
-    setMonthlyInsuranceRate: (rate: number) => {
-      dispatch({ type: 'SET_MONTHLY_INSURANCE_RATE', payload: rate });
-    },
-    
-    // Navigation
-    nextStep: () => {
-      dispatch({ type: 'NEXT_STEP' });
-    },
-    
-    previousStep: () => {
-      dispatch({ type: 'PREVIOUS_STEP' });
-    },
-    
-    goToStep: (step: number) => {
-      dispatch({ type: 'GO_TO_STEP', payload: step });
-    },
-    
-    // Validation
-    validateCurrentStep: () => {
-      const validation = validateStep(state.currentStep, state);
-      
-      if (!validation.isValid) {
-        // Set validation errors
-        dispatch({ type: 'SET_VALIDATION_ERRORS', payload: validation.errors });
-        return false;
-      }
-      
-      return true;
-    },
-    
-    // Submission (placeholder - will be implemented in Sub-Task 11F)
-    submitQuote: async () => {
-      // TODO: Implement in Sub-Task 11F
-      console.log('Quote submission to be implemented in Sub-Task 11F');
-    },
-    
-    // Utilities
-    clearAllErrors: () => {
-      dispatch({ type: 'CLEAR_ALL_ERRORS' });
-    },
-    
-    resetForm: () => {
-      dispatch({ type: 'RESET_FORM' });
-    },
-  }), [dispatch]);
+  const actions: GetQuoteFormActions = useMemo(
+    () => ({
+      // Address & Location
+      setAddress: (
+        address: string,
+        zipCode: string,
+        coordinates: google.maps.LatLngLiteral,
+        cityName: string
+      ) => {
+        dispatch({
+          type: 'SET_ADDRESS',
+          payload: { address, zipCode, coordinates, cityName },
+        });
+      },
+
+      clearAddressError: () => {
+        dispatch({ type: 'CLEAR_ADDRESS_ERROR' });
+      },
+
+      // Storage Units
+      setStorageUnitCount: (count: number, text: string) => {
+        dispatch({ type: 'SET_STORAGE_UNIT_COUNT', payload: { count, text } });
+      },
+
+      // Plan Selection
+      setPlan: (id: string, planName: string, description: string) => {
+        dispatch({ type: 'SET_PLAN', payload: { id, planName, description } });
+      },
+
+      setPlanType: (planType: string) => {
+        dispatch({ type: 'SET_PLAN_TYPE', payload: planType });
+      },
+
+      togglePlanDetails: () => {
+        dispatch({ type: 'TOGGLE_PLAN_DETAILS' });
+      },
+
+      clearPlanError: () => {
+        dispatch({ type: 'CLEAR_PLAN_ERROR' });
+      },
+
+      // Insurance
+      setInsurance: (insurance: InsuranceOption | null) => {
+        dispatch({ type: 'SET_INSURANCE', payload: insurance });
+      },
+
+      clearInsuranceError: () => {
+        dispatch({ type: 'CLEAR_INSURANCE_ERROR' });
+      },
+
+      setStorageTerm: (term: StorageTerm) => {
+        dispatch({ type: 'SET_STORAGE_TERM', payload: term });
+      },
+      clearStorageTermError: () => {
+        dispatch({ type: 'CLEAR_STORAGE_TERM_ERROR' });
+      },
+
+      // Scheduling
+      setSchedule: (date: Date, timeSlot: string) => {
+        dispatch({ type: 'SET_SCHEDULE', payload: { date, timeSlot } });
+      },
+
+      clearScheduleError: () => {
+        dispatch({ type: 'CLEAR_SCHEDULE_ERROR' });
+      },
+
+      setGreenDateDiscount: (hasDiscount: boolean) => {
+        dispatch({ type: 'SET_GREEN_DATE_DISCOUNT', payload: hasDiscount });
+      },
+
+      // Labor
+      setLabor: (
+        id: string,
+        price: string,
+        title: string,
+        onfleetTeamId?: string
+      ) => {
+        dispatch({
+          type: 'SET_LABOR',
+          payload: { id, price, title, onfleetTeamId },
+        });
+      },
+
+      clearLaborError: () => {
+        dispatch({ type: 'CLEAR_LABOR_ERROR' });
+      },
+
+      setUnavailableLaborError: (hasError: boolean, message?: string) => {
+        dispatch({
+          type: 'SET_UNAVAILABLE_LABOR_ERROR',
+          payload: { hasError, message },
+        });
+      },
+
+      // Contact Info
+      setFirstName: (name: string) => {
+        dispatch({ type: 'SET_FIRST_NAME', payload: name });
+      },
+
+      setLastName: (name: string) => {
+        dispatch({ type: 'SET_LAST_NAME', payload: name });
+      },
+
+      setEmail: (email: string) => {
+        dispatch({ type: 'SET_EMAIL', payload: email });
+      },
+
+      setPhoneNumber: (phone: string) => {
+        dispatch({ type: 'SET_PHONE_NUMBER', payload: phone });
+      },
+
+      setFirstNameError: (error: string | null) => {
+        dispatch({ type: 'SET_FIRST_NAME_ERROR', payload: error });
+      },
+
+      setLastNameError: (error: string | null) => {
+        dispatch({ type: 'SET_LAST_NAME_ERROR', payload: error });
+      },
+
+      setEmailError: (error: string | null) => {
+        dispatch({ type: 'SET_EMAIL_ERROR', payload: error });
+      },
+
+      setPhoneError: (error: string | null) => {
+        dispatch({ type: 'SET_PHONE_ERROR', payload: error });
+      },
+
+      clearContactErrors: () => {
+        dispatch({ type: 'CLEAR_CONTACT_ERRORS' });
+      },
+
+      // Payment
+      setStripeCustomerId: (id: string) => {
+        dispatch({ type: 'SET_STRIPE_CUSTOMER_ID', payload: id });
+      },
+
+      setStripeErrors: (errors: StripeErrors) => {
+        dispatch({ type: 'SET_STRIPE_ERRORS', payload: errors });
+      },
+
+      // Submission
+      setUserId: (id: number) => {
+        dispatch({ type: 'SET_USER_ID', payload: id });
+      },
+
+      setSubmitError: (error: string | null) => {
+        dispatch({ type: 'SET_SUBMIT_ERROR', payload: error });
+      },
+
+      // Pricing
+      setCalculatedTotal: (total: number) => {
+        dispatch({ type: 'SET_CALCULATED_TOTAL', payload: total });
+      },
+
+      setMonthlyStorageRate: (rate: number) => {
+        dispatch({ type: 'SET_MONTHLY_STORAGE_RATE', payload: rate });
+      },
+
+      setMonthlyInsuranceRate: (rate: number) => {
+        dispatch({ type: 'SET_MONTHLY_INSURANCE_RATE', payload: rate });
+      },
+
+      // Navigation
+      nextStep: () => {
+        dispatch({ type: 'NEXT_STEP' });
+      },
+
+      previousStep: () => {
+        dispatch({ type: 'PREVIOUS_STEP' });
+      },
+
+      goToStep: (step: number) => {
+        dispatch({ type: 'GO_TO_STEP', payload: step });
+      },
+
+      // Validation
+      validateCurrentStep: () => {
+        const validation = validateStep(state.currentStep, state);
+
+        if (!validation.isValid) {
+          // Set validation errors
+          dispatch({
+            type: 'SET_VALIDATION_ERRORS',
+            payload: validation.errors,
+          });
+          return false;
+        }
+
+        return true;
+      },
+
+      // Submission (placeholder - will be implemented in Sub-Task 11F)
+      submitQuote: async () => {
+        // TODO: Implement in Sub-Task 11F
+        console.log('Quote submission to be implemented in Sub-Task 11F');
+      },
+
+      // Utilities
+      clearAllErrors: () => {
+        dispatch({ type: 'CLEAR_ALL_ERRORS' });
+      },
+
+      resetForm: () => {
+        dispatch({ type: 'RESET_FORM' });
+      },
+    }),
+    [dispatch]
+  );
 
   // ==================== CONTEXT VALUE ====================
 
@@ -846,11 +988,10 @@ export function GetQuoteProvider({
  */
 export function useGetQuoteContext(): GetQuoteContextValue {
   const context = useContext(GetQuoteContext);
-  
+
   if (!context) {
     throw new Error('useGetQuoteContext must be used within GetQuoteProvider');
   }
-  
+
   return context;
 }
-

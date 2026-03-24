@@ -5,6 +5,7 @@
  */
 
 import { InsuranceOption } from '@/types/insurance';
+import type { StorageTerm } from '@/data/storageTermPricing';
 
 /**
  * Form step enumeration for Add Storage workflow
@@ -79,33 +80,37 @@ export interface PricingInfo {
 export interface AddStorageFormState {
   // Address & Location
   addressInfo: AddressInfo;
-  
+
   // Storage Configuration
   storageUnit: StorageUnitConfig;
-  
+
   // Plan Selection
   selectedPlan: string;
   selectedPlanName: string;
   planType: PlanType;
-  
+
+  // Storage Term
+  storageTerm: StorageTerm | null;
+
   // Labor Selection
   selectedLabor: SelectedLabor | null;
   movingPartnerId: number | null;
   thirdPartyMovingPartnerId: number | null;
-  
+
   // Insurance
   selectedInsurance: InsuranceOption | null;
-  
+
   // Scheduling
   scheduling: SchedulingInfo;
-  
+  hasGreenDateDiscount: boolean;
+
   // Pricing
   pricing: PricingInfo;
-  
+
   // Additional Info
   description: string;
   appointmentType: string;
-  
+
   // UI State
   currentStep: AddStorageStep;
   isPlanDetailsVisible: boolean;
@@ -118,6 +123,7 @@ export interface AddStorageFormState {
 export interface AddStorageFormErrors {
   addressError: string | null;
   planError: string | null;
+  storageTermError: string | null;
   laborError: string | null;
   insuranceError: string | null;
   scheduleError: string | null;
@@ -158,6 +164,11 @@ export interface AddStorageSubmissionPayload {
   monthlyStorageRate: number;
   monthlyInsuranceRate: number;
   calculatedTotal: number;
+  storageTerm: StorageTerm | null;
+  pickupFee: number | null;
+  returnFee: number | null;
+  pickupFeeWaived: boolean;
+  returnFeeWaived: boolean;
   appointmentType: string;
   movingPartnerId: number | null;
   thirdPartyMovingPartnerId: number | null;
@@ -191,13 +202,20 @@ export interface UseAddStorageFormReturn {
   updateFormState: (updates: Partial<AddStorageFormState>) => void;
   updateAddressInfo: (addressInfo: AddressInfo) => void;
   updateStorageUnit: (count: number, text: string) => void;
-  updatePlanSelection: (planId: string, planName: string, planType: string) => void;
+  updatePlanSelection: (
+    planId: string,
+    planName: string,
+    planType: string
+  ) => void;
   updateLaborSelection: (labor: SelectedLabor | null) => void;
   updateInsurance: (insurance: InsuranceOption | null) => void;
   updateScheduling: (date: Date | null, timeSlot: string | null) => void;
   updatePricing: (pricing: Partial<PricingInfo>) => void;
   validateStep: (step: AddStorageStep) => StepValidationResult;
-  setError: (errorKey: keyof AddStorageFormErrors, error: string | null) => void;
+  setError: (
+    errorKey: keyof AddStorageFormErrors,
+    error: string | null
+  ) => void;
   clearError: (errorKey: keyof AddStorageFormErrors) => void;
   resetForm: () => void;
   togglePlanDetails: () => void;
@@ -249,6 +267,9 @@ export interface AddStorageStep1Props {
   onInsuranceChange: (insurance: InsuranceOption | null) => void;
   onTogglePlanDetails: () => void;
   onClearError: (errorKey: keyof AddStorageFormErrors) => void;
+  selectedStorageTerm: StorageTerm | null;
+  storageTermError: string | null;
+  onStorageTermChange: (term: StorageTerm) => void;
   contentRef: React.RefObject<HTMLDivElement>;
 }
 
@@ -275,6 +296,7 @@ export const DEFAULT_ADD_STORAGE_FORM_STATE: AddStorageFormState = {
   selectedPlan: '',
   selectedPlanName: '',
   planType: PlanType.DIY,
+  storageTerm: null,
   selectedLabor: null,
   movingPartnerId: null,
   thirdPartyMovingPartnerId: null,
@@ -283,6 +305,7 @@ export const DEFAULT_ADD_STORAGE_FORM_STATE: AddStorageFormState = {
     scheduledDate: null,
     scheduledTimeSlot: null,
   },
+  hasGreenDateDiscount: false,
   pricing: {
     monthlyStorageRate: 0,
     monthlyInsuranceRate: 0,
@@ -304,6 +327,7 @@ export const DEFAULT_ADD_STORAGE_FORM_STATE: AddStorageFormState = {
 export const DEFAULT_ADD_STORAGE_FORM_ERRORS: AddStorageFormErrors = {
   addressError: null,
   planError: null,
+  storageTermError: null,
   laborError: null,
   insuranceError: null,
   scheduleError: null,

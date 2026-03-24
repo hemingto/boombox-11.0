@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
 /**
  * @fileoverview Interactive calendar component for date selection with availability display
  * @source boombox-10.0/src/app/components/reusablecomponents/calendarview.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * - Displays monthly calendar grid with navigation controls
  * - Shows date availability status with visual indicators
@@ -11,16 +11,16 @@
  * - Automatically selects tomorrow if available when no date is selected
  * - Includes loading states and error handling
  * - Supports past date disabling and availability filtering
- * 
+ *
  * API ROUTES UPDATED:
  * - No API routes used directly in this component
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Replaced hardcoded zinc colors with design system tokens
  * - Updated button styles to use consistent hover/focus states
  * - Applied semantic color classes for loading, error, and interactive states
  * - Used design system spacing and typography tokens
- * 
+ *
  * @refactor Enhanced accessibility with proper ARIA labels, improved keyboard navigation,
  * and better semantic HTML structure. Extracted date utility functions to use existing
  * utilities to prevent duplication.
@@ -28,15 +28,20 @@
 
 import React, { useEffect } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/20/solid';
-import { formatDateForInput } from '@/lib/utils/dateUtils';
+import { formatDateForInput } from '@/lib/utils';
+
+export interface DateAvailabilityInfo {
+  available: boolean;
+  bookingCount: number;
+}
 
 interface CalendarViewProps {
   /** The full date object, used to derive current month and year */
   currentDate: Date;
   /** Currently selected date */
   selectedDate: Date | null;
-  /** Dates in "YYYY-MM-DD" format and their availability */
-  availableDates: Record<string, boolean>;
+  /** Dates in "YYYY-MM-DD" format with availability and booking count */
+  availableDates: Record<string, DateAvailabilityInfo>;
   /** Handler for date selection */
   onDateSelect: (date: Date) => void;
   /** Handler for month navigation - newDate will be the first day of the new month */
@@ -45,13 +50,13 @@ interface CalendarViewProps {
   isLoading: boolean;
   /** Error state indicator for accessibility and visual feedback */
   hasError?: boolean;
-  /** 
+  /**
    * In edit mode, allow today's date to be selectable if it matches the original appointment.
    * This is needed when editing an existing same-day appointment.
    */
   allowTodayInEditMode?: boolean;
-  /** 
-   * The original appointment date (for edit mode). 
+  /**
+   * The original appointment date (for edit mode).
    * When provided, this date will always be allowed even if it's today.
    */
   originalAppointmentDate?: Date | null;
@@ -61,6 +66,8 @@ interface CalendarViewProps {
    * For example, minimumDaysInAdvance={2} means the day after tomorrow is the first available day.
    */
   minimumDaysInAdvance?: number;
+  /** When true, show "$25 off" text on green (0-booking) dates */
+  showGreenDateIncentive?: boolean;
 }
 
 const daysOfWeek = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -76,6 +83,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   allowTodayInEditMode = false,
   originalAppointmentDate = null,
   minimumDaysInAdvance = 1,
+  showGreenDateIncentive = false,
 }) => {
   /**
    * Generate date key in YYYY-MM-DD format for availability lookup
@@ -109,9 +117,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     if (!selectedDate) {
       const firstAvailable = getFirstAvailableDate();
       const firstAvailableKey = getDayKey(firstAvailable);
-      
+
       // Only select if it's available
-      if (availableDates[firstAvailableKey]) {
+      if (availableDates[firstAvailableKey]?.available) {
         onDateSelect(firstAvailable);
       }
     }
@@ -149,20 +157,29 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   };
 
   return (
-    <section className={`p-4 sm:p-6 rounded-md mb-6 
-      ${hasError 
-        ? 'ring-border-error ring-2 bg-red-50' 
-        : 'border-2 border-zinc-100 bg-surface-primary'}
+    <section
+      className={`p-4 sm:p-6 rounded-md mb-6 
+      ${
+        hasError
+          ? 'ring-border-error ring-2 bg-red-50'
+          : 'border-2 border-zinc-100 bg-surface-primary'
+      }
     `}
-    role="region"
-    aria-label="Calendar date picker"
-    aria-live="polite"
+      role="region"
+      aria-label="Calendar date picker"
+      aria-live="polite"
     >
       <header className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-text-primary font-poppins">
-          {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          {currentDate.toLocaleDateString('en-US', {
+            month: 'long',
+            year: 'numeric',
+          })}
         </h3>
-        <nav className="flex items-center space-x-1" aria-label="Calendar navigation">
+        <nav
+          className="flex items-center space-x-1"
+          aria-label="Calendar navigation"
+        >
           <button
             onClick={handlePrevMonth}
             aria-label={`Previous month - ${new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`}
@@ -186,16 +203,23 @@ const CalendarView: React.FC<CalendarViewProps> = ({
         <div className="relative" aria-label="Loading calendar">
           <div className="grid grid-cols-7 h-6 gap-px text-center text-sm text-text-tertiary mb-2">
             {daysOfWeek.map((day, index) => (
-              <div key={`${day}-${index}`} className="font-medium font-inter">{day}</div>
+              <div key={`${day}-${index}`} className="font-medium font-inter">
+                {day}
+              </div>
             ))}
           </div>
           <div className="grid grid-cols-7 gap-px">
-            {Array(35).fill(null).map((_, index) => (
-              <div key={`skeleton-${index}`} className="h-10 bg-surface-tertiary rounded-md animate-pulse"></div>
-            ))}
+            {Array(35)
+              .fill(null)
+              .map((_, index) => (
+                <div
+                  key={`skeleton-${index}`}
+                  className="h-10 bg-surface-tertiary rounded-md animate-pulse"
+                ></div>
+              ))}
           </div>
           <div className="absolute inset-0 flex items-center justify-center bg-surface-primary bg-opacity-70">
-            <div 
+            <div
               className="w-10 h-10 border-4 border-surface-disabled border-t-primary rounded-full animate-spin"
               role="status"
               aria-label="Loading calendar data"
@@ -206,46 +230,86 @@ const CalendarView: React.FC<CalendarViewProps> = ({
         <>
           <div className="grid grid-cols-7 gap-px text-center text-sm text-text-tertiary mb-2">
             {daysOfWeek.map((day, index) => (
-              <div key={`${day}-${index}`} className="font-medium font-inter" role="columnheader">{day}</div>
+              <div
+                key={`${day}-${index}`}
+                className="font-medium font-inter"
+                role="columnheader"
+              >
+                {day}
+              </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-px" role="grid" aria-label="Calendar dates">
+          <div
+            className="grid grid-cols-7 gap-px"
+            role="grid"
+            aria-label="Calendar dates"
+          >
             {calendarDays.map((day, index) => {
               if (!day) {
-                return <div key={`empty-${index}`} className="py-1.5" role="gridcell"></div>;
+                return (
+                  <div
+                    key={`empty-${index}`}
+                    className="py-1.5"
+                    role="gridcell"
+                  ></div>
+                );
               }
 
               const dayKey = getDayKey(day);
-              const isSelected = selectedDate ? getDayKey(selectedDate) === dayKey : false;
+              const isSelected = selectedDate
+                ? getDayKey(selectedDate) === dayKey
+                : false;
               const isToday = getDayKey(today) === dayKey;
               const isPast = day < today; // Strictly in the past (before today)
-              
+
               // In edit mode, allow the original appointment date even if it's too soon
-              const isOriginalAppointmentDate = originalAppointmentDate && 
+              const isOriginalAppointmentDate =
+                originalAppointmentDate &&
                 getDayKey(originalAppointmentDate) === dayKey;
-              const allowDateForEdit = allowTodayInEditMode && isOriginalAppointmentDate;
-              
+              const allowDateForEdit =
+                allowTodayInEditMode && isOriginalAppointmentDate;
+
               // Check if the date is before the minimum days in advance requirement
               const isTooSoon = isDateTooSoon(day);
-              
+
               // Date is unavailable if:
               // 1. It's in the past (before today), OR
               // 2. It's before the minimum days in advance requirement
               // Exception: In edit mode, the original appointment date is always allowed
-              const isPastOrTooSoon = (isPast || isTooSoon) && !allowDateForEdit;
-              const isAvailable = (availableDates[dayKey] === true && !isPastOrTooSoon) || allowDateForEdit;
-              
-              let buttonClasses = 'py-1.5 sm:py-2.5 w-full flex items-center justify-center rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-1 font-inter';
+              const isPastOrTooSoon =
+                (isPast || isTooSoon) && !allowDateForEdit;
+              const dateInfo = availableDates[dayKey];
+              const isAvailable =
+                (dateInfo?.available === true && !isPastOrTooSoon) ||
+                allowDateForEdit;
+              const bookingCount = dateInfo?.bookingCount ?? 0;
+
+              // Dates within the next 2 days default to amber to avoid incentivizing last-minute bookings
+              const twoDaysFromNow = new Date(today);
+              twoDaysFromNow.setDate(twoDaysFromNow.getDate() + 2);
+              const isWithinTwoDays = day >= today && day <= twoDaysFromNow;
+
+              const getAvailabilityBgClass = () => {
+                if (isWithinTwoDays) return 'bg-amber-100';
+                if (bookingCount === 0) return 'bg-emerald-100';
+                if (bookingCount <= 5) return 'bg-amber-100';
+                return 'bg-red-100';
+              };
+
+              let buttonClasses =
+                'min-h-[3rem] sm:min-h-[3.5rem] w-full flex flex-col items-center justify-center rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-1 font-inter';
 
               if (isSelected) {
                 buttonClasses += ' bg-primary text-text-inverse';
               } else if (isPastOrTooSoon) {
-                buttonClasses += ' text-zinc-200 cursor-not-allowed bg-slate-50 line-through';
+                buttonClasses +=
+                  ' text-zinc-200 cursor-not-allowed bg-slate-50 line-through';
               } else if (isAvailable) {
-                buttonClasses += ' text-text-primary hover:bg-surface-tertiary active:bg-surface-disabled';
-              } else { // Not available and not past/today
-                buttonClasses += ' text-zinc-200 cursor-not-allowed bg-slate-50 line-through';
+                buttonClasses += ` text-text-primary ${getAvailabilityBgClass()} hover:opacity-80 active:opacity-70`;
+              } else {
+                buttonClasses +=
+                  ' text-zinc-200 cursor-not-allowed bg-slate-50 line-through';
               }
 
               // Determine the unavailability reason for accessibility
@@ -260,7 +324,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({
               };
 
               return (
-                <div key={dayKey} className="relative py-px px-px" role="gridcell">
+                <div
+                  key={dayKey}
+                  className="relative py-px px-px"
+                  role="gridcell"
+                >
                   <button
                     type="button"
                     onClick={() => isAvailable && onDateSelect(day)}
@@ -268,18 +336,47 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                     className={buttonClasses}
                     aria-pressed={isSelected}
                     aria-label={`${day.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} ${isAvailable ? '(available)' : getUnavailabilityReason()}`}
-                    tabIndex={isSelected ? 0 : (isAvailable ? 0 : -1)}
+                    tabIndex={isSelected ? 0 : isAvailable ? 0 : -1}
                   >
                     <span className="relative">
                       {day.getDate()}
-                      {isToday && (
-                        <span className="sr-only"> (today)</span>
-                      )}
+                      {isToday && <span className="sr-only"> (today)</span>}
                     </span>
+                    {showGreenDateIncentive &&
+                      isAvailable &&
+                      !isSelected &&
+                      bookingCount === 0 &&
+                      !isWithinTwoDays && (
+                        <span className="text-[10px] leading-tight text-emerald-600 font-semibold">
+                          $25 off
+                        </span>
+                      )}
                   </button>
                 </div>
               );
             })}
+          </div>
+
+          {/* Color key */}
+          <div className="flex gap-4 mt-4 pt-3">
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-red-400 inline-block" />
+              <span className="text-xs text-text-tertiary font-inter">
+                Busy
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-amber-300 inline-block" />
+              <span className="text-xs text-text-tertiary font-inter">
+                Not bad
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-emerald-300 inline-block" />
+              <span className="text-xs text-text-tertiary font-inter">
+                Free
+              </span>
+            </div>
           </div>
         </>
       )}

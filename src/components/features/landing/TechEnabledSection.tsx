@@ -43,7 +43,7 @@
 
 'use client';
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Image from 'next/image';
 import {
   AccordionContainer,
@@ -152,20 +152,8 @@ export function TechEnabledSection({
   showMedia = true,
 }: TechEnabledSectionProps) {
   const [currentMediaIndex, setCurrentMediaIndex] = useState<number>(0);
-  const isDesktopRef = useRef(false);
-
-  useEffect(() => {
-    const mql = window.matchMedia('(min-width: 640px)');
-    isDesktopRef.current = mql.matches;
-    const handler = (e: MediaQueryListEvent) => {
-      isDesktopRef.current = e.matches;
-    };
-    mql.addEventListener('change', handler);
-    return () => mql.removeEventListener('change', handler);
-  }, []);
 
   const advanceToNext = useCallback(() => {
-    if (!isDesktopRef.current) return;
     setCurrentMediaIndex(prev => (prev + 1) % features.length);
   }, [features.length]);
 
@@ -182,41 +170,46 @@ export function TechEnabledSection({
   // Build accordion data with IPhoneFrame embedded in the answer for mobile.
   // Strip `image` so the Accordion doesn't render its own inline image,
   // and instead include a mobile-only IPhoneFrame within the answer content.
-  const accordionData = features.map(({ image, video, answer, ...rest }) => ({
-    ...rest,
-    answer: (
-      <>
-        <span>{answer}</span>
-        {/* Mobile-only: IPhoneFrame inline within accordion */}
-        <div className="mt-6 flex justify-center sm:hidden">
-          <IPhoneFrame className="h-[400px]">
-            {video ? (
-              <video
-                src={video}
-                autoPlay
-                muted
-                loop
-                playsInline
-                className="w-full h-full object-cover"
-                aria-hidden="true"
-              />
-            ) : (
-              <div className="relative w-full h-full">
-                <Image
-                  src={image}
-                  alt={`${rest.question}`}
-                  fill
-                  className="object-cover"
-                  loading="lazy"
-                  sizes="(max-width: 640px) 80vw, 0px"
-                />
-              </div>
-            )}
-          </IPhoneFrame>
-        </div>
-      </>
-    ),
-  }));
+  const accordionData = features.map(
+    ({ image, video, answer, ...rest }, index) => {
+      const isActive = index === currentMediaIndex;
+      return {
+        ...rest,
+        answer: (
+          <>
+            <span>{answer}</span>
+            {/* Mobile-only: IPhoneFrame inline within accordion */}
+            <div className="mt-6 flex justify-center sm:hidden">
+              <IPhoneFrame className="h-[400px]">
+                {video && isActive ? (
+                  <video
+                    src={video}
+                    autoPlay
+                    muted
+                    playsInline
+                    onEnded={advanceToNext}
+                    className="w-full h-full object-cover"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <div className="relative w-full h-full">
+                    <Image
+                      src={image}
+                      alt={`${rest.question}`}
+                      fill
+                      className="object-cover"
+                      loading="lazy"
+                      sizes="(max-width: 640px) 80vw, 0px"
+                    />
+                  </div>
+                )}
+              </IPhoneFrame>
+            </div>
+          </>
+        ),
+      };
+    }
+  );
 
   return (
     <section

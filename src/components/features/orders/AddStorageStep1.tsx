@@ -1,21 +1,21 @@
 /**
  * @fileoverview Add Storage Step 1 - Address, storage units, plan selection, and insurance
  * @source boombox-10.0/src/app/components/add-storage/userpageaddstoragestep1.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * - First step of add storage form handling address input, storage unit selection, plan choice, and insurance
  * - Integrates with AddressInput, StorageUnitCounter, RadioCards, and InsuranceInput form components
  * - Displays plan details accordion with LaborPlanDetails component
  * - Handles form validation and error display for all step 1 fields
- * 
+ *
  * API ROUTES UPDATED:
  * - No direct API routes (uses form components that handle their own API calls)
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Replaced hardcoded colors (text-red-500, border-slate-100) with semantic tokens (text-status-error, border-border)
  * - Applied design system form styling and error states
  * - Used semantic surface colors for consistent theming
- * 
+ *
  * @refactor Replaced prop drilling with form context integration, updated imports to use
  * refactored form components, applied design system colors and utility classes
  */
@@ -26,24 +26,26 @@ import React, { useEffect } from 'react';
 import Link from 'next/link';
 
 // Form components
-import { 
-  AddressInput, 
-  StorageUnitCounter, 
-  RadioCards, 
-  InsuranceInput, 
-  LaborPlanDetails 
+import {
+  AddressInput,
+  StorageUnitCounter,
+  RadioCards,
+  InsuranceInput,
+  LaborPlanDetails,
 } from '@/components/forms';
+import StorageTermSelector from '@/components/forms/StorageTermSelector';
 
 // Icons
 import { MovingHelpIcon, FurnitureIcon } from '@/components/icons';
 
 // Types
-import { 
-  AddStorageFormState, 
-  AddStorageFormErrors, 
-  AddressInfo 
+import {
+  AddStorageFormState,
+  AddStorageFormErrors,
+  AddressInfo,
 } from '@/types/addStorage.types';
 import { InsuranceOption } from '@/types/insurance';
+import type { StorageTerm } from '@/data/storageTermPricing';
 
 interface AddStorageStep1Props {
   formState: AddStorageFormState;
@@ -54,6 +56,9 @@ interface AddStorageStep1Props {
   onInsuranceChange: (insurance: InsuranceOption | null) => void;
   onTogglePlanDetails: () => void;
   onClearError: (errorKey: keyof AddStorageFormErrors) => void;
+  selectedStorageTerm: StorageTerm | null;
+  storageTermError: string | null;
+  onStorageTermChange: (term: StorageTerm) => void;
   contentRef: React.RefObject<HTMLDivElement>;
 }
 
@@ -66,9 +71,11 @@ export default function AddStorageStep1({
   onInsuranceChange,
   onTogglePlanDetails,
   onClearError,
+  selectedStorageTerm,
+  storageTermError,
+  onStorageTermChange,
   contentRef,
 }: AddStorageStep1Props) {
-
   // Handle plan details accordion animation
   useEffect(() => {
     if (contentRef.current) {
@@ -104,44 +111,52 @@ export default function AddStorageStep1({
     <div className="w-full basis-1/2">
       <div className="max-w-lg mx-auto md:mx-0 md:ml-auto">
         <header>
-          <h1 
-            className="text-4xl mb-12 text-text-primary"
-            id="form-title"
-          >
+          <h1 className="text-4xl mb-12 text-text-primary" id="form-title">
             Add storage unit
           </h1>
         </header>
-        
+
         {/* Address Input Section */}
         <div className="mb-4 sm:mb-8">
-          <AddressInput 
+          <AddressInput
             label="Where are we delivering your Boombox?"
-            value={formState.addressInfo.address} 
-            onAddressChange={handleAddressChange} 
-            hasError={!!errors.addressError} 
-            onClearError={() => onClearError('addressError')} 
+            value={formState.addressInfo.address}
+            onAddressChange={handleAddressChange}
+            hasError={!!errors.addressError}
+            onClearError={() => onClearError('addressError')}
+          />
+        </div>
+
+        {/* Storage Term Selection */}
+        <div className="mb-4 sm:mb-8">
+          <StorageTermSelector
+            selectedTerm={selectedStorageTerm}
+            onTermChange={onStorageTermChange}
+            hasError={!!storageTermError}
+            onClearError={() => onClearError('storageTermError')}
           />
         </div>
 
         {/* Storage Unit Counter Section */}
         <div className="mb-4 sm:mb-8">
-          <StorageUnitCounter 
-            onCountChange={onStorageUnitChange} 
-            initialCount={formState.storageUnit.count} 
+          <StorageUnitCounter
+            onCountChange={onStorageUnitChange}
+            initialCount={formState.storageUnit.count}
           />
 
           {/* Storage Calculator Link */}
-          <aside 
+          <aside
             className="mt-4 p-3 mb-12 border border-border bg-surface-primary rounded-md max-w-fit"
             role="complementary"
             aria-label="Storage calculator help"
           >
             <p className="text-xs text-text-primary">
-              If you are unsure how many units you need, check our storage calculator{' '}
-              <Link 
-                href="/storage-calculator" 
-                className="underline text-primary hover:text-primary-hover" 
-                target="_blank" 
+              If you are unsure how many units you need, check our storage
+              calculator{' '}
+              <Link
+                href="/storage-calculator"
+                className="underline text-primary hover:text-primary-hover"
+                target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Open storage calculator in new tab"
               >
@@ -153,8 +168,10 @@ export default function AddStorageStep1({
 
         {/* Plan Selection Section */}
         <fieldset className="pb-4">
-          <legend className="mb-4 mt-4 text-text-primary">Do you need help loading your Boombox?</legend>
-          <div 
+          <legend className="mb-4 mt-4 text-text-primary">
+            Do you need help loading your Boombox?
+          </legend>
+          <div
             className="flex flex-row gap-2"
             role="radiogroup"
             aria-labelledby="plan-selection-legend"
@@ -167,9 +184,9 @@ export default function AddStorageStep1({
                 description="Free! 1st hour"
                 plan="Do It Yourself Plan"
                 icon={
-                  <FurnitureIcon 
-                    className="w-14 sm:w-16 text-primary" 
-                    hasError={!!errors.planError} 
+                  <FurnitureIcon
+                    className="w-14 sm:w-16 text-primary"
+                    hasError={!!errors.planError}
                   />
                 }
                 checked={formState.selectedPlan === 'option1'}
@@ -178,7 +195,7 @@ export default function AddStorageStep1({
                 onClearError={() => onClearError('planError')}
               />
             </div>
-            
+
             {/* Full Service Plan Option */}
             <div className="basis-1/2">
               <RadioCards
@@ -187,9 +204,9 @@ export default function AddStorageStep1({
                 description="$189/hr estimate"
                 plan="Full Service Plan"
                 icon={
-                  <MovingHelpIcon 
-                    className="w-14 sm:w-16 text-primary" 
-                    hasError={!!errors.planError} 
+                  <MovingHelpIcon
+                    className="w-14 sm:w-16 text-primary"
+                    hasError={!!errors.planError}
                   />
                 }
                 checked={formState.selectedPlan === 'option2'}
@@ -199,20 +216,22 @@ export default function AddStorageStep1({
               />
             </div>
           </div>
-          
+
           {/* Plan Error Display */}
           {errors.planError && (
-            <div 
+            <div
               className="flex items-center mb-4 mt-1"
               role="alert"
               aria-live="polite"
             >
-              <p className="ml-1 text-sm text-status-error">{errors.planError}</p>
+              <p className="ml-1 text-sm text-status-error">
+                {errors.planError}
+              </p>
             </div>
           )}
-          
+
           {/* Plan Details Toggle */}
-          <div className="mt-4 p-3 sm:mb-4 mb-2 bg-surface-primary border border-border rounded-md max-w-fit">
+          <div className="-mt-4 p-3 sm:mb-4 mb-2 bg-surface-primary border border-border rounded-md max-w-fit">
             <p className="text-xs text-text-primary">
               To learn what&apos;s included in each plan click{' '}
               <button
@@ -233,7 +252,9 @@ export default function AddStorageStep1({
             id="plan-details-content"
             ref={contentRef}
             style={{
-              height: formState.isPlanDetailsVisible ? `${formState.contentHeight}px` : '0px',
+              height: formState.isPlanDetailsVisible
+                ? `${formState.contentHeight}px`
+                : '0px',
               overflow: 'hidden',
               transition: 'height 0.5s ease',
             }}
@@ -250,11 +271,11 @@ export default function AddStorageStep1({
 
         {/* Insurance Selection Section */}
         <fieldset className="mb-96 sm:mb-60">
-          <InsuranceInput 
-            value={formState.selectedInsurance?.value || null} 
-            onInsuranceChange={handleInsuranceChange} 
-            hasError={!!errors.insuranceError} 
-            onClearError={() => onClearError('insuranceError')} 
+          <InsuranceInput
+            value={formState.selectedInsurance?.value || null}
+            onInsuranceChange={handleInsuranceChange}
+            hasError={!!errors.insuranceError}
+            onClearError={() => onClearError('insuranceError')}
           />
         </fieldset>
       </div>

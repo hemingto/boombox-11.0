@@ -24,12 +24,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
-import { 
-  createAppointmentWithDriverAssignment, 
-  processOnfleetAndAssignDriver 
+import {
+  createAppointmentWithDriverAssignment,
+  processOnfleetAndAssignDriver,
 } from '@/lib/services/appointmentService';
-import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
-import { formatTime } from '@/lib/utils/dateUtils';
+import { normalizePhoneNumberToE164, formatTime } from '@/lib/utils';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { welcomeEmailNewCustomer } from '@/lib/messaging/templates/email/booking';
 import { welcomeSmsNewCustomer } from '@/lib/messaging/templates/sms/booking/welcomeSmsNewCustomer';
@@ -74,7 +73,8 @@ async function sendWelcomeEmailNotification(
       console.error('Failed to send welcome email:', result.error);
     }
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
     console.error('Error sending welcome email:', errorMessage);
   }
 }
@@ -111,7 +111,8 @@ async function sendWelcomeSmsNotification(
       console.error('Failed to send welcome SMS:', result.error);
     }
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
     console.error('Error sending welcome SMS:', errorMessage);
   }
 }
@@ -119,7 +120,7 @@ async function sendWelcomeSmsNotification(
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    console.log("Submit Quote Request body:", body);
+    console.log('Submit Quote Request body:', body);
 
     // Validate request body with Zod schema
     const validatedData = CreateSubmitQuoteRequestSchema.parse(body);
@@ -129,7 +130,7 @@ export async function POST(req: NextRequest) {
       lastName,
       email,
       phoneNumber,
-      stripeCustomerId, 
+      stripeCustomerId,
       address,
       zipCode,
       storageUnitCount,
@@ -143,6 +144,11 @@ export async function POST(req: NextRequest) {
       appointmentType,
       movingPartnerId,
       thirdPartyMovingPartnerId,
+      storageTerm,
+      pickupFee,
+      returnFee,
+      pickupFeeWaived,
+      returnFeeWaived,
     } = validatedData;
 
     const normalizedEmail = email.trim().toLowerCase();
@@ -151,7 +157,10 @@ export async function POST(req: NextRequest) {
     // Validate and parse appointmentDateTime
     const appointmentDate = new Date(appointmentDateTime);
     if (isNaN(appointmentDate.getTime())) {
-      return NextResponse.json({ error: 'Invalid appointmentDateTime format' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Invalid appointmentDateTime format' },
+        { status: 400 }
+      );
     }
 
     // Check for duplicate phone number
@@ -163,23 +172,25 @@ export async function POST(req: NextRequest) {
       where: { email: normalizedEmail },
     });
 
-    console.log("Normalized email:", normalizedEmail);
-    console.log("Existing user by email:", existingUserByEmail);
+    console.log('Normalized email:', normalizedEmail);
+    console.log('Existing user by email:', existingUserByEmail);
 
     // Collect validation errors
     const errors: { field: string; message: string }[] = [];
 
     if (existingUserByPhone) {
-      errors.push({ 
-        field: 'phoneNumber', 
-        message: 'This phone number is already in use. Please enter different phone number.' 
+      errors.push({
+        field: 'phoneNumber',
+        message:
+          'This phone number is already in use. Please enter different phone number.',
       });
     }
 
     if (existingUserByEmail) {
-      errors.push({ 
-        field: 'email', 
-        message: 'A user with this email already exists. Please enter different email.' 
+      errors.push({
+        field: 'email',
+        message:
+          'A user with this email already exists. Please enter different email.',
       });
     }
 
@@ -195,11 +206,15 @@ export async function POST(req: NextRequest) {
         lastName,
         email: normalizedEmail,
         phoneNumber: formattedPhoneNumber,
-        stripeCustomerId
+        stripeCustomerId,
       },
       {
-        movingPartnerId: movingPartnerId ? parseInt(String(movingPartnerId), 10) : null,
-        thirdPartyMovingPartnerId: thirdPartyMovingPartnerId ? parseInt(String(thirdPartyMovingPartnerId), 10) : null,
+        movingPartnerId: movingPartnerId
+          ? parseInt(String(movingPartnerId), 10)
+          : null,
+        thirdPartyMovingPartnerId: thirdPartyMovingPartnerId
+          ? parseInt(String(thirdPartyMovingPartnerId), 10)
+          : null,
         appointmentType,
         address,
         zipcode: String(zipCode),
@@ -210,39 +225,48 @@ export async function POST(req: NextRequest) {
         loadingHelpPrice: parsedLoadingHelpPrice,
         monthlyStorageRate,
         monthlyInsuranceRate,
-        quotedPrice: calculatedTotal
+        quotedPrice: calculatedTotal,
+        storageTerm: storageTerm || null,
+        pickupFee: pickupFee ?? 75,
+        returnFee: returnFee ?? 75,
+        pickupFeeWaived: pickupFeeWaived ?? false,
+        returnFeeWaived: returnFeeWaived ?? false,
       }
     );
-    
+
     // Send Welcome Notifications using centralized templates
     try {
       // Format dates for display
-      const appointmentDisplayDate = new Date(appointment.date).toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+      const appointmentDisplayDate = new Date(
+        appointment.date
+      ).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
       });
-          const appointmentDisplayTime = formatTime(new Date(appointment.time));
-      const appointmentShortDate = new Date(appointment.date).toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric' 
+      const appointmentDisplayTime = formatTime(new Date(appointment.time));
+      const appointmentShortDate = new Date(
+        appointment.date
+      ).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
       });
 
-             // Send welcome email
-       await sendWelcomeEmailNotification(
-         user.email,
-         { firstName: user.firstName },
-         {
-           appointmentType: appointment.appointmentType,
-           appointmentDate: appointmentDisplayDate,
-           appointmentTime: appointmentDisplayTime,
-           address: appointment.address,
-           zipcode: appointment.zipcode,
-           numberOfUnits: appointment.numberOfUnits || 1,
-           planType: appointment.planType || 'Standard',
-         }
-       );
+      // Send welcome email
+      await sendWelcomeEmailNotification(
+        user.email,
+        { firstName: user.firstName },
+        {
+          appointmentType: appointment.appointmentType,
+          appointmentDate: appointmentDisplayDate,
+          appointmentTime: appointmentDisplayTime,
+          address: appointment.address,
+          zipcode: appointment.zipcode,
+          numberOfUnits: appointment.numberOfUnits || 1,
+          planType: appointment.planType || 'Standard',
+        }
+      );
 
       // Send welcome SMS
       await sendWelcomeSmsNotification(
@@ -257,77 +281,98 @@ export async function POST(req: NextRequest) {
       );
 
       // Create in-app notification for appointment confirmation
-      await NotificationService.notifyAppointmentConfirmed(
-        user.id,
-        {
-          appointmentId: appointment.id,
-          appointmentType: appointment.appointmentType,
-          date: appointment.date,
-          time: appointment.time,
-          address: appointment.address,
-          zipCode: appointment.zipcode,
-          numberOfUnits: appointment.numberOfUnits || 1
-        }
-      );
+      await NotificationService.notifyAppointmentConfirmed(user.id, {
+        appointmentId: appointment.id,
+        appointmentType: appointment.appointmentType,
+        date: appointment.date,
+        time: appointment.time,
+        address: appointment.address,
+        zipCode: appointment.zipcode,
+        numberOfUnits: appointment.numberOfUnits || 1,
+      });
     } catch (notificationError: unknown) {
       // Log notification errors but do not fail the main API response
-      const errorMessage = notificationError instanceof Error ? notificationError.message : 'Unknown error';
+      const errorMessage =
+        notificationError instanceof Error
+          ? notificationError.message
+          : 'Unknown error';
       console.error('Error sending welcome notifications:', errorMessage);
     }
 
-    console.log(`SUBMIT_QUOTE: DEBUG - Appointment ID: ${appointment.id}, User ID: ${user.id} - Before calling processOnfleetAndAssignDriver.`);
+    console.log(
+      `SUBMIT_QUOTE: DEBUG - Appointment ID: ${appointment.id}, User ID: ${user.id} - Before calling processOnfleetAndAssignDriver.`
+    );
 
     // Create Onfleet tasks and assign drivers asynchronously to avoid blocking the response
     // This is no longer part of the transaction to prevent long-running transactions
-    processOnfleetAndAssignDriver(
-      appointment.id, 
-      user.id,
-      {
-        selectedInsurance,
-        stripeCustomerId,
-        deliveryReason: appointmentType === 'Initial Pickup' ? 'Initial Storage' : 
-                      appointmentType === 'Additional Storage' ? 'Additional Storage' : 
-                      appointmentType === 'Storage Unit Access' ? 'Access Storage' : 'End Storage Term'
-      }
-    ).catch((error: unknown) => {
-      console.error('SUBMIT_QUOTE: DEBUG - Error in processOnfleetAndAssignDriver promise:', error);
+    processOnfleetAndAssignDriver(appointment.id, user.id, {
+      selectedInsurance,
+      stripeCustomerId,
+      deliveryReason:
+        appointmentType === 'Initial Pickup'
+          ? 'Initial Storage'
+          : appointmentType === 'Additional Storage'
+            ? 'Additional Storage'
+            : appointmentType === 'Storage Unit Access'
+              ? 'Access Storage'
+              : 'End Storage Term',
+    }).catch((error: unknown) => {
+      console.error(
+        'SUBMIT_QUOTE: DEBUG - Error in processOnfleetAndAssignDriver promise:',
+        error
+      );
       // We don't want to fail the response even if this part fails
     });
 
-    console.log(`SUBMIT_QUOTE: DEBUG - Appointment ID: ${appointment.id} - After calling processOnfleetAndAssignDriver (call is async).`);
+    console.log(
+      `SUBMIT_QUOTE: DEBUG - Appointment ID: ${appointment.id} - After calling processOnfleetAndAssignDriver (call is async).`
+    );
 
     return NextResponse.json({
       message: 'Appointment scheduled successfully',
       userId: user.id,
-      appointment: appointment
+      appointment: appointment,
     });
   } catch (error: unknown) {
     console.error('Error in Submit Quote API:', error);
-    
+
     // Handle Zod validation errors
     if (error instanceof Error && error.name === 'ZodError') {
       const zodError = error as any; // ZodError type
       const zodErrors = zodError.issues.map((issue: any) => ({
         field: issue.path.join('.'),
-        message: issue.message
+        message: issue.message,
       }));
       return NextResponse.json({ errors: zodErrors }, { status: 400 });
     }
-    
+
     // Check for Prisma unique constraint violation specifically if it's not caught before
-    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
-        const prismaError = error as any; // Prisma error type
-        let field = 'unknown';
-        if (prismaError.meta?.target?.includes('email')) field = 'email';
-        if (prismaError.meta?.target?.includes('phoneNumber')) field = 'phoneNumber';
-        return NextResponse.json({ 
-          errors: [{ field, message: `This ${field} is already in use.` }] 
-        }, { status: 400 });
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      error.code === 'P2002'
+    ) {
+      const prismaError = error as any; // Prisma error type
+      let field = 'unknown';
+      if (prismaError.meta?.target?.includes('email')) field = 'email';
+      if (prismaError.meta?.target?.includes('phoneNumber'))
+        field = 'phoneNumber';
+      return NextResponse.json(
+        {
+          errors: [{ field, message: `This ${field} is already in use.` }],
+        },
+        { status: 400 }
+      );
     }
-    
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ 
-      error: errorMessage
-    }, { status: 500 });
+
+    const errorMessage =
+      error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json(
+      {
+        error: errorMessage,
+      },
+      { status: 500 }
+    );
   }
-} 
+}

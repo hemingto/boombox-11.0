@@ -23,13 +23,13 @@ Price Details:
 \${accessStorageText}
 - \${selectedPlanName}: \${loadingHelpPrice}
 \${insuranceText}
+\${storageTermText}
 - Total: $\${totalPrice}
 - Due Today: $0
 
 What's Next?
 Ready to get started? Visit ${process.env.NEXT_PUBLIC_APP_URL || 'https://boomboxstorage.com'}/getquote to book your appointment.
 
-- Free pickup and delivery
 - Climate-controlled storage
 - 24/7 customer support
 - Fully insured and secure
@@ -75,6 +75,7 @@ Questions? Contact us at hello@boomboxstorage.com
                         <span><strong>Date & Time:</strong></span>
                         <span>\${formattedDate} \${scheduledTimeSlotText}</span>
                     </div>
+                    \${storageTermHtml}
                 </div>
 
                 <div class="quote-section">
@@ -106,7 +107,6 @@ Questions? Contact us at hello@boomboxstorage.com
                     <h3>What's Next?</h3>
                     <p>Ready to get started? Click the button above to schedule your appointment, or contact us if you have any questions.</p>
                     <ul>
-                        <li>Free pickup and delivery</li>
                         <li>Climate-controlled storage</li>
                         <li>24/7 customer support</li>
                         <li>Fully insured and secure</li>
@@ -134,7 +134,9 @@ Questions? Contact us at hello@boomboxstorage.com
     'bookingUrl',
     'storageUnitHtml',
     'accessStorageHtml',
-    'insuranceHtml'
+    'insuranceHtml',
+    'storageTermHtml',
+    'storageTermText',
   ],
-  description: 'Email template for sending detailed price quotes to customers'
-}; 
+  description: 'Email template for sending detailed price quotes to customers',
+};

@@ -9,12 +9,17 @@ import { zipCodePrices } from '@/data/zipcodeprices';
 import { accessStorageUnitPricing } from '@/data/accessStorageUnitPricing';
 import { calculateProcessingFee } from '@/data/processingFeeConfig';
 import { InsuranceOption } from '@/types/insurance';
+import {
+  type StorageTerm,
+  getPickupFeeForTerm,
+} from '@/data/storageTermPricing';
 
 export interface PricingCalculation {
   monthlyStorageRate: number;
   insuranceRate: number;
   loadingHelpRate: number;
   accessStorageRate: number;
+  pickupFee: number;
   processingFee: number;
   total: number;
 }
@@ -43,12 +48,12 @@ export function calculateMonthlyStorageRate(
   if (isAccessStorage) {
     return 0;
   }
-  
+
   const unitPrice = getBoomboxPriceByZipCode(zipCode);
   if (unitPrice !== null) {
     return unitPrice * storageUnitCount;
   }
-  
+
   return 0;
 }
 
@@ -77,7 +82,7 @@ export function calculateInsuranceRate(
   if (isAccessStorage || !selectedInsurance?.price) {
     return 0;
   }
-  
+
   const baseRate = parseInsurancePrice(selectedInsurance.price);
   return baseRate * storageUnitCount;
 }
@@ -91,7 +96,7 @@ export function parseLoadingHelpPrice(loadingHelpPrice: string): number {
   if (loadingHelpPrice === '---') {
     return 0;
   }
-  
+
   const loadingHelpMatch = loadingHelpPrice.match(/\$(\d+)/);
   return loadingHelpMatch ? parseInt(loadingHelpMatch[1], 10) : 0;
 }
@@ -101,7 +106,9 @@ export function parseLoadingHelpPrice(loadingHelpPrice: string): number {
  * @param accessStorageUnitCount - Number of access storage units
  * @returns Total access storage rate
  */
-export function calculateAccessStorageRate(accessStorageUnitCount: number = 0): number {
+export function calculateAccessStorageRate(
+  accessStorageUnitCount: number = 0
+): number {
   return accessStorageUnitCount * accessStorageUnitPricing;
 }
 
@@ -117,6 +124,9 @@ export function calculateQuotePricing(params: {
   loadingHelpPrice: string;
   accessStorageUnitCount?: number;
   isAccessStorage: boolean;
+  storageTerm?: StorageTerm | null;
+  planType?: string;
+  hasGreenDateDiscount?: boolean;
 }): PricingCalculation {
   const {
     zipCode,
@@ -125,6 +135,9 @@ export function calculateQuotePricing(params: {
     loadingHelpPrice,
     accessStorageUnitCount = 0,
     isAccessStorage,
+    storageTerm,
+    planType,
+    hasGreenDateDiscount = false,
   } = params;
 
   const monthlyStorageRate = calculateMonthlyStorageRate(
@@ -142,7 +155,25 @@ export function calculateQuotePricing(params: {
   const loadingHelpRate = parseLoadingHelpPrice(loadingHelpPrice);
   const accessStorageRate = calculateAccessStorageRate(accessStorageUnitCount);
 
-  const subtotal = monthlyStorageRate + insuranceRate + loadingHelpRate + accessStorageRate;
+  let pickupFee =
+    storageTerm && planType === 'Do It Yourself Plan'
+      ? getPickupFeeForTerm(storageTerm, storageUnitCount)
+      : 0;
+
+  if (
+    hasGreenDateDiscount &&
+    planType === 'Do It Yourself Plan' &&
+    storageTerm
+  ) {
+    pickupFee = pickupFee > 0 ? pickupFee - 25 : -25;
+  }
+
+  const subtotal =
+    monthlyStorageRate +
+    insuranceRate +
+    loadingHelpRate +
+    accessStorageRate +
+    pickupFee;
   const processingFee = calculateProcessingFee(subtotal);
   const total = subtotal + processingFee;
 
@@ -151,6 +182,7 @@ export function calculateQuotePricing(params: {
     insuranceRate,
     loadingHelpRate,
     accessStorageRate,
+    pickupFee,
     processingFee,
     total,
   };
@@ -190,7 +222,7 @@ export function formatStorageUnitPrice(
 ): { price: string; strikethroughPrice: string } {
   const totalPrice = unitPrice * storageUnitCount;
   const originalPrice = (unitPrice + 22) * storageUnitCount; // $22 discount per unit
-  
+
   return {
     price: `$${totalPrice}/mo`,
     strikethroughPrice: `$${originalPrice}`,

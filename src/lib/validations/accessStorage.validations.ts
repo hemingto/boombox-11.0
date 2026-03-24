@@ -6,11 +6,11 @@
  */
 
 import { z } from 'zod';
-import { 
-  DeliveryReason, 
-  PlanType, 
-  AppointmentType, 
-  AccessStorageStep 
+import {
+  DeliveryReason,
+  PlanType,
+  AppointmentType,
+  AccessStorageStep,
 } from '@/types/accessStorage.types';
 
 // ===== COMMON VALIDATION PATTERNS =====
@@ -30,7 +30,7 @@ const nonNegativeNumberSchema = z.number().min(0, 'Must be non-negative');
 
 export const coordinatesSchema = z.object({
   lat: z.number().min(-90).max(90, 'Invalid latitude'),
-  lng: z.number().min(-180).max(180, 'Invalid longitude')
+  lng: z.number().min(-180).max(180, 'Invalid longitude'),
 });
 
 // ===== STORAGE UNIT VALIDATION =====
@@ -42,18 +42,18 @@ export const storageUnitSchema = z.object({
   pickUpDate: z.string().min(1, 'Pick up date is required'),
   lastAccessedDate: z.string().min(1, 'Last accessed date is required'),
   description: z.string().min(1, 'Description is required'),
-  location: z.string().nullable().optional()
+  location: z.string().nullable().optional(),
 });
 
 // Schema for pending appointment data from accessRequests
 const pendingAppointmentSchema = z.object({
   id: z.number().positive(),
   date: z.string().or(z.date()),
-  status: z.string()
+  status: z.string(),
 });
 
 const accessRequestSchema = z.object({
-  appointment: pendingAppointmentSchema.nullable().optional()
+  appointment: pendingAppointmentSchema.nullable().optional(),
 });
 
 export const storageUnitUsageSchema = z.object({
@@ -68,12 +68,12 @@ export const storageUnitUsageSchema = z.object({
     storageUnitNumber: z.string().min(1, 'Storage unit number is required'),
     mainImage: z.string().nullable().optional(),
     // Access requests for this storage unit (pending appointments)
-    accessRequests: z.array(accessRequestSchema).optional()
+    accessRequests: z.array(accessRequestSchema).optional(),
   }),
   appointment: z.any().optional(),
   uploadedImages: z.array(z.string()).default([]),
   location: z.string().nullable().optional(),
-  onfleetPhoto: z.string().nullable().optional()
+  onfleetPhoto: z.string().nullable().optional(),
 });
 
 // ===== LABOR SELECTION VALIDATION =====
@@ -82,7 +82,7 @@ export const selectedLaborSchema = z.object({
   id: z.string().min(1, 'Labor ID is required'),
   price: z.string().min(1, 'Labor price is required'),
   title: z.string().min(1, 'Labor title is required'),
-  onfleetTeamId: z.string().optional()
+  onfleetTeamId: z.string().optional(),
 });
 
 // ===== ADDRESS VALIDATION =====
@@ -91,16 +91,21 @@ export const addressDataSchema = z.object({
   address: z.string().min(1, 'Address is required'),
   zipCode: zipCodeSchema,
   coordinates: coordinatesSchema,
-  cityName: z.string().min(1, 'City name is required')
+  cityName: z.string().min(1, 'City name is required'),
 });
 
 // ===== STEP 1: DELIVERY PURPOSE & ADDRESS VALIDATION =====
 
 export const deliveryPurposeStepSchema = z.object({
   deliveryReason: z.nativeEnum(DeliveryReason, {
-    errorMap: () => ({ message: 'Please select a reason for delivery' })
+    errorMap: () => ({ message: 'Please select a reason for delivery' }),
   }),
-  address: z.string().min(1, 'Please enter your address by selecting from the verified dropdown options'),
+  address: z
+    .string()
+    .min(
+      1,
+      'Please enter your address by selecting from the verified dropdown options'
+    ),
   zipCode: zipCodeSchema,
   coordinates: coordinatesSchema.nullable(),
   cityName: z.string(), // Made optional - not all addresses have city names extracted
@@ -109,60 +114,63 @@ export const deliveryPurposeStepSchema = z.object({
     .min(1, 'Please select at least one unit'),
   selectedPlan: z.string().min(1, 'Please choose an unloading help option'),
   selectedPlanName: z.string().min(1, 'Plan name is required'),
-  planType: z.string().min(1, 'Plan type is required')
+  planType: z.string().min(1, 'Plan type is required'),
 });
 
 // ===== STEP 2: SCHEDULING VALIDATION =====
 
 export const schedulingStepSchema = z.object({
-  scheduledDate: z.union([
-    z.date(),
-    z.null()
-  ]).refine((date) => date !== null, {
-    message: 'Please select a date'
+  scheduledDate: z.union([z.date(), z.null()]).refine(date => date !== null, {
+    message: 'Please select a date',
   }),
-  scheduledTimeSlot: z.union([
-    z.string().min(1, 'Please select a time slot'),
-    z.null()
-  ]).refine((slot) => slot !== null && slot !== '', {
-    message: 'Please select a time slot'
-  })
+  scheduledTimeSlot: z
+    .union([z.string().min(1, 'Please select a time slot'), z.null()])
+    .refine(slot => slot !== null && slot !== '', {
+      message: 'Please select a time slot',
+    }),
 });
 
 // ===== STEP 3: LABOR SELECTION VALIDATION =====
 
-export const laborSelectionStepSchema = z.object({
-  selectedLabor: selectedLaborSchema.nullable(),
-  movingPartnerId: z.number().positive().nullable(),
-  thirdPartyMovingPartnerId: z.number().positive().nullable(),
-  loadingHelpPrice: z.string(),
-  loadingHelpDescription: z.string(),
-  parsedLoadingHelpPrice: nonNegativeNumberSchema,
-  planType: z.string().optional()
-}).refine((data) => {
-  // For DIY plans, labor selection is optional
-  if (data.planType === PlanType.DO_IT_YOURSELF || 
-      data.planType === 'Do It Yourself Plan' ||
-      !data.planType || 
-      data.planType === '') {
-    return true;
-  }
-  // For Full Service plans, must have selected labor
-  if (!data.selectedLabor) {
-    return false;
-  }
-  return true;
-}, {
-  message: 'Please choose a moving help option',
-  path: ['laborError']
-});
+export const laborSelectionStepSchema = z
+  .object({
+    selectedLabor: selectedLaborSchema.nullable(),
+    movingPartnerId: z.number().positive().nullable(),
+    thirdPartyMovingPartnerId: z.number().positive().nullable(),
+    loadingHelpPrice: z.string(),
+    loadingHelpDescription: z.string(),
+    parsedLoadingHelpPrice: nonNegativeNumberSchema,
+    planType: z.string().optional(),
+  })
+  .refine(
+    data => {
+      // For DIY plans, labor selection is optional
+      if (
+        data.planType === PlanType.DO_IT_YOURSELF ||
+        data.planType === 'Do It Yourself Plan' ||
+        !data.planType ||
+        data.planType === ''
+      ) {
+        return true;
+      }
+      // For Full Service plans, must have selected labor
+      if (!data.selectedLabor) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: 'Please choose a moving help option',
+      path: ['laborError'],
+    }
+  );
 
 // ===== STEP 4: CONFIRMATION VALIDATION =====
 
 export const confirmationStepSchema = z.object({
   description: z.string().optional().default(''),
   appointmentType: z.nativeEnum(AppointmentType),
-  calculatedTotal: nonNegativeNumberSchema
+  calculatedTotal: nonNegativeNumberSchema,
 });
 
 // ===== COMPLETE FORM STATE VALIDATION =====
@@ -178,11 +186,12 @@ export const accessStorageFormStateSchema = z.object({
   selectedPlan: z.string(),
   selectedPlanName: z.string(),
   planType: z.string(),
-  
+
   // Step 2: Scheduling
   scheduledDate: z.date().nullable(),
   scheduledTimeSlot: z.string().nullable(),
-  
+  hasGreenDateDiscount: z.boolean(),
+
   // Step 3: Labor Selection
   selectedLabor: selectedLaborSchema.nullable(),
   movingPartnerId: z.number().nullable(),
@@ -190,20 +199,20 @@ export const accessStorageFormStateSchema = z.object({
   loadingHelpPrice: z.string(),
   loadingHelpDescription: z.string(),
   parsedLoadingHelpPrice: z.number(),
-  
+
   // Step 4: Confirmation
   description: z.string(),
   appointmentType: z.nativeEnum(AppointmentType),
-  
+
   // Calculated values
   calculatedTotal: z.number(),
   monthlyStorageRate: z.number(),
   monthlyInsuranceRate: z.number(),
-  
+
   // Navigation state
   currentStep: z.nativeEnum(AccessStorageStep),
   isPlanDetailsVisible: z.boolean(),
-  contentHeight: z.number().nullable()
+  contentHeight: z.number().nullable(),
 });
 
 // ===== API SUBMISSION VALIDATION =====
@@ -213,7 +222,9 @@ export const accessStorageSubmissionSchema = z.object({
   address: z.string().min(1, 'Address is required'),
   zipCode: zipCodeSchema,
   selectedPlanName: z.string().min(1, 'Plan name is required'),
-  appointmentDateTime: z.string().datetime('Invalid appointment date/time format'),
+  appointmentDateTime: z
+    .string()
+    .datetime('Invalid appointment date/time format'),
   deliveryReason: z.nativeEnum(DeliveryReason),
   planType: z.string().min(1, 'Plan type is required'),
   selectedStorageUnits: z
@@ -225,7 +236,7 @@ export const accessStorageSubmissionSchema = z.object({
   calculatedTotal: nonNegativeNumberSchema,
   movingPartnerId: z.number().positive().nullable(),
   thirdPartyMovingPartnerId: z.number().positive().nullable(),
-  includeUserData: z.boolean().default(true)
+  includeUserData: z.boolean().default(true),
 });
 
 // ===== EDIT MODE VALIDATION SCHEMAS =====
@@ -248,45 +259,63 @@ export const appointmentDetailsResponseSchema = z.object({
   insuranceCoverage: z.string().nullable(),
   quotedPrice: z.number().min(0),
   status: z.string(),
-  user: z.object({
-    stripeCustomerId: z.string()
-  }).optional(),
-  movingPartner: z.object({
-    id: z.number().positive(),
-    name: z.string(),
-    hourlyRate: z.number().min(0),
-    onfleetTeamId: z.string().optional()
-  }).optional(),
-  thirdPartyMovingPartner: z.object({
-    id: z.number().positive(),
-    name: z.string()
-  }).optional(),
-  requestedStorageUnits: z.array(z.object({
-    storageUnitId: z.number().positive()
-  })).optional(),
-  additionalInfo: z.object({
-    stripeCustomerId: z.string()
-  }).optional()
+  user: z
+    .object({
+      stripeCustomerId: z.string(),
+    })
+    .optional(),
+  movingPartner: z
+    .object({
+      id: z.number().positive(),
+      name: z.string(),
+      hourlyRate: z.number().min(0),
+      onfleetTeamId: z.string().optional(),
+    })
+    .optional(),
+  thirdPartyMovingPartner: z
+    .object({
+      id: z.number().positive(),
+      name: z.string(),
+    })
+    .optional(),
+  requestedStorageUnits: z
+    .array(
+      z.object({
+        storageUnitId: z.number().positive(),
+      })
+    )
+    .optional(),
+  additionalInfo: z
+    .object({
+      stripeCustomerId: z.string(),
+    })
+    .optional(),
 });
 
-export const editAppointmentSubmissionSchema = accessStorageSubmissionSchema.extend({
-  appointmentId: z.number().positive('Appointment ID is required'),
-  status: z.string().optional(),
-  monthlyStorageRate: z.number().min(0),
-  monthlyInsuranceRate: z.number().min(0),
-  selectedLabor: selectedLaborSchema.optional(),
-  stripeCustomerId: z.string().optional(),
-  storageUnitCount: z.number().positive()
-});
+export const editAppointmentSubmissionSchema =
+  accessStorageSubmissionSchema.extend({
+    appointmentId: z.number().positive('Appointment ID is required'),
+    status: z.string().optional(),
+    monthlyStorageRate: z.number().min(0),
+    monthlyInsuranceRate: z.number().min(0),
+    selectedLabor: selectedLaborSchema.optional(),
+    stripeCustomerId: z.string().optional(),
+    storageUnitCount: z.number().positive(),
+  });
 
-export const appointmentOwnershipValidationSchema = z.object({
-  appointmentUserId: z.number().positive(),
-  currentUserId: z.string().min(1),
-}).refine((data) => {
-  return data.appointmentUserId.toString() === data.currentUserId;
-}, {
-  message: 'You do not have permission to edit this appointment'
-});
+export const appointmentOwnershipValidationSchema = z
+  .object({
+    appointmentUserId: z.number().positive(),
+    currentUserId: z.string().min(1),
+  })
+  .refine(
+    data => {
+      return data.appointmentUserId.toString() === data.currentUserId;
+    },
+    {
+      message: 'You do not have permission to edit this appointment',
+    }
+  );
 
 // ===== FORM ERROR VALIDATION =====
 
@@ -298,7 +327,7 @@ export const accessStorageFormErrorsSchema = z.object({
   laborError: z.string().nullable(),
   scheduleError: z.string().nullable(),
   unavailableLaborError: z.string().nullable(),
-  submitError: z.string().nullable()
+  submitError: z.string().nullable(),
 });
 
 // ===== API RESPONSE VALIDATION =====
@@ -307,17 +336,19 @@ export const storageUnitsApiResponseSchema = z.object({
   success: z.boolean(),
   data: z.array(storageUnitUsageSchema).optional(),
   message: z.string().optional(),
-  error: z.string().optional()
+  error: z.string().optional(),
 });
 
 export const accessStorageApiResponseSchema = z.object({
   success: z.boolean(),
-  data: z.object({
-    appointmentId: z.number().positive(),
-    trackingUrl: z.string().optional()
-  }).optional(),
+  data: z
+    .object({
+      appointmentId: z.number().positive(),
+      trackingUrl: z.string().optional(),
+    })
+    .optional(),
   message: z.string().optional(),
-  error: z.string().optional()
+  error: z.string().optional(),
 });
 
 // ===== STEP VALIDATION FUNCTIONS =====
@@ -332,7 +363,7 @@ export const validateDeliveryPurposeStep = (data: any) => {
   } catch (error) {
     if (error instanceof z.ZodError) {
       const errors: Record<string, string> = {};
-      error.errors.forEach((err) => {
+      error.errors.forEach(err => {
         const field = err.path[0] as string;
         // Map field names to expected error field names
         if (field === 'deliveryReason') {
@@ -363,7 +394,7 @@ export const validateSchedulingStep = (data: any) => {
   } catch (error) {
     if (error instanceof z.ZodError) {
       const errors: Record<string, string> = {};
-      error.errors.forEach((err) => {
+      error.errors.forEach(err => {
         const field = err.path[0] as string;
         // Map field names to expected error field names
         if (field === 'scheduledDate') {
@@ -376,7 +407,10 @@ export const validateSchedulingStep = (data: any) => {
       });
       return { isValid: false, errors };
     }
-    return { isValid: false, errors: { scheduleError: 'Please select a date and time slot' } };
+    return {
+      isValid: false,
+      errors: { scheduleError: 'Please select a date and time slot' },
+    };
   }
 };
 
@@ -390,7 +424,7 @@ export const validateLaborSelectionStep = (data: any) => {
   } catch (error) {
     if (error instanceof z.ZodError) {
       const errors: Record<string, string> = {};
-      error.errors.forEach((err) => {
+      error.errors.forEach(err => {
         const field = err.path[0] as string;
         // Map field names to expected error field names
         if (field === 'laborError' || field === 'selectedLabor') {
@@ -401,7 +435,10 @@ export const validateLaborSelectionStep = (data: any) => {
       });
       return { isValid: false, errors };
     }
-    return { isValid: false, errors: { laborError: 'Please choose a moving help option' } };
+    return {
+      isValid: false,
+      errors: { laborError: 'Please choose a moving help option' },
+    };
   }
 };
 
@@ -415,7 +452,7 @@ export const validateConfirmationStep = (data: any) => {
   } catch (error) {
     if (error instanceof z.ZodError) {
       const errors: Record<string, string> = {};
-      error.errors.forEach((err) => {
+      error.errors.forEach(err => {
         const field = err.path[0] as string;
         errors[`${field}Error`] = err.message;
       });
@@ -435,13 +472,17 @@ export const validateAccessStorageSubmission = (data: any) => {
   } catch (error) {
     if (error instanceof z.ZodError) {
       const errors: Record<string, string> = {};
-      error.errors.forEach((err) => {
+      error.errors.forEach(err => {
         const field = err.path[0] as string;
         errors[`${field}Error`] = err.message;
       });
       return { isValid: false, data: null, errors };
     }
-    return { isValid: false, data: null, errors: { submitError: 'Form validation failed' } };
+    return {
+      isValid: false,
+      data: null,
+      errors: { submitError: 'Form validation failed' },
+    };
   }
 };
 
@@ -451,7 +492,7 @@ export const stepValidationMap = {
   [AccessStorageStep.DELIVERY_PURPOSE]: validateDeliveryPurposeStep,
   [AccessStorageStep.SCHEDULING]: validateSchedulingStep,
   [AccessStorageStep.LABOR_SELECTION]: validateLaborSelectionStep,
-  [AccessStorageStep.CONFIRMATION]: validateConfirmationStep
+  [AccessStorageStep.CONFIRMATION]: validateConfirmationStep,
 };
 
 // ===== UTILITY VALIDATION FUNCTIONS =====
@@ -470,9 +511,9 @@ export const validateStorageUnitSelection = (
 
   if (deliveryReason === DeliveryReason.END_STORAGE_TERM) {
     if (selectedUnits.length !== allUnits.length) {
-      return { 
-        isValid: false, 
-        error: 'All storage units must be selected when ending storage term' 
+      return {
+        isValid: false,
+        error: 'All storage units must be selected when ending storage term',
       };
     }
   }
@@ -484,12 +525,12 @@ export const validateStorageUnitSelection = (
  * Options for appointment date/time validation
  */
 export interface ValidateAppointmentDateTimeOptions {
-  /** 
+  /**
    * Whether this is edit mode - allows past times for existing appointments.
    * When true and originalDateTime is provided, skips past-time check if unchanged.
    */
   isEditMode?: boolean;
-  /** 
+  /**
    * The original appointment date/time (for edit mode).
    * If the date/time matches this, skip the past-time validation.
    */
@@ -498,7 +539,7 @@ export interface ValidateAppointmentDateTimeOptions {
 
 /**
  * Validates appointment date/time combination
- * 
+ *
  * @param date - The selected date
  * @param timeSlot - The selected time slot (e.g., "10am-11am")
  * @param options - Optional validation options for edit mode
@@ -509,7 +550,7 @@ export const validateAppointmentDateTime = (
   options: ValidateAppointmentDateTimeOptions = {}
 ) => {
   const { isEditMode = false, originalDateTime = null } = options;
-  
+
   if (!date || !timeSlot) {
     return { isValid: false, error: 'Please select a date and time slot' };
   }
@@ -517,7 +558,7 @@ export const validateAppointmentDateTime = (
   const appointmentDateTime = new Date(date);
   const timeRegex = /(\d{1,2})(?:\:(\d{2}))?(am|pm)/i;
   const timeMatch = timeSlot.split('-')[0].match(timeRegex);
-  
+
   if (!timeMatch) {
     return { isValid: false, error: 'Invalid time slot format' };
   }
@@ -525,37 +566,50 @@ export const validateAppointmentDateTime = (
   let hours = parseInt(timeMatch[1]);
   const minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
   const period = timeMatch[3].toLowerCase();
-  
+
   if (period === 'pm' && hours < 12) hours += 12;
   if (period === 'am' && hours === 12) hours = 0;
-  
+
   appointmentDateTime.setHours(hours, minutes, 0, 0);
-  
+
   // Check if appointment is in the past
   const now = new Date();
   const isInPast = appointmentDateTime < now;
-  
+
   if (isInPast) {
     // In edit mode, allow the original date/time to be kept even if it's in the past
     if (isEditMode && originalDateTime) {
       // Check if the selected date/time matches the original appointment
       const originalDate = new Date(originalDateTime);
-      const isSameDateTime = 
+      const isSameDateTime =
         appointmentDateTime.getFullYear() === originalDate.getFullYear() &&
         appointmentDateTime.getMonth() === originalDate.getMonth() &&
         appointmentDateTime.getDate() === originalDate.getDate() &&
         appointmentDateTime.getHours() === originalDate.getHours();
-      
+
       if (isSameDateTime) {
         // Allow keeping the original time slot unchanged
-        return { isValid: true, error: null, appointmentDateTime, isOriginalDateTime: true };
+        return {
+          isValid: true,
+          error: null,
+          appointmentDateTime,
+          isOriginalDateTime: true,
+        };
       }
     }
-    
-    return { isValid: false, error: 'Appointment cannot be scheduled in the past' };
+
+    return {
+      isValid: false,
+      error: 'Appointment cannot be scheduled in the past',
+    };
   }
 
-  return { isValid: true, error: null, appointmentDateTime, isOriginalDateTime: false };
+  return {
+    isValid: true,
+    error: null,
+    appointmentDateTime,
+    isOriginalDateTime: false,
+  };
 };
 
 /**
@@ -580,7 +634,10 @@ export const validateLaborSelection = (
   }
 
   if (planType === PlanType.THIRD_PARTY && !thirdPartyMovingPartnerId) {
-    return { isValid: false, error: 'Third party moving partner selection is required' };
+    return {
+      isValid: false,
+      error: 'Third party moving partner selection is required',
+    };
   }
 
   return { isValid: true, error: null };
@@ -598,13 +655,17 @@ export const validateAppointmentDetailsResponse = (data: any) => {
   } catch (error) {
     if (error instanceof z.ZodError) {
       const errors: Record<string, string> = {};
-      error.errors.forEach((err) => {
+      error.errors.forEach(err => {
         const field = err.path.join('.');
         errors[field] = err.message;
       });
       return { isValid: false, data: null, errors };
     }
-    return { isValid: false, data: null, errors: { general: 'Invalid appointment data' } };
+    return {
+      isValid: false,
+      data: null,
+      errors: { general: 'Invalid appointment data' },
+    };
   }
 };
 
@@ -618,29 +679,39 @@ export const validateEditAppointmentSubmission = (data: any) => {
   } catch (error) {
     if (error instanceof z.ZodError) {
       const errors: Record<string, string> = {};
-      error.errors.forEach((err) => {
+      error.errors.forEach(err => {
         const field = err.path[0] as string;
         errors[`${field}Error`] = err.message;
       });
       return { isValid: false, data: null, errors };
     }
-    return { isValid: false, data: null, errors: { submitError: 'Edit form validation failed' } };
+    return {
+      isValid: false,
+      data: null,
+      errors: { submitError: 'Edit form validation failed' },
+    };
   }
 };
 
 /**
  * Validates appointment ownership
  */
-export const validateAppointmentOwnership = (appointmentUserId: number, currentUserId: string) => {
+export const validateAppointmentOwnership = (
+  appointmentUserId: number,
+  currentUserId: string
+) => {
   try {
     appointmentOwnershipValidationSchema.parse({
       appointmentUserId,
-      currentUserId
+      currentUserId,
     });
     return { isValid: true, error: null };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return { isValid: false, error: error.errors[0]?.message || 'Permission denied' };
+      return {
+        isValid: false,
+        error: error.errors[0]?.message || 'Permission denied',
+      };
     }
     return { isValid: false, error: 'Permission validation failed' };
   }
@@ -652,11 +723,23 @@ export type DeliveryPurposeStepData = z.infer<typeof deliveryPurposeStepSchema>;
 export type SchedulingStepData = z.infer<typeof schedulingStepSchema>;
 export type LaborSelectionStepData = z.infer<typeof laborSelectionStepSchema>;
 export type ConfirmationStepData = z.infer<typeof confirmationStepSchema>;
-export type AccessStorageFormState = z.infer<typeof accessStorageFormStateSchema>;
-export type AccessStorageSubmissionData = z.infer<typeof accessStorageSubmissionSchema>;
-export type StorageUnitsApiResponse = z.infer<typeof storageUnitsApiResponseSchema>;
-export type AccessStorageApiResponse = z.infer<typeof accessStorageApiResponseSchema>;
+export type AccessStorageFormState = z.infer<
+  typeof accessStorageFormStateSchema
+>;
+export type AccessStorageSubmissionData = z.infer<
+  typeof accessStorageSubmissionSchema
+>;
+export type StorageUnitsApiResponse = z.infer<
+  typeof storageUnitsApiResponseSchema
+>;
+export type AccessStorageApiResponse = z.infer<
+  typeof accessStorageApiResponseSchema
+>;
 
 // Edit mode type exports
-export type AppointmentDetailsResponse = z.infer<typeof appointmentDetailsResponseSchema>;
-export type EditAppointmentSubmissionData = z.infer<typeof editAppointmentSubmissionSchema>;
+export type AppointmentDetailsResponse = z.infer<
+  typeof appointmentDetailsResponseSchema
+>;
+export type EditAppointmentSubmissionData = z.infer<
+  typeof editAppointmentSubmissionSchema
+>;

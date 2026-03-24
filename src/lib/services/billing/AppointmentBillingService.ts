@@ -1,33 +1,42 @@
 /**
  * @fileoverview Appointment billing orchestration service
  * @source boombox-11.0/src/lib/services/stripeInvoiceService.ts (extracted business logic)
- * 
+ *
  * SERVICE FUNCTIONALITY:
  * Business logic orchestration for appointment billing. Coordinates calculation services,
  * generates invoice data, and processes different appointment types with proper business rules.
- * 
+ *
  * USED BY:
  * - Onfleet webhook processing for appointment completion billing
  * - Quote generation system for upfront pricing estimates
  * - Admin tools for billing calculations and previews
  * - Customer portal for invoice explanations
- * 
+ *
  * @refactor Extracted business orchestration logic from Stripe service for better separation
  * @refactor Added webhook processing consolidation from webhooks/AppointmentBillingService
  */
 
-import { BillingCalculator, type LoadingHelpCalculation, type StorageChargesCalculation, type AccessStorageCalculation } from './BillingCalculator';
-import { calculateProcessingFee, PROCESSING_FEE_LABEL } from '@/data/processingFeeConfig';
+import {
+  BillingCalculator,
+  type LoadingHelpCalculation,
+  type StorageChargesCalculation,
+  type AccessStorageCalculation,
+} from './BillingCalculator';
+import {
+  calculateProcessingFee,
+  PROCESSING_FEE_LABEL,
+} from '@/data/processingFeeConfig';
+import {
+  DIY_FREE_SERVICE_MINUTES,
+  PICKUP_FEE_PER_UNIT,
+} from '@/data/storageTermPricing';
 import type { ServiceMetrics } from '../stripe/stripeInvoiceService';
 // Webhook processing imports
-import {
-  StripeInvoiceService,
-  StripeSubscriptionService
-} from '../stripe';
+import { StripeInvoiceService, StripeSubscriptionService } from '../stripe';
 import {
   updateAppointmentStatus,
   updateStorageUnitUsageForTermination,
-  findActiveStorageUsage
+  findActiveStorageUsage,
 } from '../../utils/webhookQueries';
 
 // Import types (matches existing interfaces)
@@ -39,6 +48,11 @@ interface AppointmentWithRelations {
   loadingHelpPrice: number | null;
   numberOfUnits: number | null;
   insuranceCoverage: string | null;
+  pickupFee?: number | null;
+  pickupFeeWaived?: boolean;
+  returnFee?: number | null;
+  returnFeeWaived?: boolean;
+  planType?: string | null;
   requestedStorageUnits: Array<{
     storageUnitId: number;
   }>;
@@ -86,7 +100,7 @@ export class AppointmentBillingService {
           success: false,
           invoiceItems: [],
           total: 0,
-          error: validation.error
+          error: validation.error,
         };
       }
 
@@ -102,14 +116,18 @@ export class AppointmentBillingService {
         appointment.loadingHelpPrice!
       );
 
-      const total = storageCharges.storageTotal + storageCharges.insuranceTotal + loadingHelp.total;
+      const total =
+        storageCharges.storageTotal +
+        storageCharges.insuranceTotal +
+        loadingHelp.total;
 
       // Generate invoice items
       const invoiceItems = this.generateStorageInvoiceItems(
         appointment.user.stripeCustomerId!,
         storageCharges,
         loadingHelp,
-        appointment.insuranceCoverage || 'Insurance'
+        appointment.insuranceCoverage || 'Insurance',
+        appointment
       );
 
       return {
@@ -117,16 +135,15 @@ export class AppointmentBillingService {
         invoiceItems,
         total,
         loadingHelpCalculation: loadingHelp,
-        storageChargesCalculation: storageCharges
+        storageChargesCalculation: storageCharges,
       };
-
     } catch (error) {
       console.error('Error processing storage appointment billing:', error);
       return {
         success: false,
         invoiceItems: [],
         total: 0,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
@@ -145,7 +162,7 @@ export class AppointmentBillingService {
           success: false,
           invoiceItems: [],
           total: 0,
-          error: 'Invalid loading help price for access appointment'
+          error: 'Invalid loading help price for access appointment',
         };
       }
 
@@ -154,14 +171,15 @@ export class AppointmentBillingService {
           success: false,
           invoiceItems: [],
           total: 0,
-          error: 'No Stripe customer ID found'
+          error: 'No Stripe customer ID found',
         };
       }
 
       // Calculate charges
       const unitCount = appointment.requestedStorageUnits.length;
-      const accessCharges = BillingCalculator.calculateAccessStorageTotal(unitCount);
-      
+      const accessCharges =
+        BillingCalculator.calculateAccessStorageTotal(unitCount);
+
       const loadingHelp = BillingCalculator.calculateLoadingHelpTotal(
         serviceMetrics.serviceTimeMinutes,
         appointment.loadingHelpPrice
@@ -173,7 +191,9 @@ export class AppointmentBillingService {
       const invoiceItems = this.generateAccessInvoiceItems(
         appointment.user.stripeCustomerId,
         accessCharges,
-        loadingHelp
+        loadingHelp,
+        appointment,
+        serviceMetrics.serviceTimeMinutes
       );
 
       return {
@@ -181,16 +201,15 @@ export class AppointmentBillingService {
         invoiceItems,
         total,
         loadingHelpCalculation: loadingHelp,
-        accessStorageCalculation: accessCharges
+        accessStorageCalculation: accessCharges,
       };
-
     } catch (error) {
       console.error('Error processing access appointment billing:', error);
       return {
         success: false,
         invoiceItems: [],
         total: 0,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
@@ -198,7 +217,9 @@ export class AppointmentBillingService {
   /**
    * Determine appointment status after successful billing
    */
-  static calculateAppointmentStatus(appointmentType: string): AppointmentStatusResult {
+  static calculateAppointmentStatus(
+    appointmentType: string
+  ): AppointmentStatusResult {
     let newStatus: string;
 
     switch (appointmentType) {
@@ -218,7 +239,7 @@ export class AppointmentBillingService {
 
     return {
       newStatus,
-      appointmentType
+      appointmentType,
     };
   }
 
@@ -229,37 +250,60 @@ export class AppointmentBillingService {
     customerId: string,
     storageCharges: StorageChargesCalculation,
     loadingHelp: LoadingHelpCalculation,
-    insuranceCoverage: string
+    insuranceCoverage: string,
+    appointment?: AppointmentWithRelations
   ): InvoiceItemData[] {
     const numberOfUnits = storageCharges.numberOfUnits;
-    const subtotal = storageCharges.storageTotal + storageCharges.insuranceTotal + loadingHelp.total;
-    const fee = calculateProcessingFee(subtotal);
-    return [
+    let subtotal =
+      storageCharges.storageTotal +
+      storageCharges.insuranceTotal +
+      loadingHelp.total;
+
+    const items: InvoiceItemData[] = [
       {
         customer: customerId,
         amount: BillingCalculator.toCents(storageCharges.storageTotal),
         currency: 'usd',
-        description: `Monthly Storage Rate (${numberOfUnits} unit${numberOfUnits > 1 ? 's' : ''} @ $${storageCharges.monthlyStorageRate}/unit)`
+        description: `Monthly Storage Rate (${numberOfUnits} unit${numberOfUnits > 1 ? 's' : ''} @ $${storageCharges.monthlyStorageRate}/unit)`,
       },
       {
         customer: customerId,
         amount: BillingCalculator.toCents(storageCharges.insuranceTotal),
         currency: 'usd',
-        description: `${insuranceCoverage} (${numberOfUnits} unit${numberOfUnits > 1 ? 's' : ''} @ $${storageCharges.monthlyInsuranceRate}/unit)`
+        description: `${insuranceCoverage} (${numberOfUnits} unit${numberOfUnits > 1 ? 's' : ''} @ $${storageCharges.monthlyInsuranceRate}/unit)`,
       },
       {
         customer: customerId,
         amount: BillingCalculator.toCents(loadingHelp.total),
         currency: 'usd',
-        description: `Loading Help Service (${loadingHelp.billedMinutes} minutes, 1 hr minimum)`
+        description: `Loading Help Service (${loadingHelp.billedMinutes} minutes, 1 hr minimum)`,
       },
-      {
-        customer: customerId,
-        amount: BillingCalculator.toCents(fee),
-        currency: 'usd',
-        description: PROCESSING_FEE_LABEL
-      }
     ];
+
+    if (
+      appointment?.pickupFee &&
+      appointment.pickupFee > 0 &&
+      !appointment.pickupFeeWaived
+    ) {
+      const unitCount = appointment.numberOfUnits || 1;
+      subtotal += appointment.pickupFee;
+      items.push({
+        customer: customerId,
+        amount: BillingCalculator.toCents(appointment.pickupFee),
+        currency: 'usd',
+        description: `Pickup Fee (${unitCount} unit${unitCount > 1 ? 's' : ''} @ $${PICKUP_FEE_PER_UNIT}/unit)`,
+      });
+    }
+
+    const fee = calculateProcessingFee(subtotal);
+    items.push({
+      customer: customerId,
+      amount: BillingCalculator.toCents(fee),
+      currency: 'usd',
+      description: PROCESSING_FEE_LABEL,
+    });
+
+    return items;
   }
 
   /**
@@ -268,36 +312,78 @@ export class AppointmentBillingService {
   private static generateAccessInvoiceItems(
     customerId: string,
     accessCharges: AccessStorageCalculation,
-    loadingHelp: LoadingHelpCalculation
+    loadingHelp: LoadingHelpCalculation,
+    appointment?: AppointmentWithRelations,
+    serviceTimeMinutes?: number
   ): InvoiceItemData[] {
-    const subtotal = accessCharges.total + loadingHelp.total;
-    const fee = calculateProcessingFee(subtotal);
-    return [
+    let subtotal = accessCharges.total + loadingHelp.total;
+
+    const items: InvoiceItemData[] = [
       {
         customer: customerId,
         amount: BillingCalculator.toCents(accessCharges.total),
         currency: 'usd',
-        description: `Storage Unit Access (${accessCharges.unitCount} units)`
+        description: `Storage Unit Access (${accessCharges.unitCount} units)`,
       },
       {
         customer: customerId,
         amount: BillingCalculator.toCents(loadingHelp.total),
         currency: 'usd',
-        description: `Loading Help Service (${loadingHelp.billedMinutes} minutes, 1 hr minimum)`
+        description: `Loading Help Service (${loadingHelp.billedMinutes} minutes, 1 hr minimum)`,
       },
-      {
-        customer: customerId,
-        amount: BillingCalculator.toCents(fee),
-        currency: 'usd',
-        description: PROCESSING_FEE_LABEL
-      }
     ];
+
+    if (
+      appointment?.appointmentType === 'End Storage Term' &&
+      appointment.returnFee &&
+      appointment.returnFee > 0 &&
+      !appointment.returnFeeWaived
+    ) {
+      subtotal += appointment.returnFee;
+      items.push({
+        customer: customerId,
+        amount: BillingCalculator.toCents(appointment.returnFee),
+        currency: 'usd',
+        description: 'Return Delivery Fee',
+      });
+    }
+
+    if (
+      appointment?.planType === 'Do It Yourself Plan' &&
+      serviceTimeMinutes &&
+      serviceTimeMinutes > DIY_FREE_SERVICE_MINUTES
+    ) {
+      const overageCharge =
+        BillingCalculator.calculateDiyOverageCharge(serviceTimeMinutes);
+      if (overageCharge > 0) {
+        subtotal += overageCharge;
+        items.push({
+          customer: customerId,
+          amount: BillingCalculator.toCents(overageCharge),
+          currency: 'usd',
+          description: `DIY Overage Charge (${Math.round(serviceTimeMinutes - DIY_FREE_SERVICE_MINUTES)} minutes over ${DIY_FREE_SERVICE_MINUTES}-minute free window)`,
+        });
+      }
+    }
+
+    const fee = calculateProcessingFee(subtotal);
+    items.push({
+      customer: customerId,
+      amount: BillingCalculator.toCents(fee),
+      currency: 'usd',
+      description: PROCESSING_FEE_LABEL,
+    });
+
+    return items;
   }
 
   /**
    * Validate service metrics for billing calculations
    */
-  static validateServiceMetrics(serviceMetrics: ServiceMetrics): { isValid: boolean; error?: string } {
+  static validateServiceMetrics(serviceMetrics: ServiceMetrics): {
+    isValid: boolean;
+    error?: string;
+  } {
     if (!serviceMetrics) {
       return { isValid: false, error: 'No service metrics provided' };
     }
@@ -330,52 +416,65 @@ export class AppointmentBillingService {
     error?: string;
   } {
     try {
-      const loadingHelp = BillingCalculator.calculateLoadingHelpTotal(estimatedServiceTimeMinutes, loadingHelpPrice);
-      
+      const loadingHelp = BillingCalculator.calculateLoadingHelpTotal(
+        estimatedServiceTimeMinutes,
+        loadingHelpPrice
+      );
+
       let breakdown: { item: string; amount: number }[] = [];
       let subtotal = 0;
 
-      if (appointmentType === 'Initial Pickup' || appointmentType === 'Additional Storage') {
-        const storageCharges = BillingCalculator.calculateStorageCharges(numberOfUnits, monthlyStorageRate, monthlyInsuranceRate);
-        
-        subtotal = storageCharges.storageTotal + storageCharges.insuranceTotal + loadingHelp.total;
+      if (
+        appointmentType === 'Initial Pickup' ||
+        appointmentType === 'Additional Storage'
+      ) {
+        const storageCharges = BillingCalculator.calculateStorageCharges(
+          numberOfUnits,
+          monthlyStorageRate,
+          monthlyInsuranceRate
+        );
+
+        subtotal =
+          storageCharges.storageTotal +
+          storageCharges.insuranceTotal +
+          loadingHelp.total;
         const fee = calculateProcessingFee(subtotal);
-        
+
         breakdown = [
           { item: 'Monthly Storage Rate', amount: storageCharges.storageTotal },
           { item: 'Monthly Insurance', amount: storageCharges.insuranceTotal },
           { item: 'Loading Help Service', amount: loadingHelp.total },
-          { item: PROCESSING_FEE_LABEL, amount: fee }
+          { item: PROCESSING_FEE_LABEL, amount: fee },
         ];
-        
+
         subtotal += fee;
       } else {
-        const accessCharges = BillingCalculator.calculateAccessStorageTotal(numberOfUnits);
-        
+        const accessCharges =
+          BillingCalculator.calculateAccessStorageTotal(numberOfUnits);
+
         subtotal = accessCharges.total + loadingHelp.total;
         const fee = calculateProcessingFee(subtotal);
-        
+
         breakdown = [
           { item: 'Storage Unit Access', amount: accessCharges.total },
           { item: 'Loading Help Service', amount: loadingHelp.total },
-          { item: PROCESSING_FEE_LABEL, amount: fee }
+          { item: PROCESSING_FEE_LABEL, amount: fee },
         ];
-        
+
         subtotal += fee;
       }
 
       return {
         success: true,
         total: subtotal,
-        breakdown
+        breakdown,
       };
-
     } catch (error) {
       return {
         success: false,
         total: 0,
         breakdown: [],
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
@@ -390,22 +489,31 @@ export class AppointmentBillingService {
     taskDetails: any,
     completionTime: number
   ): Promise<void> {
-    console.log('Processing Stripe billing for appointment:', appointment.appointmentType);
+    console.log(
+      'Processing Stripe billing for appointment:',
+      appointment.appointmentType
+    );
 
     // Calculate service metrics from completion details
-    const serviceMetrics = this.calculateWebhookServiceMetrics(appointment, taskDetails);
-    
+    const serviceMetrics = this.calculateWebhookServiceMetrics(
+      appointment,
+      taskDetails
+    );
+
     console.log('Service time in minutes:', serviceMetrics.serviceTimeMinutes);
 
     // Determine new appointment status based on type
-    const newStatus = this.determineAppointmentStatus(appointment.appointmentType);
+    const newStatus = this.determineAppointmentStatus(
+      appointment.appointmentType
+    );
 
     try {
       // Create and pay invoice using refactored service
-      const invoiceResult = await StripeInvoiceService.createAndPayAppointmentInvoice(
-        appointment,
-        serviceMetrics
-      );
+      const invoiceResult =
+        await StripeInvoiceService.createAndPayAppointmentInvoice(
+          appointment,
+          serviceMetrics
+        );
 
       if (!invoiceResult.success) {
         console.error('Invoice creation failed:', invoiceResult.error);
@@ -415,21 +523,22 @@ export class AppointmentBillingService {
       // Update appointment with invoice details and new status
       await updateAppointmentStatus(appointment.id, newStatus, {
         invoiceUrl: invoiceResult.invoiceUrl,
-        invoiceTotal: invoiceResult.total
+        invoiceTotal: invoiceResult.total,
       });
 
-      console.log(`Invoice created successfully: ${invoiceResult.invoice?.id}, Total: $${invoiceResult.total}`);
+      console.log(
+        `Invoice created successfully: ${invoiceResult.invoice?.id}, Total: $${invoiceResult.total}`
+      );
 
       // Handle subscription creation for storage appointments
       if (this.isStorageAppointment(appointment.appointmentType)) {
         await this.handleStorageSubscription(appointment);
       }
-      
+
       // Handle End Storage Term logic
       if (appointment.appointmentType === 'End Storage Term') {
         await this.handleStorageTermination(appointment);
       }
-
     } catch (stripeError) {
       console.error('Stripe processing error:', stripeError);
       throw stripeError;
@@ -441,18 +550,22 @@ export class AppointmentBillingService {
    * Note: Both serviceStartTime and completionDetails.time are stored in milliseconds
    * (from the Onfleet webhook time field which is already in milliseconds)
    */
-  private static calculateWebhookServiceMetrics(appointment: any, taskDetails: any): ServiceMetrics {
+  private static calculateWebhookServiceMetrics(
+    appointment: any,
+    taskDetails: any
+  ): ServiceMetrics {
     // serviceStartTime is already stored in milliseconds (from webhook time)
-    const serviceStartTimeMs = parseInt(appointment.serviceStartTime || "0");
+    const serviceStartTimeMs = parseInt(appointment.serviceStartTime || '0');
     const completionTimeMs = taskDetails.completionDetails?.time || 0;
-    
-    const serviceTimeMinutes = completionTimeMs && serviceStartTimeMs
-      ? (completionTimeMs - serviceStartTimeMs) / (60 * 1000) // Convert ms difference to minutes
-      : 0;
-    
+
+    const serviceTimeMinutes =
+      completionTimeMs && serviceStartTimeMs
+        ? (completionTimeMs - serviceStartTimeMs) / (60 * 1000) // Convert ms difference to minutes
+        : 0;
+
     return {
       serviceTimeMinutes: serviceTimeMinutes,
-      completionTime: completionTimeMs
+      completionTime: completionTimeMs,
     };
   }
 
@@ -460,7 +573,10 @@ export class AppointmentBillingService {
    * Determine new appointment status based on appointment type
    */
   private static determineAppointmentStatus(appointmentType: string): string {
-    if (appointmentType === 'Initial Pickup' || appointmentType === 'Additional Storage') {
+    if (
+      appointmentType === 'Initial Pickup' ||
+      appointmentType === 'Additional Storage'
+    ) {
       return 'Loading Complete';
     } else if (appointmentType === 'End Storage Term') {
       return 'Storage Term Ended';
@@ -473,25 +589,34 @@ export class AppointmentBillingService {
    * Check if appointment is a storage appointment that needs subscription
    */
   private static isStorageAppointment(appointmentType: string): boolean {
-    return appointmentType === 'Initial Pickup' || appointmentType === 'Additional Storage';
+    return (
+      appointmentType === 'Initial Pickup' ||
+      appointmentType === 'Additional Storage'
+    );
   }
 
   /**
    * Handle subscription creation for storage appointments
    */
-  private static async handleStorageSubscription(appointment: any): Promise<void> {
+  private static async handleStorageSubscription(
+    appointment: any
+  ): Promise<void> {
     if (!appointment.user.stripeCustomerId) {
       console.error('No Stripe customer ID found for subscription creation');
       return;
     }
 
-    const subscriptionResult = await StripeSubscriptionService.createStorageSubscription(
-      appointment.user.stripeCustomerId,
-      appointment
-    );
+    const subscriptionResult =
+      await StripeSubscriptionService.createStorageSubscription(
+        appointment.user.stripeCustomerId,
+        appointment
+      );
 
     if (subscriptionResult.success) {
-      console.log('Storage subscription created:', subscriptionResult.subscription?.id);
+      console.log(
+        'Storage subscription created:',
+        subscriptionResult.subscription?.id
+      );
     } else {
       console.error('Subscription creation failed:', subscriptionResult.error);
       // Don't throw error - invoice was successful, subscription failure shouldn't break workflow
@@ -501,32 +626,38 @@ export class AppointmentBillingService {
   /**
    * Handle End Storage Term processing including early termination and subscription cancellation
    */
-  private static async handleStorageTermination(appointment: any): Promise<void> {
+  private static async handleStorageTermination(
+    appointment: any
+  ): Promise<void> {
     try {
       // Find the storage start date from StorageUnitUsage
       const storageUsage = await findActiveStorageUsage(
         appointment.requestedStorageUnits[0]?.storageUnitId
       );
-      
+
       // Handle early termination if applicable
       if (storageUsage) {
         await this.processEarlyTermination(appointment, storageUsage);
       }
-      
+
       // Cancel all customer subscriptions
       if (appointment.user.stripeCustomerId) {
         await this.cancelUserSubscriptions(appointment.user.stripeCustomerId);
       } else {
-        console.log('No stripe customer ID found, skipping subscription cancellation');
+        console.log(
+          'No stripe customer ID found, skipping subscription cancellation'
+        );
       }
-      
+
       // Update storage unit usage records
       const storageUnitIds = appointment.requestedStorageUnits.map(
         (unit: any) => unit.storageUnitId
       );
-      
-      await updateStorageUnitUsageForTermination(storageUnitIds, appointment.id);
-      
+
+      await updateStorageUnitUsageForTermination(
+        storageUnitIds,
+        appointment.id
+      );
     } catch (error) {
       console.error('Error processing End Storage Term operations:', error);
       // Continue with other operations even if storage term processing fails
@@ -536,16 +667,28 @@ export class AppointmentBillingService {
   /**
    * Process early termination fee if applicable
    */
-  private static async processEarlyTermination(appointment: any, storageUsage: any): Promise<void> {
-    const earlyTerminationResult = await StripeSubscriptionService.handleEarlyTermination(
-      appointment,
-      storageUsage
-    );
+  private static async processEarlyTermination(
+    appointment: any,
+    storageUsage: any
+  ): Promise<void> {
+    const earlyTerminationResult =
+      await StripeSubscriptionService.handleEarlyTermination(
+        appointment,
+        storageUsage
+      );
 
-    if (earlyTerminationResult.success && earlyTerminationResult.hasEarlyTermination) {
-      console.log(`Early termination fee processed: $${earlyTerminationResult.earlyTerminationFee}`);
+    if (
+      earlyTerminationResult.success &&
+      earlyTerminationResult.hasEarlyTermination
+    ) {
+      console.log(
+        `Early termination fee processed: $${earlyTerminationResult.earlyTerminationFee}`
+      );
     } else if (!earlyTerminationResult.success) {
-      console.error('Early termination processing failed:', earlyTerminationResult.error);
+      console.error(
+        'Early termination processing failed:',
+        earlyTerminationResult.error
+      );
       // Don't break workflow
     }
   }
@@ -553,16 +696,24 @@ export class AppointmentBillingService {
   /**
    * Cancel all user subscriptions
    */
-  private static async cancelUserSubscriptions(stripeCustomerId: string): Promise<void> {
-    const cancellationResult = await StripeSubscriptionService.cancelAllUserSubscriptions(
-      stripeCustomerId
-    );
+  private static async cancelUserSubscriptions(
+    stripeCustomerId: string
+  ): Promise<void> {
+    const cancellationResult =
+      await StripeSubscriptionService.cancelAllUserSubscriptions(
+        stripeCustomerId
+      );
 
     if (cancellationResult.success) {
-      console.log(`Cancelled ${cancellationResult.cancelledSubscriptions.length} subscriptions`);
+      console.log(
+        `Cancelled ${cancellationResult.cancelledSubscriptions.length} subscriptions`
+      );
     } else {
-      console.error('Subscription cancellation failed:', cancellationResult.error);
+      console.error(
+        'Subscription cancellation failed:',
+        cancellationResult.error
+      );
       // Don't break workflow
     }
   }
-} 
+}

@@ -2,18 +2,18 @@
  * @fileoverview CompleteUserPage - Main user dashboard container component
  * @source boombox-10.0/src/app/components/user-page/completeuserpage.tsx
  * @refactored Following REFACTOR_PRD.md and component-migration-checklist.md
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * Top-level orchestration component for the user dashboard page.
  * Coordinates all dashboard sections including info cards, upcoming appointments,
  * packing supply orders, and storage units.
- * 
+ *
  * ARCHITECTURE:
  * - Uses centralized data hook (useCustomerHomePageData) for page-level loading
  * - Shows page-level skeleton during loading to prevent layout shift
  * - Passes fetched data as props to child components
  * - Conditionally renders sections only when data exists
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Applied semantic text colors (text-text-primary, text-text-secondary)
  * - Updated button icon colors to use design system tokens
@@ -38,18 +38,20 @@ export interface CompleteUserPageProps {
 
 /**
  * CompleteUserPage - Main user dashboard container
- * 
+ *
  * Orchestrates all sections of the user dashboard:
  * - Info cards for actions (add storage, access storage)
  * - Upcoming appointments section
  * - Upcoming packing supply orders
  * - Active storage units
- * 
+ *
  * Uses page-level loading to prevent layout shift
  */
-export const CompleteUserPage: React.FC<CompleteUserPageProps> = ({ userId }) => {
+export const CompleteUserPage: React.FC<CompleteUserPageProps> = ({
+  userId,
+}) => {
   const router = useRouter();
-  
+
   const {
     appointments,
     packingSupplyOrders,
@@ -97,14 +99,15 @@ export const CompleteUserPage: React.FC<CompleteUserPageProps> = ({ userId }) =>
   }
 
   // Determine what to show based on data
-  const hasUpcomingItems = appointments.length > 0 || packingSupplyOrders.length > 0;
-  const showInfoCards = !hasUpcomingItems;
+  const hasUpcomingItems =
+    appointments.length > 0 || packingSupplyOrders.length > 0;
+  const showInfoCards = !hasUpcomingItems && storageUnits.length === 0;
 
   return (
     <>
       {/* User info cards section */}
       <UserPageInfoCards userId={userId} appointments={appointments} />
-      
+
       {/* Main content section */}
       <div className="flex flex-col lg:px-16 px-6 max-w-5xl w-full mx-auto sm:mb-8 mb-6">
         {/* Action cards - shown when no upcoming items */}
@@ -114,7 +117,9 @@ export const CompleteUserPage: React.FC<CompleteUserPageProps> = ({ userId }) =>
               title="Need more storage space?"
               description="No problem! We've got you covered. Book an appointment for a storage unit to be delivered right to your door."
               buttonText="Book a storage unit"
-              buttonIcon={<CalendarDateRangeIcon className="w-5 h-5 text-text-primary" />}
+              buttonIcon={
+                <CalendarDateRangeIcon className="w-5 h-5 text-text-primary" />
+              }
               onButtonClick={handleAddStorageClick}
               showCloseIcon={false}
             />
@@ -123,7 +128,9 @@ export const CompleteUserPage: React.FC<CompleteUserPageProps> = ({ userId }) =>
                 title="Need access to your storage unit?"
                 description="Sure thing! We'll bring your storage unit to you, so you can add or remove items as needed."
                 buttonText="Access your storage unit"
-                buttonIcon={<LockOpenIcon className="w-5 h-5 text-text-primary" />}
+                buttonIcon={
+                  <LockOpenIcon className="w-5 h-5 text-text-primary" />
+                }
                 onButtonClick={handleAccessStorageClick}
                 showCloseIcon={false}
               />
@@ -137,19 +144,19 @@ export const CompleteUserPage: React.FC<CompleteUserPageProps> = ({ userId }) =>
             <h2 className="text-2xl font-semibold sm:mb-4 mb-2 text-text-primary mt-8 sm:mt-8">
               Upcoming
             </h2>
-            
+
             {/* Upcoming packing supply orders */}
             {packingSupplyOrders.length > 0 && (
-              <UpcomingPackingSupplyOrders 
+              <UpcomingPackingSupplyOrders
                 userId={userId}
                 orders={packingSupplyOrders}
                 onOrdersChange={setPackingSupplyOrders}
               />
             )}
-            
+
             {/* Upcoming appointments */}
             {appointments.length > 0 && (
-              <UpcomingAppointments 
+              <UpcomingAppointments
                 userId={userId}
                 appointments={appointments}
                 hasActiveStorageUnits={hasActiveStorage}
@@ -162,7 +169,7 @@ export const CompleteUserPage: React.FC<CompleteUserPageProps> = ({ userId }) =>
 
       {/* Storage units section - only show if there are storage units */}
       {storageUnits.length > 0 && (
-        <YourStorageUnits 
+        <YourStorageUnits
           userId={userId}
           storageUnits={storageUnits}
           onStorageUnitsChange={setStorageUnits}

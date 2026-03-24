@@ -4,7 +4,7 @@
  *
  * ROUTE FUNCTIONALITY:
  * POST endpoint that creates additional storage appointments for existing customers.
- * Handles appointment creation with storage unit count, insurance options, moving partner 
+ * Handles appointment creation with storage unit count, insurance options, moving partner
  * booking, SMS notifications, and Onfleet task creation.
  *
  * USED BY (boombox-10.0 files):
@@ -24,14 +24,15 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
-import { 
-  createAdditionalStorageAppointment, 
+import {
+  createAdditionalStorageAppointment,
   processOnfleetAndAssignDriver,
-  type AdditionalStorageAppointmentData 
-} from '@/lib/utils/appointmentUtils';
+  type AdditionalStorageAppointmentData,
+  formatDateForDisplay,
+  formatTime,
+} from '@/lib/utils';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { additionalStorageConfirmationSms } from '@/lib/messaging/templates/sms/booking';
-import { formatDateForDisplay, formatTime } from '@/lib/utils/dateUtils';
 import { prisma } from '@/lib/database/prismaClient';
 import { NotificationService } from '@/lib/services/NotificationService';
 
@@ -59,23 +60,37 @@ export async function POST(req: NextRequest) {
       movingPartnerId,
       description,
       thirdPartyMovingPartnerId,
+      storageTerm,
+      pickupFee,
+      returnFee,
+      pickupFeeWaived,
+      returnFeeWaived,
     } = body;
 
     // Validate required fields
     if (!userId || !appointmentDateTime || !address || !zipCode) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
     }
 
     // Convert userId to an integer
     const numericUserId = parseInt(String(userId), 10);
     if (isNaN(numericUserId)) {
-      return NextResponse.json({ error: 'Invalid userId format' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Invalid userId format' },
+        { status: 400 }
+      );
     }
 
     // Validate and parse appointmentDateTime
     const appointmentDate = new Date(appointmentDateTime);
     if (isNaN(appointmentDate.getTime())) {
-      return NextResponse.json({ error: 'Invalid appointmentDateTime format' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Invalid appointmentDateTime format' },
+        { status: 400 }
+      );
     }
 
     // Prepare appointment data
@@ -92,33 +107,45 @@ export async function POST(req: NextRequest) {
       monthlyInsuranceRate,
       calculatedTotal,
       appointmentType,
-      movingPartnerId: movingPartnerId ? parseInt(String(movingPartnerId), 10) : undefined,
+      movingPartnerId: movingPartnerId
+        ? parseInt(String(movingPartnerId), 10)
+        : undefined,
       description,
-      thirdPartyMovingPartnerId: thirdPartyMovingPartnerId ? parseInt(String(thirdPartyMovingPartnerId), 10) : undefined,
+      thirdPartyMovingPartnerId: thirdPartyMovingPartnerId
+        ? parseInt(String(thirdPartyMovingPartnerId), 10)
+        : undefined,
+      storageTerm: storageTerm || null,
+      pickupFee: pickupFee ?? 75,
+      returnFee: returnFee ?? 75,
+      pickupFeeWaived: pickupFeeWaived ?? false,
+      returnFeeWaived: returnFeeWaived ?? false,
     };
 
     // Create the appointment using centralized utility
-    const appointment = await createAdditionalStorageAppointment(appointmentData);
+    const appointment =
+      await createAdditionalStorageAppointment(appointmentData);
 
     // Create TimeSlotBooking if moving partner is selected (blocks their schedule)
     if (movingPartnerId) {
       const numericMovingPartnerId = parseInt(String(movingPartnerId), 10);
-      const dayOfWeek = appointmentDate.toLocaleDateString("en-US", { 
-        weekday: "long" 
+      const dayOfWeek = appointmentDate.toLocaleDateString('en-US', {
+        weekday: 'long',
       });
-      
-      // Calculate 3-hour window (1 hour before, appointment hour, 1 hour after)
-      const bookingStart = new Date(appointmentDate.getTime() - (60 * 60 * 1000));
-      const bookingEnd = new Date(appointmentDate.getTime() + (60 * 60 * 1000));
 
-      const availabilitySlot = await prisma.movingPartnerAvailability.findFirst({
-        where: {
-          movingPartnerId: numericMovingPartnerId,
-          dayOfWeek,
-          startTime: { not: '' },
-          endTime: { not: '' }
+      // Calculate 3-hour window (1 hour before, appointment hour, 1 hour after)
+      const bookingStart = new Date(appointmentDate.getTime() - 60 * 60 * 1000);
+      const bookingEnd = new Date(appointmentDate.getTime() + 60 * 60 * 1000);
+
+      const availabilitySlot = await prisma.movingPartnerAvailability.findFirst(
+        {
+          where: {
+            movingPartnerId: numericMovingPartnerId,
+            dayOfWeek,
+            startTime: { not: '' },
+            endTime: { not: '' },
+          },
         }
-      });
+      );
 
       if (availabilitySlot) {
         await prisma.timeSlotBooking.create({
@@ -126,11 +153,13 @@ export async function POST(req: NextRequest) {
             movingPartnerAvailabilityId: availabilitySlot.id,
             appointmentId: appointment.id,
             bookingDate: bookingStart,
-            endDate: bookingEnd
-          }
+            endDate: bookingEnd,
+          },
         });
       } else {
-        console.warn(`No availability found for moving partner ${numericMovingPartnerId} on ${dayOfWeek}`);
+        console.warn(
+          `No availability found for moving partner ${numericMovingPartnerId} on ${dayOfWeek}`
+        );
       }
     }
 
@@ -148,7 +177,7 @@ export async function POST(req: NextRequest) {
       const messageVariables = {
         firstName: user.firstName,
         appointmentDate: formatDateForDisplay(appointmentDate),
-        appointmentTime: formatTime(appointmentDate)
+        appointmentTime: formatTime(appointmentDate),
       };
 
       const result = await MessageService.sendSms(
@@ -162,61 +191,74 @@ export async function POST(req: NextRequest) {
       }
 
       // Create in-app notification for appointment confirmation
-      await NotificationService.notifyAppointmentConfirmed(
-        user.id,
-        {
-          appointmentId: appointment.id,
-          appointmentType: appointment.appointmentType,
-          date: appointment.date,
-          time: appointment.time,
-          address: appointment.address,
-          zipCode: appointment.zipcode,
-          numberOfUnits: storageUnitCount || 1
-        }
-      );
+      await NotificationService.notifyAppointmentConfirmed(user.id, {
+        appointmentId: appointment.id,
+        appointmentType: appointment.appointmentType,
+        date: appointment.date,
+        time: appointment.time,
+        address: appointment.address,
+        zipCode: appointment.zipcode,
+        numberOfUnits: storageUnitCount || 1,
+      });
     } catch (notificationError: any) {
-      console.error('Error sending confirmation SMS:', notificationError.message);
+      console.error(
+        'Error sending confirmation SMS:',
+        notificationError.message
+      );
       // Don't fail the appointment creation if SMS fails
     }
 
     // Create Onfleet tasks asynchronously (doesn't block response)
-    processOnfleetAndAssignDriver(
-      appointment.id,
-      {
-        userId: user.id,
-        selectedInsurance,
-        stripeCustomerId: user.stripeCustomerId ?? undefined,
-        deliveryReason: 'Additional Storage'
-      }
-    ).then(async (taskResult) => {
-      // Handle driver assignment for DIY and Full Service plans after tasks are created
-      if (taskResult.success && (planType === 'Do It Yourself Plan' || planType === 'Full Service Plan')) {
-        try {
-          // Import driver assignment handler (safe to do in API route)
-          const { handleInitialAssignment } = await import('@/app/api/onfleet/driver-assign/route');
-          
-          // Refetch appointment with onfleetTasks included
-          const refreshedAppointment = await prisma.appointment.findUnique({
-            where: { id: appointment.id },
-            include: {
-              onfleetTasks: true,
-              user: true,
+    processOnfleetAndAssignDriver(appointment.id, {
+      userId: user.id,
+      selectedInsurance,
+      stripeCustomerId: user.stripeCustomerId ?? undefined,
+      deliveryReason: 'Additional Storage',
+    })
+      .then(async taskResult => {
+        // Handle driver assignment for DIY and Full Service plans after tasks are created
+        if (
+          taskResult.success &&
+          (planType === 'Do It Yourself Plan' ||
+            planType === 'Full Service Plan')
+        ) {
+          try {
+            // Import driver assignment handler (safe to do in API route)
+            const { handleInitialAssignment } = await import(
+              '@/app/api/onfleet/driver-assign/route'
+            );
+
+            // Refetch appointment with onfleetTasks included
+            const refreshedAppointment = await prisma.appointment.findUnique({
+              where: { id: appointment.id },
+              include: {
+                onfleetTasks: true,
+                user: true,
+              },
+            });
+
+            if (refreshedAppointment) {
+              await handleInitialAssignment(refreshedAppointment);
+              console.log(
+                `Successfully assigned driver for Appointment ID: ${appointment.id}`
+              );
             }
-          });
-          
-          if (refreshedAppointment) {
-            await handleInitialAssignment(refreshedAppointment);
-            console.log(`Successfully assigned driver for Appointment ID: ${appointment.id}`);
+          } catch (driverError) {
+            console.error(
+              'ADD_STORAGE: DEBUG - Error in driver assignment:',
+              driverError
+            );
+            // Continue - driver assignment can be retried later
           }
-        } catch (driverError) {
-          console.error('ADD_STORAGE: DEBUG - Error in driver assignment:', driverError);
-          // Continue - driver assignment can be retried later
         }
-      }
-    }).catch(error => {
-      console.error('ADD_STORAGE: DEBUG - Error in Onfleet task creation:', error);
-      // Continue without failing the response - this is asynchronous processing
-    });
+      })
+      .catch(error => {
+        console.error(
+          'ADD_STORAGE: DEBUG - Error in Onfleet task creation:',
+          error
+        );
+        // Continue without failing the response - this is asynchronous processing
+      });
 
     // Revalidate user page for real-time updates
     revalidatePath(`/customer/${numericUserId}`);
@@ -230,24 +272,26 @@ export async function POST(req: NextRequest) {
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
-        phoneNumber: user.phoneNumber
-      }
+        phoneNumber: user.phoneNumber,
+      },
     });
-
   } catch (error: any) {
     console.error('Error creating additional storage appointment:', error);
-    
+
     // Handle Prisma unique constraint violations (booking conflicts)
     if (error.code === 'P2002') {
-      return NextResponse.json({ error: 'A booking conflict occurred.' }, { status: 409 });
+      return NextResponse.json(
+        { error: 'A booking conflict occurred.' },
+        { status: 409 }
+      );
     }
-    
+
     return NextResponse.json(
-      { 
-        error: 'Internal server error', 
-        details: error.message 
-      }, 
+      {
+        error: 'Internal server error',
+        details: error.message,
+      },
       { status: 500 }
     );
   }
-} 
+}

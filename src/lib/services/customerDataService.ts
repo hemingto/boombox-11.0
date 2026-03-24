@@ -28,6 +28,11 @@ export interface CustomerAppointmentDisplay {
   hasAdditionalInfo: boolean;
   movingPartnerName: string | null;
   thirdPartyTitle: string | null;
+  storageTerm: string | null;
+  pickupFee: number | null;
+  pickupFeeWaived: boolean;
+  returnFee: number | null;
+  returnFeeWaived: boolean;
   requestedStorageUnits: Array<{
     id: number;
     storageUnitNumber: string;
@@ -40,14 +45,16 @@ export interface CustomerAppointmentDisplay {
  * @param userId User ID as string or number
  * @returns Array of appointments formatted for display
  */
-export async function getActiveCustomerAppointments(userId: string | number): Promise<CustomerAppointmentDisplay[]> {
+export async function getActiveCustomerAppointments(
+  userId: string | number
+): Promise<CustomerAppointmentDisplay[]> {
   try {
     const appointments = await prisma.appointment.findMany({
       where: {
         userId: typeof userId === 'string' ? parseInt(userId) : userId,
         status: {
-          notIn: ['Completed', 'Canceled', 'Awaiting Admin Check In']
-        }
+          notIn: ['Completed', 'Canceled', 'Awaiting Admin Check In'],
+        },
       },
       select: {
         id: true,
@@ -63,18 +70,23 @@ export async function getActiveCustomerAppointments(userId: string | number): Pr
         monthlyInsuranceRate: true,
         insuranceCoverage: true,
         trackingUrl: true,
-        movingPartner: { 
-          select: { 
-            id: true, 
-            name: true 
-          } 
+        movingPartner: {
+          select: {
+            id: true,
+            name: true,
+          },
         },
         additionalInfo: true,
-        thirdPartyMovingPartner: { 
-          select: { 
-            id: true, 
-            title: true 
-          } 
+        storageTerm: true,
+        pickupFee: true,
+        pickupFeeWaived: true,
+        returnFee: true,
+        returnFeeWaived: true,
+        thirdPartyMovingPartner: {
+          select: {
+            id: true,
+            title: true,
+          },
         },
         requestedStorageUnits: {
           select: {
@@ -82,15 +94,15 @@ export async function getActiveCustomerAppointments(userId: string | number): Pr
             storageUnit: {
               select: {
                 id: true,
-                storageUnitNumber: true
-              }
-            }
-          }
-        }
+                storageUnitNumber: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
-        date: 'asc'
-      }
+        date: 'asc',
+      },
     });
 
     return appointments.map(appointment => ({
@@ -110,9 +122,14 @@ export async function getActiveCustomerAppointments(userId: string | number): Pr
       hasAdditionalInfo: appointment.additionalInfo !== null,
       movingPartnerName: appointment.movingPartner?.name || null,
       thirdPartyTitle: appointment.thirdPartyMovingPartner?.title || null,
+      storageTerm: appointment.storageTerm,
+      pickupFee: appointment.pickupFee,
+      pickupFeeWaived: appointment.pickupFeeWaived,
+      returnFee: appointment.returnFee,
+      returnFeeWaived: appointment.returnFeeWaived,
       requestedStorageUnits: appointment.requestedStorageUnits.map(req => ({
         id: req.id,
-        storageUnitNumber: req.storageUnit.storageUnitNumber
+        storageUnitNumber: req.storageUnit.storageUnitNumber,
       })),
     }));
   } catch (error) {
@@ -127,10 +144,12 @@ export async function getActiveCustomerAppointments(userId: string | number): Pr
  * @param userId User ID as string or number
  * @returns Boolean indicating if user has active storage units
  */
-export async function hasActiveStorageUnits(userId: string | number): Promise<boolean> {
+export async function hasActiveStorageUnits(
+  userId: string | number
+): Promise<boolean> {
   try {
     const count = await prisma.storageUnitUsage.count({
-      where: { 
+      where: {
         userId: typeof userId === 'string' ? parseInt(userId) : userId,
         usageEndDate: null,
         startAppointment: {
@@ -175,14 +194,16 @@ export interface PackingSupplyOrderDisplay {
  * @param userId User ID as string or number
  * @returns Array of packing supply orders formatted for display
  */
-export async function getActivePackingSupplyOrders(userId: string | number): Promise<PackingSupplyOrderDisplay[]> {
+export async function getActivePackingSupplyOrders(
+  userId: string | number
+): Promise<PackingSupplyOrderDisplay[]> {
   try {
     const orders = await prisma.packingSupplyOrder.findMany({
       where: {
         userId: typeof userId === 'string' ? parseInt(userId) : userId,
         status: {
-          notIn: ['Delivered', 'Cancelled'] // Exclude delivered and cancelled orders from "active" list
-        }
+          notIn: ['Delivered', 'Cancelled'], // Exclude delivered and cancelled orders from "active" list
+        },
       },
       include: {
         orderDetails: {
@@ -192,15 +213,15 @@ export async function getActivePackingSupplyOrders(userId: string | number): Pro
                 id: true,
                 title: true,
                 description: true,
-                imageSrc: true
-              }
-            }
-          }
-        }
+                imageSrc: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
-        deliveryDate: 'asc'
-      }
+        deliveryDate: 'asc',
+      },
     });
 
     return orders.map(order => ({
@@ -220,8 +241,8 @@ export async function getActivePackingSupplyOrders(userId: string | number): Pro
         productTitle: detail.product.title,
         quantity: detail.quantity,
         price: detail.price,
-        totalPrice: detail.quantity * detail.price
-      }))
+        totalPrice: detail.quantity * detail.price,
+      })),
     }));
   } catch (error) {
     console.error('Error fetching packing supply orders:', error);
@@ -253,10 +274,12 @@ export interface StorageUnitUsageDisplay {
  * @param userId User ID as string or number
  * @returns Array of active storage unit usages formatted for display
  */
-export async function getActiveStorageUnits(userId: string | number): Promise<StorageUnitUsageDisplay[]> {
+export async function getActiveStorageUnits(
+  userId: string | number
+): Promise<StorageUnitUsageDisplay[]> {
   try {
     const storageUnits = await prisma.storageUnitUsage.findMany({
-      where: { 
+      where: {
         userId: typeof userId === 'string' ? parseInt(userId) : userId,
         usageEndDate: null,
         startAppointment: {
@@ -281,20 +304,23 @@ export async function getActiveStorageUnits(userId: string | number): Promise<St
           select: {
             id: true,
             address: true,
-            status: true
-          }
-        }
+            status: true,
+          },
+        },
       },
     });
 
     return storageUnits.map(usage => {
-      const onfleetPhoto = usage.storageUnit.onfleetTasks[0]?.completionPhotoUrl ?? null;
+      const onfleetPhoto =
+        usage.storageUnit.onfleetTasks[0]?.completionPhotoUrl ?? null;
       const resolvedImage = usage.mainImage || onfleetPhoto;
 
       return {
         id: usage.id,
         usageStartDate: usage.usageStartDate.toISOString(),
-        usageEndDate: usage.usageEndDate ? usage.usageEndDate.toISOString() : null,
+        usageEndDate: usage.usageEndDate
+          ? usage.usageEndDate.toISOString()
+          : null,
         storageUnit: {
           id: usage.storageUnit.id,
           storageUnitNumber: usage.storageUnit.storageUnitNumber,
@@ -311,4 +337,3 @@ export async function getActiveStorageUnits(userId: string | number): Promise<St
     throw new Error('Failed to fetch storage units');
   }
 }
-

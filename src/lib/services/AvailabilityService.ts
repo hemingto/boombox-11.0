@@ -24,7 +24,7 @@ import {
   checkOnfleetTaskConflicts,
   determineAvailabilityLevel,
   isDateInPast,
-} from '@/lib/utils/availabilityUtils';
+} from '@/lib/utils';
 
 import {
   getResourceAvailabilityForDays,
@@ -32,6 +32,7 @@ import {
   getDateSpecificAvailabilityData,
   getPartnerBookingConflicts,
   getDriverBookingConflicts,
+  getAppointmentCountsByMonth,
 } from '@/lib/database/availability.queries';
 
 import { cacheService, CACHE_TTL } from '@/lib/services/CacheService';
@@ -77,16 +78,18 @@ export class AvailabilityService {
       `[Monthly] Distinct days of week: ${distinctDaysOfWeek.join(', ')}`
     );
 
-    // Get resource counts by day of week
+    // Get resource counts and appointment booking counts in parallel
     const dbQueryStart = Date.now();
-    const { moversByDay, driversByDay } = await getResourceCountsByDayOfWeek(
-      distinctDaysOfWeek,
-      params.planType
-    );
+    const [{ moversByDay, driversByDay }, appointmentCounts] =
+      await Promise.all([
+        getResourceCountsByDayOfWeek(distinctDaysOfWeek, params.planType),
+        getAppointmentCountsByMonth(params.year, params.month),
+      ]);
     const dbQueryTime = Date.now() - dbQueryStart;
 
     console.log(`[Monthly] Resource counts - Movers by day:`, moversByDay);
     console.log(`[Monthly] Resource counts - Drivers by day:`, driversByDay);
+    console.log(`[Monthly] Appointment counts by date:`, appointmentCounts);
 
     // Process each day in the month
     const dates: MonthlyAvailabilityDate[] = [];
@@ -102,11 +105,14 @@ export class AvailabilityService {
       );
       const currentDateStr = currentDate.toISOString().split('T')[0];
 
+      const bookingCount = appointmentCounts[currentDateStr] || 0;
+
       // Skip past dates
       if (currentDate < today) {
         dates.push({
           date: currentDateStr,
           hasAvailability: false,
+          bookingCount,
         });
         continue;
       }
@@ -146,6 +152,7 @@ export class AvailabilityService {
         date: currentDateStr,
         hasAvailability,
         availabilityLevel,
+        bookingCount,
         resourceCounts: {
           availableMovers: moverCount,
           availableDrivers: driverCount,
@@ -292,10 +299,12 @@ export class AvailabilityService {
             const conflicts = partnerBookingConflicts.get(partner.id) || [];
             const hasConflict = conflicts.some(conflict => {
               const blockedStart = new Date(
-                conflict.bookingDate.getTime() - JOB_TIMING.BUFFER_BEFORE_MINUTES * 60 * 1000
+                conflict.bookingDate.getTime() -
+                  JOB_TIMING.BUFFER_BEFORE_MINUTES * 60 * 1000
               );
               const blockedEnd = new Date(
-                conflict.endDate.getTime() + JOB_TIMING.BUFFER_AFTER_MINUTES * 60 * 1000
+                conflict.endDate.getTime() +
+                  JOB_TIMING.BUFFER_AFTER_MINUTES * 60 * 1000
               );
               return hasTimeConflict(
                 slot.slotStart,
@@ -340,11 +349,15 @@ export class AvailabilityService {
             // We need to check if a NEW job at this slot would conflict with existing bookings
             // The new job's blocked window = slotStart - buffer BEFORE to slotStart + service + buffer AFTER
             const potentialJobBlockedStart = new Date(
-              slot.slotStart.getTime() - JOB_TIMING.BUFFER_BEFORE_MINUTES * 60 * 1000
+              slot.slotStart.getTime() -
+                JOB_TIMING.BUFFER_BEFORE_MINUTES * 60 * 1000
             );
             const potentialJobBlockedEnd = new Date(
-              slot.slotStart.getTime() + 
-              (JOB_TIMING.SERVICE_DURATION_MINUTES + JOB_TIMING.BUFFER_AFTER_MINUTES) * 60 * 1000
+              slot.slotStart.getTime() +
+                (JOB_TIMING.SERVICE_DURATION_MINUTES +
+                  JOB_TIMING.BUFFER_AFTER_MINUTES) *
+                  60 *
+                  1000
             );
 
             const bookingConflicts =
@@ -352,10 +365,12 @@ export class AvailabilityService {
             const hasBookingConflict = bookingConflicts.some(conflict => {
               // Calculate existing booking's full blocked window with buffers
               const existingBlockedStart = new Date(
-                conflict.bookingDate.getTime() - JOB_TIMING.BUFFER_BEFORE_MINUTES * 60 * 1000
+                conflict.bookingDate.getTime() -
+                  JOB_TIMING.BUFFER_BEFORE_MINUTES * 60 * 1000
               );
               const existingBlockedEnd = new Date(
-                conflict.endDate.getTime() + JOB_TIMING.BUFFER_AFTER_MINUTES * 60 * 1000
+                conflict.endDate.getTime() +
+                  JOB_TIMING.BUFFER_AFTER_MINUTES * 60 * 1000
               );
               // Check if potential new job's blocked window overlaps with existing
               return hasTimeConflict(

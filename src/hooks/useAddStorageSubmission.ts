@@ -14,6 +14,7 @@ import {
 } from '@/types/addStorage.types';
 import { validateSubmissionPayload } from '@/lib/validations/addStorage.validations';
 import { parseAppointmentTime } from '@/lib/utils';
+import { getStorageTermSubmissionFields } from '@/data/storageTermPricing';
 
 export function useAddStorageSubmission(
   mode: 'create' | 'edit' = 'create',
@@ -21,12 +22,13 @@ export function useAddStorageSubmission(
   originalStorageUnitCount?: number
 ): UseAddStorageSubmissionReturn {
   const router = useRouter();
-  
-  const [submissionState, setSubmissionState] = useState<AddStorageSubmissionState>({
-    isSubmitting: false,
-    submitError: null,
-  });
-  
+
+  const [submissionState, setSubmissionState] =
+    useState<AddStorageSubmissionState>({
+      isSubmitting: false,
+      submitError: null,
+    });
+
   const isEditMode = mode === 'edit';
 
   /**
@@ -42,176 +44,223 @@ export function useAddStorageSubmission(
   /**
    * Create appointment date time from form state
    */
-  const createAppointmentDateTime = useCallback((formState: AddStorageFormState): Date | null => {
-    const { scheduledDate, scheduledTimeSlot } = formState.scheduling;
-    
-    if (!scheduledDate || !scheduledTimeSlot) {
-      return null;
-    }
+  const createAppointmentDateTime = useCallback(
+    (formState: AddStorageFormState): Date | null => {
+      const { scheduledDate, scheduledTimeSlot } = formState.scheduling;
 
-    return parseAppointmentTime(scheduledDate, scheduledTimeSlot);
-  }, []);
+      if (!scheduledDate || !scheduledTimeSlot) {
+        return null;
+      }
+
+      return parseAppointmentTime(scheduledDate, scheduledTimeSlot);
+    },
+    []
+  );
 
   /**
    * Build submission payload from form state
    */
-  const buildSubmissionPayload = useCallback((
-    formState: AddStorageFormState, 
-    userId: string
-  ): AddStorageSubmissionPayload | null => {
-    const appointmentDateTime = createAppointmentDateTime(formState);
-    
-    if (!appointmentDateTime) {
-      return null;
-    }
+  const buildSubmissionPayload = useCallback(
+    (
+      formState: AddStorageFormState,
+      userId: string
+    ): AddStorageSubmissionPayload | null => {
+      const appointmentDateTime = createAppointmentDateTime(formState);
 
-    const payload: AddStorageSubmissionPayload = {
-      userId,
-      address: formState.addressInfo.address,
-      zipCode: formState.addressInfo.zipCode,
-      storageUnitCount: formState.storageUnit.count,
-      selectedInsurance: formState.selectedInsurance,
-      appointmentDateTime: appointmentDateTime.toISOString(),
-      planType: formState.planType,
-      description: formState.description?.trim() || 'No added info',
-      parsedLoadingHelpPrice: formState.pricing.parsedLoadingHelpPrice,
-      monthlyStorageRate: formState.pricing.monthlyStorageRate,
-      monthlyInsuranceRate: formState.pricing.monthlyInsuranceRate,
-      calculatedTotal: formState.pricing.calculatedTotal,
-      appointmentType: formState.appointmentType,
-      movingPartnerId: formState.movingPartnerId,
-      thirdPartyMovingPartnerId: formState.thirdPartyMovingPartnerId,
-    };
-    
-    // For edit mode, calculate additional units if storage count increased
-    if (isEditMode && originalStorageUnitCount) {
-      const additionalUnitsCount = formState.storageUnit.count - originalStorageUnitCount;
-      if (additionalUnitsCount > 0) {
-        (payload as any).additionalUnitsCount = additionalUnitsCount;
+      if (!appointmentDateTime) {
+        return null;
       }
-    }
 
-    return payload;
-  }, [createAppointmentDateTime, isEditMode, originalStorageUnitCount]);
+      const termFields = getStorageTermSubmissionFields(
+        formState.storageTerm,
+        formState.storageUnit.count
+      );
+
+      if (
+        formState.hasGreenDateDiscount &&
+        formState.storageTerm &&
+        formState.planType === 'Do It Yourself Plan' &&
+        termFields.pickupFee !== null
+      ) {
+        termFields.pickupFee =
+          termFields.pickupFee > 0 ? termFields.pickupFee - 25 : -25;
+      }
+
+      const payload: AddStorageSubmissionPayload = {
+        userId,
+        address: formState.addressInfo.address,
+        zipCode: formState.addressInfo.zipCode,
+        storageUnitCount: formState.storageUnit.count,
+        selectedInsurance: formState.selectedInsurance,
+        appointmentDateTime: appointmentDateTime.toISOString(),
+        planType: formState.planType,
+        description: formState.description?.trim() || 'No added info',
+        parsedLoadingHelpPrice: formState.pricing.parsedLoadingHelpPrice,
+        monthlyStorageRate: formState.pricing.monthlyStorageRate,
+        monthlyInsuranceRate: formState.pricing.monthlyInsuranceRate,
+        calculatedTotal: formState.pricing.calculatedTotal,
+        ...termFields,
+        appointmentType: formState.appointmentType,
+        movingPartnerId: formState.movingPartnerId,
+        thirdPartyMovingPartnerId: formState.thirdPartyMovingPartnerId,
+      };
+
+      // For edit mode, calculate additional units if storage count increased
+      if (isEditMode && originalStorageUnitCount) {
+        const additionalUnitsCount =
+          formState.storageUnit.count - originalStorageUnitCount;
+        if (additionalUnitsCount > 0) {
+          (payload as any).additionalUnitsCount = additionalUnitsCount;
+        }
+      }
+
+      return payload;
+    },
+    [createAppointmentDateTime, isEditMode, originalStorageUnitCount]
+  );
 
   /**
    * Submit the form to the API
    */
-  const submitForm = useCallback(async (
-    formState: AddStorageFormState, 
-    userId: string
-  ): Promise<void> => {
-    try {
-      setSubmissionState({
-        isSubmitting: true,
-        submitError: null,
-      });
+  const submitForm = useCallback(
+    async (formState: AddStorageFormState, userId: string): Promise<void> => {
+      try {
+        setSubmissionState({
+          isSubmitting: true,
+          submitError: null,
+        });
 
-      // Build and validate payload
-      const payload = buildSubmissionPayload(formState, userId);
-      
-      if (!payload) {
-        throw new Error('Invalid date or time selected. Please go back and re-select.');
+        // Build and validate payload
+        const payload = buildSubmissionPayload(formState, userId);
+
+        if (!payload) {
+          throw new Error(
+            'Invalid date or time selected. Please go back and re-select.'
+          );
+        }
+
+        // Validate payload with Zod schema
+        const validationResult = validateSubmissionPayload(payload);
+        if (!validationResult.success) {
+          const errorMessages = validationResult.error.errors
+            .map(err => err.message)
+            .join(', ');
+          throw new Error(`Validation failed: ${errorMessages}`);
+        }
+
+        // Choose API endpoint and method based on mode
+        const apiUrl =
+          isEditMode && appointmentId
+            ? `/api/orders/appointments/${appointmentId}/edit`
+            : '/api/orders/add-additional-storage';
+
+        const method = isEditMode ? 'PUT' : 'POST';
+
+        // Add appointmentId to payload for edit mode
+        const finalPayload =
+          isEditMode && appointmentId
+            ? { ...payload, appointmentId: parseInt(appointmentId, 10) }
+            : payload;
+
+        // Submit to API
+        const response = await fetch(apiUrl, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(finalPayload),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('Submission failed:', errorData);
+          // API may return error in 'error' or 'message' field, also check for 'details'
+          const errorMessage =
+            errorData.error ||
+            errorData.message ||
+            (errorData.details
+              ? typeof errorData.details === 'string'
+                ? errorData.details
+                : JSON.stringify(errorData.details)
+              : null) ||
+            `Failed to ${isEditMode ? 'update' : 'schedule'} appointment. Please try again.`;
+          throw new Error(errorMessage);
+        }
+
+        const data = await response.json();
+        console.log(
+          `Appointment ${isEditMode ? 'updated' : 'added'} successfully:`,
+          data
+        );
+
+        // Refresh and redirect to user page
+        await router.refresh();
+        router.push(`/customer/${userId}`);
+
+        setSubmissionState({
+          isSubmitting: false,
+          submitError: null,
+        });
+      } catch (error: any) {
+        console.error('Error submitting the form:', error);
+
+        setSubmissionState({
+          isSubmitting: false,
+          submitError:
+            error.message || 'An unexpected error occurred. Please try again.',
+        });
+
+        // Re-throw error so calling component can handle it if needed
+        throw error;
       }
-
-      // Validate payload with Zod schema
-      const validationResult = validateSubmissionPayload(payload);
-      if (!validationResult.success) {
-        const errorMessages = validationResult.error.errors.map(err => err.message).join(', ');
-        throw new Error(`Validation failed: ${errorMessages}`);
-      }
-
-      // Choose API endpoint and method based on mode
-      const apiUrl = isEditMode && appointmentId
-        ? `/api/orders/appointments/${appointmentId}/edit`
-        : '/api/orders/add-additional-storage';
-      
-      const method = isEditMode ? 'PUT' : 'POST';
-      
-      // Add appointmentId to payload for edit mode
-      const finalPayload = isEditMode && appointmentId
-        ? { ...payload, appointmentId: parseInt(appointmentId, 10) }
-        : payload;
-
-      // Submit to API
-      const response = await fetch(apiUrl, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(finalPayload),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Submission failed:', errorData);
-        // API may return error in 'error' or 'message' field, also check for 'details'
-        const errorMessage = errorData.error || errorData.message || 
-          (errorData.details ? (typeof errorData.details === 'string' ? errorData.details : JSON.stringify(errorData.details)) : null) ||
-          `Failed to ${isEditMode ? 'update' : 'schedule'} appointment. Please try again.`;
-        throw new Error(errorMessage);
-      }
-
-      const data = await response.json();
-      console.log(`Appointment ${isEditMode ? 'updated' : 'added'} successfully:`, data);
-
-      // Refresh and redirect to user page
-      await router.refresh();
-      router.push(`/customer/${userId}`);
-
-      setSubmissionState({
-        isSubmitting: false,
-        submitError: null,
-      });
-
-    } catch (error: any) {
-      console.error('Error submitting the form:', error);
-      
-      setSubmissionState({
-        isSubmitting: false,
-        submitError: error.message || 'An unexpected error occurred. Please try again.',
-      });
-      
-      // Re-throw error so calling component can handle it if needed
-      throw error;
-    }
-  }, [buildSubmissionPayload, router, isEditMode, appointmentId]);
+    },
+    [buildSubmissionPayload, router, isEditMode, appointmentId]
+  );
 
   /**
    * Validate form before submission
    */
-  const validateBeforeSubmission = useCallback((formState: AddStorageFormState): string | null => {
-    // Check appointment date time
-    const appointmentDateTime = createAppointmentDateTime(formState);
-    if (!appointmentDateTime) {
-      return 'Invalid date or time selected. Please go back and re-select.';
-    }
+  const validateBeforeSubmission = useCallback(
+    (formState: AddStorageFormState): string | null => {
+      // Check appointment date time
+      const appointmentDateTime = createAppointmentDateTime(formState);
+      if (!appointmentDateTime) {
+        return 'Invalid date or time selected. Please go back and re-select.';
+      }
 
-    // Check required fields
-    if (!formState.addressInfo.address) {
-      return 'Address is required.';
-    }
+      // Check required fields
+      if (!formState.addressInfo.address) {
+        return 'Address is required.';
+      }
 
-    if (!formState.selectedPlan) {
-      return 'Please select a service plan.';
-    }
+      if (!formState.selectedPlan) {
+        return 'Please select a service plan.';
+      }
 
-    if (!formState.selectedInsurance) {
-      return 'Please select an insurance option.';
-    }
+      if (!formState.selectedInsurance) {
+        return 'Please select an insurance option.';
+      }
 
-    // Check labor selection for non-DIY plans
-    if (formState.planType !== 'Do It Yourself Plan' && !formState.selectedLabor) {
-      return 'Please choose a moving help option.';
-    }
+      // Check labor selection for non-DIY plans
+      if (
+        formState.planType !== 'Do It Yourself Plan' &&
+        !formState.selectedLabor
+      ) {
+        return 'Please choose a moving help option.';
+      }
 
-    return null;
-  }, [createAppointmentDateTime]);
+      return null;
+    },
+    [createAppointmentDateTime]
+  );
 
   /**
    * Check if form is ready for submission
    */
-  const canSubmit = useCallback((formState: AddStorageFormState): boolean => {
-    return validateBeforeSubmission(formState) === null;
-  }, [validateBeforeSubmission]);
+  const canSubmit = useCallback(
+    (formState: AddStorageFormState): boolean => {
+      return validateBeforeSubmission(formState) === null;
+    },
+    [validateBeforeSubmission]
+  );
 
   return {
     submissionState,

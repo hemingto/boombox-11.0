@@ -1,20 +1,20 @@
 /**
  * @fileoverview Quote service for handling quote-related API operations
  * @source boombox-10.0/src/app/components/reusablecomponents/sendquoteemailpopup.tsx (API call logic)
- * 
+ *
  * SERVICE FUNCTIONALITY:
  * Handles quote email sending operations with proper error handling, validation,
  * and type safety. Centralizes quote-related API calls for reuse across components.
- * 
+ *
  * API ROUTES UPDATED:
  * - Old: /api/send-quote-email → New: /api/orders/send-quote-email
- * 
+ *
  * ARCHITECTURE IMPROVEMENTS:
  * - Extracted API logic from component into dedicated service
  * - Added comprehensive error handling and response validation
  * - Implemented proper TypeScript interfaces for type safety
  * - Centralized quote data processing and validation
- * 
+ *
  * @refactor Separated business logic from UI components for better maintainability
  */
 
@@ -37,6 +37,7 @@ export interface QuoteData {
   totalPrice: number;
   isAccessStorage: boolean;
   zipCode: string;
+  storageTerm?: string | null;
 }
 
 export interface SendQuoteEmailRequest {
@@ -57,11 +58,11 @@ export class QuoteService {
 
   /**
    * Send quote email to customer
-   * 
+   *
    * @param email - Customer email address
    * @param quoteData - Quote information to send
    * @returns Promise with success status and optional message
-   * 
+   *
    * @example
    * ```typescript
    * const result = await QuoteService.sendQuoteEmail('customer@example.com', quoteData);
@@ -73,19 +74,19 @@ export class QuoteService {
    * ```
    */
   static async sendQuoteEmail(
-    email: string, 
+    email: string,
     quoteData: QuoteData
   ): Promise<ApiResponse<SendQuoteEmailResponse>> {
     try {
       // Validate inputs
       if (!email || !email.trim()) {
-              return {
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Email address is required',
-        },
-      };
+        return {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Email address is required',
+          },
+        };
       }
 
       if (!quoteData) {
@@ -114,6 +115,7 @@ export class QuoteService {
         totalPrice: quoteData.totalPrice,
         isAccessStorage: quoteData.isAccessStorage,
         zipCode: quoteData.zipCode,
+        storageTerm: quoteData.storageTerm ?? null,
       };
 
       // Make API call
@@ -138,7 +140,7 @@ export class QuoteService {
       } else {
         // Handle error response
         let errorMessage = 'Failed to send quote email';
-        
+
         try {
           const errorData = await response.json();
           errorMessage = errorData.error || errorMessage;
@@ -157,14 +159,15 @@ export class QuoteService {
       }
     } catch (error) {
       console.error('QuoteService.sendQuoteEmail error:', error);
-      
+
       // Handle network errors
       if (error instanceof TypeError && error.message.includes('fetch')) {
         return {
           success: false,
           error: {
             code: 'NETWORK_ERROR',
-            message: 'Network error. Please check your connection and try again.',
+            message:
+              'Network error. Please check your connection and try again.',
           },
         };
       }
@@ -181,7 +184,7 @@ export class QuoteService {
 
   /**
    * Validate quote data completeness
-   * 
+   *
    * @param quoteData - Quote data to validate
    * @returns Validation result with error message if invalid
    */
@@ -192,7 +195,8 @@ export class QuoteService {
     if (!quoteData) {
       return {
         isValid: false,
-        error: 'Quote data is not available. Please ensure quote details are loaded.',
+        error:
+          'Quote data is not available. Please ensure quote details are loaded.',
       };
     }
 

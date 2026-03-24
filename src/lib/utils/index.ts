@@ -41,6 +41,7 @@ export {
   addDateSuffix,
   formatDate,
   TIME_ZONE,
+  isAppointmentWithin24Hours,
 } from './dateUtils';
 
 // NOTE: cancellationUtils contains server-side code (MessageService) and should
@@ -75,6 +76,9 @@ export {
   generateDriverWebViewUrl,
   formatDriverInfo,
   verifyTrackingToken,
+  createAdditionalStorageAppointment,
+  processOnfleetAndAssignDriver,
+  type AdditionalStorageAppointmentData,
   // parseLoadingHelpPrice - using pricingUtils version
 } from './appointmentUtils';
 
@@ -169,6 +173,8 @@ export {
   formatStorageUnitPrice,
   formatInsurancePrice,
   parseLoadingHelpPrice, // Using pricingUtils version as canonical
+  calculateQuotePricing,
+  type PricingCalculation,
 } from './pricingUtils';
 
 // Storage utilities (explicit exports)

@@ -29,7 +29,10 @@ export const addressInfoSchema = z.object({
  * Storage unit configuration validation schema
  */
 export const storageUnitConfigSchema = z.object({
-  count: z.number().min(1, 'At least 1 storage unit required').max(5, 'Maximum 5 storage units allowed'),
+  count: z
+    .number()
+    .min(1, 'At least 1 storage unit required')
+    .max(5, 'Maximum 5 storage units allowed'),
   text: z.string().min(1, 'Storage unit text is required'),
 });
 
@@ -57,10 +60,12 @@ export const insuranceOptionSchema = z.object({
  * Scheduling information validation schema
  */
 export const schedulingInfoSchema = z.object({
-  scheduledDate: z.date({
-    required_error: 'Scheduled date is required',
-    invalid_type_error: 'Invalid date format',
-  }).nullable(),
+  scheduledDate: z
+    .date({
+      required_error: 'Scheduled date is required',
+      invalid_type_error: 'Invalid date format',
+    })
+    .nullable(),
   scheduledTimeSlot: z.string().nullable(),
 });
 
@@ -68,12 +73,20 @@ export const schedulingInfoSchema = z.object({
  * Pricing information validation schema
  */
 export const pricingInfoSchema = z.object({
-  monthlyStorageRate: z.number().min(0, 'Monthly storage rate must be non-negative'),
-  monthlyInsuranceRate: z.number().min(0, 'Monthly insurance rate must be non-negative'),
-  parsedLoadingHelpPrice: z.number().min(0, 'Loading help price must be non-negative'),
+  monthlyStorageRate: z
+    .number()
+    .min(0, 'Monthly storage rate must be non-negative'),
+  monthlyInsuranceRate: z
+    .number()
+    .min(0, 'Monthly insurance rate must be non-negative'),
+  parsedLoadingHelpPrice: z
+    .number()
+    .min(0, 'Loading help price must be non-negative'),
   calculatedTotal: z.number().min(0, 'Total must be non-negative'),
   loadingHelpPrice: z.string().min(1, 'Loading help price is required'),
-  loadingHelpDescription: z.string().min(1, 'Loading help description is required'),
+  loadingHelpDescription: z
+    .string()
+    .min(1, 'Loading help description is required'),
 });
 
 /**
@@ -88,10 +101,11 @@ export const addStorageStep1Schema = z.object({
     required_error: 'Plan type is required',
     invalid_type_error: 'Invalid plan type',
   }),
-  selectedInsurance: insuranceOptionSchema.nullable().refine(
-    (val) => val !== null,
-    { message: 'Please select an insurance option' }
-  ),
+  selectedInsurance: insuranceOptionSchema
+    .nullable()
+    .refine(val => val !== null, {
+      message: 'Please select an insurance option',
+    }),
 });
 
 /**
@@ -104,25 +118,27 @@ export const addStorageStep2Schema = z.object({
 /**
  * Step 3: Labor Selection (conditional based on plan type)
  */
-export const addStorageStep3Schema = z.object({
-  planType: z.nativeEnum(PlanType),
-  selectedLabor: selectedLaborSchema.nullable(),
-  movingPartnerId: z.number().nullable(),
-  thirdPartyMovingPartnerId: z.number().nullable(),
-}).refine(
-  (data) => {
-    // DIY plan doesn't require labor selection
-    if (data.planType === PlanType.DIY) {
-      return true;
+export const addStorageStep3Schema = z
+  .object({
+    planType: z.nativeEnum(PlanType),
+    selectedLabor: selectedLaborSchema.nullable(),
+    movingPartnerId: z.number().nullable(),
+    thirdPartyMovingPartnerId: z.number().nullable(),
+  })
+  .refine(
+    data => {
+      // DIY plan doesn't require labor selection
+      if (data.planType === PlanType.DIY) {
+        return true;
+      }
+      // Full Service and Third Party plans require labor selection
+      return data.selectedLabor !== null;
+    },
+    {
+      message: 'Please choose a moving help option',
+      path: ['selectedLabor'],
     }
-    // Full Service and Third Party plans require labor selection
-    return data.selectedLabor !== null;
-  },
-  {
-    message: 'Please choose a moving help option',
-    path: ['selectedLabor'],
-  }
-);
+  );
 
 /**
  * Step 4: Confirmation
@@ -145,10 +161,11 @@ export const addStorageFormSchema = z.object({
   selectedLabor: selectedLaborSchema.nullable(),
   movingPartnerId: z.number().nullable(),
   thirdPartyMovingPartnerId: z.number().nullable(),
-  selectedInsurance: insuranceOptionSchema.nullable().refine(
-    (val) => val !== null,
-    { message: 'Insurance selection is required' }
-  ),
+  selectedInsurance: insuranceOptionSchema
+    .nullable()
+    .refine(val => val !== null, {
+      message: 'Insurance selection is required',
+    }),
   scheduling: schedulingInfoSchema,
   pricing: pricingInfoSchema,
   description: z.string().optional(),
@@ -161,6 +178,8 @@ export const addStorageFormSchema = z.object({
 /**
  * API submission payload validation schema
  */
+const storageTermSchema = z.enum(['month-to-month', '6-month', '12-month']);
+
 export const addStorageSubmissionPayloadSchema = z.object({
   userId: z.string().min(1, 'User ID is required'),
   address: z.string().min(1, 'Address is required'),
@@ -174,6 +193,11 @@ export const addStorageSubmissionPayloadSchema = z.object({
   monthlyStorageRate: z.number().min(0),
   monthlyInsuranceRate: z.number().min(0),
   calculatedTotal: z.number().min(0),
+  storageTerm: storageTermSchema.nullable(),
+  pickupFee: z.number().nullable(),
+  returnFee: z.number().nullable(),
+  pickupFeeWaived: z.boolean(),
+  returnFeeWaived: z.boolean(),
   appointmentType: z.string().default('Additional Storage'),
   movingPartnerId: z.number().nullable(),
   thirdPartyMovingPartnerId: z.number().nullable(),
@@ -241,5 +265,9 @@ export type AddStorageStep2Data = z.infer<typeof addStorageStep2Schema>;
 export type AddStorageStep3Data = z.infer<typeof addStorageStep3Schema>;
 export type AddStorageStep4Data = z.infer<typeof addStorageStep4Schema>;
 export type AddStorageFormData = z.infer<typeof addStorageFormSchema>;
-export type AddStorageSubmissionPayload = z.infer<typeof addStorageSubmissionPayloadSchema>;
-export type AddStorageFormPersistenceData = z.infer<typeof addStorageFormPersistenceSchema>;
+export type AddStorageSubmissionPayload = z.infer<
+  typeof addStorageSubmissionPayloadSchema
+>;
+export type AddStorageFormPersistenceData = z.infer<
+  typeof addStorageFormPersistenceSchema
+>;

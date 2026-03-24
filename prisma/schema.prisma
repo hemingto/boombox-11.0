@@ -66,6 +66,11 @@ model Appointment {
   notifications             Notification[]
   onfleetTasks              OnfleetTask[]
   requestedStorageUnits     RequestedAccessStorageUnit[]
+  storageTerm               String?
+  pickupFee                 Float?                       @default(75)
+  returnFee                 Float?                       @default(75)
+  pickupFeeWaived           Boolean                      @default(false)
+  returnFeeWaived           Boolean                      @default(false)
   damageReports             StorageUnitDamageReport[]
   storageEndUsages          StorageUnitUsage[]           @relation("StorageEnd")
   storageStartUsages        StorageUnitUsage[]           @relation("StorageStart")

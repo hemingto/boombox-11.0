@@ -4,7 +4,12 @@
  * @refactor Extracted and enhanced types for availability system with caching support
  */
 
-import { MovingPartner, Driver, MovingPartnerAvailability, DriverAvailability } from '@prisma/client';
+import {
+  MovingPartner,
+  Driver,
+  MovingPartnerAvailability,
+  DriverAvailability,
+} from '@prisma/client';
 
 // Core Plan Types
 export type PlanType = 'DIY' | 'FULL_SERVICE';
@@ -13,8 +18,8 @@ export type AvailabilityLevel = 'high' | 'medium' | 'low';
 // Time Slot Definitions
 export interface TimeSlot {
   startTime: string; // "HH:mm"
-  endTime: string;   // "HH:mm"
-  display: string;   // "8AM-9AM" format
+  endTime: string; // "HH:mm"
+  display: string; // "8AM-9AM" format
   available: boolean;
 }
 
@@ -55,6 +60,7 @@ export interface MonthlyAvailabilityDate {
   date: string; // YYYY-MM-DD
   hasAvailability: boolean;
   availabilityLevel?: AvailabilityLevel;
+  bookingCount?: number;
   resourceCounts?: {
     availableMovers: number;
     availableDrivers: number;
@@ -91,18 +97,18 @@ export interface DailyAvailabilityResponse {
 }
 
 // Resource Types with Availability
-export type PartnerWithAvailability = MovingPartner & { 
-  availability: MovingPartnerAvailability[] 
+export type PartnerWithAvailability = MovingPartner & {
+  availability: MovingPartnerAvailability[];
 };
 
-export type DriverWithAvailability = Driver & { 
-  availability: DriverAvailability[] 
+export type DriverWithAvailability = Driver & {
+  availability: DriverAvailability[];
 };
 
 // Business Configuration
 export interface BusinessHoursConfig {
   startHour: number; // 8
-  endHour: number;   // 18
+  endHour: number; // 18
   slotDurationMinutes: number; // 60
   timezone: string; // 'America/Los_Angeles'
 }
@@ -183,6 +189,10 @@ export interface AvailabilityPerformanceMetrics {
 
 // Error Types
 export interface AvailabilityError extends Error {
-  code: 'VALIDATION_ERROR' | 'DATABASE_ERROR' | 'CACHE_ERROR' | 'BUSINESS_LOGIC_ERROR';
+  code:
+    | 'VALIDATION_ERROR'
+    | 'DATABASE_ERROR'
+    | 'CACHE_ERROR'
+    | 'BUSINESS_LOGIC_ERROR';
   details?: Record<string, any>;
-} 
+}

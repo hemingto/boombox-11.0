@@ -2,23 +2,23 @@
  * @fileoverview Appointment service for creating, fetching, and editing appointments
  * @source boombox-10.0/src/app/lib/appointments.ts
  * @source boombox-10.0/src/app/components/edit-appointment/editaccessstorageappointment.tsx (fetchAppointmentDetails)
- * 
+ *
  * SERVICE FUNCTIONALITY:
  * - Create appointments with driver assignment
  * - Fetch appointment details for editing
  * - Update existing appointments
  * - Handle appointment data transformation
- * 
+ *
  * API ROUTES SUPPORTED:
  * - POST /api/orders/submit-quote (appointment creation)
  * - GET /api/orders/appointments/[id]/details (appointment fetching)
  * - PUT /api/orders/appointments/[id]/edit (appointment updating)
- * 
+ *
  * @refactor Extended with appointment data fetching and editing capabilities
  */
 
 import { prisma } from '@/lib/database/prismaClient';
-import { generateJobCode } from '@/lib/utils/formatUtils';
+import { generateJobCode } from '@/lib/utils';
 
 export interface CreateUserData {
   firstName: string;
@@ -42,6 +42,11 @@ export interface CreateAppointmentData {
   monthlyStorageRate?: number;
   monthlyInsuranceRate?: number;
   quotedPrice: number;
+  storageTerm?: string | null;
+  pickupFee?: number | null;
+  returnFee?: number | null;
+  pickupFeeWaived?: boolean;
+  returnFeeWaived?: boolean;
 }
 
 // ===== APPOINTMENT DATA FETCHING INTERFACES =====
@@ -122,7 +127,12 @@ export interface AppointmentServiceOptions {
 }
 
 export interface AppointmentServiceError extends Error {
-  code: 'NOT_FOUND' | 'UNAUTHORIZED' | 'VALIDATION_ERROR' | 'NETWORK_ERROR' | 'SERVER_ERROR';
+  code:
+    | 'NOT_FOUND'
+    | 'UNAUTHORIZED'
+    | 'VALIDATION_ERROR'
+    | 'NETWORK_ERROR'
+    | 'SERVER_ERROR';
   details?: string;
 }
 
@@ -151,7 +161,7 @@ export async function createAppointmentWithDriverAssignment(
   // Parse appointment date
   const appointmentDate = new Date(appointmentData.appointmentDateTime);
 
-  return await prisma.$transaction(async (tx) => {
+  return await prisma.$transaction(async tx => {
     // Create the user
     const user = await tx.user.create({
       data: {
@@ -168,7 +178,8 @@ export async function createAppointmentWithDriverAssignment(
       data: {
         userId: user.id,
         movingPartnerId: appointmentData.movingPartnerId || null,
-        thirdPartyMovingPartnerId: appointmentData.thirdPartyMovingPartnerId || null,
+        thirdPartyMovingPartnerId:
+          appointmentData.thirdPartyMovingPartnerId || null,
         appointmentType: appointmentData.appointmentType,
         address: appointmentData.address,
         zipcode: appointmentData.zipcode,
@@ -182,29 +193,42 @@ export async function createAppointmentWithDriverAssignment(
         monthlyInsuranceRate: appointmentData.monthlyInsuranceRate,
         quotedPrice: appointmentData.quotedPrice,
         status: 'Scheduled',
-        jobCode: generateJobCode()
+        jobCode: generateJobCode(),
+        storageTerm: appointmentData.storageTerm || null,
+        pickupFee: appointmentData.pickupFee ?? 75,
+        returnFee: appointmentData.returnFee ?? 75,
+        pickupFeeWaived: appointmentData.pickupFeeWaived ?? false,
+        returnFeeWaived: appointmentData.returnFeeWaived ?? false,
       },
       include: {
         user: true,
-      }
+      },
     });
 
     // Create time slot booking if moving partner is selected
     if (appointmentData.movingPartnerId) {
       // Fix timezone issue - use UTC methods to get correct day of week
-      const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][appointmentDate.getUTCDay()];
+      const dayOfWeek = [
+        'Sunday',
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+      ][appointmentDate.getUTCDay()];
 
       // Calculate 3-hour window (1 hour before, appointment hour, 1 hour after)
-      const bookingStart = new Date(appointmentDate.getTime() - (60 * 60 * 1000));
-      const bookingEnd = new Date(appointmentDate.getTime() + (60 * 60 * 1000));
+      const bookingStart = new Date(appointmentDate.getTime() - 60 * 60 * 1000);
+      const bookingEnd = new Date(appointmentDate.getTime() + 60 * 60 * 1000);
 
       const availabilitySlot = await tx.movingPartnerAvailability.findFirst({
         where: {
           movingPartnerId: appointmentData.movingPartnerId,
           dayOfWeek,
           startTime: { not: '' },
-          endTime: { not: '' }
-        }
+          endTime: { not: '' },
+        },
       });
 
       if (availabilitySlot) {
@@ -213,8 +237,8 @@ export async function createAppointmentWithDriverAssignment(
             movingPartnerAvailabilityId: availabilitySlot.id,
             appointmentId: appointment.id,
             bookingDate: bookingStart,
-            endDate: bookingEnd
-          }
+            endDate: bookingEnd,
+          },
         });
       }
     }
@@ -228,39 +252,44 @@ export async function createAppointmentWithDriverAssignment(
  * for a newly created appointment
  */
 export async function processOnfleetAndAssignDriver(
-  appointmentId: number, 
+  appointmentId: number,
   userId: number,
   additionalData: any
 ) {
-  
   try {
     // Fetch the complete appointment data first
-    console.log(`PROCESS_ONFLEET: DEBUG - Fetching appointment details for Appointment ID: ${appointmentId}.`);
+    console.log(
+      `PROCESS_ONFLEET: DEBUG - Fetching appointment details for Appointment ID: ${appointmentId}.`
+    );
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
-      include: { 
+      include: {
         user: true,
         movingPartner: {
           select: {
-            onfleetTeamId: true
-          }
-        }
-      }
+            onfleetTeamId: true,
+          },
+        },
+      },
     });
 
     if (!appointment) {
       throw new Error(`Appointment with ID ${appointmentId} not found`);
     }
 
-    console.log(`PROCESS_ONFLEET: DEBUG - Fetched appointment type: ${appointment.appointmentType} for Appointment ID: ${appointmentId}.`);
+    console.log(
+      `PROCESS_ONFLEET: DEBUG - Fetched appointment type: ${appointment.appointmentType} for Appointment ID: ${appointmentId}.`
+    );
 
     const payload = {
       appointmentId,
       userId,
       selectedPlanName: appointment.planType,
-      selectedLabor: appointment.planType === 'Full Service Plan' && appointment.movingPartner?.onfleetTeamId
-        ? { onfleetTeamId: appointment.movingPartner.onfleetTeamId } 
-        : null,
+      selectedLabor:
+        appointment.planType === 'Full Service Plan' &&
+        appointment.movingPartner?.onfleetTeamId
+          ? { onfleetTeamId: appointment.movingPartner.onfleetTeamId }
+          : null,
       firstName: appointment.user.firstName,
       lastName: appointment.user.lastName,
       phoneNumber: appointment.user.phoneNumber,
@@ -273,23 +302,36 @@ export async function processOnfleetAndAssignDriver(
       selectedInsurance: { label: appointment.insuranceCoverage },
 
       appointmentDateTime: appointment.date.getTime(),
-      ...additionalData
+      ...additionalData,
     };
 
-    console.log(`PROCESS_ONFLEET: DEBUG - Payload for create-task:`, JSON.stringify(payload, null, 2));
+    console.log(
+      `PROCESS_ONFLEET: DEBUG - Payload for create-task:`,
+      JSON.stringify(payload, null, 2)
+    );
 
     // Use the createOnfleetTasksWithDatabaseSave function for task creation
-    const { createOnfleetTasksWithDatabaseSave } = await import('@/lib/services/appointmentOnfleetService');
-    
-    console.log(`PROCESS_ONFLEET: DEBUG - Calling createOnfleetTasksWithDatabaseSave for Appointment ID: ${appointmentId}.`);
-    
+    const { createOnfleetTasksWithDatabaseSave } = await import(
+      '@/lib/services/appointmentOnfleetService'
+    );
+
+    console.log(
+      `PROCESS_ONFLEET: DEBUG - Calling createOnfleetTasksWithDatabaseSave for Appointment ID: ${appointmentId}.`
+    );
+
     // Create Onfleet tasks and save to database
     const taskResult = await createOnfleetTasksWithDatabaseSave(payload);
-    
-    console.log(`PROCESS_ONFLEET: DEBUG - Successfully created Onfleet tasks for Appointment ID: ${appointmentId}. Result:`, taskResult);
+
+    console.log(
+      `PROCESS_ONFLEET: DEBUG - Successfully created Onfleet tasks for Appointment ID: ${appointmentId}. Result:`,
+      taskResult
+    );
 
     // Task creation successful, directly call handler function for driver assignment
-    if (appointment.planType === 'Do It Yourself Plan' || appointment.planType === 'Full Service Plan') {
+    if (
+      appointment.planType === 'Do It Yourself Plan' ||
+      appointment.planType === 'Full Service Plan'
+    ) {
       // IMPORTANT: Refetch the appointment with onfleetTasks included
       // This ensures we have the latest data with the tasks we just created
       const refreshedAppointment = await prisma.appointment.findUnique({
@@ -297,23 +339,30 @@ export async function processOnfleetAndAssignDriver(
         include: {
           onfleetTasks: true,
           user: true,
-        }
+        },
       });
-      
+
       if (!refreshedAppointment) {
-        throw new Error(`Could not refetch appointment with ID ${appointmentId}`);
+        throw new Error(
+          `Could not refetch appointment with ID ${appointmentId}`
+        );
       }
-      
+
       // Import and call the driver assignment handler
-      const { handleInitialAssignment } = await import('@/app/api/onfleet/driver-assign/route');
-      
+      const { handleInitialAssignment } = await import(
+        '@/app/api/onfleet/driver-assign/route'
+      );
+
       // Pass the refreshed appointment with onfleetTasks to handleInitialAssignment
       await handleInitialAssignment(refreshedAppointment);
     }
 
     return { success: true, taskResult };
   } catch (error) {
-    console.error(`PROCESS_ONFLEET: DEBUG - Error in processOnfleetAndAssignDriver for Appointment ID: ${appointmentId}:`, error);
+    console.error(
+      `PROCESS_ONFLEET: DEBUG - Error in processOnfleetAndAssignDriver for Appointment ID: ${appointmentId}:`,
+      error
+    );
     return { success: false, error };
   }
 }
@@ -330,11 +379,7 @@ export async function fetchAppointmentDetails(
   appointmentId: number,
   options: AppointmentServiceOptions = {}
 ): Promise<FetchAppointmentResult> {
-  const {
-    timeout = 10000,
-    retries = 3,
-    includeRelations = true
-  } = options;
+  const { timeout = 10000, retries = 3, includeRelations = true } = options;
 
   let lastError: Error | null = null;
 
@@ -346,51 +391,55 @@ export async function fetchAppointmentDetails(
 
       const appointment = await prisma.appointment.findUnique({
         where: { id: appointmentId },
-        include: includeRelations ? {
-          user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              phoneNumber: true,
-              stripeCustomerId: true
-            }
-          },
-          movingPartner: {
-            select: {
-              id: true,
-              name: true,
-              hourlyRate: true,
-              onfleetTeamId: true
-            }
-          },
-          thirdPartyMovingPartner: {
-            select: {
-              id: true,
-              title: true
-            }
-          },
-          requestedStorageUnits: {
-            include: {
-              storageUnit: {
+        include: includeRelations
+          ? {
+              user: {
                 select: {
                   id: true,
-                  storageUnitNumber: true,
-                  status: true,
-                  barcode: true
-                }
-              }
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  phoneNumber: true,
+                  stripeCustomerId: true,
+                },
+              },
+              movingPartner: {
+                select: {
+                  id: true,
+                  name: true,
+                  hourlyRate: true,
+                  onfleetTeamId: true,
+                },
+              },
+              thirdPartyMovingPartner: {
+                select: {
+                  id: true,
+                  title: true,
+                },
+              },
+              requestedStorageUnits: {
+                include: {
+                  storageUnit: {
+                    select: {
+                      id: true,
+                      storageUnitNumber: true,
+                      status: true,
+                      barcode: true,
+                    },
+                  },
+                },
+              },
+              additionalInfo: true,
             }
-          },
-          additionalInfo: true
-        } : undefined
+          : undefined,
       });
 
       clearTimeout(timeoutId);
 
       if (!appointment) {
-        const error: AppointmentServiceError = new Error(`Appointment with ID ${appointmentId} not found`) as AppointmentServiceError;
+        const error: AppointmentServiceError = new Error(
+          `Appointment with ID ${appointmentId} not found`
+        ) as AppointmentServiceError;
         error.code = 'NOT_FOUND';
         throw error;
       }
@@ -418,37 +467,44 @@ export async function fetchAppointmentDetails(
         updatedAt: new Date(), // Placeholder - actual update time not available
         user: (appointment as any).user,
         movingPartner: (appointment as any).movingPartner,
-        thirdPartyMovingPartner: (appointment as any).thirdPartyMovingPartner ? {
-          ...(appointment as any).thirdPartyMovingPartner,
-          name: (appointment as any).thirdPartyMovingPartner.title // Map title to name for consistency
-        } : null,
+        thirdPartyMovingPartner: (appointment as any).thirdPartyMovingPartner
+          ? {
+              ...(appointment as any).thirdPartyMovingPartner,
+              name: (appointment as any).thirdPartyMovingPartner.title, // Map title to name for consistency
+            }
+          : null,
         requestedStorageUnits: (appointment as any).requestedStorageUnits || [],
-        additionalInfo: (appointment as any).additionalInfo
+        additionalInfo: (appointment as any).additionalInfo,
       };
 
       return {
         success: true,
-        data: appointmentData
+        data: appointmentData,
       };
-
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error('Unknown error occurred');
-      
+      lastError =
+        error instanceof Error ? error : new Error('Unknown error occurred');
+
       // Don't retry for certain error types
-      if (error instanceof Error && (error as AppointmentServiceError).code === 'NOT_FOUND') {
+      if (
+        error instanceof Error &&
+        (error as AppointmentServiceError).code === 'NOT_FOUND'
+      ) {
         break;
       }
 
       // Wait before retrying (exponential backoff)
       if (attempt < retries) {
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+        await new Promise(resolve =>
+          setTimeout(resolve, Math.pow(2, attempt) * 1000)
+        );
       }
     }
   }
 
   return {
     success: false,
-    error: lastError?.message || 'Failed to fetch appointment details'
+    error: lastError?.message || 'Failed to fetch appointment details',
   };
 }
 
@@ -464,10 +520,7 @@ export async function updateAppointmentDetails(
   updateData: UpdateAppointmentData,
   options: AppointmentServiceOptions = {}
 ): Promise<UpdateAppointmentResult> {
-  const {
-    timeout = 10000,
-    retries = 3
-  } = options;
+  const { timeout = 10000, retries = 3 } = options;
 
   let lastError: Error | null = null;
 
@@ -482,10 +535,12 @@ export async function updateAppointmentDetails(
 
       // Parse appointment date if provided
       if (appointmentUpdateData.appointmentDateTime) {
-        appointmentUpdateData.appointmentDateTime = new Date(appointmentUpdateData.appointmentDateTime);
+        appointmentUpdateData.appointmentDateTime = new Date(
+          appointmentUpdateData.appointmentDateTime
+        );
       }
 
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async tx => {
         // Update the appointment
         const updatedAppointment = await tx.appointment.update({
           where: { id: appointmentId },
@@ -495,22 +550,22 @@ export async function updateAppointmentDetails(
             loadingHelpPrice: appointmentUpdateData.parsedLoadingHelpPrice,
             quotedPrice: appointmentUpdateData.calculatedTotal,
             // Note: updatedAt is handled automatically by Prisma @updatedAt directive
-          }
+          },
         });
 
         // Update storage units if provided
         if (selectedStorageUnits && selectedStorageUnits.length > 0) {
           // Remove existing storage unit assignments
           await tx.requestedAccessStorageUnit.deleteMany({
-            where: { appointmentId }
+            where: { appointmentId },
           });
 
           // Add new storage unit assignments
           await tx.requestedAccessStorageUnit.createMany({
             data: selectedStorageUnits.map(storageUnitId => ({
               appointmentId,
-              storageUnitId
-            }))
+              storageUnitId,
+            })),
           });
         }
 
@@ -523,30 +578,33 @@ export async function updateAppointmentDetails(
         success: true,
         data: {
           appointmentId: result.id,
-          updatedAt: new Date() // Provide current timestamp since Prisma handles this automatically
-        }
+          updatedAt: new Date(), // Provide current timestamp since Prisma handles this automatically
+        },
       };
-
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error('Unknown error occurred');
-      
+      lastError =
+        error instanceof Error ? error : new Error('Unknown error occurred');
+
       // Don't retry for certain error types
       if (error instanceof Error && error.message.includes('not found')) {
-        const serviceError: AppointmentServiceError = error as AppointmentServiceError;
+        const serviceError: AppointmentServiceError =
+          error as AppointmentServiceError;
         serviceError.code = 'NOT_FOUND';
         break;
       }
 
       // Wait before retrying (exponential backoff)
       if (attempt < retries) {
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+        await new Promise(resolve =>
+          setTimeout(resolve, Math.pow(2, attempt) * 1000)
+        );
       }
     }
   }
 
   return {
     success: false,
-    error: lastError?.message || 'Failed to update appointment'
+    error: lastError?.message || 'Failed to update appointment',
   };
 }
 
@@ -555,7 +613,9 @@ export async function updateAppointmentDetails(
  * @param updateData - The data to validate
  * @returns Validation error message or null if valid
  */
-export function validateAppointmentUpdateData(updateData: UpdateAppointmentData): string | null {
+export function validateAppointmentUpdateData(
+  updateData: UpdateAppointmentData
+): string | null {
   // Check required fields if provided
   if (updateData.address !== undefined && !updateData.address.trim()) {
     return 'Address is required';
@@ -570,31 +630,46 @@ export function validateAppointmentUpdateData(updateData: UpdateAppointmentData)
     if (isNaN(appointmentDate.getTime())) {
       return 'Invalid appointment date';
     }
-    
+
     // Check if appointment is in the future
     if (appointmentDate <= new Date()) {
       return 'Appointment date must be in the future';
     }
   }
 
-  if (updateData.selectedStorageUnits !== undefined && updateData.selectedStorageUnits.length === 0) {
+  if (
+    updateData.selectedStorageUnits !== undefined &&
+    updateData.selectedStorageUnits.length === 0
+  ) {
     return 'At least one storage unit must be selected';
   }
 
   // Validate numeric fields
-  if (updateData.parsedLoadingHelpPrice !== undefined && updateData.parsedLoadingHelpPrice < 0) {
+  if (
+    updateData.parsedLoadingHelpPrice !== undefined &&
+    updateData.parsedLoadingHelpPrice < 0
+  ) {
     return 'Loading help price cannot be negative';
   }
 
-  if (updateData.monthlyStorageRate !== undefined && updateData.monthlyStorageRate < 0) {
+  if (
+    updateData.monthlyStorageRate !== undefined &&
+    updateData.monthlyStorageRate < 0
+  ) {
     return 'Monthly storage rate cannot be negative';
   }
 
-  if (updateData.monthlyInsuranceRate !== undefined && updateData.monthlyInsuranceRate < 0) {
+  if (
+    updateData.monthlyInsuranceRate !== undefined &&
+    updateData.monthlyInsuranceRate < 0
+  ) {
     return 'Monthly insurance rate cannot be negative';
   }
 
-  if (updateData.calculatedTotal !== undefined && updateData.calculatedTotal < 0) {
+  if (
+    updateData.calculatedTotal !== undefined &&
+    updateData.calculatedTotal < 0
+  ) {
     return 'Calculated total cannot be negative';
   }
 
@@ -606,7 +681,9 @@ export function validateAppointmentUpdateData(updateData: UpdateAppointmentData)
  * @param appointmentData - Raw appointment data from database
  * @returns Transformed data suitable for form state
  */
-export function transformAppointmentDataForForm(appointmentData: AppointmentDetailsData) {
+export function transformAppointmentDataForForm(
+  appointmentData: AppointmentDetailsData
+) {
   return {
     // Basic info
     address: appointmentData.address,
@@ -614,25 +691,30 @@ export function transformAppointmentDataForForm(appointmentData: AppointmentDeta
     description: appointmentData.description,
     deliveryReason: appointmentData.deliveryReason,
     appointmentType: appointmentData.appointmentType,
-    
+
     // Date and time
     scheduledDate: appointmentData.date,
-    
+
     // Plan and pricing
     planType: appointmentData.planType,
     parsedLoadingHelpPrice: appointmentData.parsedLoadingHelpPrice,
     monthlyStorageRate: appointmentData.monthlyStorageRate,
     monthlyInsuranceRate: appointmentData.monthlyInsuranceRate,
     calculatedTotal: appointmentData.calculatedTotal,
-    
+
     // Partners
     movingPartnerId: appointmentData.movingPartnerId,
     thirdPartyMovingPartnerId: appointmentData.thirdPartyMovingPartnerId,
-    
+
     // Storage units
-    selectedStorageUnits: appointmentData.requestedStorageUnits.map(unit => unit.storageUnitId.toString()),
-    
+    selectedStorageUnits: appointmentData.requestedStorageUnits.map(unit =>
+      unit.storageUnitId.toString()
+    ),
+
     // User info
-    stripeCustomerId: appointmentData.user?.stripeCustomerId || appointmentData.additionalInfo?.stripeCustomerId || null
+    stripeCustomerId:
+      appointmentData.user?.stripeCustomerId ||
+      appointmentData.additionalInfo?.stripeCustomerId ||
+      null,
   };
 }

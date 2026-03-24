@@ -28,6 +28,7 @@ export interface QuoteEmailData {
   totalPrice: number;
   isAccessStorage: boolean;
   zipCode: string;
+  storageTerm?: string | null;
 }
 
 /**
@@ -46,6 +47,8 @@ export interface QuoteTemplateVariables extends TemplateVariables {
   storageUnitHtml: string;
   accessStorageHtml: string;
   insuranceHtml: string;
+  storageTermHtml: string;
+  storageTermText: string;
 }
 
 /**
@@ -65,7 +68,10 @@ function formatQuoteDate(dateString: string): string {
  * Generate storage unit HTML section for quote email
  */
 function generateStorageUnitHtml(data: QuoteEmailData): string {
-  if (data.storageUnitCount !== undefined && data.storageUnitText !== undefined) {
+  if (
+    data.storageUnitCount !== undefined &&
+    data.storageUnitText !== undefined
+  ) {
     const unitText = data.storageUnitCount > 1 ? 'Boomboxes' : 'Boombox';
     return `
       <div class="quote-item">
@@ -81,8 +87,12 @@ function generateStorageUnitHtml(data: QuoteEmailData): string {
  * Generate access storage HTML section for quote email
  */
 function generateAccessStorageHtml(data: QuoteEmailData): string {
-  if (data.accessStorageUnitCount !== undefined && data.accessStorageUnitCount > 0) {
-    const deliveryText = data.accessStorageUnitCount > 1 ? 'Deliveries' : 'Delivery';
+  if (
+    data.accessStorageUnitCount !== undefined &&
+    data.accessStorageUnitCount > 0
+  ) {
+    const deliveryText =
+      data.accessStorageUnitCount > 1 ? 'Deliveries' : 'Delivery';
     const cost = data.accessStorageUnitCount * 45;
     return `
       <div class="quote-item">
@@ -110,6 +120,39 @@ function generateInsuranceHtml(data: QuoteEmailData): string {
 }
 
 /**
+ * Generate storage term HTML section for quote email
+ */
+function generateStorageTermHtml(data: QuoteEmailData): string {
+  if (!data.storageTerm) return '';
+  const labelMap: Record<string, string> = {
+    'month-to-month': '0-3 months',
+    '6-month': '4-12 months',
+    '12-month': '12+ months',
+  };
+  const label = labelMap[data.storageTerm] || data.storageTerm;
+  return `
+    <div class="quote-item">
+      <span><strong>Storage Term:</strong></span>
+      <span>${label}</span>
+    </div>
+  `;
+}
+
+/**
+ * Generate storage term text for plain text email
+ */
+function generateStorageTermText(data: QuoteEmailData): string {
+  if (!data.storageTerm) return '';
+  const labelMap: Record<string, string> = {
+    'month-to-month': '0-3 months',
+    '6-month': '4-12 months',
+    '12-month': '12+ months',
+  };
+  const label = labelMap[data.storageTerm] || data.storageTerm;
+  return `- Storage Term: ${label}`;
+}
+
+/**
  * Generate scheduled time slot text with proper formatting
  */
 function generateScheduledTimeSlotText(timeSlot: string): string {
@@ -119,16 +162,20 @@ function generateScheduledTimeSlotText(timeSlot: string): string {
 /**
  * Process quote data into template variables for email rendering
  */
-export function processQuoteDataForTemplate(data: QuoteEmailData): QuoteTemplateVariables {
+export function processQuoteDataForTemplate(
+  data: QuoteEmailData
+): QuoteTemplateVariables {
   const currentYear = new Date().getFullYear().toString();
-  const bookingUrl = process.env.NEXT_PUBLIC_APP_URL 
+  const bookingUrl = process.env.NEXT_PUBLIC_APP_URL
     ? `${process.env.NEXT_PUBLIC_APP_URL}/getquote`
     : 'https://boomboxstorage.com/getquote';
 
   return {
     address: data.address,
     formattedDate: formatQuoteDate(data.scheduledDate),
-    scheduledTimeSlotText: generateScheduledTimeSlotText(data.scheduledTimeSlot),
+    scheduledTimeSlotText: generateScheduledTimeSlotText(
+      data.scheduledTimeSlot
+    ),
     selectedPlanName: data.selectedPlanName || 'Loading Help',
     loadingHelpPrice: data.loadingHelpPrice || '---',
     totalPrice: data.totalPrice.toString(),
@@ -136,7 +183,9 @@ export function processQuoteDataForTemplate(data: QuoteEmailData): QuoteTemplate
     bookingUrl,
     storageUnitHtml: generateStorageUnitHtml(data),
     accessStorageHtml: generateAccessStorageHtml(data),
-    insuranceHtml: generateInsuranceHtml(data)
+    insuranceHtml: generateInsuranceHtml(data),
+    storageTermHtml: generateStorageTermHtml(data),
+    storageTermText: generateStorageTermText(data),
   };
 }
 
@@ -147,9 +196,9 @@ export function validateQuoteEmailData(data: unknown): data is QuoteEmailData {
   if (!data || typeof data !== 'object') {
     return false;
   }
-  
+
   const obj = data as Record<string, unknown>;
-  
+
   return (
     typeof obj.email === 'string' &&
     typeof obj.address === 'string' &&
@@ -160,4 +209,4 @@ export function validateQuoteEmailData(data: unknown): data is QuoteEmailData {
     typeof obj.isAccessStorage === 'boolean' &&
     typeof obj.zipCode === 'string'
   );
-} 
+}
