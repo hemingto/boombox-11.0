@@ -13,6 +13,7 @@ import {
 } from '@/components/features/admin/shared';
 import { Button } from '@/components/ui/primitives/Button/Button';
 import { Modal } from '@/components/ui/primitives/Modal/Modal';
+import { Select } from '@/components/ui/primitives/Select/Select';
 
 interface HaulJob {
   id: number;
@@ -514,86 +515,72 @@ export function AdminHaulJobsPage() {
         size="lg"
       >
         <div className="space-y-4">
-          <div>
-            <label className="form-label">Job Type</label>
-            <select
-              value={createForm.type}
-              onChange={e =>
-                setCreateForm({ ...createForm, type: e.target.value })
-              }
-              className="input-field"
-            >
-              <option value="SSF_TO_STOCKTON">SSF → Stockton</option>
-              <option value="STOCKTON_TO_SSF">Stockton → SSF</option>
-              <option value="STOCKTON_DIRECT_DELIVERY">
-                Stockton Direct Delivery
-              </option>
-            </select>
-          </div>
+          <Select
+            label="Job Type"
+            value={createForm.type}
+            onChange={value => setCreateForm({ ...createForm, type: value })}
+            options={[
+              { value: 'SSF_TO_STOCKTON', label: 'SSF → Stockton' },
+              { value: 'STOCKTON_TO_SSF', label: 'Stockton → SSF' },
+              {
+                value: 'STOCKTON_DIRECT_DELIVERY',
+                label: 'Stockton Direct Delivery',
+              },
+            ]}
+            fullWidth
+          />
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="form-label">Origin Warehouse</label>
-              <select
-                value={createForm.originWarehouseId}
-                onChange={e =>
-                  setCreateForm({
-                    ...createForm,
-                    originWarehouseId: e.target.value,
-                  })
-                }
-                className="input-field"
-              >
-                <option value="">Select origin</option>
-                {warehouses.map(wh => (
-                  <option key={wh.id} value={wh.id}>
-                    {wh.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="form-label">Destination Warehouse</label>
-              <select
-                value={createForm.destinationWarehouseId}
-                onChange={e =>
-                  setCreateForm({
-                    ...createForm,
-                    destinationWarehouseId: e.target.value,
-                  })
-                }
-                className="input-field"
-              >
-                <option value="">Select destination</option>
-                {warehouses.map(wh => (
-                  <option key={wh.id} value={wh.id}>
-                    {wh.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="form-label">Hauling Partner (optional)</label>
-            <select
-              value={createForm.haulingPartnerId}
-              onChange={e =>
+            <Select
+              label="Origin Warehouse"
+              value={createForm.originWarehouseId}
+              onChange={value =>
                 setCreateForm({
                   ...createForm,
-                  haulingPartnerId: e.target.value,
+                  originWarehouseId: value,
                 })
               }
-              className="input-field"
-            >
-              <option value="">Assign later</option>
-              {haulingPartners.map(hp => (
-                <option key={hp.id} value={hp.id}>
-                  {hp.name}
-                </option>
-              ))}
-            </select>
+              placeholder="Select origin"
+              options={warehouses.map(wh => ({
+                value: String(wh.id),
+                label: wh.name,
+              }))}
+              fullWidth
+            />
+            <Select
+              label="Destination Warehouse"
+              value={createForm.destinationWarehouseId}
+              onChange={value =>
+                setCreateForm({
+                  ...createForm,
+                  destinationWarehouseId: value,
+                })
+              }
+              placeholder="Select destination"
+              options={warehouses.map(wh => ({
+                value: String(wh.id),
+                label: wh.name,
+              }))}
+              fullWidth
+            />
           </div>
+
+          <Select
+            label="Hauling Partner (optional)"
+            value={createForm.haulingPartnerId}
+            onChange={value =>
+              setCreateForm({
+                ...createForm,
+                haulingPartnerId: value,
+              })
+            }
+            placeholder="Assign later"
+            options={haulingPartners.map(hp => ({
+              value: String(hp.id),
+              label: hp.name,
+            }))}
+            fullWidth
+          />
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -714,21 +701,17 @@ export function AdminHaulJobsPage() {
             Assign a hauling partner to job{' '}
             <strong>{selectedJob?.jobCode}</strong>
           </p>
-          <div>
-            <label className="form-label">Hauling Partner</label>
-            <select
-              value={assignPartnerId}
-              onChange={e => setAssignPartnerId(e.target.value)}
-              className="input-field"
-            >
-              <option value="">Select partner</option>
-              {haulingPartners.map(hp => (
-                <option key={hp.id} value={hp.id}>
-                  {hp.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Select
+            label="Hauling Partner"
+            value={assignPartnerId}
+            onChange={value => setAssignPartnerId(value)}
+            placeholder="Select partner"
+            options={haulingPartners.map(hp => ({
+              value: String(hp.id),
+              label: hp.name,
+            }))}
+            fullWidth
+          />
           <div className="flex justify-end gap-3">
             <Button
               variant="ghost"
