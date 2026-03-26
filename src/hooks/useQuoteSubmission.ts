@@ -157,7 +157,7 @@ export function useQuoteSubmission() {
         if (errorData.errors && Array.isArray(errorData.errors)) {
           const errorMessages = errorData.errors
             .map((err: { field: string; message: string }) => err.message)
-            .join(', ');
+            .join(' ');
           throw new Error(errorMessages);
         }
         

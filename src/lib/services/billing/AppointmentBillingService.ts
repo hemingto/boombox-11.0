@@ -26,10 +26,7 @@ import {
   calculateProcessingFee,
   PROCESSING_FEE_LABEL,
 } from '@/data/processingFeeConfig';
-import {
-  DIY_FREE_SERVICE_MINUTES,
-  PICKUP_FEE_PER_UNIT,
-} from '@/data/storageTermPricing';
+import { DIY_FREE_SERVICE_MINUTES } from '@/data/storageTermPricing';
 import type { ServiceMetrics } from '../stripe/stripeInvoiceService';
 // Webhook processing imports
 import { StripeInvoiceService, StripeSubscriptionService } from '../stripe';
@@ -291,7 +288,7 @@ export class AppointmentBillingService {
         customer: customerId,
         amount: BillingCalculator.toCents(appointment.pickupFee),
         currency: 'usd',
-        description: `Pickup Fee (${unitCount} unit${unitCount > 1 ? 's' : ''} @ $${PICKUP_FEE_PER_UNIT}/unit)`,
+        description: `Pickup Fee (${unitCount} unit${unitCount > 1 ? 's' : ''} @ $${Math.round(appointment.pickupFee / unitCount)}/unit)`,
       });
     }
 

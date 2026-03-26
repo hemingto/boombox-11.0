@@ -561,6 +561,9 @@ export async function createOnfleetTasksWithDatabaseSave(payload: any) {
         container: { type: "TEAM", team: teamId },
         recipientSkipSMSNotifications: true,
         pickupTask: true,
+        requirements: {
+          photo: true
+        },
       // Note: dependencies omitted for first task (no dependencies)
       customFields: buildTaskCustomFields({
         appointmentId: parseInt(String(payload.appointmentId), 10),
@@ -662,6 +665,9 @@ export async function createOnfleetTasksWithDatabaseSave(payload: any) {
         completeAfter: timing.adjustedWindowEnd.getTime(),
         dependencies: [customerTaskData.id],
         recipientSkipSMSNotifications: true,
+        requirements: {
+          photo: true
+        },
         customFields: buildTaskCustomFields({
           appointmentId: parseInt(String(payload.appointmentId), 10),
           unitNumber: currentUnitIterationNumber,

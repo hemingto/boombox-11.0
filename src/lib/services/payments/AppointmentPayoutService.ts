@@ -29,8 +29,13 @@ export interface PayoutSummary {
 
 /**
  * Calculate platform fee (15% with $0.30 minimum)
+ * Only applies to moving partners — Boombox delivery drivers receive the full calculated payout
+ * since their rates are set by the platform (not a marketplace transaction).
  */
-function calculatePlatformFee(amount: number): number {
+function calculatePlatformFee(amount: number, workerType: string): number {
+  if (workerType !== 'moving_partner') {
+    return 0;
+  }
   const percentageFee = amount * 0.15;
   const minimumFee = 0.30;
   return Math.max(percentageFee, minimumFee);
@@ -189,7 +194,8 @@ export async function processAppointmentPayout(appointmentId: number): Promise<P
     await updateAllTaskPayoutStatus(tasks, 'processing');
 
     // Calculate platform fee and net payout
-    const platformFeeAmount = calculatePlatformFee(totalPayoutAmount);
+    // Platform fee only applies to moving partners, not Boombox delivery drivers
+    const platformFeeAmount = calculatePlatformFee(totalPayoutAmount, firstTask.workerType || 'boombox_driver');
     const netPayoutAmount = totalPayoutAmount - platformFeeAmount;
 
     console.log(`Platform fee: $${platformFeeAmount}, Net payout: $${netPayoutAmount}`);

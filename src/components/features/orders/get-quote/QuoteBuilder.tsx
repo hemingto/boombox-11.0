@@ -193,7 +193,7 @@ export function QuoteBuilder({
               <RadioCards
                 id="option1"
                 title="No, I'll load my storage unit myself"
-                description="Free! 1st hour"
+                description="$75 Pickup Fee"
                 plan="Do It Yourself Plan"
                 icon={
                   <FurnitureIcon

@@ -80,7 +80,7 @@ import {
   type DecodedTrackingToken,
   type TrackingTaskIds,
 } from '@/lib/utils/trackingUtils';
-import { fetchTaskByShortId } from '@/lib/integrations/onfleetClient';
+import { fetchTaskByShortId, fetchWorkerById } from '@/lib/integrations/onfleetClient';
 import { geocodeAddress } from '@/lib/services/geocodingService';
 import {
   TrackingVerifyRequestSchema,
@@ -206,11 +206,19 @@ export async function POST(req: Request) {
           appointment
         );
 
-        // Determine provider name (first unit uses moving partner, others use Boombox Driver)
-        const providerName =
-          index === 0
-            ? appointment.movingPartner?.name || 'Boombox Driver'
-            : 'Boombox Driver';
+        // Determine provider name: moving partner > Onfleet worker name > fallback
+        let providerName = 'Boombox Driver';
+        if (appointment.movingPartner?.name) {
+          providerName = appointment.movingPartner.name;
+        } else {
+          const workerId = unitCustomerTask?.worker || unitPickupTask?.worker;
+          if (workerId && typeof workerId === 'string') {
+            const worker = await fetchWorkerById(workerId);
+            if (worker?.name) {
+              providerName = worker.name;
+            }
+          }
+        }
 
         return {
           id: taskId,

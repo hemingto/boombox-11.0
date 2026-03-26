@@ -23,10 +23,7 @@ import {
   calculateProcessingFee,
 } from '@/data/processingFeeConfig';
 import { BillingCalculator } from '../billing/BillingCalculator';
-import {
-  DIY_FREE_SERVICE_MINUTES,
-  PICKUP_FEE_PER_UNIT,
-} from '@/data/storageTermPricing';
+import { DIY_FREE_SERVICE_MINUTES } from '@/data/storageTermPricing';
 
 // Import types from existing system (matches Prisma schema nullability)
 interface AppointmentWithRelations {
@@ -216,7 +213,7 @@ export class StripeInvoiceService {
         customer: appointment.user.stripeCustomerId!,
         amount: Math.round(appointment.pickupFee * 100),
         currency: 'usd',
-        description: `Pickup Fee (${unitCount} unit${unitCount > 1 ? 's' : ''} @ $${PICKUP_FEE_PER_UNIT}/unit)`,
+        description: `Pickup Fee (${unitCount} unit${unitCount > 1 ? 's' : ''} @ $${Math.round(appointment.pickupFee! / unitCount)}/unit)`,
       });
     }
 

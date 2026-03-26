@@ -313,6 +313,18 @@ function GetQuoteFormContent() {
       ),
     };
 
+    // Apply green date discount to pickup fee (matches Add Storage logic)
+    if (
+      state.hasGreenDateDiscount &&
+      state.storageTerm &&
+      state.planType === 'Do It Yourself Plan' &&
+      submissionData.pickupFee !== null &&
+      submissionData.pickupFee !== undefined
+    ) {
+      submissionData.pickupFee =
+        submissionData.pickupFee > 0 ? submissionData.pickupFee - 25 : -25;
+    }
+
     // Submit quote via hook (adds stripeCustomerId)
     const result = await submitQuote(submissionData as QuoteSubmissionData);
 

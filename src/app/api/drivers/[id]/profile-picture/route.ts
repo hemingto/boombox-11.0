@@ -52,8 +52,6 @@ export async function GET(
 
     return NextResponse.json(profilePicture);
   } catch (error: any) {
-    console.error('Error fetching profile picture:', error);
-    
     if (error instanceof Error) {
       if (error.message === 'Driver not found') {
         return NextResponse.json(
@@ -69,7 +67,8 @@ export async function GET(
         );
       }
     }
-    
+
+    console.error('Error fetching profile picture:', error);
     return NextResponse.json(
       { error: 'Failed to fetch profile picture', details: error.message },
       { status: 500 }

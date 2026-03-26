@@ -163,12 +163,23 @@ export async function approveDriverWithOnfleet(
       if (driver.onfleetTeamIds && driver.onfleetTeamIds.length > 0) {
         onfleetTeamIds = [...driver.onfleetTeamIds];
       } else {
-        // Add default team if configured
         const defaultTeamId = process.env.BOOMBOX_DELIVERY_NETWORK_TEAM_ID;
         if (defaultTeamId) {
           onfleetTeamIds = [defaultTeamId];
         }
       }
+    }
+
+    if (onfleetTeamIds.length === 0) {
+      console.error(
+        'No Onfleet team IDs resolved. Check that BOOMBOX_DELIVERY_NETWORK_TEAM_ID and BOOMBOX_PACKING_SUPPLY_DELIVERY_DRIVERS env vars are set.'
+      );
+      return {
+        success: false,
+        error: 'No Onfleet teams configured',
+        message:
+          'Unable to determine Onfleet team assignment. Ensure the Onfleet team environment variables are configured.',
+      };
     }
   }
 

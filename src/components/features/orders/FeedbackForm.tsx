@@ -200,10 +200,10 @@ export function FeedbackForm({
       let altText: string = '';
 
       if (movingPartnerName === 'Boombox Storage') {
-       src = '/img/logo.png';
+       src = '/logo.png';
        altText = 'Boombox Storage logo';
       } else if (!movingPartnerName) {
-       src = '/img/logo.png';
+       src = '/logo.png';
        altText = 'Boombox logo';
       } else if (movingPartnerCloudinaryFile) {
        src = `https://res.cloudinary.com/daezxeevr/image/upload/mover-company-pictures/${movingPartnerCloudinaryFile}`;

@@ -96,10 +96,20 @@ export async function uploadProfilePicture(
     });
     
     if (!response.ok) {
-      const errorData = await response.json();
+      let errorMessage = 'Failed to upload profile picture';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorData.error || errorMessage;
+      } catch {
+        if (response.status === 413) {
+          errorMessage = 'File is too large. Please select a smaller image (max 4.5MB).';
+        } else {
+          errorMessage = `Upload failed (${response.status}). Please try again.`;
+        }
+      }
       return {
         success: false,
-        error: errorData.message || 'Failed to upload profile picture'
+        error: errorMessage
       };
     }
     
@@ -133,12 +143,12 @@ export function validateProfilePictureFile(file: File): { valid: boolean; error?
     };
   }
   
-  // Check file size (10MB limit)
-  const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+  // Vercel serverless functions have a 4.5MB body size limit
+  const maxSize = 4.5 * 1024 * 1024;
   if (file.size > maxSize) {
     return {
       valid: false,
-      error: 'File size must be less than 10MB'
+      error: 'File size must be less than 4.5MB'
     };
   }
   

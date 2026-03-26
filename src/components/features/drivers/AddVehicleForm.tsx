@@ -163,7 +163,6 @@ export function AddVehicleForm({
         <div className="form-group mb-4" ref={yearRef}>
           <Select
             label="Vehicle Year"
-            size="sm"
             value={formData.year || ''}
             onChange={(value: string) => updateField('year', value)}
             error={errors.year || undefined}
@@ -180,7 +179,6 @@ export function AddVehicleForm({
         <div className="form-group mb-4" ref={makeRef}>
           <Select
             label="Vehicle Make"
-            size="sm"
             value={formData.make || ''}
             onChange={(value: string) => updateField('make', value)}
             error={errors.make || undefined}

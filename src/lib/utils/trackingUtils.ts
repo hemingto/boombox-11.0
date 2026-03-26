@@ -4,7 +4,9 @@
  * @refactor Extracted tracking business logic into reusable utilities
  */
 
-import { format, formatDuration } from 'date-fns';
+import { formatDuration } from 'date-fns';
+import { format as formatTz } from 'date-fns-tz';
+import { TIME_ZONE } from '@/lib/utils';
 
 // Types and interfaces
 export interface DecodedTrackingToken {
@@ -83,10 +85,10 @@ export function determineStepStatuses(
         t.unitNumber === unitNumber && 
         t.webhookTime
       )?.webhookTime ? 
-      format(new Date(parseInt(unitTasks.find(t => 
+      formatTz(new Date(parseInt(unitTasks.find(t => 
         t.stepNumber === 1 &&
         t.unitNumber === unitNumber
-      )!.webhookTime!)), 'h:mma').toLowerCase() : ''
+      )!.webhookTime!)), 'h:mma', { timeZone: TIME_ZONE }).toLowerCase() : ''
     },
     { //Movers on their way
       status: decodedToken.triggerName === 'taskArrival' || decodedLatest.triggerName === 'taskArrival' ? 'complete' :
@@ -97,10 +99,10 @@ export function determineStepStatuses(
         t.unitNumber === unitNumber && 
         t.webhookTime
       )?.webhookTime ? 
-      format(new Date(parseInt(unitTasks.find(t => 
+      formatTz(new Date(parseInt(unitTasks.find(t => 
         t.stepNumber === 2 &&
         t.unitNumber === unitNumber
-      )!.webhookTime!)), 'h:mma').toLowerCase() : ''
+      )!.webhookTime!)), 'h:mma', { timeZone: TIME_ZONE }).toLowerCase() : ''
     },
     { // Movers arrived and service time started
       status: customerTask?.state === 3 ? 'complete' :
@@ -109,7 +111,7 @@ export function determineStepStatuses(
         let finalTimestamp = '';
         // Only set the timestamp for unit number 1
         if (unitNumber === 1 && appointment.serviceStartTime) {
-          finalTimestamp = format(new Date(parseInt(appointment.serviceStartTime)), 'h:mma').toLowerCase();
+          finalTimestamp = formatTz(new Date(parseInt(appointment.serviceStartTime)), 'h:mma', { timeZone: TIME_ZONE }).toLowerCase();
         }
         return finalTimestamp;
       })(),
@@ -145,13 +147,13 @@ export function determineStepStatuses(
       status: dropoffTask?.state === 3 ? 'complete' :
               customerTask?.state === 3 ? 'in_transit' : 'pending',
       timestamp: customerTask?.state === 3 && customerTask?.completionDetails?.time ? 
-                format(new Date(customerTask.completionDetails.time), 'h:mma').toLowerCase() : ''
+                formatTz(new Date(customerTask.completionDetails.time), 'h:mma', { timeZone: TIME_ZONE }).toLowerCase() : ''
     },
     { // Dropoff
       status: dropoffTask?.state === 3 ? 'complete' :
               dropoffTask?.state === 2 ? 'in_transit' : 'pending',
       timestamp: dropoffTask?.completionDetails?.time ? 
-                 format(new Date(dropoffTask.completionDetails.time), 'h:mma').toLowerCase() : ''
+                 formatTz(new Date(dropoffTask.completionDetails.time), 'h:mma', { timeZone: TIME_ZONE }).toLowerCase() : ''
     }
   ];
 }
@@ -183,7 +185,7 @@ export function getStepTitle(
       }
     
     case 1: // On their way
-      return `${isFirstUnit ? partnerName : 'Boombox Driver'} is on their way!`;
+      return `${isFirstUnit ? partnerName : 'Boombox Driver'} is on the way!`;
     
     case 2: // Arrived
       if (appointmentType === 'End Storage Term') {
@@ -196,7 +198,7 @@ export function getStepTitle(
           : `Boombox Driver has arrived for your ${ordinalText} Boombox access`;
       } else if (appointmentType === 'Initial Pickup') {
         return isFirstUnit 
-          ? `${partnerName} has arrived and their service time has started`
+          ? `${partnerName} has arrived and the service time has started`
           : `Boombox Driver has arrived with your ${ordinalText} Boombox`;
       } else if (appointmentType === 'Additional Storage') {
         return isFirstUnit 
@@ -204,7 +206,7 @@ export function getStepTitle(
           : `Boombox Driver has arrived with your ${ordinalText} additional Boombox`;
       } else {
         return isFirstUnit 
-          ? `${partnerName} has arrived and their service time has started`
+          ? `${partnerName} has arrived and the service time has started`
           : `Boombox Driver has arrived with your ${ordinalText} Boombox`;
       }
     

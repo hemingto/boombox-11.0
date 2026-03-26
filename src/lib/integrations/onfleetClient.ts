@@ -405,5 +405,29 @@ export async function fetchTaskByShortId(taskId: string) {
   }
 }
 
+/**
+ * Fetch worker details by worker ID from Onfleet API
+ * Returns the worker object including name, or null on failure
+ */
+export async function fetchWorkerById(workerId: string): Promise<{ name: string; [key: string]: any } | null> {
+  if (!workerId) return null;
+  
+  try {
+    const response = await fetch(
+      `https://onfleet.com/api/v2/workers/${workerId}`,
+      {
+        headers: {
+          Authorization: `Basic ${Buffer.from(process.env.ONFLEET_API_KEY + ':').toString('base64')}`
+        }
+      }
+    );
+    
+    return response.ok ? await response.json() : null;
+  } catch (error) {
+    console.error('Error fetching Onfleet worker by ID:', error);
+    return null;
+  }
+}
+
 // Export the error class for use in other files
 export { OnfleetApiError };

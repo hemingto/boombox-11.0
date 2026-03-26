@@ -86,19 +86,19 @@ export async function POST(req: Request) {
       }
     }
 
-    // Process tip payment if tip amount is greater than 0
+    // Process tip payment and distribute to drivers if tip amount is greater than 0
     if (tipAmountNumber > 0) {
       try {
-        console.log('Processing tip payment directly...');
+        console.log('Processing tip payment and driver distribution...');
 
         const tipResult = await StripeTipPaymentService.processAppointmentTip({
           appointmentId: appointmentIdInt,
           tipAmount: tipAmountNumber,
+          feedbackId: feedback.id,
         });
 
         if (!tipResult.success) {
           console.error('Error processing tip payment:', tipResult.error);
-          // Return feedback with tip processing error info
           return NextResponse.json({
             ...feedback,
             tipProcessingStatus: 'failed',
@@ -106,21 +106,27 @@ export async function POST(req: Request) {
           });
         }
 
-        // Update the feedback with the payment status
+        // Update feedback with the customer-side payment intent
         const updatedFeedback = await updateFeedbackWithPayment(
           feedback.id,
           tipResult.paymentIntentId!,
           tipResult.status!,
-          false // not packing supply
+          false
         );
 
-        // Type assertion since we know this is regular feedback (not packing supply)
         feedback = updatedFeedback as any;
+
+        // Log transfer results
+        if (tipResult.transfers && tipResult.transfers.length > 0) {
+          const completed = tipResult.transfers.filter(t => t.status === 'completed');
+          const skipped = tipResult.transfers.filter(t => t.status === 'skipped');
+          const failed = tipResult.transfers.filter(t => t.status === 'failed');
+          console.log(`Tip transfers: ${completed.length} completed, ${skipped.length} skipped, ${failed.length} failed`);
+        }
 
         console.log('Updated feedback with payment info:', feedback);
       } catch (paymentError) {
         console.error('Error during tip payment processing:', paymentError);
-        // Return feedback with payment error info
         return NextResponse.json({
           ...feedback,
           tipProcessingStatus: 'error',

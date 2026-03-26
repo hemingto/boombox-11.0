@@ -52,6 +52,7 @@ import {
   formatCurrency,
   formatCurrencyCompact,
 } from '@/lib/utils';
+import { PICKUP_FEE_PER_UNIT } from '@/data/storageTermPricing';
 
 interface RequestedStorageUnit {
   id: number;
@@ -399,54 +400,61 @@ export function AppointmentCard({
                           )}
                         </>
                       ) : (
-                        <>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm">{`${numberOfUnits} Boombox${numberOfUnits > 1 ? 'es' : ''}`}</span>
-                            <span className="text-sm font-medium">
-                              {formatCurrencyCompact(monthlyStorageRate || 0)}
-                              /mo
-                            </span>
-                          </div>
-                          {planType === 'Do It Yourself Plan' &&
-                            pickupFee !== null && (
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm">Pickup Fee</span>
-                                <span className="text-sm font-medium">
-                                  {pickupFeeWaived ? (
-                                    <>
-                                      <span className="text-text-tertiary line-through text-xs mr-1">
-                                        ${pickupFee || 75}
-                                      </span>
-                                      <span className="text-status-success">
-                                        Waived
-                                      </span>
-                                    </>
-                                  ) : (
-                                    formatCurrencyCompact(pickupFee || 0)
-                                  )}
-                                </span>
-                              </div>
-                            )}
-                        </>
-                      )}
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">
-                          {movingPartnerName ||
-                            thirdPartyTitle ||
-                            planType ||
-                            'Loading Help'}
-                        </span>
-                        <div>
-                          {loadingHelpPrice === 0 && (
-                            <span className="text-text-tertiary text-xs mr-1">
-                              Free! 1st hour
-                            </span>
-                          )}
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm">{`${numberOfUnits} Boombox${numberOfUnits > 1 ? 'es' : ''}`}</span>
                           <span className="text-sm font-medium">
-                            {formatCurrencyCompact(loadingHelpPrice || 0)}/hr
+                            {formatCurrencyCompact(monthlyStorageRate || 0)}
+                            /mo
                           </span>
                         </div>
-                      </div>
+                      )}
+                      {planType === 'Do It Yourself Plan' ? (
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm">{planType}</span>
+                          <span className="text-sm font-medium flex items-center gap-1">
+                            {pickupFeeWaived ? (
+                              <>
+                                <span className="px-2.5 py-1 text-xs rounded-full bg-status-bg-success text-status-success font-medium">
+                                  Free pickup
+                                </span>
+                                $0
+                              </>
+                            ) : pickupFee !== null &&
+                              pickupFee <
+                                PICKUP_FEE_PER_UNIT * numberOfUnits ? (
+                              <>
+                                <span className="text-text-tertiary line-through text-xs mr-1">
+                                  {formatCurrencyCompact(
+                                    PICKUP_FEE_PER_UNIT * numberOfUnits
+                                  )}
+                                </span>
+                                {formatCurrencyCompact(pickupFee)}
+                              </>
+                            ) : (
+                              formatCurrencyCompact(pickupFee || 0)
+                            )}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm">
+                            {movingPartnerName ||
+                              thirdPartyTitle ||
+                              planType ||
+                              'Loading Help'}
+                          </span>
+                          <div>
+                            {loadingHelpPrice === 0 && (
+                              <span className="text-text-tertiary text-xs mr-1">
+                                Free! 1st hour
+                              </span>
+                            )}
+                            <span className="text-sm font-medium">
+                              {formatCurrencyCompact(loadingHelpPrice || 0)}/hr
+                            </span>
+                          </div>
+                        </div>
+                      )}
                       {appointmentType !== 'Storage Unit Access' &&
                         appointmentType !== 'End Storage Term' && (
                           <div className="flex justify-between items-center">

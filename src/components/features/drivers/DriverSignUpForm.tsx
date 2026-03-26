@@ -600,7 +600,7 @@ export function DriverSignUpForm({
               title="Storage Unit Delivery Driver"
               titleDescription="Deliver Boombox trailer to customer's location. Must have trailer hitch and qualifying vehicle."
               description="on average"
-              plan="Earn $50/hr"
+              plan="Earn $35/hr"
               checked={selectedServices.includes('option1')}
               onChange={() => handleServiceToggle('option1')}
               hasError={!!errors.services}
@@ -611,7 +611,7 @@ export function DriverSignUpForm({
               title="Packing Supply Delivery Driver"
               titleDescription="Deliver packing supplies to customer's location. Do not need trailer hitch."
               description="on average"
-              plan="Earn $35/hr"
+              plan="Earn $30/hr"
               checked={selectedServices.includes('option2')}
               onChange={() => handleServiceToggle('option2')}
               hasError={!!errors.services}

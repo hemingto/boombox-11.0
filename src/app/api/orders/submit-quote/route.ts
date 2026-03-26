@@ -182,7 +182,7 @@ export async function POST(req: NextRequest) {
       errors.push({
         field: 'phoneNumber',
         message:
-          'This phone number is already in use. Please enter different phone number.',
+          'This phone number is already in use. Please enter a different phone number.',
       });
     }
 
@@ -190,7 +190,7 @@ export async function POST(req: NextRequest) {
       errors.push({
         field: 'email',
         message:
-          'A user with this email already exists. Please enter different email.',
+          'A user with this email already exists. Please enter a different email.',
       });
     }
 

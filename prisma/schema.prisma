@@ -127,6 +127,7 @@ model MovingPartner {
   moverCancellations              MoverCancellation[]
   availability                    MovingPartnerAvailability[]
   approvedDrivers                 MovingPartnerDriver[]
+  tipTransfers                    TipTransfer[]
   vehicles                        Vehicle[]
 }
 
@@ -407,8 +408,31 @@ model Feedback {
   updatedAt          DateTime       @updatedAt
   appointment        Appointment    @relation(fields: [appointmentId], references: [id])
   movingPartner      MovingPartner? @relation(fields: [movingPartnerId], references: [id])
+  tipTransfers       TipTransfer[]
 
   @@index([movingPartnerId])
+}
+
+model TipTransfer {
+  id                       Int            @id @default(autoincrement())
+  feedbackId               Int
+  recipientType            String
+  recipientDriverId        Int?
+  recipientMovingPartnerId Int?
+  stripeConnectAccountId   String
+  stripeTransferId         String?
+  amount                   Float
+  status                   String         @default("pending")
+  failureReason            String?
+  processedAt              DateTime?
+  createdAt                DateTime       @default(now())
+  feedback                 Feedback       @relation(fields: [feedbackId], references: [id])
+  driver                   Driver?        @relation(fields: [recipientDriverId], references: [id])
+  movingPartner            MovingPartner? @relation(fields: [recipientMovingPartnerId], references: [id])
+
+  @@index([feedbackId])
+  @@index([recipientDriverId])
+  @@index([recipientMovingPartnerId])
 }
 
 model PackingSupplyFeedback {
@@ -484,6 +508,7 @@ model Driver {
   assignedTasks                   OnfleetTask[]
   packingSupplyDeliveries         PackingSupplyOrder[]
   packingSupplyRoutes             PackingSupplyRoute[]
+  tipTransfers                    TipTransfer[]
   vehicles                        Vehicle[]
 }
 
