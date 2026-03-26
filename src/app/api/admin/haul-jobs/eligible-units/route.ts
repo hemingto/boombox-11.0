@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth/authOptions';
+import { authOptions } from '@/lib/auth/nextAuthConfig';
 import { stocktonEligibilityService } from '@/lib/services/StocktonEligibilityService';
 
 export async function GET() {
