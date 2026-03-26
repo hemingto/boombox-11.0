@@ -6,7 +6,13 @@
 
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useRef } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import { useForm, FormProvider, UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSearchParams } from 'next/navigation';
@@ -29,33 +35,35 @@ import { useAddStorageFormPersistence } from '@/hooks/useAddStorageFormPersisten
 import { useAppointmentData } from '@/hooks/useAppointmentData';
 import { UseAppointmentDataReturn } from '@/types/accessStorage.types';
 import { insuranceOptions } from '@/data/insuranceOptions';
+import type { StorageTerm } from '@/data/storageTermPricing';
+import { STORAGE_TERM_TIERS } from '@/data/storageTermPricing';
 
 // ===== CONTEXT INTERFACES =====
 
 interface AddStorageContextValue {
   // React Hook Form methods
   form: UseFormReturn<any>;
-  
+
   // Custom hooks
   formHook: UseAddStorageFormReturn;
   navigationHook: UseAddStorageNavigationReturn;
   submissionHook: UseAddStorageSubmissionReturn;
   persistenceHook: UseFormPersistenceReturn;
   appointmentDataHook?: UseAppointmentDataReturn;
-  
+
   // Computed values
   isFormValid: boolean;
   isDirty: boolean;
   isSubmitting: boolean;
-  
+
   // Edit mode properties
   isEditMode: boolean;
   appointmentId?: string;
-  
+
   // Form actions
   resetForm: () => void;
   submitForm: () => Promise<void>;
-  
+
   // User context
   userId: string | undefined;
 }
@@ -90,11 +98,13 @@ export function AddStorageProvider({
   const searchParams = useSearchParams();
   const { data: session } = useSession();
   const userId = session?.user?.id;
-  
+
   const isEditMode = mode === 'edit';
-  
+
   // Fetch appointment data if in edit mode
-  const appointmentDataHook = useAppointmentData(isEditMode ? appointmentId : undefined);
+  const appointmentDataHook = useAppointmentData(
+    isEditMode ? appointmentId : undefined
+  );
 
   // Initialize form with React Hook Form
   const form = useForm({
@@ -124,70 +134,87 @@ export function AddStorageProvider({
   const navigationHook = useAddStorageNavigation({
     planType: formHook.formState.planType,
     onStepChange,
-    validateStep: (step) => formHook.validateStep(step).isValid,
+    validateStep: step => formHook.validateStep(step).isValid,
   });
 
   const submissionHook = useAddStorageSubmission(
     mode,
     appointmentId,
-    appointmentDataHook.appointmentData ? parseInt(String(appointmentDataHook.appointmentData.numberOfUnits), 10) : undefined
+    appointmentDataHook.appointmentData
+      ? parseInt(String(appointmentDataHook.appointmentData.numberOfUnits), 10)
+      : undefined
   );
 
   const persistenceHook = useAddStorageFormPersistence({
     formState: formHook.formState,
-    onFormStateRestore: (restoredState) => {
+    onFormStateRestore: restoredState => {
       formHook.updateFormState(restoredState);
     },
     enableLocalStorage: false, // Disabled: start fresh every time
     enableUrlSync: false, // Disabled: start fresh every time
   });
-  
+
   // ===== EDIT MODE: POPULATE FORM FROM APPOINTMENT DATA =====
-  
+
   // Track if form has been populated to prevent infinite loops
   const hasPopulatedFormRef = useRef(false);
-  
+
   // Store updateFormState in a ref to avoid dependency issues
   const updateFormStateRef = useRef(formHook.updateFormState);
   updateFormStateRef.current = formHook.updateFormState;
-  
+
   useEffect(() => {
     // Only populate once when appointment data is loaded
     if (
-      isEditMode && 
-      appointmentDataHook.appointmentData && 
+      isEditMode &&
+      appointmentDataHook.appointmentData &&
       !appointmentDataHook.isLoading &&
       !hasPopulatedFormRef.current
     ) {
       hasPopulatedFormRef.current = true;
       const appointment = appointmentDataHook.appointmentData;
-      
+
       // Transform appointment data to form state
-      const numberOfUnits = parseInt(String(appointment.numberOfUnits), 10) || 1;
-      const validatedNumberOfUnits = isNaN(numberOfUnits) || numberOfUnits < 1 ? 1 : numberOfUnits;
-      
+      const numberOfUnits =
+        parseInt(String(appointment.numberOfUnits), 10) || 1;
+      const validatedNumberOfUnits =
+        isNaN(numberOfUnits) || numberOfUnits < 1 ? 1 : numberOfUnits;
+
       // Determine plan type
       let determinedPlanType = 'Do It Yourself Plan';
       let selectedPlanId = 'option1';
-      
-      if (appointment.planType === 'Full Service Plan' || appointment.planType === 'Third Party Loading Help') {
+
+      if (
+        appointment.planType === 'Full Service Plan' ||
+        appointment.planType === 'Third Party Loading Help'
+      ) {
         determinedPlanType = appointment.planType;
         selectedPlanId = 'option2';
       } else if (appointment.planType === 'Do It Yourself Plan') {
         determinedPlanType = 'Do It Yourself Plan';
         selectedPlanId = 'option1';
       }
-      
+
       // Map insurance coverage from API to insurance option object
-      // The API returns the label (e.g., "Standard Insurance Coverage") 
+      // The API returns the label (e.g., "Standard Insurance Coverage")
       // We need to find the matching option from insuranceOptions
-      const mappedInsuranceOption = appointment.insuranceCoverage 
-        ? insuranceOptions.find(opt => 
-            opt.label === appointment.insuranceCoverage || 
-            opt.value === appointment.insuranceCoverage?.toLowerCase().replace(/ /g, '-')
+      const mappedInsuranceOption = appointment.insuranceCoverage
+        ? insuranceOptions.find(
+            opt =>
+              opt.label === appointment.insuranceCoverage ||
+              opt.value ===
+                appointment.insuranceCoverage?.toLowerCase().replace(/ /g, '-')
           ) || null
         : null;
-      
+
+      // Map storageTerm from the API response, validating it's a known tier
+      const validStorageTermIds = STORAGE_TERM_TIERS.map(t => t.id) as string[];
+      const mappedStorageTerm: StorageTerm | null =
+        appointment.storageTerm &&
+        validStorageTermIds.includes(appointment.storageTerm)
+          ? (appointment.storageTerm as StorageTerm)
+          : null;
+
       // Update form hook state using ref to avoid stale closure
       updateFormStateRef.current({
         addressInfo: {
@@ -200,6 +227,7 @@ export function AddStorageProvider({
           count: validatedNumberOfUnits,
           text: getStorageUnitText(validatedNumberOfUnits),
         },
+        storageTerm: mappedStorageTerm,
         selectedPlan: selectedPlanId,
         selectedPlanName: appointment.planType || 'Do It Yourself Plan',
         planType: determinedPlanType as PlanType,
@@ -209,44 +237,68 @@ export function AddStorageProvider({
           monthlyStorageRate: appointment.monthlyStorageRate || 0,
           monthlyInsuranceRate: appointment.monthlyInsuranceRate || 0,
           parsedLoadingHelpPrice: appointment.loadingHelpPrice || 0,
-          loadingHelpPrice: appointment.loadingHelpPrice ? `$${appointment.loadingHelpPrice}/hr` : '$0',
-          loadingHelpDescription: determinedPlanType === 'Full Service Plan' ? 'Full Service Plan' : 
-                                  determinedPlanType === 'Third Party Loading Help' ? 'Third-party estimate' : 'Free!',
+          loadingHelpPrice: appointment.loadingHelpPrice
+            ? `$${appointment.loadingHelpPrice}/hr`
+            : '$0',
+          loadingHelpDescription:
+            determinedPlanType === 'Full Service Plan'
+              ? 'Full Service Plan'
+              : determinedPlanType === 'Third Party Loading Help'
+                ? 'Third-party estimate'
+                : 'Free!',
           calculatedTotal: 0,
         },
         movingPartnerId: appointment.movingPartner?.id || null,
-        thirdPartyMovingPartnerId: appointment.thirdPartyMovingPartner?.id || null,
+        thirdPartyMovingPartnerId:
+          appointment.thirdPartyMovingPartner?.id || null,
         scheduling: {
           scheduledDate: appointment.date ? new Date(appointment.date) : null,
-          scheduledTimeSlot: appointment.date ? (() => {
-            const appointmentDate = new Date(appointment.date);
-            const hour = appointmentDate.getHours();
-            const nextHour = (hour + 1) % 24;
-            const format12Hour = (h: number) => {
-              const hour12 = h % 12 || 12;
-              const period = h >= 12 ? 'pm' : 'am';
-              return `${hour12}${period}`;
-            };
-            return `${format12Hour(hour)}-${format12Hour(nextHour)}`;
-          })() : null,
+          scheduledTimeSlot: appointment.date
+            ? (() => {
+                const appointmentDate = new Date(appointment.date);
+                const hour = appointmentDate.getHours();
+                const nextHour = (hour + 1) % 24;
+                const format12Hour = (h: number) => {
+                  const hour12 = h % 12 || 12;
+                  const period = h >= 12 ? 'pm' : 'am';
+                  return `${hour12}${period}`;
+                };
+                return `${format12Hour(hour)}-${format12Hour(nextHour)}`;
+              })()
+            : null,
         },
-        selectedLabor: appointment.planType === 'Full Service Plan' && appointment.movingPartner ? {
-          id: appointment.movingPartner.id.toString(),
-          price: `$${appointment.movingPartner.hourlyRate || '189'}/hr`,
-          title: appointment.movingPartner.name || 'Full Service Plan',
-          onfleetTeamId: appointment.movingPartner.onfleetTeamId,
-        } : appointment.planType === 'Third Party Loading Help' && appointment.thirdPartyMovingPartner ? {
-          id: `thirdParty-${appointment.thirdPartyMovingPartner.id}`,
-          price: '$192',
-          title: appointment.thirdPartyMovingPartner.name || 'Third Party Loading Help',
-        } : appointment.planType === 'Do It Yourself Plan' ? {
-          id: 'option1',
-          price: '$0',
-          title: 'Do It Yourself Plan',
-        } : null,
+        selectedLabor:
+          appointment.planType === 'Full Service Plan' &&
+          appointment.movingPartner
+            ? {
+                id: appointment.movingPartner.id.toString(),
+                price: `$${appointment.movingPartner.hourlyRate || '189'}/hr`,
+                title: appointment.movingPartner.name || 'Full Service Plan',
+                onfleetTeamId: appointment.movingPartner.onfleetTeamId,
+              }
+            : appointment.planType === 'Third Party Loading Help' &&
+                appointment.thirdPartyMovingPartner
+              ? {
+                  id: `thirdParty-${appointment.thirdPartyMovingPartner.id}`,
+                  price: '$192',
+                  title:
+                    appointment.thirdPartyMovingPartner.name ||
+                    'Third Party Loading Help',
+                }
+              : appointment.planType === 'Do It Yourself Plan'
+                ? {
+                    id: 'option1',
+                    price: '$0',
+                    title: 'Do It Yourself Plan',
+                  }
+                : null,
       });
     }
-  }, [isEditMode, appointmentDataHook.appointmentData, appointmentDataHook.isLoading]);
+  }, [
+    isEditMode,
+    appointmentDataHook.appointmentData,
+    appointmentDataHook.isLoading,
+  ]);
 
   /**
    * Get storage unit text based on count
@@ -291,7 +343,9 @@ export function AddStorageProvider({
 
   const submitForm = async () => {
     if (!userId) {
-      throw new Error('Your session has expired. Please refresh the page to continue.');
+      throw new Error(
+        'Your session has expired. Please refresh the page to continue.'
+      );
     }
 
     // Validate form before submission
@@ -305,41 +359,42 @@ export function AddStorageProvider({
   };
 
   // Context value
-  const contextValue: AddStorageContextValue = useMemo(() => ({
-    form,
-    formHook,
-    navigationHook,
-    submissionHook,
-    persistenceHook,
-    appointmentDataHook,
-    isFormValid,
-    isDirty,
-    isSubmitting,
-    isEditMode,
-    appointmentId,
-    resetForm,
-    submitForm,
-    userId,
-  }), [
-    form,
-    formHook,
-    navigationHook,
-    submissionHook,
-    persistenceHook,
-    appointmentDataHook,
-    isFormValid,
-    isDirty,
-    isSubmitting,
-    isEditMode,
-    appointmentId,
-    userId,
-  ]);
+  const contextValue: AddStorageContextValue = useMemo(
+    () => ({
+      form,
+      formHook,
+      navigationHook,
+      submissionHook,
+      persistenceHook,
+      appointmentDataHook,
+      isFormValid,
+      isDirty,
+      isSubmitting,
+      isEditMode,
+      appointmentId,
+      resetForm,
+      submitForm,
+      userId,
+    }),
+    [
+      form,
+      formHook,
+      navigationHook,
+      submissionHook,
+      persistenceHook,
+      appointmentDataHook,
+      isFormValid,
+      isDirty,
+      isSubmitting,
+      isEditMode,
+      appointmentId,
+      userId,
+    ]
+  );
 
   return (
     <AddStorageContext.Provider value={contextValue}>
-      <FormProvider {...form}>
-        {children}
-      </FormProvider>
+      <FormProvider {...form}>{children}</FormProvider>
     </AddStorageContext.Provider>
   );
 }
@@ -352,11 +407,13 @@ export function AddStorageProvider({
  */
 export function useAddStorageContext(): AddStorageContextValue {
   const context = useContext(AddStorageContext);
-  
+
   if (!context) {
-    throw new Error('useAddStorageContext must be used within AddStorageProvider');
+    throw new Error(
+      'useAddStorageContext must be used within AddStorageProvider'
+    );
   }
-  
+
   return context;
 }
 
@@ -414,8 +471,9 @@ export function useAddStorageFormErrors() {
  * Hook to check if form can be submitted
  */
 export function useAddStorageCanSubmit() {
-  const { isFormValid, userId, submissionHook, formHook } = useAddStorageContext();
-  
+  const { isFormValid, userId, submissionHook, formHook } =
+    useAddStorageContext();
+
   return useMemo(() => {
     return (
       isFormValid &&

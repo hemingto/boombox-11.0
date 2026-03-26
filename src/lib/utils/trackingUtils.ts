@@ -5,7 +5,7 @@
  */
 
 import { formatDuration } from 'date-fns';
-import { format as formatTz } from 'date-fns-tz';
+import { format as formatTz, toZonedTime } from 'date-fns-tz';
 import { TIME_ZONE } from '@/lib/utils';
 
 // Types and interfaces
@@ -73,45 +73,85 @@ export function determineStepStatuses(
     customerTaskState: customerTask?.state,
     decodedTrigger: decodedToken.triggerName,
     latestTrigger: decodedLatest.triggerName,
-    serviceStartTime: appointment.serviceStartTime
+    serviceStartTime: appointment.serviceStartTime,
   });
 
   return [
-    { // Pickup step
-      status: pickupTask?.state === 2 ? 'in_transit' : 
-              pickupTask?.state === 3 ? 'complete' : 'pending',
-      timestamp: unitTasks.find(t => 
-        t.stepNumber === 1 && 
-        t.unitNumber === unitNumber && 
-        t.webhookTime
-      )?.webhookTime ? 
-      formatTz(new Date(parseInt(unitTasks.find(t => 
-        t.stepNumber === 1 &&
-        t.unitNumber === unitNumber
-      )!.webhookTime!)), 'h:mma', { timeZone: TIME_ZONE }).toLowerCase() : ''
+    {
+      // Pickup step
+      status:
+        pickupTask?.state === 2
+          ? 'in_transit'
+          : pickupTask?.state === 3
+            ? 'complete'
+            : 'pending',
+      timestamp: unitTasks.find(
+        t => t.stepNumber === 1 && t.unitNumber === unitNumber && t.webhookTime
+      )?.webhookTime
+        ? formatTz(
+            toZonedTime(
+              new Date(
+                parseInt(
+                  unitTasks.find(
+                    t => t.stepNumber === 1 && t.unitNumber === unitNumber
+                  )!.webhookTime!
+                )
+              ),
+              TIME_ZONE
+            ),
+            'h:mma'
+          ).toLowerCase()
+        : '',
     },
-    { //Movers on their way
-      status: decodedToken.triggerName === 'taskArrival' || decodedLatest.triggerName === 'taskArrival' ? 'complete' :
-              customerTask?.state === 2 ? 'in_transit' :
-              customerTask?.state === 3 ? 'complete' : 'pending',
-      timestamp: unitTasks.find(t => 
-        t.stepNumber === 2 && 
-        t.unitNumber === unitNumber && 
-        t.webhookTime
-      )?.webhookTime ? 
-      formatTz(new Date(parseInt(unitTasks.find(t => 
-        t.stepNumber === 2 &&
-        t.unitNumber === unitNumber
-      )!.webhookTime!)), 'h:mma', { timeZone: TIME_ZONE }).toLowerCase() : ''
+    {
+      //Movers on their way
+      status:
+        decodedToken.triggerName === 'taskArrival' ||
+        decodedLatest.triggerName === 'taskArrival'
+          ? 'complete'
+          : customerTask?.state === 2
+            ? 'in_transit'
+            : customerTask?.state === 3
+              ? 'complete'
+              : 'pending',
+      timestamp: unitTasks.find(
+        t => t.stepNumber === 2 && t.unitNumber === unitNumber && t.webhookTime
+      )?.webhookTime
+        ? formatTz(
+            toZonedTime(
+              new Date(
+                parseInt(
+                  unitTasks.find(
+                    t => t.stepNumber === 2 && t.unitNumber === unitNumber
+                  )!.webhookTime!
+                )
+              ),
+              TIME_ZONE
+            ),
+            'h:mma'
+          ).toLowerCase()
+        : '',
     },
-    { // Movers arrived and service time started
-      status: customerTask?.state === 3 ? 'complete' :
-              decodedToken.triggerName === 'taskArrival' || decodedLatest.triggerName === 'taskArrival' ? 'in_transit' : 'pending',
+    {
+      // Movers arrived and service time started
+      status:
+        customerTask?.state === 3
+          ? 'complete'
+          : decodedToken.triggerName === 'taskArrival' ||
+              decodedLatest.triggerName === 'taskArrival'
+            ? 'in_transit'
+            : 'pending',
       timestamp: (() => {
         let finalTimestamp = '';
         // Only set the timestamp for unit number 1
         if (unitNumber === 1 && appointment.serviceStartTime) {
-          finalTimestamp = formatTz(new Date(parseInt(appointment.serviceStartTime)), 'h:mma', { timeZone: TIME_ZONE }).toLowerCase();
+          finalTimestamp = formatTz(
+            toZonedTime(
+              new Date(parseInt(appointment.serviceStartTime)),
+              TIME_ZONE
+            ),
+            'h:mma'
+          ).toLowerCase();
         }
         return finalTimestamp;
       })(),
@@ -121,40 +161,73 @@ export function determineStepStatuses(
             triggerName: decodedLatest.triggerName,
             webhookTime: decodedLatest.webhookTime,
             appointmentId: decodedLatest.appointmentId,
-            taskId: decodedLatest.taskId
+            taskId: decodedLatest.taskId,
           },
           serviceStartTime: appointment.serviceStartTime,
-          customerTaskState: customerTask?.state
+          customerTaskState: customerTask?.state,
         });
 
-        const timerData = appointment.serviceStartTime ? {
-          type: 'timer' as const,
-          startTime: appointment.serviceStartTime,
-          endTime: appointment.serviceEndTime
-        } : undefined;
+        const timerData = appointment.serviceStartTime
+          ? {
+              type: 'timer' as const,
+              startTime: appointment.serviceStartTime,
+              endTime: appointment.serviceEndTime,
+            }
+          : undefined;
 
         return {
-          label: customerTask?.state === 3 ? formatDuration({
-            seconds: Math.floor((new Date(appointment.serviceEndTime!).getTime() - 
-                      new Date(appointment.serviceStartTime!).getTime()) / 1000)
-          }) : '00:00',
+          label:
+            customerTask?.state === 3
+              ? formatDuration({
+                  seconds: Math.floor(
+                    (new Date(appointment.serviceEndTime!).getTime() -
+                      new Date(appointment.serviceStartTime!).getTime()) /
+                      1000
+                  ),
+                })
+              : '00:00',
           timerData,
-          iconName: 'ClockIcon'
+          iconName: 'ClockIcon',
         };
       })(),
     },
-    { // Completion
-      status: dropoffTask?.state === 3 ? 'complete' :
-              customerTask?.state === 3 ? 'in_transit' : 'pending',
-      timestamp: customerTask?.state === 3 && customerTask?.completionDetails?.time ? 
-                formatTz(new Date(customerTask.completionDetails.time), 'h:mma', { timeZone: TIME_ZONE }).toLowerCase() : ''
+    {
+      // Completion
+      status:
+        dropoffTask?.state === 3
+          ? 'complete'
+          : customerTask?.state === 3
+            ? 'in_transit'
+            : 'pending',
+      timestamp:
+        customerTask?.state === 3 && customerTask?.completionDetails?.time
+          ? formatTz(
+              toZonedTime(
+                new Date(customerTask.completionDetails.time),
+                TIME_ZONE
+              ),
+              'h:mma'
+            ).toLowerCase()
+          : '',
     },
-    { // Dropoff
-      status: dropoffTask?.state === 3 ? 'complete' :
-              dropoffTask?.state === 2 ? 'in_transit' : 'pending',
-      timestamp: dropoffTask?.completionDetails?.time ? 
-                 formatTz(new Date(dropoffTask.completionDetails.time), 'h:mma', { timeZone: TIME_ZONE }).toLowerCase() : ''
-    }
+    {
+      // Dropoff
+      status:
+        dropoffTask?.state === 3
+          ? 'complete'
+          : dropoffTask?.state === 2
+            ? 'in_transit'
+            : 'pending',
+      timestamp: dropoffTask?.completionDetails?.time
+        ? formatTz(
+            toZonedTime(
+              new Date(dropoffTask.completionDetails.time),
+              TIME_ZONE
+            ),
+            'h:mma'
+          ).toLowerCase()
+        : '',
+    },
   ];
 }
 
@@ -163,76 +236,79 @@ export function determineStepStatuses(
  * @source boombox-10.0/src/app/api/tracking/verify/route.ts (getStepTitle function)
  */
 export function getStepTitle(
-  stepIndex: number, 
-  unitIndex: number, 
-  appointment: any, 
+  stepIndex: number,
+  unitIndex: number,
+  appointment: any,
   partnerName: string
 ): string {
   const appointmentType = appointment.appointmentType;
   const isFirstUnit = unitIndex === 0;
   const ordinalText = isFirstUnit ? '' : getOrdinalNumber(unitIndex);
-  
+
   switch (stepIndex) {
     case 0: // Pickup step
       if (appointmentType === 'End Storage Term') {
         return `${isFirstUnit ? partnerName : 'Boombox Driver'} is picking up your Boombox`;
       } else if (appointmentType === 'Storage Unit Access') {
         return `${isFirstUnit ? partnerName : 'Boombox Driver'} is picking up your Boombox`;
-      } else if (appointmentType === 'Initial Pickup' || appointmentType === 'Additional Storage') {
+      } else if (
+        appointmentType === 'Initial Pickup' ||
+        appointmentType === 'Additional Storage'
+      ) {
         return `${isFirstUnit ? partnerName : 'Boombox Driver'} is picking up your Boombox`;
       } else {
         return `${isFirstUnit ? partnerName : 'Boombox Driver'} is picking up your Boombox`;
       }
-    
+
     case 1: // On their way
       return `${isFirstUnit ? partnerName : 'Boombox Driver'} is on the way!`;
-    
+
     case 2: // Arrived
       if (appointmentType === 'End Storage Term') {
-        return isFirstUnit 
+        return isFirstUnit
           ? `${partnerName} has arrived and is ready to begin unloading your Boombox`
           : `Boombox Driver has arrived to unload your ${ordinalText} Boombox`;
       } else if (appointmentType === 'Storage Unit Access') {
-        return isFirstUnit 
+        return isFirstUnit
           ? `${partnerName} has arrived and will begin your storage access appointment`
           : `Boombox Driver has arrived for your ${ordinalText} Boombox access`;
       } else if (appointmentType === 'Initial Pickup') {
-        return isFirstUnit 
+        return isFirstUnit
           ? `${partnerName} has arrived and the service time has started`
           : `Boombox Driver has arrived with your ${ordinalText} Boombox`;
       } else if (appointmentType === 'Additional Storage') {
-        return isFirstUnit 
+        return isFirstUnit
           ? `${partnerName} has arrived and will begin loading your additional Boombox`
           : `Boombox Driver has arrived with your ${ordinalText} additional Boombox`;
       } else {
-        return isFirstUnit 
+        return isFirstUnit
           ? `${partnerName} has arrived and the service time has started`
           : `Boombox Driver has arrived with your ${ordinalText} Boombox`;
       }
-    
+
     case 3: // Completion
       if (appointmentType === 'End Storage Term') {
-        return isFirstUnit 
+        return isFirstUnit
           ? `${partnerName} has finished unloading your Boombox`
           : `Your ${ordinalText} Boombox has finished being unloaded`;
       } else if (appointmentType === 'Storage Unit Access') {
-        return isFirstUnit 
+        return isFirstUnit
           ? `${partnerName} has finished with your storage access appointment`
           : `Your ${ordinalText} Boombox storage access is complete`;
       } else if (appointmentType === 'Initial Pickup') {
-        return isFirstUnit 
+        return isFirstUnit
           ? `${partnerName} has finished loading your Boombox`
           : `Your ${ordinalText} Boombox has finished being loaded`;
       } else if (appointmentType === 'Additional Storage') {
-        return isFirstUnit 
+        return isFirstUnit
           ? `${partnerName} has finished loading your additional Boombox`
           : `Your ${ordinalText} additional Boombox has finished being loaded`;
       } else {
-        return isFirstUnit 
+        return isFirstUnit
           ? `${partnerName} has finished loading your Boombox`
           : `Your ${ordinalText} Boombox has finished being loaded`;
       }
-    
+
     case 4: // Dropoff
       if (appointmentType === 'End Storage Term') {
         if (isFirstUnit) {
@@ -247,7 +323,7 @@ export function getStepTitle(
       } else {
         return `${isFirstUnit ? partnerName : 'Boombox Driver'} has dropped off your Boombox at our storage facility`;
       }
-    
+
     default:
       return '';
   }

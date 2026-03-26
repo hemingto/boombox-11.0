@@ -36,7 +36,7 @@ export async function GET(
 ) {
   try {
     const resolvedParams = await params;
-    
+
     // Validate appointment ID parameter
     if (!resolvedParams.id) {
       return NextResponse.json(
@@ -46,7 +46,7 @@ export async function GET(
     }
 
     const appointmentId = parseInt(String(resolvedParams.id), 10);
-    
+
     if (isNaN(appointmentId)) {
       return NextResponse.json(
         { error: 'Invalid appointment ID format' },
@@ -57,7 +57,7 @@ export async function GET(
     // Fetch appointment with comprehensive related data (preserving exact boombox-10.0 structure)
     const appointment = await prisma.appointment.findUnique({
       where: {
-        id: appointmentId
+        id: appointmentId,
       },
       include: {
         user: {
@@ -66,12 +66,12 @@ export async function GET(
             lastName: true,
             email: true,
             phoneNumber: true,
-            stripeCustomerId: true
-          }
+            stripeCustomerId: true,
+          },
         },
         onfleetTasks: {
           where: {
-            driverId: { not: null }
+            driverId: { not: null },
           },
           include: {
             driver: {
@@ -79,14 +79,14 @@ export async function GET(
                 firstName: true,
                 lastName: true,
                 phoneNumber: true,
-                driverLicenseFrontPhoto: true
-              }
-            }
+                driverLicenseFrontPhoto: true,
+              },
+            },
           },
           orderBy: {
-            unitNumber: 'asc'
+            unitNumber: 'asc',
           },
-          take: 1
+          take: 1,
         },
         movingPartner: {
           select: {
@@ -94,26 +94,26 @@ export async function GET(
             name: true,
             phoneNumber: true,
             hourlyRate: true,
-            onfleetTeamId: true
-          }
+            onfleetTeamId: true,
+          },
         },
         thirdPartyMovingPartner: {
           select: {
             id: true,
-            title: true
-          }
+            title: true,
+          },
         },
         storageStartUsages: {
           include: {
-            storageUnit: true
-          }
+            storageUnit: true,
+          },
         },
         requestedStorageUnits: {
           include: {
-            storageUnit: true
-          }
-        }
-      }
+            storageUnit: true,
+          },
+        },
+      },
     });
 
     if (!appointment) {
@@ -125,9 +125,16 @@ export async function GET(
 
     // Format response to maintain backward compatibility (exact same format as boombox-10.0)
     const appointmentWithTasks = appointment as typeof appointment & {
-      onfleetTasks: Array<{ driver: { firstName: string; lastName: string; phoneNumber: string | null; driverLicenseFrontPhoto: string | null } | null }>;
+      onfleetTasks: Array<{
+        driver: {
+          firstName: string;
+          lastName: string;
+          phoneNumber: string | null;
+          driverLicenseFrontPhoto: string | null;
+        } | null;
+      }>;
     };
-    
+
     // Transform the appointment data to match the expected response schema
     // ensuring all required fields have proper values (with defaults for optional Prisma fields)
     const formattedAppointment = {
@@ -137,8 +144,14 @@ export async function GET(
       address: appointment.address,
       zipcode: appointment.zipcode,
       // Convert DateTime objects to ISO strings for JSON serialization
-      date: appointment.date instanceof Date ? appointment.date.toISOString() : String(appointment.date),
-      time: appointment.time instanceof Date ? appointment.time.toISOString() : String(appointment.time),
+      date:
+        appointment.date instanceof Date
+          ? appointment.date.toISOString()
+          : String(appointment.date),
+      time:
+        appointment.time instanceof Date
+          ? appointment.time.toISOString()
+          : String(appointment.time),
       planType: appointment.planType ?? '',
       deliveryReason: appointment.deliveryReason ?? '',
       numberOfUnits: appointment.numberOfUnits ?? 0,
@@ -148,52 +161,64 @@ export async function GET(
       monthlyStorageRate: appointment.monthlyStorageRate ?? 0,
       monthlyInsuranceRate: appointment.monthlyInsuranceRate ?? 0,
       insuranceCoverage: appointment.insuranceCoverage ?? null,
+      storageTerm: appointment.storageTerm ?? null,
       quotedPrice: appointment.quotedPrice,
       status: appointment.status,
       // Include related data
-      user: appointment.user ? {
-        firstName: appointment.user.firstName,
-        lastName: appointment.user.lastName,
-        email: appointment.user.email,
-        phoneNumber: appointment.user.phoneNumber,
-        stripeCustomerId: appointment.user.stripeCustomerId ?? ''
-      } : undefined,
-      movingPartner: appointment.movingPartner ? {
-        id: appointment.movingPartner.id,
-        name: appointment.movingPartner.name,
-        hourlyRate: appointment.movingPartner.hourlyRate,
-        onfleetTeamId: appointment.movingPartner.onfleetTeamId ?? undefined
-      } : undefined,
-      thirdPartyMovingPartner: appointment.thirdPartyMovingPartner ? {
-        id: appointment.thirdPartyMovingPartner.id,
-        name: appointment.thirdPartyMovingPartner.title // Map title to name for API response
-      } : undefined,
-      requestedStorageUnits: appointment.requestedStorageUnits?.map(unit => ({
-        storageUnitId: unit.storageUnitId,
-        storageUnit: unit.storageUnit ? {
-          id: unit.storageUnit.id,
-          storageUnitNumber: unit.storageUnit.storageUnitNumber
-        } : null
-      })) ?? [],
+      user: appointment.user
+        ? {
+            firstName: appointment.user.firstName,
+            lastName: appointment.user.lastName,
+            email: appointment.user.email,
+            phoneNumber: appointment.user.phoneNumber,
+            stripeCustomerId: appointment.user.stripeCustomerId ?? '',
+          }
+        : undefined,
+      movingPartner: appointment.movingPartner
+        ? {
+            id: appointment.movingPartner.id,
+            name: appointment.movingPartner.name,
+            hourlyRate: appointment.movingPartner.hourlyRate,
+            onfleetTeamId: appointment.movingPartner.onfleetTeamId ?? undefined,
+          }
+        : undefined,
+      thirdPartyMovingPartner: appointment.thirdPartyMovingPartner
+        ? {
+            id: appointment.thirdPartyMovingPartner.id,
+            name: appointment.thirdPartyMovingPartner.title, // Map title to name for API response
+          }
+        : undefined,
+      requestedStorageUnits:
+        appointment.requestedStorageUnits?.map(unit => ({
+          storageUnitId: unit.storageUnitId,
+          storageUnit: unit.storageUnit
+            ? {
+                id: unit.storageUnit.id,
+                storageUnitNumber: unit.storageUnit.storageUnitNumber,
+              }
+            : null,
+        })) ?? [],
       additionalInfo: undefined, // Will be populated if needed
       // Backward compatibility: include driver from onfleet tasks
-      driver: appointmentWithTasks.onfleetTasks?.length > 0 ? appointmentWithTasks.onfleetTasks[0].driver : null,
+      driver:
+        appointmentWithTasks.onfleetTasks?.length > 0
+          ? appointmentWithTasks.onfleetTasks[0].driver
+          : null,
       // Include additional raw data that components might need
-      storageStartUsages: appointment.storageStartUsages
+      storageStartUsages: appointment.storageStartUsages,
     };
 
     // Response formatted for backward compatibility with existing components
 
     return NextResponse.json(formattedAppointment);
-
   } catch (error) {
     console.error('Error fetching appointment details:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to fetch appointment details', 
-        details: error instanceof Error ? error.message : 'Unknown error' 
+      {
+        error: 'Failed to fetch appointment details',
+        details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
     );
   }
-} 
+}
