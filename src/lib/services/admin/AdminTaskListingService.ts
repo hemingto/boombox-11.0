@@ -1,20 +1,20 @@
 /**
  * @fileoverview Service for orchestrating all admin task services to generate comprehensive task listings
  * @source boombox-10.0/src/app/api/admin/tasks/route.ts (complete task listing logic)
- * 
+ *
  * SERVICE FUNCTIONALITY:
  * - Orchestrates all individual admin task services
  * - Generates comprehensive task listings for admin dashboard
  * - Handles task formatting and prioritization
  * - Provides unified interface for all admin task types
  * - Manages task categorization and organization
- * 
+ *
  * USED BY:
  * - Admin dashboard for displaying all pending tasks
  * - Task management interfaces for comprehensive overview
  * - Admin workflow coordination and task assignment
  * - Management reporting and task analytics
- * 
+ *
  * @refactor Extracted from monolithic admin tasks route to leverage service architecture
  */
 
@@ -28,8 +28,9 @@ import {
   PendingCleaningService,
   PrepPackingSupplyOrderService,
   PrepUnitsDeliveryService,
-  UpdateLocationService
+  UpdateLocationService,
 } from '@/lib/services';
+import { HaulJobStatus } from '@prisma/client';
 
 /**
  * Appointment statuses that should be excluded from task generation
@@ -67,7 +68,8 @@ export class AdminTaskListingService {
         storageReturns,
         pendingLocationUpdate,
         prepUnitsDelivery,
-        unpreppedPackingSupplyOrders
+        unpreppedPackingSupplyOrders,
+        haulJobTasks,
       ] = await Promise.all([
         this.getUnassignedJobs(),
         this.getNegativeFeedback(),
@@ -79,10 +81,10 @@ export class AdminTaskListingService {
         this.getStorageReturns(),
         this.getPendingLocationUpdate(),
         this.getPrepUnitsDelivery(),
-        this.getUnpreppedPackingSupplyOrders()
+        this.getUnpreppedPackingSupplyOrders(),
+        this.getHaulJobTasks(),
       ]);
 
-      // Combine all tasks into unified response
       const allTasks = [
         ...unassignedJobs,
         ...negativeFeedback,
@@ -94,15 +96,16 @@ export class AdminTaskListingService {
         ...storageReturns,
         ...pendingLocationUpdate,
         ...prepUnitsDelivery,
-        ...unpreppedPackingSupplyOrders
+        ...unpreppedPackingSupplyOrders,
+        ...haulJobTasks,
       ];
 
       return {
         tasks: allTasks,
         summary: {
           total: allTasks.length,
-          byType: this.getTaskSummaryByType(allTasks)
-        }
+          byType: this.getTaskSummaryByType(allTasks),
+        },
       };
     } catch (error) {
       console.error('Error getting all pending tasks:', error);
@@ -117,19 +120,20 @@ export class AdminTaskListingService {
   private async getUnassignedJobs() {
     try {
       const appointments = await this.getUnassignedDriverAppointments();
-      
+
       return appointments.map(job => {
         const formattedDate = new Date(job.date).toLocaleDateString('en-US', {
           weekday: 'long',
           year: 'numeric',
           month: 'long',
-          day: 'numeric'
+          day: 'numeric',
         });
-        
+
         return {
           id: `unassigned-${job.id}`,
           title: 'Unassigned Driver',
-          description: 'Call moving partner and remind them to assign driver to job',
+          description:
+            'Call moving partner and remind them to assign driver to job',
           details: `<strong>Job Code:</strong> ${job.jobCode}<br><strong>Job Date:</strong> ${formattedDate} - ${this.formatTime(job.time)}`,
           action: 'Remind Mover',
           actionUrl: `/admin/drivers?jobId=${job.id}`,
@@ -137,10 +141,13 @@ export class AdminTaskListingService {
           calledMovingPartner: job.calledMovingPartner,
           movingPartner: job.movingPartner,
           jobCode: job.jobCode,
-          onfleetTaskIds: job.onfleetTasks?.map((task: { taskId: string }) => task.taskId).join(', ') || '',
+          onfleetTaskIds:
+            job.onfleetTasks
+              ?.map((task: { taskId: string }) => task.taskId)
+              .join(', ') || '',
           customerName: `${job.user?.firstName || ''} ${job.user?.lastName || ''}`,
           appointmentDate: formattedDate,
-          appointmentAddress: job.address
+          appointmentAddress: job.address,
         };
       });
     } catch (error) {
@@ -156,7 +163,7 @@ export class AdminTaskListingService {
   private async getNegativeFeedback() {
     try {
       const feedback = await this.getNegativeFeedbackRecords();
-      
+
       return feedback.map(feedback => ({
         id: `feedback-${feedback.id}`,
         title: 'Negative Feedback',
@@ -164,7 +171,7 @@ export class AdminTaskListingService {
         details: `<strong>Job Code:</strong> ${feedback.appointment.jobCode}<br><strong>Rating:</strong> ${feedback.rating}`,
         action: 'Respond',
         actionUrl: `/admin/tasks/feedback-${feedback.id}/negative-feedback`,
-        color: 'amber'
+        color: 'amber',
       }));
     } catch (error) {
       console.error('Error getting negative feedback:', error);
@@ -181,7 +188,7 @@ export class AdminTaskListingService {
       const feedback = await prisma.packingSupplyFeedback.findMany({
         where: {
           rating: { lte: 3 },
-          responded: false
+          responded: false,
         },
         select: {
           id: true,
@@ -194,10 +201,10 @@ export class AdminTaskListingService {
               onfleetTaskShortId: true,
               contactName: true,
               contactEmail: true,
-              deliveryAddress: true
-            }
-          }
-        }
+              deliveryAddress: true,
+            },
+          },
+        },
       });
 
       return feedback.map(feedback => ({
@@ -207,7 +214,7 @@ export class AdminTaskListingService {
         details: `<strong>Order #:</strong> ${feedback.packingSupplyOrder.onfleetTaskShortId || feedback.packingSupplyOrder.id}<br><strong>Rating:</strong> ${feedback.rating}`,
         action: 'Respond',
         actionUrl: `/admin/tasks/packing-supply-feedback-${feedback.id}/negative-feedback`,
-        color: 'amber'
+        color: 'amber',
       }));
     } catch (error) {
       console.error('Error getting negative packing supply feedback:', error);
@@ -220,8 +227,9 @@ export class AdminTaskListingService {
    */
   private async getPendingCleaning() {
     try {
-      const units = await this.pendingCleaningService.getAllPendingCleaningUnits();
-      
+      const units =
+        await this.pendingCleaningService.getAllPendingCleaningUnits();
+
       return units.map(unit => ({
         id: `pending-cleaning-${unit.id}`,
         title: 'Pending Cleaning',
@@ -230,7 +238,7 @@ export class AdminTaskListingService {
         action: 'Mark as Clean',
         actionUrl: `/admin/tasks/pending-cleaning-${unit.id}/pending-cleaning`,
         color: 'cyan',
-        storageUnitNumber: unit.storageUnitNumber
+        storageUnitNumber: unit.storageUnitNumber,
       }));
     } catch (error) {
       console.error('Error getting pending cleaning:', error);
@@ -250,23 +258,23 @@ export class AdminTaskListingService {
       const appointments = await prisma.appointment.findMany({
         where: {
           appointmentType: {
-            in: ['Initial Pickup', 'Additional Storage']
+            in: ['Initial Pickup', 'Additional Storage'],
           },
           OR: [
             {
               date: {
                 gte: new Date(),
-                lt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
-              }
+                lt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+              },
             },
-            { status: 'In Transit' }
+            { status: 'In Transit' },
           ],
           storageStartUsages: {
-            none: {}
+            none: {},
           },
           status: {
-            notIn: EXCLUDED_APPOINTMENT_STATUSES
-          }
+            notIn: EXCLUDED_APPOINTMENT_STATUSES,
+          },
         },
         select: {
           id: true,
@@ -279,28 +287,31 @@ export class AdminTaskListingService {
           user: {
             select: {
               firstName: true,
-              lastName: true
-              
-            }
-          }
-        }
+              lastName: true,
+            },
+          },
+        },
       });
 
       return appointments.flatMap(appointment => {
         const numberOfUnits = appointment.numberOfUnits || 1;
         const tasks = [];
-        
+
         for (let i = 1; i <= numberOfUnits; i++) {
-          const formattedDate = new Date(appointment.date).toLocaleDateString('en-US', {
-            weekday: 'short',
-            month: 'short', 
-            day: 'numeric'
-          });
-          
+          const formattedDate = new Date(appointment.date).toLocaleDateString(
+            'en-US',
+            {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+            }
+          );
+
           tasks.push({
             id: `storage-${appointment.id}${numberOfUnits > 1 ? `-${i}` : ''}`,
             title: 'Assign Storage Unit',
-            description: 'Assign storage unit to job. Verify job code and driver.',
+            description:
+              'Assign storage unit to job. Verify job code and driver.',
             details: `<strong>Job Code:</strong> ${appointment.jobCode}<br><strong>Job Date:</strong> ${formattedDate}${numberOfUnits > 1 ? `<br><strong>Unit:</strong> ${i} of ${numberOfUnits}` : ''}`,
             action: 'Assign',
             actionUrl: `/admin/tasks/storage-${appointment.id}${numberOfUnits > 1 ? `-${i}` : ''}/assign-storage-unit`,
@@ -308,10 +319,10 @@ export class AdminTaskListingService {
             jobCode: appointment.jobCode,
             customerName: `${appointment.user?.firstName || ''} ${appointment.user?.lastName || ''}`,
             appointmentDate: formattedDate,
-            appointmentId: appointment.id
+            appointmentId: appointment.id,
           });
         }
-        
+
         return tasks;
       });
     } catch (error) {
@@ -338,8 +349,9 @@ export class AdminTaskListingService {
    */
   private async getRequestedAccessUnits() {
     try {
-      const units = await this.assignRequestedUnitService.getAllRequestedUnitsNeedingAssignment();
-      
+      const units =
+        await this.assignRequestedUnitService.getAllRequestedUnitsNeedingAssignment();
+
       return units.map(unit => ({
         id: `requested-unit-${unit.appointmentId}-${unit.unitIndex || 1}`,
         title: 'Assign Requested Unit',
@@ -348,7 +360,7 @@ export class AdminTaskListingService {
         action: 'Assign Unit',
         actionUrl: `/admin/tasks/requested-unit-${unit.appointmentId}-${unit.unitIndex || 1}/assign-requested-unit`,
         color: 'purple',
-        appointmentId: unit.appointmentId
+        appointmentId: unit.appointmentId,
       }));
     } catch (error) {
       console.error('Error getting requested access units:', error);
@@ -362,8 +374,9 @@ export class AdminTaskListingService {
    */
   private async getStorageReturns() {
     try {
-      const returns = await this.storageUnitReturnService.getAllStorageReturnsNeeded();
-      
+      const returns =
+        await this.storageUnitReturnService.getAllStorageReturnsNeeded();
+
       return returns.map(returnItem => ({
         id: `storage-return-${returnItem.appointmentId}`,
         title: 'Storage Unit Return',
@@ -372,7 +385,7 @@ export class AdminTaskListingService {
         action: 'Process Return',
         actionUrl: `/admin/tasks/storage-return-${returnItem.appointmentId}/storage-unit-return`,
         color: 'indigo',
-        appointmentId: returnItem.appointmentId
+        appointmentId: returnItem.appointmentId,
       }));
     } catch (error) {
       console.error('Error getting storage returns:', error);
@@ -385,8 +398,9 @@ export class AdminTaskListingService {
    */
   private async getPendingLocationUpdate() {
     try {
-      const usages = await this.updateLocationService.getAllUsagesNeedingLocationUpdate();
-      
+      const usages =
+        await this.updateLocationService.getAllUsagesNeedingLocationUpdate();
+
       return usages.map(usage => ({
         id: `update-location-${usage.id}`,
         title: 'Update Location',
@@ -397,7 +411,7 @@ export class AdminTaskListingService {
         color: 'emerald',
         storageUnitNumber: usage.storageUnit.storageUnitNumber,
         customerName: `${usage.user?.firstName || ''} ${usage.user?.lastName || ''}`,
-        usageId: usage.id
+        usageId: usage.id,
       }));
     } catch (error) {
       console.error('Error getting pending location updates:', error);
@@ -410,29 +424,36 @@ export class AdminTaskListingService {
    */
   private async getPrepUnitsDelivery() {
     try {
-      const appointments = await this.prepUnitsDeliveryService.getAllAppointmentsNeedingPrep();
-      
-      return appointments.map(appointment => {
-        const formattedDate = new Date(appointment.date).toLocaleDateString('en-US', {
-          weekday: 'short',
-          month: 'short',
-          day: 'numeric'
-        });
-        
-        return {
-          id: `prep-delivery-${appointment.id}`,
-          title: 'Prep Units for Delivery',
-          description: 'Verify unit numbers and forklift them into staging area.',
-          details: `<strong>Job Code:</strong> ${appointment.jobCode}<br><strong>Job Date:</strong> ${formattedDate} - ${this.formatTime(appointment.time)}<br><strong>Unit Numbers:</strong> ${appointment.requestedStorageUnits.map(unit => unit.storageUnit.storageUnitNumber).join(', ')}`,
-          action: 'Mark Complete',
-          actionUrl: `/admin/tasks/prep-delivery-${appointment.id}`,
-          color: 'sky',
-          jobCode: appointment.jobCode,
-          customerName: `${appointment.user?.firstName || ''} ${appointment.user?.lastName || ''}`,
-          appointmentDate: formattedDate,
-          requestedStorageUnits: appointment.requestedStorageUnits
-        };
-      }).filter(Boolean);
+      const appointments =
+        await this.prepUnitsDeliveryService.getAllAppointmentsNeedingPrep();
+
+      return appointments
+        .map(appointment => {
+          const formattedDate = new Date(appointment.date).toLocaleDateString(
+            'en-US',
+            {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+            }
+          );
+
+          return {
+            id: `prep-delivery-${appointment.id}`,
+            title: 'Prep Units for Delivery',
+            description:
+              'Verify unit numbers and forklift them into staging area.',
+            details: `<strong>Job Code:</strong> ${appointment.jobCode}<br><strong>Job Date:</strong> ${formattedDate} - ${this.formatTime(appointment.time)}<br><strong>Unit Numbers:</strong> ${appointment.requestedStorageUnits.map(unit => unit.storageUnit.storageUnitNumber).join(', ')}`,
+            action: 'Mark Complete',
+            actionUrl: `/admin/tasks/prep-delivery-${appointment.id}`,
+            color: 'sky',
+            jobCode: appointment.jobCode,
+            customerName: `${appointment.user?.firstName || ''} ${appointment.user?.lastName || ''}`,
+            appointmentDate: formattedDate,
+            requestedStorageUnits: appointment.requestedStorageUnits,
+          };
+        })
+        .filter(Boolean);
     } catch (error) {
       console.error('Error getting prep units delivery:', error);
       return [];
@@ -444,15 +465,19 @@ export class AdminTaskListingService {
    */
   private async getUnpreppedPackingSupplyOrders() {
     try {
-      const orders = await this.prepPackingSupplyOrderService.getAllUnpreppedOrders();
-      
+      const orders =
+        await this.prepPackingSupplyOrderService.getAllUnpreppedOrders();
+
       return orders.map(order => {
-        const formattedDate = new Date(order.deliveryDate).toLocaleDateString('en-US', {
-          weekday: 'short',
-          month: 'short',
-          day: 'numeric'
-        });
-        
+        const formattedDate = new Date(order.deliveryDate).toLocaleDateString(
+          'en-US',
+          {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+          }
+        );
+
         return {
           id: `prep-packing-supply-${order.id}`,
           title: 'Prep Packing Supply Order',
@@ -463,12 +488,104 @@ export class AdminTaskListingService {
           color: 'darkAmber',
           customerName: order.contactName,
           deliveryAddress: order.deliveryAddress,
-          driverName: order.assignedDriver ? `${order.assignedDriver.firstName} ${order.assignedDriver.lastName}` : 'Unassigned driver',
-          onfleetTaskShortId: order.onfleetTaskShortId
+          driverName: order.assignedDriver
+            ? `${order.assignedDriver.firstName} ${order.assignedDriver.lastName}`
+            : 'Unassigned driver',
+          onfleetTaskShortId: order.onfleetTaskShortId,
         };
       });
     } catch (error) {
       console.error('Error getting unprepped packing supply orders:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get haul job tasks based on current status
+   */
+  private async getHaulJobTasks() {
+    try {
+      const haulJobs = await prisma.haulJob.findMany({
+        where: {
+          status: {
+            in: [
+              HaulJobStatus.PENDING,
+              HaulJobStatus.SCHEDULED,
+              HaulJobStatus.IN_TRANSIT,
+              HaulJobStatus.UNLOADING,
+            ],
+          },
+        },
+        include: {
+          originWarehouse: { select: { name: true, city: true } },
+          destinationWarehouse: { select: { name: true, city: true } },
+          haulingPartner: { select: { name: true } },
+          units: {
+            select: { storageUnit: { select: { storageUnitNumber: true } } },
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      return haulJobs.flatMap(job => {
+        const unitNumbers = job.units
+          .map(u => u.storageUnit.storageUnitNumber)
+          .join(', ');
+        const route = `${job.originWarehouse.city} → ${job.destinationWarehouse.city}`;
+        const tasks = [];
+
+        if (job.status === HaulJobStatus.PENDING) {
+          tasks.push({
+            id: `haul-pending-${job.id}`,
+            title: 'Assign Hauling Partner',
+            description: `Assign a hauling partner to haul job`,
+            details: `<strong>Job Code:</strong> ${job.jobCode}<br><strong>Route:</strong> ${route}<br><strong>Units:</strong> ${unitNumbers}`,
+            action: 'Assign Partner',
+            actionUrl: `/admin/haul-jobs`,
+            color: 'amber',
+          });
+        }
+
+        if (job.status === HaulJobStatus.SCHEDULED) {
+          tasks.push({
+            id: `haul-loading-${job.id}`,
+            title: 'Confirm Haul Loading',
+            description: `Confirm units loaded onto trailer at ${job.originWarehouse.name}`,
+            details: `<strong>Job Code:</strong> ${job.jobCode}<br><strong>Route:</strong> ${route}<br><strong>Units:</strong> ${unitNumbers}<br><strong>Partner:</strong> ${job.haulingPartner?.name || 'Unassigned'}`,
+            action: 'Confirm Loading',
+            actionUrl: `/admin/tasks/haul-loading/haul-loading-${job.id}`,
+            color: 'indigo',
+          });
+        }
+
+        if (job.status === HaulJobStatus.IN_TRANSIT) {
+          tasks.push({
+            id: `haul-arrival-${job.id}`,
+            title: 'Confirm Haul Arrival',
+            description: `Check units for damage upon arrival at ${job.destinationWarehouse.name}`,
+            details: `<strong>Job Code:</strong> ${job.jobCode}<br><strong>Route:</strong> ${route}<br><strong>Units:</strong> ${unitNumbers}`,
+            action: 'Confirm Arrival',
+            actionUrl: `/admin/tasks/haul-arrival/haul-arrival-${job.id}`,
+            color: 'purple',
+          });
+        }
+
+        if (job.status === HaulJobStatus.UNLOADING) {
+          tasks.push({
+            id: `haul-unloading-${job.id}`,
+            title: 'Confirm Haul Unloading',
+            description: `Place units and set warehouse locations at ${job.destinationWarehouse.name}`,
+            details: `<strong>Job Code:</strong> ${job.jobCode}<br><strong>Route:</strong> ${route}<br><strong>Units:</strong> ${unitNumbers}`,
+            action: 'Set Locations',
+            actionUrl: `/admin/tasks/haul-unloading/haul-unloading-${job.id}`,
+            color: 'emerald',
+          });
+        }
+
+        return tasks;
+      });
+    } catch (error) {
+      console.error('Error getting haul job tasks:', error);
       return [];
     }
   }
@@ -481,29 +598,29 @@ export class AdminTaskListingService {
   private async getUnassignedDriverAppointments() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     return await prisma.appointment.findMany({
       where: {
         OR: [
           {
             date: {
               gte: today,
-              lt: new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000)
-            }
+              lt: new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000),
+            },
           },
-          { status: 'In Transit' }
+          { status: 'In Transit' },
         ],
         onfleetTasks: {
           none: {
-            driverId: { not: null }
-          }
+            driverId: { not: null },
+          },
         },
         movingPartner: {
-          isNot: null
+          isNot: null,
         },
         status: {
-          notIn: EXCLUDED_APPOINTMENT_STATUSES
-        }
+          notIn: EXCLUDED_APPOINTMENT_STATUSES,
+        },
       },
       select: {
         id: true,
@@ -515,23 +632,23 @@ export class AdminTaskListingService {
         user: {
           select: {
             firstName: true,
-            lastName: true
-          }
+            lastName: true,
+          },
         },
         movingPartner: {
           select: {
             name: true,
             email: true,
             phoneNumber: true,
-            imageSrc: true
-          }
+            imageSrc: true,
+          },
         },
         onfleetTasks: {
           select: {
-            taskId: true
-          }
-        }
-      }
+            taskId: true,
+          },
+        },
+      },
     });
   }
 
@@ -548,9 +665,9 @@ export class AdminTaskListingService {
         // Only exclude feedback for canceled appointments (feedback is submitted after completion)
         appointment: {
           status: {
-            notIn: ['Cancelled', 'Canceled']
-          }
-        }
+            notIn: ['Cancelled', 'Canceled'],
+          },
+        },
       },
       select: {
         id: true,
@@ -561,10 +678,10 @@ export class AdminTaskListingService {
           select: {
             id: true,
             jobCode: true,
-            address: true
-          }
-        }
-      }
+            address: true,
+          },
+        },
+      },
     });
   }
 
@@ -585,12 +702,12 @@ export class AdminTaskListingService {
    */
   private getTaskSummaryByType(tasks: any[]) {
     const summary: Record<string, number> = {};
-    
+
     tasks.forEach(task => {
       const type = task.title;
       summary[type] = (summary[type] || 0) + 1;
     });
-    
+
     return summary;
   }
 
@@ -601,13 +718,15 @@ export class AdminTaskListingService {
     try {
       const tasks = await this.getAllPendingTasks();
       const tasksByType = tasks.summary.byType;
-      
+
       return {
         totalTasks: tasks.summary.total,
         criticalTasks: tasksByType['Unassigned Driver'] || 0,
-        urgentTasks: (tasksByType['Negative Feedback'] || 0) + (tasksByType['Negative Packing Supply Feedback'] || 0),
+        urgentTasks:
+          (tasksByType['Negative Feedback'] || 0) +
+          (tasksByType['Negative Packing Supply Feedback'] || 0),
         tasksByType: tasksByType,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
       };
     } catch (error) {
       console.error('Error getting task statistics:', error);
@@ -616,7 +735,7 @@ export class AdminTaskListingService {
         criticalTasks: 0,
         urgentTasks: 0,
         tasksByType: {},
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
       };
     }
   }

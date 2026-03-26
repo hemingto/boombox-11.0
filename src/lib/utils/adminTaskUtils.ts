@@ -2,18 +2,37 @@
  * @fileoverview Admin task utilities for task management and processing
  * @source boombox-10.0/src/app/api/admin/tasks/[taskId]/route.ts (task parsing and formatting)
  * @source boombox-10.0/src/app/api/admin/dashboard/route.ts (dashboard data aggregation)
- * 
+ *
  * UTILITY FUNCTIONS:
  * - Task ID parsing and validation
  * - Task response formatting
  * - Common admin task operations
  * - Storage unit assignment utilities
  * - Dashboard data aggregation and statistics
- * 
+ *
  * @refactor Extracted from monolithic admin tasks route for better organization
  */
 
 import { prisma } from '@/lib/database/prismaClient';
+
+let _defaultWarehouseId: number | null = null;
+
+async function getDefaultWarehouseId(): Promise<number> {
+  if (_defaultWarehouseId) return _defaultWarehouseId;
+  const warehouse = await prisma.warehouse.findUnique({
+    where: { name: 'South San Francisco' },
+  });
+  if (!warehouse) throw new Error('Default SSF warehouse not found');
+  _defaultWarehouseId = warehouse.id;
+  return warehouse.id;
+}
+
+async function resolveWarehouseName(warehouseId: number): Promise<string> {
+  const warehouse = await prisma.warehouse.findUnique({
+    where: { id: warehouseId },
+  });
+  return warehouse?.name ?? 'South San Francisco';
+}
 
 // Base admin task interface
 export interface BaseAdminTask {
@@ -25,7 +44,16 @@ export interface BaseAdminTask {
   details: string;
 }
 
-export type TaskColor = 'rose' | 'amber' | 'cyan' | 'orange' | 'indigo' | 'purple' | 'emerald' | 'sky' | 'darkAmber';
+export type TaskColor =
+  | 'rose'
+  | 'amber'
+  | 'cyan'
+  | 'orange'
+  | 'indigo'
+  | 'purple'
+  | 'emerald'
+  | 'sky'
+  | 'darkAmber';
 
 /**
  * Format date for admin task display
@@ -36,7 +64,7 @@ export function formatTaskDate(date: Date): string {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
-    day: 'numeric'
+    day: 'numeric',
   });
 }
 
@@ -48,7 +76,7 @@ export function formatTaskTime(time: Date): string {
   return new Date(time).toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
-    hour12: true
+    hour12: true,
   });
 }
 
@@ -56,7 +84,9 @@ export function formatTaskTime(time: Date): string {
  * Validate storage unit availability for assignment
  * @source boombox-10.0/src/app/api/admin/appointments/[id]/assign-storage-units/route.ts (lines 79-93)
  */
-export async function validateStorageUnitsAvailable(storageUnitNumbers: string[]): Promise<{
+export async function validateStorageUnitsAvailable(
+  storageUnitNumbers: string[]
+): Promise<{
   valid: boolean;
   availableUnits: any[];
   error?: string;
@@ -64,23 +94,23 @@ export async function validateStorageUnitsAvailable(storageUnitNumbers: string[]
   const storageUnits = await prisma.storageUnit.findMany({
     where: {
       storageUnitNumber: {
-        in: storageUnitNumbers
+        in: storageUnitNumbers,
       },
-      status: 'Empty'
-    }
+      status: 'Empty',
+    },
   });
 
   if (storageUnits.length !== storageUnitNumbers.length) {
     return {
       valid: false,
       availableUnits: storageUnits,
-      error: 'One or more storage units are not available'
+      error: 'One or more storage units are not available',
     };
   }
 
   return {
     valid: true,
-    availableUnits: storageUnits
+    availableUnits: storageUnits,
   };
 }
 
@@ -106,19 +136,19 @@ export async function createStorageUnitUsages(
         startAppointmentId: appointmentId,
         usageStartDate: now,
         unitPickupPhotos: trailerPhotos || [],
-      }
+      },
     });
-    
+
     createdUsages.push(usage);
-    
+
     // Update storage unit status
     await prisma.storageUnit.update({
       where: {
-        id: unit.id
+        id: unit.id,
       },
       data: {
-        status: 'Assigned'
-      }
+        status: 'Assigned',
+      },
     });
   }
 
@@ -138,21 +168,21 @@ export async function updateOnfleetTasksWithStorageUnits(
   const onfleetTasks = await prisma.onfleetTask.findMany({
     where: {
       appointmentId: appointmentId,
-      unitNumber: unitIndex
-    }
+      unitNumber: unitIndex,
+    },
   });
 
   for (const task of onfleetTasks) {
     for (const unit of storageUnits) {
       await prisma.onfleetTask.update({
         where: {
-          id: task.id
+          id: task.id,
         },
         data: {
           storageUnitId: unit.id,
           // Update driverVerified if driverMatches was provided
-          ...(driverMatches !== undefined && { driverVerified: driverMatches })
-        }
+          ...(driverMatches !== undefined && { driverVerified: driverMatches }),
+        },
       });
     }
   }
@@ -173,7 +203,7 @@ export async function createStorageAssignmentLog(
       action: action,
       targetType: 'Appointment',
       targetId: appointmentId.toString(),
-    }
+    },
   });
 }
 
@@ -207,10 +237,12 @@ export async function createMovingPartnerContactLog(
   await prisma.adminLog.create({
     data: {
       adminId: adminId,
-      action: calledMovingPartner ? 'Called moving partner' : 'Marked as not called moving partner',
+      action: calledMovingPartner
+        ? 'Called moving partner'
+        : 'Marked as not called moving partner',
       targetType: 'Appointment',
       targetId: appointmentId.toString(),
-    }
+    },
   });
 }
 
@@ -227,11 +259,14 @@ export async function createStorageUnitDamageReports(
   backPhotos: string[]
 ) {
   console.log('Creating damage reports for appointment:', appointmentId);
-  
+
   for (const usage of storageStartUsages) {
     try {
-      console.log('Creating damage report for storage unit:', usage.storageUnitId);
-      
+      console.log(
+        'Creating damage report for storage unit:',
+        usage.storageUnitId
+      );
+
       // Create the damage report
       await prisma.storageUnitDamageReport.create({
         data: {
@@ -257,10 +292,13 @@ export async function createStorageUnitDamageReports(
 export async function updateStorageUnitForReturn(
   usage: any,
   appointmentId: number,
-  isEmpty: boolean
+  isEmpty: boolean,
+  warehouseId?: number
 ) {
+  const resolvedWarehouseId = warehouseId ?? (await getDefaultWarehouseId());
+  const warehouseName = await resolveWarehouseName(resolvedWarehouseId);
+
   if (isEmpty) {
-    // If unit is empty: Update to Pending Cleaning and end usage
     await prisma.storageUnit.update({
       where: { id: usage.storageUnitId },
       data: { status: 'Pending Cleaning' },
@@ -271,12 +309,12 @@ export async function updateStorageUnitForReturn(
       data: {
         usageEndDate: new Date(),
         endAppointmentId: appointmentId,
-        warehouseLocation: "Pending Update",
-        warehouseName: "South San Francisco"
+        warehouseLocation: 'Pending Update',
+        warehouseName,
+        warehouseId: resolvedWarehouseId,
       },
     });
   } else {
-    // If unit is not empty: Update to Occupied with warehouse info
     await prisma.storageUnit.update({
       where: { id: usage.storageUnitId },
       data: { status: 'Occupied' },
@@ -285,8 +323,9 @@ export async function updateStorageUnitForReturn(
     await prisma.storageUnitUsage.update({
       where: { id: usage.id },
       data: {
-        warehouseLocation: "Pending Update",
-        warehouseName: "South San Francisco"
+        warehouseLocation: 'Pending Update',
+        warehouseName,
+        warehouseId: resolvedWarehouseId,
       },
     });
   }
@@ -298,15 +337,20 @@ export async function updateStorageUnitForReturn(
  */
 export async function updateStorageUnitUsageForAccess(
   usage: any,
-  appointmentId: number
+  appointmentId: number,
+  warehouseId?: number
 ) {
+  const resolvedWarehouseId = warehouseId ?? (await getDefaultWarehouseId());
+  const warehouseName = await resolveWarehouseName(resolvedWarehouseId);
+
   await prisma.storageUnitUsage.update({
     where: { id: usage.id },
     data: {
       usageEndDate: new Date(),
       endAppointmentId: appointmentId,
-      warehouseLocation: "Pending Update",
-      warehouseName: "South San Francisco"
+      warehouseLocation: 'Pending Update',
+      warehouseName,
+      warehouseId: resolvedWarehouseId,
     },
   });
 }
@@ -322,7 +366,7 @@ export async function createStorageReturnLog(
   hasDamage: boolean,
   statusDetails: string
 ) {
-  const action = hasDamage 
+  const action = hasDamage
     ? `${appointmentType.toUpperCase()}_${statusDetails}_WITH_DAMAGE`
     : `${appointmentType.toUpperCase()}_${statusDetails}`;
 
@@ -349,13 +393,13 @@ export async function markRequestedUnitReady(
     where: {
       appointmentId_storageUnitId: {
         appointmentId,
-        storageUnitId
-      }
+        storageUnitId,
+      },
     },
     data: {
       unitsReady: true,
-      requestedUnitPickupPhotos: trailerPhotos || []
-    }
+      requestedUnitPickupPhotos: trailerPhotos || [],
+    },
   });
 }
 
@@ -373,42 +417,42 @@ export async function updateOnfleetTasksForRequestedUnit(
   const task = await prisma.onfleetTask.findFirst({
     where: {
       appointmentId,
-      unitNumber: unitIndex
+      unitNumber: unitIndex,
     },
     select: {
-      driverId: true
-    }
+      driverId: true,
+    },
   });
-  
+
   let driverId = null;
   if (task?.driverId) {
     driverId = task.driverId;
-    
+
     // Update driver verification for this specific unit number
     await prisma.onfleetTask.updateMany({
       where: {
         appointmentId,
         driverId: task.driverId,
-        unitNumber: unitIndex
+        unitNumber: unitIndex,
       },
       data: {
-        driverVerified: driverMatches === true
-      }
+        driverVerified: driverMatches === true,
+      },
     });
   }
-  
+
   // Update OnfleetTask to associate it with this storage unit
   await prisma.onfleetTask.updateMany({
     where: {
       appointmentId,
       unitNumber: unitIndex,
-      storageUnitId: null // Only update tasks that don't already have a storage unit assigned
+      storageUnitId: null, // Only update tasks that don't already have a storage unit assigned
     },
     data: {
-      storageUnitId
-    }
+      storageUnitId,
+    },
   });
-  
+
   return driverId;
 }
 
@@ -424,7 +468,9 @@ export async function createRequestedUnitAssignmentLog(
   driverId: number | null,
   driverMatches: boolean
 ) {
-  const driverInfo = driverId ? ` and recorded driver verification (${driverMatches ? 'Verified' : 'Not Verified'})` : '';
+  const driverInfo = driverId
+    ? ` and recorded driver verification (${driverMatches ? 'Verified' : 'Not Verified'})`
+    : '';
   const action = `Assigned storage unit ${storageUnitNumber} to appointment unit #${unitIndex}${driverInfo}`;
 
   await prisma.adminLog.create({
@@ -488,7 +534,7 @@ export async function sendFeedbackResponseEmail(
       </div>
     `,
   };
-  
+
   // Return the email message object for service layer to handle sending
   return msg;
 }
@@ -503,7 +549,9 @@ export async function createFeedbackResponseLog(
   jobCode: string,
   isPackingSupplyFeedback: boolean = false
 ) {
-  const feedbackType = isPackingSupplyFeedback ? 'packing supply' : 'appointment';
+  const feedbackType = isPackingSupplyFeedback
+    ? 'packing supply'
+    : 'appointment';
   const action = `RESPOND_TO_FEEDBACK: Responded to ${feedbackType} feedback for job ${jobCode}`;
 
   await prisma.adminLog.create({
@@ -525,15 +573,15 @@ export async function markStorageUnitAsClean(
   adminId: number,
   photos: string[]
 ) {
-  return await prisma.$transaction(async (prisma) => {
+  return await prisma.$transaction(async prisma => {
     // 1. Update the storage unit status to "Empty"
     const updatedUnit = await prisma.storageUnit.update({
       where: { id: storageUnitId },
       data: {
         status: 'Empty',
         cleaningPhotos: photos,
-        lastCleanedAt: new Date()
-      }
+        lastCleanedAt: new Date(),
+      },
     });
 
     // 2. Create a new cleaning record
@@ -542,7 +590,7 @@ export async function markStorageUnitAsClean(
         storageUnitId,
         adminId: adminId,
         photos,
-      }
+      },
     });
 
     // 3. Create admin log entry
@@ -550,9 +598,9 @@ export async function markStorageUnitAsClean(
       data: {
         adminId: adminId,
         action: 'MARK_UNIT_CLEAN',
-        targetType: 'StorageUnit', 
+        targetType: 'StorageUnit',
         targetId: storageUnitId.toString(),
-      }
+      },
     });
 
     return { updatedUnit, cleaningRecord, adminLog };
@@ -566,7 +614,7 @@ export async function markStorageUnitAsClean(
 export async function validateStorageUnitForCleaning(storageUnitId: number) {
   const storageUnit = await prisma.storageUnit.findUnique({
     where: { id: storageUnitId },
-    select: { id: true, storageUnitNumber: true, status: true }
+    select: { id: true, storageUnitNumber: true, status: true },
   });
 
   if (!storageUnit) {
@@ -574,10 +622,10 @@ export async function validateStorageUnitForCleaning(storageUnitId: number) {
   }
 
   if (storageUnit.status !== 'Pending Cleaning') {
-    return { 
-      valid: false, 
+    return {
+      valid: false,
       error: `Storage unit status is ${storageUnit.status}, expected Pending Cleaning`,
-      storageUnit: storageUnit
+      storageUnit: storageUnit,
     };
   }
 
@@ -593,7 +641,7 @@ export async function markPackingSupplyOrderAsPrepped(
   adminId: number,
   isPrepped: boolean = true
 ) {
-  return await prisma.$transaction(async (prisma) => {
+  return await prisma.$transaction(async prisma => {
     // 1. Update the packing supply order
     const updatedOrder = await prisma.packingSupplyOrder.update({
       where: { id: orderId },
@@ -601,7 +649,7 @@ export async function markPackingSupplyOrderAsPrepped(
         isPrepped: isPrepped,
         preppedAt: isPrepped ? new Date() : null,
         preppedBy: isPrepped ? adminId : null,
-      }
+      },
     });
 
     // 2. Create admin log entry
@@ -611,7 +659,7 @@ export async function markPackingSupplyOrderAsPrepped(
         action: 'PREP_PACKING_SUPPLY_ORDER',
         targetType: 'PackingSupplyOrder',
         targetId: orderId.toString(),
-      }
+      },
     });
 
     return { updatedOrder, adminLog };
@@ -625,32 +673,36 @@ export async function markPackingSupplyOrderAsPrepped(
 export async function validatePackingSupplyOrderForPrep(orderId: number) {
   const order = await prisma.packingSupplyOrder.findUnique({
     where: { id: orderId },
-    select: { 
-      id: true, 
-      contactName: true, 
-      status: true, 
+    select: {
+      id: true,
+      contactName: true,
+      status: true,
       isPrepped: true,
-      onfleetTaskShortId: true
-    }
+      onfleetTaskShortId: true,
+    },
   });
 
   if (!order) {
-    return { valid: false, error: 'Packing supply order not found', order: null };
+    return {
+      valid: false,
+      error: 'Packing supply order not found',
+      order: null,
+    };
   }
 
   if (order.status === 'Canceled') {
-    return { 
-      valid: false, 
+    return {
+      valid: false,
       error: 'Cannot prep canceled order',
-      order: order
+      order: order,
     };
   }
 
   if (order.isPrepped) {
-    return { 
-      valid: false, 
+    return {
+      valid: false,
       error: 'Order is already prepped',
-      order: order
+      order: order,
     };
   }
 
@@ -661,7 +713,9 @@ export async function validatePackingSupplyOrderForPrep(orderId: number) {
  * Validate appointment exists and has requested storage units for delivery prep
  * @source boombox-10.0/src/app/api/admin/tasks/[taskId]/prep-units-delivery/route.ts (lines 44-53)
  */
-export async function validateAppointmentForUnitsDelivery(appointmentId: number) {
+export async function validateAppointmentForUnitsDelivery(
+  appointmentId: number
+) {
   const appointment = await prisma.appointment.findUnique({
     where: { id: appointmentId },
     select: {
@@ -675,31 +729,35 @@ export async function validateAppointmentForUnitsDelivery(appointmentId: number)
           unitsReady: true,
           storageUnit: {
             select: {
-              storageUnitNumber: true
-            }
-          }
-        }
-      }
-    }
+              storageUnitNumber: true,
+            },
+          },
+        },
+      },
+    },
   });
 
   if (!appointment) {
     return { valid: false, error: 'Appointment not found', appointment: null };
   }
 
-  if (!['Storage Unit Access', 'End Storage Plan'].includes(appointment.appointmentType)) {
-    return { 
-      valid: false, 
+  if (
+    !['Storage Unit Access', 'End Storage Plan'].includes(
+      appointment.appointmentType
+    )
+  ) {
+    return {
+      valid: false,
       error: `Appointment type ${appointment.appointmentType} does not require unit delivery prep`,
-      appointment: appointment
+      appointment: appointment,
     };
   }
 
   if (appointment.requestedStorageUnits.length === 0) {
-    return { 
-      valid: false, 
+    return {
+      valid: false,
       error: 'No requested storage units found for this appointment',
-      appointment: appointment
+      appointment: appointment,
     };
   }
 
@@ -715,17 +773,17 @@ export async function markUnitsReadyForDelivery(
   unitNumbers: string[],
   adminId: number
 ) {
-  return await prisma.$transaction(async (prisma) => {
+  return await prisma.$transaction(async prisma => {
     // Get appointment with requested storage units
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
       include: {
         requestedStorageUnits: {
           include: {
-            storageUnit: true
-          }
-        }
-      }
+            storageUnit: true,
+          },
+        },
+      },
     });
 
     if (!appointment) {
@@ -755,8 +813,9 @@ export async function markUnitsReadyForDelivery(
     );
 
     // Update all requested storage units for this appointment to mark them as ready for delivery
-    const updatePromises = unitNumbers.map(unitNumber => 
-      prisma.$executeRaw`
+    const updatePromises = unitNumbers.map(
+      unitNumber =>
+        prisma.$executeRaw`
         UPDATE "RequestedAccessStorageUnit" 
         SET "unitsReady" = true 
         WHERE "appointmentId" = ${appointment.id} 
@@ -773,14 +832,14 @@ export async function markUnitsReadyForDelivery(
         adminId: adminId,
         action: 'Prepared units for delivery',
         targetType: 'Appointment',
-        targetId: appointment.id.toString()
-      }
+        targetId: appointment.id.toString(),
+      },
     });
 
-    return { 
-      appointment: appointment, 
+    return {
+      appointment: appointment,
       updatedUnits: unitNumbers.length,
-      adminLog: adminLog
+      adminLog: adminLog,
     };
   });
 }
@@ -789,14 +848,17 @@ export async function markUnitsReadyForDelivery(
  * Create units delivery prep log entry
  * @source boombox-10.0/src/app/api/admin/tasks/[taskId]/prep-units-delivery/route.ts (lines 98-105)
  */
-export async function createUnitsDeliveryPrepLog(adminId: number, appointmentId: number) {
+export async function createUnitsDeliveryPrepLog(
+  adminId: number,
+  appointmentId: number
+) {
   return await prisma.adminLog.create({
     data: {
       adminId: adminId,
       action: 'Prepared units for delivery',
       targetType: 'Appointment',
-      targetId: appointmentId.toString()
-    }
+      targetId: appointmentId.toString(),
+    },
   });
 }
 
@@ -804,36 +866,38 @@ export async function createUnitsDeliveryPrepLog(adminId: number, appointmentId:
  * Validate storage unit usage exists and needs location update
  * @source boombox-10.0/src/app/api/admin/tasks/[taskId]/update-location/route.ts (lines 40-47)
  */
-export async function validateStorageUnitUsageForLocationUpdate(usageId: number) {
+export async function validateStorageUnitUsageForLocationUpdate(
+  usageId: number
+) {
   const usage = await prisma.storageUnitUsage.findUnique({
     where: { id: usageId },
-    select:  {
+    select: {
       id: true,
       warehouseLocation: true,
       storageUnit: {
         select: {
           id: true,
-          storageUnitNumber: true
-        }
+          storageUnitNumber: true,
+        },
       },
       user: {
         select: {
           firstName: true,
-          lastName: true
-        }
-      }
-    }
+          lastName: true,
+        },
+      },
+    },
   });
 
   if (!usage) {
     return { valid: false, error: 'Storage unit usage not found', usage: null };
   }
 
-  if (usage.warehouseLocation !== "Pending Update") {
-    return { 
-      valid: false, 
+  if (usage.warehouseLocation !== 'Pending Update') {
+    return {
+      valid: false,
       error: `Storage unit usage does not need location update. Current location: ${usage.warehouseLocation}`,
-      usage: usage
+      usage: usage,
     };
   }
 
@@ -847,26 +911,30 @@ export async function validateStorageUnitUsageForLocationUpdate(usageId: number)
 export async function updateStorageUnitWarehouseLocation(
   usageId: number,
   warehouseLocation: string,
-  adminId: number
+  adminId: number,
+  warehouseId?: number
 ) {
-  return await prisma.$transaction(async (prisma) => {
-    // Get usage details for logging
+  return await prisma.$transaction(async prisma => {
     const usage = await prisma.storageUnitUsage.findUnique({
       where: { id: usageId },
-      include: { storageUnit: true }
+      include: { storageUnit: true },
     });
 
     if (!usage) {
       throw new Error('Storage unit usage not found');
     }
 
-    // Update storage unit usage with warehouse location
+    const resolvedWarehouseId =
+      warehouseId ?? usage.warehouseId ?? (await getDefaultWarehouseId());
+    const warehouseName = await resolveWarehouseName(resolvedWarehouseId);
+
     const updatedUsage = await prisma.storageUnitUsage.update({
       where: { id: usageId },
-      data: { 
+      data: {
         warehouseLocation,
-        warehouseName: "South San Francisco"
-      }
+        warehouseName,
+        warehouseId: resolvedWarehouseId,
+      },
     });
 
     // Create admin log entry
@@ -875,8 +943,8 @@ export async function updateStorageUnitWarehouseLocation(
         adminId: adminId,
         action: `UPDATE_WAREHOUSE_LOCATION: Updated warehouse location for unit ${usage.storageUnit.storageUnitNumber} to ${warehouseLocation}`,
         targetType: 'STORAGE_UNIT',
-        targetId: usage.storageUnit.id.toString()
-      }
+        targetId: usage.storageUnit.id.toString(),
+      },
     });
 
     return { updatedUsage, adminLog };
@@ -888,9 +956,9 @@ export async function updateStorageUnitWarehouseLocation(
  * @source boombox-10.0/src/app/api/admin/tasks/[taskId]/update-location/route.ts (lines 59-66)
  */
 export async function createWarehouseLocationUpdateLog(
-  adminId: number, 
-  storageUnitId: number, 
-  storageUnitNumber: string, 
+  adminId: number,
+  storageUnitId: number,
+  storageUnitNumber: string,
   warehouseLocation: string
 ) {
   return await prisma.adminLog.create({
@@ -898,8 +966,8 @@ export async function createWarehouseLocationUpdateLog(
       adminId: adminId,
       action: `UPDATE_WAREHOUSE_LOCATION: Updated warehouse location for unit ${storageUnitNumber} to ${warehouseLocation}`,
       targetType: 'STORAGE_UNIT',
-      targetId: storageUnitId.toString()
-    }
+      targetId: storageUnitId.toString(),
+    },
   });
 }
 
@@ -953,12 +1021,12 @@ export async function getAppointmentsByStatus(today: Date, tomorrow: Date) {
     where: {
       date: {
         gte: today,
-        lt: tomorrow
-      }
+        lt: tomorrow,
+      },
     },
     _count: {
-      _all: true
-    }
+      _all: true,
+    },
   });
 }
 
@@ -967,30 +1035,34 @@ export async function getAppointmentsByStatus(today: Date, tomorrow: Date) {
  * @source boombox-10.0/src/app/api/admin/dashboard/route.ts (lines 26-45)
  */
 export async function getAwaitingApprovalCounts() {
-  const [driversAwaitingApproval, moversAwaitingApproval, vehiclesAwaitingApproval] = await Promise.all([
+  const [
+    driversAwaitingApproval,
+    moversAwaitingApproval,
+    vehiclesAwaitingApproval,
+  ] = await Promise.all([
     prisma.driver.count({
       where: {
         applicationComplete: true,
-        isApproved: false
-      }
+        isApproved: false,
+      },
     }),
     prisma.movingPartner.count({
       where: {
         applicationComplete: true,
-        isApproved: false
-      }
+        isApproved: false,
+      },
     }),
     prisma.vehicle.count({
       where: {
-        isApproved: false
-      }
-    })
+        isApproved: false,
+      },
+    }),
   ]);
 
   return {
     drivers: driversAwaitingApproval,
     movers: moversAwaitingApproval,
-    vehicles: vehiclesAwaitingApproval
+    vehicles: vehiclesAwaitingApproval,
   };
 }
 
@@ -1001,56 +1073,62 @@ export async function getAwaitingApprovalCounts() {
 export async function getTaskCounts() {
   const { today, tomorrow } = getTodayDateRange();
 
-  const [unassignedJobsCount, negativeFeedbackCount, pendingCleaningCount, adminCheckCount, storageUnitNeededCount] = await Promise.all([
+  const [
+    unassignedJobsCount,
+    negativeFeedbackCount,
+    pendingCleaningCount,
+    adminCheckCount,
+    storageUnitNeededCount,
+  ] = await Promise.all([
     // Unassigned Jobs
     prisma.appointment.count({
       where: {
         date: {
           gte: today,
-          lt: new Date(today.getTime() + 5 * 24 * 60 * 60 * 1000) // today + 4 days (5 days total)
+          lt: new Date(today.getTime() + 5 * 24 * 60 * 60 * 1000), // today + 4 days (5 days total)
         },
         onfleetTasks: {
           none: {
-            driverId: { not: null }
-          }
-        }
-      }
+            driverId: { not: null },
+          },
+        },
+      },
     }),
     // Negative Feedback
     prisma.feedback.count({
       where: {
         rating: {
-          lte: 3
-        }
-      }
+          lte: 3,
+        },
+      },
     }),
     // Pending Cleaning
     prisma.storageUnit.count({
       where: {
-        status: 'pending cleaning'
-      }
+        status: 'pending cleaning',
+      },
     }),
     // Admin Check
     prisma.appointment.count({
       where: {
-        status: 'Awaiting Admin Check In'
-      }
+        status: 'Awaiting Admin Check In',
+      },
     }),
     // Storage Unit Needed
     prisma.appointment.count({
       where: {
         appointmentType: {
-          in: ['Initial Pickup', 'Additional Storage']
+          in: ['Initial Pickup', 'Additional Storage'],
         },
         storageStartUsages: {
-          none: {} // No storage unit usage records exist
+          none: {}, // No storage unit usage records exist
         },
         date: {
           gte: today,
-          lt: tomorrow
-        }
-      }
-    })
+          lt: tomorrow,
+        },
+      },
+    }),
   ]);
 
   return {
@@ -1058,7 +1136,7 @@ export async function getTaskCounts() {
     negativeFeedback: negativeFeedbackCount,
     pendingCleaning: pendingCleaningCount,
     adminCheck: adminCheckCount,
-    storageUnitNeeded: storageUnitNeededCount
+    storageUnitNeeded: storageUnitNeededCount,
   };
 }
 
@@ -1066,13 +1144,24 @@ export async function getTaskCounts() {
  * Format appointments by status into dashboard format
  * @source boombox-10.0/src/app/api/admin/dashboard/route.ts (lines 102-108)
  */
-export function formatJobsToday(appointmentsByStatus: Array<{ status: string; _count: { _all: number } }>) {
+export function formatJobsToday(
+  appointmentsByStatus: Array<{ status: string; _count: { _all: number } }>
+) {
   return {
-    Scheduled: appointmentsByStatus.find(a => a.status === 'Scheduled')?._count._all || 0,
-    'In Transit': appointmentsByStatus.find(a => a.status === 'In Transit')?._count._all || 0,
-    'Loading Complete': appointmentsByStatus.find(a => a.status === 'Loading Complete')?._count._all || 0,
-    'Admin Check': appointmentsByStatus.find(a => a.status === 'Admin Check')?._count._all || 0,
-    Complete: appointmentsByStatus.find(a => a.status === 'Complete')?._count._all || 0
+    Scheduled:
+      appointmentsByStatus.find(a => a.status === 'Scheduled')?._count._all ||
+      0,
+    'In Transit':
+      appointmentsByStatus.find(a => a.status === 'In Transit')?._count._all ||
+      0,
+    'Loading Complete':
+      appointmentsByStatus.find(a => a.status === 'Loading Complete')?._count
+        ._all || 0,
+    'Admin Check':
+      appointmentsByStatus.find(a => a.status === 'Admin Check')?._count._all ||
+      0,
+    Complete:
+      appointmentsByStatus.find(a => a.status === 'Complete')?._count._all || 0,
   };
 }
 
@@ -1082,17 +1171,18 @@ export function formatJobsToday(appointmentsByStatus: Array<{ status: string; _c
  */
 export async function aggregateDashboardData(): Promise<DashboardData> {
   const { today, tomorrow } = getTodayDateRange();
-  
-  const [appointmentsByStatus, awaitingApprovals, taskCounts] = await Promise.all([
-    getAppointmentsByStatus(today, tomorrow),
-    getAwaitingApprovalCounts(),
-    getTaskCounts()
-  ]);
+
+  const [appointmentsByStatus, awaitingApprovals, taskCounts] =
+    await Promise.all([
+      getAppointmentsByStatus(today, tomorrow),
+      getAwaitingApprovalCounts(),
+      getTaskCounts(),
+    ]);
 
   return {
     jobsToday: formatJobsToday(appointmentsByStatus),
     awaitingApprovals,
-    taskCounts
+    taskCounts,
   };
 }
 
@@ -1153,29 +1243,39 @@ export async function fetchAllFeedbackCombined() {
   });
 
   // Transform packing supply feedback to match the structure of regular feedback
-  const transformedPackingSupplyFeedback = packingSupplyFeedback.map(feedback => ({
-    id: feedback.id,
-    rating: feedback.rating,
-    comment: feedback.comment,
-    tipAmount: feedback.tipAmount,
-    createdAt: feedback.createdAt,
-    responded: feedback.responded,
-    response: feedback.response,
-    feedbackType: 'packing-supply' as const, // Add a type identifier
-    movingPartner: feedback.packingSupplyOrder.assignedDriver ? {
-      name: `${feedback.packingSupplyOrder.assignedDriver.firstName} ${feedback.packingSupplyOrder.assignedDriver.lastName}`
-    } : null,
-    appointment: {
-      user: {
-        firstName: feedback.packingSupplyOrder.contactName.split(' ')[0] || feedback.packingSupplyOrder.contactName,
-        lastName: feedback.packingSupplyOrder.contactName.split(' ').slice(1).join(' ') || '',
-        email: feedback.packingSupplyOrder.contactEmail,
+  const transformedPackingSupplyFeedback = packingSupplyFeedback.map(
+    feedback => ({
+      id: feedback.id,
+      rating: feedback.rating,
+      comment: feedback.comment,
+      tipAmount: feedback.tipAmount,
+      createdAt: feedback.createdAt,
+      responded: feedback.responded,
+      response: feedback.response,
+      feedbackType: 'packing-supply' as const, // Add a type identifier
+      movingPartner: feedback.packingSupplyOrder.assignedDriver
+        ? {
+            name: `${feedback.packingSupplyOrder.assignedDriver.firstName} ${feedback.packingSupplyOrder.assignedDriver.lastName}`,
+          }
+        : null,
+      appointment: {
+        user: {
+          firstName:
+            feedback.packingSupplyOrder.contactName.split(' ')[0] ||
+            feedback.packingSupplyOrder.contactName,
+          lastName:
+            feedback.packingSupplyOrder.contactName
+              .split(' ')
+              .slice(1)
+              .join(' ') || '',
+          email: feedback.packingSupplyOrder.contactEmail,
+        },
+        appointmentType: 'Packing Supply Delivery',
+        date: feedback.packingSupplyOrder.deliveryDate,
+        jobCode: feedback.packingSupplyOrder.onfleetTaskShortId || 'N/A',
       },
-      appointmentType: 'Packing Supply Delivery',
-      date: feedback.packingSupplyOrder.deliveryDate,
-      jobCode: feedback.packingSupplyOrder.onfleetTaskShortId || 'N/A',
-    },
-  }));
+    })
+  );
 
   // Transform regular feedback to include type identifier
   const transformedRegularFeedback = regularFeedback.map(feedback => ({
@@ -1184,8 +1284,12 @@ export async function fetchAllFeedbackCombined() {
   }));
 
   // Combine both types of feedback and sort by creation date
-  const allFeedback = [...transformedRegularFeedback, ...transformedPackingSupplyFeedback]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const allFeedback = [
+    ...transformedRegularFeedback,
+    ...transformedPackingSupplyFeedback,
+  ].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
 
   return allFeedback;
 }
@@ -1242,7 +1346,8 @@ export async function findFeedbackById(feedbackId: number) {
       feedback: packingSupplyFeedback,
       userEmail: packingSupplyFeedback.packingSupplyOrder.contactEmail,
       userName: packingSupplyFeedback.packingSupplyOrder.contactName,
-      jobCode: packingSupplyFeedback.packingSupplyOrder.onfleetTaskShortId || 'N/A',
+      jobCode:
+        packingSupplyFeedback.packingSupplyOrder.onfleetTaskShortId || 'N/A',
       isPackingSupply: true,
     };
   }
@@ -1262,13 +1367,13 @@ export async function createOrUpdateAppointmentFeedback(
 ) {
   // Check if feedback already exists
   const existingFeedback = await prisma.feedback.findUnique({
-    where: { appointmentId }
+    where: { appointmentId },
   });
 
   // Get appointment details for movingPartnerId
   const appointment = await prisma.appointment.findUnique({
     where: { id: appointmentId },
-    include: { movingPartner: true }
+    include: { movingPartner: true },
   });
 
   if (!appointment) {
@@ -1282,8 +1387,8 @@ export async function createOrUpdateAppointmentFeedback(
       data: {
         rating,
         comment,
-        tipAmount
-      }
+        tipAmount,
+      },
     });
   } else {
     // Create new feedback
@@ -1293,8 +1398,8 @@ export async function createOrUpdateAppointmentFeedback(
         movingPartnerId: appointment.movingPartnerId,
         rating,
         comment,
-        tipAmount
-      }
+        tipAmount,
+      },
     });
   }
 }
@@ -1311,20 +1416,22 @@ export async function updateDriverRatings(
     return;
   }
 
-  const updatePromises = Object.entries(driverRatings).map(async ([taskId, rating]) => {
-    if (rating && (rating === 'thumbs_up' || rating === 'thumbs_down')) {
-      return prisma.onfleetTask.updateMany({
-        where: {
-          taskId: taskId,
-          appointmentId: appointmentId
-        },
-        data: {
-          driverFeedback: rating
-        }
-      });
+  const updatePromises = Object.entries(driverRatings).map(
+    async ([taskId, rating]) => {
+      if (rating && (rating === 'thumbs_up' || rating === 'thumbs_down')) {
+        return prisma.onfleetTask.updateMany({
+          where: {
+            taskId: taskId,
+            appointmentId: appointmentId,
+          },
+          data: {
+            driverFeedback: rating,
+          },
+        });
+      }
     }
-  });
-  
+  );
+
   await Promise.all(updatePromises.filter(Boolean));
 }
 
@@ -1344,24 +1451,26 @@ export async function createOrUpdatePackingSupplyFeedback(
     where: { onfleetTaskShortId: taskShortId },
     include: {
       assignedDriver: true,
-      user: true
-    }
+      user: true,
+    },
   });
 
   if (!order) {
-    throw new Error(`Packing supply order not found with task short ID: ${taskShortId}`);
+    throw new Error(
+      `Packing supply order not found with task short ID: ${taskShortId}`
+    );
   }
 
   // Check if feedback already exists
   const existingFeedback = await prisma.packingSupplyFeedback.findUnique({
-    where: { packingSupplyOrderId: order.id }
+    where: { packingSupplyOrderId: order.id },
   });
 
   const feedbackData = {
     rating,
     comment,
     tipAmount,
-    driverRating
+    driverRating,
   };
 
   if (existingFeedback) {
@@ -1369,9 +1478,9 @@ export async function createOrUpdatePackingSupplyFeedback(
     return {
       feedback: await prisma.packingSupplyFeedback.update({
         where: { id: existingFeedback.id },
-        data: feedbackData
+        data: feedbackData,
       }),
-      order
+      order,
     };
   } else {
     // Create new feedback
@@ -1379,10 +1488,10 @@ export async function createOrUpdatePackingSupplyFeedback(
       feedback: await prisma.packingSupplyFeedback.create({
         data: {
           packingSupplyOrderId: order.id,
-          ...feedbackData
-        }
+          ...feedbackData,
+        },
       }),
-      order
+      order,
     };
   }
 }
@@ -1402,16 +1511,16 @@ export async function updateFeedbackWithPayment(
       where: { id: feedbackId },
       data: {
         tipPaymentIntentId: paymentIntentId,
-        tipPaymentStatus: paymentStatus
-      }
+        tipPaymentStatus: paymentStatus,
+      },
     });
   } else {
     return await prisma.feedback.update({
       where: { id: feedbackId },
       data: {
         tipPaymentIntentId: paymentIntentId,
-        tipPaymentStatus: paymentStatus
-      }
+        tipPaymentStatus: paymentStatus,
+      },
     });
   }
 }

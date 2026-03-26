@@ -14,5 +14,7 @@ export { PrepUnitsDeliveryPage } from './PrepUnitsDeliveryPage';
 export { PrepPackingSupplyOrderPage } from './PrepPackingSupplyOrderPage';
 export { AssignRequestedUnitPage } from './AssignRequestedUnitPage';
 
-// Note: AccessStorageUnitPage - No source file found in boombox-10.0, needs separate creation
-
+// Phase 8: Haul Job Task Pages
+export { HaulLoadingPage } from './HaulLoadingPage';
+export { HaulArrivalPage } from './HaulArrivalPage';
+export { HaulUnloadingPage } from './HaulUnloadingPage';

@@ -2,27 +2,28 @@
  * @fileoverview Service for handling warehouse location updates for storage unit usages
  * @source boombox-10.0/src/app/api/admin/tasks/[taskId]/route.ts (update-location task display logic)
  * @source boombox-10.0/src/app/api/admin/tasks/[taskId]/update-location/route.ts (location update processing logic)
- * 
+ *
  * SERVICE FUNCTIONALITY:
  * - Get location update task details for display
  * - Process warehouse location updates for storage unit usages
  * - Handle validation of usage records and location requirements
  * - Manage warehouse inventory tracking and location management
  * - Create location update audit trails and admin logging
- * 
+ *
  * USED BY:
  * - Admin task management interface for warehouse location update workflow
  * - Storage unit inventory management and tracking systems
  * - Warehouse operations and location assignment
  * - Inventory auditing and location verification
- * 
+ *
  * @refactor Extracted from monolithic admin tasks route for better organization
  */
 
 import { prisma } from '@/lib/database/prismaClient';
-import { 
+// eslint-disable-next-line no-restricted-imports -- adminTaskUtils uses prisma (server-only), not re-exported from barrel
+import {
   validateStorageUnitUsageForLocationUpdate,
-  updateStorageUnitWarehouseLocation
+  updateStorageUnitWarehouseLocation,
 } from '@/lib/utils/adminTaskUtils';
 
 // Update location task interface
@@ -36,11 +37,14 @@ export interface UpdateLocationTask {
   storageUnitNumber: string;
   customerName: string;
   usageId: number;
+  warehouseId?: number | null;
+  warehouseName?: string | null;
 }
 
 // Location update request interface
 export interface LocationUpdateRequest {
   warehouseLocation: string;
+  warehouseId?: number;
 }
 
 // Update result interface
@@ -56,27 +60,30 @@ export class UpdateLocationService {
    * Get location update task details for display
    * @source boombox-10.0/src/app/api/admin/tasks/[taskId]/route.ts (lines 608-640)
    */
-  async getLocationUpdateTask(usageId: number): Promise<UpdateLocationTask | null> {
+  async getLocationUpdateTask(
+    usageId: number
+  ): Promise<UpdateLocationTask | null> {
     try {
       const usage = await prisma.storageUnitUsage.findUnique({
         where: { id: usageId },
         select: {
           id: true,
           warehouseLocation: true,
+          warehouseId: true,
+          warehouseName: true,
           storageUnit: {
             select: {
               id: true,
-              storageUnitNumber: true
-            }
+              storageUnitNumber: true,
+            },
           },
           user: {
             select: {
               firstName: true,
-              lastName: true
-              
-            }
-          }
-        }
+              lastName: true,
+            },
+          },
+        },
       });
 
       if (!usage) {
@@ -84,11 +91,12 @@ export class UpdateLocationService {
       }
 
       // Only return task if location needs update
-      if (usage.warehouseLocation !== "Pending Update") {
+      if (usage.warehouseLocation !== 'Pending Update') {
         return null;
       }
 
-      const customerName = `${usage.user?.firstName || ''} ${usage.user?.lastName || ''}`.trim();
+      const customerName =
+        `${usage.user?.firstName || ''} ${usage.user?.lastName || ''}`.trim();
 
       // Generate task ID in the expected format
       const taskId = `update-location-${usageId}`;
@@ -102,7 +110,9 @@ export class UpdateLocationService {
         details: `<strong>Unit Number:</strong> ${usage.storageUnit.storageUnitNumber}`,
         storageUnitNumber: usage.storageUnit.storageUnitNumber,
         customerName: customerName,
-        usageId: usage.id
+        usageId: usage.id,
+        warehouseId: usage.warehouseId,
+        warehouseName: usage.warehouseName,
       };
     } catch (error) {
       console.error('Error getting location update task:', error);
@@ -120,45 +130,47 @@ export class UpdateLocationService {
     request: LocationUpdateRequest
   ): Promise<LocationUpdateResult> {
     try {
-      const { warehouseLocation } = request;
+      const { warehouseLocation, warehouseId } = request;
 
       if (!warehouseLocation || warehouseLocation.trim() === '') {
         return {
           success: false,
           message: '',
-          error: 'Warehouse location is required'
+          error: 'Warehouse location is required',
         };
       }
 
-      // Validate usage for location update
-      const validation = await validateStorageUnitUsageForLocationUpdate(usageId);
+      const validation =
+        await validateStorageUnitUsageForLocationUpdate(usageId);
       if (!validation.valid) {
         return {
           success: false,
           message: '',
-          error: validation.error || 'Validation failed'
+          error: validation.error || 'Validation failed',
         };
       }
 
-      // Execute warehouse location update with database transaction
       const result = await updateStorageUnitWarehouseLocation(
         usageId,
         warehouseLocation.trim(),
-        adminId
+        adminId,
+        warehouseId
       );
 
       return {
         success: true,
         message: 'Warehouse location updated successfully',
-        updatedUsage: result.updatedUsage
+        updatedUsage: result.updatedUsage,
       };
-
     } catch (error) {
       console.error('Error updating warehouse location:', error);
       return {
         success: false,
         message: '',
-        error: error instanceof Error ? error.message : 'Failed to update warehouse location'
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to update warehouse location',
       };
     }
   }
@@ -171,10 +183,10 @@ export class UpdateLocationService {
     try {
       const usage = await prisma.storageUnitUsage.findUnique({
         where: { id: usageId },
-        select: { warehouseLocation: true }
+        select: { warehouseLocation: true },
       });
 
-      return usage?.warehouseLocation === "Pending Update";
+      return usage?.warehouseLocation === 'Pending Update';
     } catch (error) {
       console.error('Error checking location update need:', error);
       return false;
@@ -190,27 +202,26 @@ export class UpdateLocationService {
     try {
       return await prisma.storageUnitUsage.findMany({
         where: {
-          warehouseLocation: "Pending Update"
+          warehouseLocation: 'Pending Update',
         },
         select: {
           id: true,
           userId: true,
           storageUnit: {
             select: {
-              storageUnitNumber: true
-            }
+              storageUnitNumber: true,
+            },
           },
           user: {
             select: {
               firstName: true,
-              lastName: true
-              
-            }
-          }
+              lastName: true,
+            },
+          },
         },
         orderBy: {
-          usageStartDate: 'asc' // Oldest first for priority
-        }
+          usageStartDate: 'asc', // Oldest first for priority
+        },
       });
     } catch (error) {
       console.error('Error getting usages needing location update:', error);
@@ -228,32 +239,32 @@ export class UpdateLocationService {
         where: { id: usageId },
         select: {
           storageUnit: {
-            select: { id: true }
-          }
-        }
+            select: { id: true },
+          },
+        },
       });
 
       if (!usage) return [];
 
       return await prisma.adminLog.findMany({
-        where: { 
+        where: {
           targetType: 'STORAGE_UNIT',
           targetId: usage.storageUnit.id.toString(),
           action: {
-            startsWith: 'UPDATE_WAREHOUSE_LOCATION'
-          }
+            startsWith: 'UPDATE_WAREHOUSE_LOCATION',
+          },
         },
         include: {
           admin: {
             select: {
               email: true,
-              name: true
-            }
-          }
+              name: true,
+            },
+          },
         },
         orderBy: {
-          createdAt: 'desc'
-        }
+          createdAt: 'desc',
+        },
       });
     } catch (error) {
       console.error('Error getting location update history:', error);
@@ -270,24 +281,24 @@ export class UpdateLocationService {
       const [pendingUpdates, totalUsages, warehouseStats] = await Promise.all([
         // Count pending location updates
         prisma.storageUnitUsage.count({
-          where: { warehouseLocation: "Pending Update" }
+          where: { warehouseLocation: 'Pending Update' },
         }),
-        
+
         // Count total active usages
         prisma.storageUnitUsage.count(),
-        
+
         // Get warehouse location distribution
         prisma.storageUnitUsage.groupBy({
           by: ['warehouseLocation'],
           _count: {
-            id: true
+            id: true,
           },
           where: {
             warehouseLocation: {
-              not: null
-            }
-          }
-        })
+              not: null,
+            },
+          },
+        }),
       ]);
 
       return {
@@ -295,9 +306,10 @@ export class UpdateLocationService {
         totalUsages,
         warehouseDistribution: warehouseStats.map(stat => ({
           location: stat.warehouseLocation,
-          count: stat._count.id
+          count: stat._count.id,
         })),
-        percentagePending: totalUsages > 0 ? (pendingUpdates / totalUsages) * 100 : 0
+        percentagePending:
+          totalUsages > 0 ? (pendingUpdates / totalUsages) * 100 : 0,
       };
     } catch (error) {
       console.error('Error getting location update summary:', error);
@@ -305,7 +317,7 @@ export class UpdateLocationService {
         pendingUpdates: 0,
         totalUsages: 0,
         warehouseDistribution: [],
-        percentagePending: 0
+        percentagePending: 0,
       };
     }
   }
@@ -319,21 +331,21 @@ export class UpdateLocationService {
       return await prisma.adminLog.findMany({
         where: {
           action: {
-            startsWith: 'UPDATE_WAREHOUSE_LOCATION'
-          }
+            startsWith: 'UPDATE_WAREHOUSE_LOCATION',
+          },
         },
         include: {
           admin: {
             select: {
               email: true,
-              name: true
-            }
-          }
+              name: true,
+            },
+          },
         },
         orderBy: {
-          createdAt: 'desc'
+          createdAt: 'desc',
         },
-        take: limit
+        take: limit,
       });
     } catch (error) {
       console.error('Error getting recent location updates:', error);
@@ -345,27 +357,52 @@ export class UpdateLocationService {
    * Validate warehouse location format and constraints
    * Helper method for location validation
    */
-  validateWarehouseLocationFormat(location: string): { valid: boolean, error?: string } {
+  validateWarehouseLocationFormat(location: string): {
+    valid: boolean;
+    error?: string;
+  } {
     if (!location || location.trim() === '') {
       return { valid: false, error: 'Warehouse location cannot be empty' };
     }
 
     const trimmedLocation = location.trim();
-    
+
     if (trimmedLocation.length < 2) {
-      return { valid: false, error: 'Warehouse location must be at least 2 characters' };
+      return {
+        valid: false,
+        error: 'Warehouse location must be at least 2 characters',
+      };
     }
 
     if (trimmedLocation.length > 100) {
-      return { valid: false, error: 'Warehouse location cannot exceed 100 characters' };
+      return {
+        valid: false,
+        error: 'Warehouse location cannot exceed 100 characters',
+      };
     }
 
     // Prevent setting back to "Pending Update"
-    if (trimmedLocation === "Pending Update") {
+    if (trimmedLocation === 'Pending Update') {
       return { valid: false, error: 'Cannot set location to "Pending Update"' };
     }
 
     return { valid: true };
+  }
+
+  /**
+   * Get all active warehouses for dropdown selectors
+   */
+  async getAvailableWarehouses() {
+    try {
+      return await prisma.warehouse.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true, city: true, state: true },
+        orderBy: { name: 'asc' },
+      });
+    } catch (error) {
+      console.error('Error getting available warehouses:', error);
+      return [];
+    }
   }
 
   /**
@@ -380,20 +417,18 @@ export class UpdateLocationService {
           storageUnit: {
             select: {
               storageUnitNumber: true,
-              status: true
-            }
+              status: true,
+            },
           },
           user: {
             select: {
               firstName: true,
               lastName: true,
-              email: true
-            }
-          }
+              email: true,
+            },
+          },
         },
-        orderBy: [
-          { storageUnit: { storageUnitNumber: 'asc' } }
-        ]
+        orderBy: [{ storageUnit: { storageUnitNumber: 'asc' } }],
       });
     } catch (error) {
       console.error('Error getting storage units by location:', error);

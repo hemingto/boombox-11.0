@@ -2490,6 +2490,7 @@ export const UpdateLocationParamsSchema = z.object({
 
 export const UpdateLocationRequestSchema = z.object({
   warehouseLocation: z.string().min(1, 'Warehouse location is required'),
+  warehouseId: z.number().int().optional(),
 });
 
 export const UpdateLocationResponseSchema = z.object({

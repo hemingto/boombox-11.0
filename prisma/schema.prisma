@@ -171,6 +171,7 @@ model StorageUnit {
   cleaningHistory   StorageUnitCleaning[]
   damageReports     StorageUnitDamageReport[]
   storageUnitUsages StorageUnitUsage[]
+  haulJobUnits      HaulJobUnit[]
 }
 
 model StorageUnitUsage {
@@ -188,10 +189,12 @@ model StorageUnitUsage {
   unitPickupPhotos   String[]
   description        String?
   padlockCombo       String?
+  warehouseId        Int?
   endAppointment     Appointment? @relation("StorageEnd", fields: [endAppointmentId], references: [id])
   startAppointment   Appointment? @relation("StorageStart", fields: [startAppointmentId], references: [id])
   storageUnit        StorageUnit  @relation(fields: [storageUnitId], references: [id])
   user               User         @relation(fields: [userId], references: [id])
+  warehouse          Warehouse?   @relation(fields: [warehouseId], references: [id])
 }
 
 model PackingKit {
@@ -376,14 +379,17 @@ model OnfleetTask {
   payoutRetryCount         Int          @default(0)
   payoutLastAttemptAt      DateTime?
   lastProcessedWebhookTime BigInt?
+  haulJobId                Int?
   appointment              Appointment  @relation(fields: [appointmentId], references: [id])
   driver                   Driver?      @relation(fields: [driverId], references: [id])
   storageUnit              StorageUnit? @relation(fields: [storageUnitId], references: [id])
+  haulJob                  HaulJob?     @relation(fields: [haulJobId], references: [id])
 
   @@index([taskId])
   @@index([appointmentId])
   @@index([driverId])
   @@index([storageUnitId])
+  @@index([haulJobId])
 }
 
 model Feedback {
@@ -474,6 +480,7 @@ model Driver {
   availability                    DriverAvailability[]
   cancellations                   DriverCancellation[]
   movingPartnerAssociations       MovingPartnerDriver[]
+  haulingPartnerAssociations      HaulingPartnerDriver[]
   assignedTasks                   OnfleetTask[]
   packingSupplyDeliveries         PackingSupplyOrder[]
   packingSupplyRoutes             PackingSupplyRoute[]
@@ -481,23 +488,31 @@ model Driver {
 }
 
 model Vehicle {
-  id                 Int            @id @default(autoincrement())
-  driverId           Int?
-  make               String
-  model              String
-  year               String
-  licensePlate       String
-  isApproved         Boolean        @default(false)
-  autoInsurancePhoto String?
-  hasTrailerHitch    Boolean        @default(false)
-  frontVehiclePhoto  String?
-  backVehiclePhoto   String?
-  movingPartnerId    Int?
-  driver             Driver?        @relation(fields: [driverId], references: [id])
-  movingPartner      MovingPartner? @relation(fields: [movingPartnerId], references: [id])
+  id                  Int             @id @default(autoincrement())
+  driverId            Int?
+  make                String
+  model               String
+  year                String
+  licensePlate        String
+  isApproved          Boolean         @default(false)
+  autoInsurancePhoto  String?
+  hasTrailerHitch     Boolean         @default(false)
+  frontVehiclePhoto   String?
+  backVehiclePhoto    String?
+  movingPartnerId     Int?
+  haulingPartnerId    Int?
+  vehicleCategory     String?
+  vehicleType         String?
+  unitCapacity        Int?
+  interiorPhoto       String?
+  insuranceExpiration DateTime?
+  driver              Driver?         @relation(fields: [driverId], references: [id])
+  movingPartner       MovingPartner?  @relation(fields: [movingPartnerId], references: [id])
+  haulingPartner      HaulingPartner? @relation(fields: [haulingPartnerId], references: [id])
 
   @@index([driverId])
   @@index([movingPartnerId])
+  @@index([haulingPartnerId])
 }
 
 model DriverAvailability {
@@ -912,6 +927,7 @@ enum UserType {
   USER
   DRIVER
   MOVER
+  HAULER
   ADMIN
 }
 
@@ -963,4 +979,180 @@ enum BlogContentBlockType {
   QUOTE
   LIST
   CODE
+}
+
+// ===== Hauling Partner System =====
+
+enum HaulingPartnerStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+}
+
+enum HaulJobType {
+  SSF_TO_STOCKTON
+  STOCKTON_TO_SSF
+  STOCKTON_DIRECT_DELIVERY
+}
+
+enum HaulJobStatus {
+  PENDING
+  SCHEDULED
+  IN_PROGRESS
+  LOADING
+  IN_TRANSIT
+  UNLOADING
+  COMPLETED
+  CANCELLED
+}
+
+model Warehouse {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  address   String
+  city      String
+  state     String
+  zipCode   String
+  latitude  Float?
+  longitude Float?
+  hoursOpen  String  @default("08:30")
+  hoursClose String  @default("16:30")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  haulJobsOrigin      HaulJob[]          @relation("OriginWarehouse")
+  haulJobsDestination HaulJob[]          @relation("DestinationWarehouse")
+  storageUnitUsages   StorageUnitUsage[]
+}
+
+model HaulingPartner {
+  id                              Int                                @id @default(autoincrement())
+  name                            String
+  email                           String                             @unique
+  phoneNumber                     String?                            @unique
+  website                         String?
+  description                     String?
+  imageSrc                        String?
+  numberOfEmployees               String?
+
+  priceSsfToStockton              Float?
+  priceStocktonToSsf              Float?
+  trailerUnitCapacity             Int                                @default(4)
+
+  onfleetTeamId                   String?
+  isApproved                      Boolean                            @default(false)
+  applicationComplete             Boolean                            @default(false)
+  status                          HaulingPartnerStatus               @default(INACTIVE)
+
+  stripeConnectAccountId          String?
+  stripeConnectOnboardingComplete Boolean                            @default(false)
+  stripeConnectPayoutsEnabled     Boolean                            @default(false)
+  stripeConnectDetailsSubmitted   Boolean                            @default(false)
+
+  agreedToTerms                   Boolean                            @default(false)
+  agreedToTermsAt                 DateTime?
+  activeMessageShown              Boolean                            @default(false)
+  driverAssignmentMode            DriverAssignmentMode               @default(MANUAL)
+
+  createdAt                       DateTime                           @default(now())
+  updatedAt                       DateTime                           @updatedAt
+
+  drivers                         HaulingPartnerDriver[]
+  driverInvitations               HaulingPartnerDriverInvitation[]
+  vehicles                        Vehicle[]
+  haulJobs                        HaulJob[]
+  availability                    HaulingPartnerAvailability[]
+}
+
+model HaulJob {
+  id                     Int           @id @default(autoincrement())
+  jobCode                String        @unique
+  type                   HaulJobType
+  status                 HaulJobStatus @default(PENDING)
+
+  originWarehouseId      Int
+  destinationWarehouseId Int
+  haulingPartnerId       Int?
+
+  scheduledDate          DateTime?
+  scheduledTime          String?
+  completedAt            DateTime?
+  notes                  String?
+
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+
+  originWarehouse        Warehouse        @relation("OriginWarehouse", fields: [originWarehouseId], references: [id])
+  destinationWarehouse   Warehouse        @relation("DestinationWarehouse", fields: [destinationWarehouseId], references: [id])
+  haulingPartner         HaulingPartner?  @relation(fields: [haulingPartnerId], references: [id])
+  units                  HaulJobUnit[]
+  onfleetTasks           OnfleetTask[]
+
+  @@index([originWarehouseId])
+  @@index([destinationWarehouseId])
+  @@index([haulingPartnerId])
+  @@index([status])
+}
+
+model HaulJobUnit {
+  id              Int         @id @default(autoincrement())
+  haulJobId       Int
+  storageUnitId   Int
+  loadConfirmed   Boolean     @default(false)
+  unloadConfirmed Boolean     @default(false)
+  damageReported  Boolean     @default(false)
+  damagePhotos    String[]
+  warehouseLocation String?
+
+  haulJob         HaulJob     @relation(fields: [haulJobId], references: [id])
+  storageUnit     StorageUnit @relation(fields: [storageUnitId], references: [id])
+
+  @@unique([haulJobId, storageUnitId])
+  @@index([haulJobId])
+  @@index([storageUnitId])
+}
+
+model HaulingPartnerDriver {
+  id               Int            @id @default(autoincrement())
+  haulingPartnerId Int
+  driverId         Int
+  isActive         Boolean        @default(true)
+  driver           Driver         @relation(fields: [driverId], references: [id])
+  haulingPartner   HaulingPartner @relation(fields: [haulingPartnerId], references: [id])
+
+  @@unique([haulingPartnerId, driverId])
+  @@index([haulingPartnerId])
+  @@index([driverId])
+}
+
+model HaulingPartnerDriverInvitation {
+  id               Int            @id @default(autoincrement())
+  token            String         @unique
+  haulingPartnerId Int
+  email            String
+  status           String         @default("pending")
+  expiresAt        DateTime
+  createdAt        DateTime       @default(now())
+  acceptedAt       DateTime?
+  haulingPartner   HaulingPartner @relation(fields: [haulingPartnerId], references: [id])
+
+  @@index([token])
+  @@index([haulingPartnerId])
+  @@index([email])
+}
+
+model HaulingPartnerAvailability {
+  id               Int            @id @default(autoincrement())
+  haulingPartnerId Int
+  dayOfWeek        String
+  startTime        String
+  endTime          String
+  maxCapacity      Int            @default(1)
+  isBlocked        Boolean        @default(false)
+  createdAt        DateTime?
+  updatedAt        DateTime?
+  haulingPartner   HaulingPartner @relation(fields: [haulingPartnerId], references: [id])
+
+  @@index([haulingPartnerId, dayOfWeek])
 }

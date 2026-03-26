@@ -29,6 +29,8 @@ import {
   CircleStackIcon,
   MapIcon,
   DocumentTextIcon,
+  RectangleGroupIcon,
+  ArrowsRightLeftIcon,
 } from '@heroicons/react/24/outline';
 import { BoomboxLogo } from '@/components/icons/BoomboxLogo';
 import { useSessionMonitor } from '@/hooks/useSessionMonitor';
@@ -52,6 +54,8 @@ export default function AdminLayout({
     { name: 'Calendar', href: '/admin/calendar', icon: CalendarDaysIcon },
     { name: 'Drivers', href: '/admin/drivers', icon: IdentificationIcon },
     { name: 'Movers', href: '/admin/movers', icon: UserGroupIcon },
+    { name: 'Haulers', href: '/admin/haulers', icon: RectangleGroupIcon },
+    { name: 'Haul Jobs', href: '/admin/haul-jobs', icon: ArrowsRightLeftIcon },
     { name: 'Vehicles', href: '/admin/vehicles', icon: TruckIcon },
     { name: 'Customers', href: '/admin/customers', icon: UserCircleIcon },
     { name: 'Storage Units', href: '/admin/storage-units', icon: CubeIcon },

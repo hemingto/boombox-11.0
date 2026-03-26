@@ -5,12 +5,17 @@
  */
 
 import { prisma } from '@/lib/database/prismaClient';
-import { formatPhoneForOnfleet, mapVehicleTypeToOnfleet } from '@/lib/utils/driverUtils';
+// eslint-disable-next-line no-restricted-imports -- driverUtils uses Cloudinary (server-only), not re-exported from barrel
+import {
+  formatPhoneForOnfleet,
+  mapVehicleTypeToOnfleet,
+} from '@/lib/utils/driverUtils';
 
 // Service to team mapping
 const SERVICE_TEAM_MAP: Record<string, string> = {
   'Storage Unit Delivery': process.env.BOOMBOX_DELIVERY_NETWORK_TEAM_ID || '',
-  'Packing Supply Delivery': process.env.BOOMBOX_PACKING_SUPPLY_DELIVERY_DRIVERS || '',
+  'Packing Supply Delivery':
+    process.env.BOOMBOX_PACKING_SUPPLY_DELIVERY_DRIVERS || '',
 };
 
 export interface OnfleetWorkerData {
@@ -40,7 +45,9 @@ export interface DriverApprovalResult {
  * @param driverId - The ID of the driver to approve
  * @returns Approval result with Onfleet worker details
  */
-export async function approveDriverWithOnfleet(driverId: number): Promise<DriverApprovalResult> {
+export async function approveDriverWithOnfleet(
+  driverId: number
+): Promise<DriverApprovalResult> {
   console.log('Debug - Starting driver approval for ID:', driverId);
 
   if (isNaN(driverId)) {
@@ -48,7 +55,7 @@ export async function approveDriverWithOnfleet(driverId: number): Promise<Driver
     return {
       success: false,
       error: 'Invalid driver ID',
-      message: 'Driver ID must be a valid number'
+      message: 'Driver ID must be a valid number',
     };
   }
 
@@ -58,11 +65,11 @@ export async function approveDriverWithOnfleet(driverId: number): Promise<Driver
     return {
       success: false,
       error: 'Onfleet API key not configured',
-      message: 'System configuration error'
+      message: 'System configuration error',
     };
   }
 
-  // Get driver with moving partner association and vehicle info
+  // Get driver with moving partner and hauling partner associations and vehicle info
   const driver = await prisma.driver.findUnique({
     where: { id: driverId },
     include: {
@@ -70,6 +77,16 @@ export async function approveDriverWithOnfleet(driverId: number): Promise<Driver
         where: { isActive: true },
         include: {
           movingPartner: {
+            select: {
+              onfleetTeamId: true,
+            },
+          },
+        },
+      },
+      haulingPartnerAssociations: {
+        where: { isActive: true },
+        include: {
+          haulingPartner: {
             select: {
               onfleetTeamId: true,
             },
@@ -86,6 +103,7 @@ export async function approveDriverWithOnfleet(driverId: number): Promise<Driver
   console.log('Debug - Driver data:', {
     exists: !!driver,
     movingPartnerAssociations: driver?.movingPartnerAssociations?.length,
+    haulingPartnerAssociations: driver?.haulingPartnerAssociations?.length,
   });
 
   if (!driver) {
@@ -93,24 +111,36 @@ export async function approveDriverWithOnfleet(driverId: number): Promise<Driver
     return {
       success: false,
       error: 'Driver not found',
-      message: 'The specified driver does not exist'
+      message: 'The specified driver does not exist',
     };
   }
 
-  // Check if driver is associated with a moving partner
+  // Check if driver is associated with a moving partner or hauling partner
   const isMovingPartnerDriver = driver.movingPartnerAssociations.length > 0;
-  let onfleetTeamIds: string[] = []; // Array to hold team IDs to assign
+  const isHaulingPartnerDriver = driver.haulingPartnerAssociations.length > 0;
+  let onfleetTeamIds: string[] = [];
 
-  if (isMovingPartnerDriver) {
-    // This driver is associated with a moving partner.
-    // The partner's onfleetTeamId is the one to use. It MUST exist for a partner driver.
-    const partnerTeamId = driver.movingPartnerAssociations[0].movingPartner.onfleetTeamId;
+  if (isHaulingPartnerDriver) {
+    const haulerTeamId =
+      driver.haulingPartnerAssociations[0].haulingPartner.onfleetTeamId;
+    if (!haulerTeamId) {
+      console.log('Debug - Hauling partner is missing an Onfleet team ID');
+      return {
+        success: false,
+        error: 'Hauling partner does not have an Onfleet team ID',
+        message: 'Hauling partner setup is incomplete',
+      };
+    }
+    onfleetTeamIds = [haulerTeamId];
+  } else if (isMovingPartnerDriver) {
+    const partnerTeamId =
+      driver.movingPartnerAssociations[0].movingPartner.onfleetTeamId;
     if (!partnerTeamId) {
       console.log('Debug - Moving partner is missing an Onfleet team ID');
       return {
         success: false,
         error: 'Moving partner does not have an Onfleet team ID',
-        message: 'Moving partner setup is incomplete'
+        message: 'Moving partner setup is incomplete',
       };
     }
     onfleetTeamIds = [partnerTeamId];
@@ -127,7 +157,7 @@ export async function approveDriverWithOnfleet(driverId: number): Promise<Driver
         }
       }
     }
-    
+
     // If no service-specific teams found, use existing team IDs or default
     if (onfleetTeamIds.length === 0) {
       if (driver.onfleetTeamIds && driver.onfleetTeamIds.length > 0) {
@@ -142,20 +172,33 @@ export async function approveDriverWithOnfleet(driverId: number): Promise<Driver
     }
   }
 
-  // For Boombox Delivery Network drivers (no moving partner), require an approved vehicle
-  if (!isMovingPartnerDriver && !driver.vehicles.length) {
-    console.log('Debug - No approved vehicles for Boombox Delivery Network driver');
+  // For Boombox Delivery Network drivers (no moving/hauling partner), require an approved vehicle
+  if (
+    !isMovingPartnerDriver &&
+    !isHaulingPartnerDriver &&
+    !driver.vehicles.length
+  ) {
+    console.log(
+      'Debug - No approved vehicles for Boombox Delivery Network driver'
+    );
     return {
       success: false,
       error: 'Boombox Delivery Network drivers must have an approved vehicle',
-      message: 'Driver must have an approved vehicle before approval'
+      message: 'Driver must have an approved vehicle before approval',
     };
   }
 
+  const isPartnerDriver = isMovingPartnerDriver || isHaulingPartnerDriver;
+
   // Create Onfleet worker using direct API call
   try {
-    const result = await createOnfleetWorker(driver, onfleetTeamIds, onfleetApiKey, isMovingPartnerDriver);
-    
+    const result = await createOnfleetWorker(
+      driver,
+      onfleetTeamIds,
+      onfleetApiKey,
+      isPartnerDriver
+    );
+
     // Update driver with Onfleet worker ID and approval status
     await prisma.driver.update({
       where: { id: driverId },
@@ -163,7 +206,7 @@ export async function approveDriverWithOnfleet(driverId: number): Promise<Driver
         isApproved: true,
         onfleetWorkerId: result.onfleetWorkerId,
         onfleetTeamIds: onfleetTeamIds,
-        status: "Active"
+        status: 'Active',
       },
     });
 
@@ -171,9 +214,8 @@ export async function approveDriverWithOnfleet(driverId: number): Promise<Driver
       success: true,
       message: result.message,
       onfleetWorkerId: result.onfleetWorkerId,
-      assignedTeams: onfleetTeamIds
+      assignedTeams: onfleetTeamIds,
     };
-    
   } catch (error: any) {
     console.error('Error creating Onfleet worker:', {
       message: error.message,
@@ -183,13 +225,13 @@ export async function approveDriverWithOnfleet(driverId: number): Promise<Driver
         name: `${driver.firstName} ${driver.lastName}`,
         phone: driver.phoneNumber,
         teamIds: onfleetTeamIds,
-      }
+      },
     });
-    
+
     return {
       success: false,
       error: `Failed to create Onfleet worker: ${error.message}`,
-      message: 'Failed to approve driver with Onfleet integration'
+      message: 'Failed to approve driver with Onfleet integration',
     };
   }
 }
@@ -203,16 +245,18 @@ export async function approveDriverWithOnfleet(driverId: number): Promise<Driver
  * @returns Worker creation result
  */
 async function createOnfleetWorker(
-  driver: any, 
-  onfleetTeamIds: string[], 
+  driver: any,
+  onfleetTeamIds: string[],
   onfleetApiKey: string,
   isMovingPartnerDriver: boolean
 ): Promise<{ onfleetWorkerId: string; message: string }> {
   // Basic auth header for Onfleet
   const authHeader = Buffer.from(`${onfleetApiKey}:`).toString('base64');
-  
+
   // Format phone number for Onfleet
-  const formattedPhone = driver.phoneNumber ? formatPhoneForOnfleet(driver.phoneNumber) : '';
+  const formattedPhone = driver.phoneNumber
+    ? formatPhoneForOnfleet(driver.phoneNumber)
+    : '';
 
   const workerData: OnfleetWorkerData = {
     name: `${driver.firstName} ${driver.lastName}`,
@@ -228,36 +272,36 @@ async function createOnfleetWorker(
     // Use mapVehicleTypeToOnfleet to convert driver's vehicleType to Onfleet format
     // This maps values like "Pickup Truck" → 'TRUCK', "SUV" → 'CAR', etc.
     const onfleetVehicleType = mapVehicleTypeToOnfleet(driver.vehicleType);
-    
+
     // Only include licensePlate if it exists and is not empty
     const vehicleData: any = {
       type: onfleetVehicleType,
       description: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
     };
-    
+
     // Add licensePlate only if it's a valid non-empty string
     if (vehicle.licensePlate && vehicle.licensePlate.trim().length > 0) {
       vehicleData.licensePlate = vehicle.licensePlate.trim();
     }
-    
+
     workerData.vehicle = vehicleData;
   }
 
   console.log('Onfleet payload:', JSON.stringify(workerData));
-  console.log(`Assigning driver to ${onfleetTeamIds.length} team(s):`, onfleetTeamIds);
+  console.log(
+    `Assigning driver to ${onfleetTeamIds.length} team(s):`,
+    onfleetTeamIds
+  );
 
   // Create worker in Onfleet using direct API call
-  const onfleetAPIResponse = await fetch(
-    'https://onfleet.com/api/v2/workers',
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Basic ${authHeader}`,
-      },
-      body: JSON.stringify(workerData),
-    }
-  );
+  const onfleetAPIResponse = await fetch('https://onfleet.com/api/v2/workers', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Basic ${authHeader}`,
+    },
+    body: JSON.stringify(workerData),
+  });
 
   if (!onfleetAPIResponse.ok) {
     let errorData;
@@ -265,18 +309,32 @@ async function createOnfleetWorker(
       errorData = await onfleetAPIResponse.json();
     } catch (e) {
       // If response is not JSON, use status text
-      throw new Error(`Onfleet API request failed: ${onfleetAPIResponse.status} ${onfleetAPIResponse.statusText}`);
+      throw new Error(
+        `Onfleet API request failed: ${onfleetAPIResponse.status} ${onfleetAPIResponse.statusText}`
+      );
     }
-    
+
     // Log the full error response for debugging
-    console.error('Full Onfleet error response:', JSON.stringify(errorData, null, 2));
-    
+    console.error(
+      'Full Onfleet error response:',
+      JSON.stringify(errorData, null, 2)
+    );
+
     // Extract message from Onfleet's varied error structure
     const specificMessage = errorData?.message?.message || errorData?.message;
-    const errorMessageContent = specificMessage || errorData?.error?.message || errorData?.cause || onfleetAPIResponse.statusText;
-    
+    const errorMessageContent =
+      specificMessage ||
+      errorData?.error?.message ||
+      errorData?.cause ||
+      onfleetAPIResponse.statusText;
+
     // Check if this is a duplicate phone number error
-    if (errorMessageContent && (errorMessageContent.includes('uniqueness constraint') || errorMessageContent.includes('already exists') || errorMessageContent.includes('DuplicatePhoneNumber'))) {
+    if (
+      errorMessageContent &&
+      (errorMessageContent.includes('uniqueness constraint') ||
+        errorMessageContent.includes('already exists') ||
+        errorMessageContent.includes('DuplicatePhoneNumber'))
+    ) {
       // Try to find the existing worker by phone number
       try {
         const workersAPIResponse = await fetch(
@@ -285,21 +343,23 @@ async function createOnfleetWorker(
             method: 'GET',
             headers: {
               Authorization: `Basic ${authHeader}`,
-            }
+            },
           }
         );
-        
+
         if (workersAPIResponse.ok) {
           const workersData = await workersAPIResponse.json();
           const existingWorker = workersData.find(
             (worker: any) => worker.phone === formattedPhone
           );
-          
+
           if (existingWorker) {
-            console.log('Debug - Found existing Onfleet worker, using existing ID');
+            console.log(
+              'Debug - Found existing Onfleet worker, using existing ID'
+            );
             return {
               onfleetWorkerId: existingWorker.id,
-              message: "Driver approved and linked to existing Onfleet worker"
+              message: 'Driver approved and linked to existing Onfleet worker',
             };
           }
         }
@@ -307,7 +367,7 @@ async function createOnfleetWorker(
         console.error('Error finding existing Onfleet worker:', findError);
       }
     }
-    
+
     throw new Error(String(errorMessageContent));
   }
 
@@ -315,6 +375,6 @@ async function createOnfleetWorker(
 
   return {
     onfleetWorkerId: onfleetData.id,
-    message: "Driver approved and registered with Onfleet successfully"
+    message: 'Driver approved and registered with Onfleet successfully',
   };
-} 
+}

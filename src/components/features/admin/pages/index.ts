@@ -27,3 +27,7 @@ export { AdminBlogReviewPage } from './AdminBlogReviewPage';
 // Phase 7: Location Page Management
 export { AdminLocationsPage } from './AdminLocationsPage';
 export { AdminLocationEditPage } from './AdminLocationEditPage';
+
+// Phase 8: Hauling Partner Management
+export { AdminHaulersPage } from './AdminHaulersPage';
+export { AdminHaulJobsPage } from './AdminHaulJobsPage';
