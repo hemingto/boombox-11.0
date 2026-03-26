@@ -1,12 +1,12 @@
 /**
  * @fileoverview Custom hook for fetching admin task data
  * @source boombox-10.0/src/app/admin/tasks/[taskId]/hooks/useTask.ts
- * 
+ *
  * HOOK FUNCTIONALITY:
  * - Fetches task data from /api/admin/tasks/[taskId] endpoint
  * - Manages loading and error states
  * - Supports various task types (feedback, cleaning, assignments, etc.)
- * 
+ *
  * @refactor Migrated from inline hooks folder to centralized hooks directory
  */
 
@@ -66,6 +66,7 @@ export interface Task {
   storageUnitNumber?: string;
   appointmentId?: string;
   usageId?: number;
+  warehouseId?: number;
 }
 
 /**
@@ -95,7 +96,9 @@ export function useTask(taskId: string) {
         if (!response.ok) {
           const errorText = await response.text();
           console.error('[useTask] API error response:', errorText);
-          throw new Error(`Failed to fetch task: ${response.status} ${errorText}`);
+          throw new Error(
+            `Failed to fetch task: ${response.status} ${errorText}`
+          );
         }
 
         const data = await response.json();
@@ -111,7 +114,9 @@ export function useTask(taskId: string) {
         }
       } catch (error) {
         console.error('[useTask] Error fetching task:', error);
-        setError(error instanceof Error ? error.message : 'Unknown error fetching task');
+        setError(
+          error instanceof Error ? error.message : 'Unknown error fetching task'
+        );
       } finally {
         setIsLoading(false);
       }
@@ -127,4 +132,3 @@ export function useTask(taskId: string) {
 
   return { task, isLoading, error };
 }
-

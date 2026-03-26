@@ -58,6 +58,7 @@ export interface InvoiceResult {
   success: boolean;
   invoice?: Stripe.Invoice;
   invoiceUrl?: string;
+  chargeId?: string;
   total: number;
   error?: string;
 }
@@ -136,13 +137,26 @@ export class StripeInvoiceService {
       // Finalize and pay the invoice
       await this.finalizeAndPayInvoice(invoice.id!);
 
-      // Get the finalized invoice with URL
-      const finalizedInvoice = await stripe.invoices.retrieve(invoice.id!);
+      // Get the finalized invoice with URL and charge ID
+      const finalizedInvoice = await stripe.invoices.retrieve(invoice.id!, {
+        expand: ['charge'],
+      });
+
+      // Extract charge ID for linking driver payout transfers via source_transaction
+      const chargeId =
+        typeof finalizedInvoice.charge === 'string'
+          ? finalizedInvoice.charge
+          : (finalizedInvoice.charge?.id ?? undefined);
+
+      if (chargeId) {
+        console.log(`Invoice ${invoice.id} paid via charge: ${chargeId}`);
+      }
 
       return {
         success: true,
         invoice: finalizedInvoice,
         invoiceUrl: finalizedInvoice.hosted_invoice_url!,
+        chargeId,
         total,
       };
     } catch (error) {

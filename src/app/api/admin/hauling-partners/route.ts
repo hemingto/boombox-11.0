@@ -20,7 +20,16 @@ export async function GET(): Promise<NextResponse> {
     const haulers = await prisma.haulingPartner.findMany({
       include: {
         vehicles: {
-          select: { id: true, isApproved: true, vehicleCategory: true },
+          select: {
+            id: true,
+            make: true,
+            model: true,
+            year: true,
+            licensePlate: true,
+            vehicleCategory: true,
+            vehicleType: true,
+            unitCapacity: true,
+          },
         },
         drivers: {
           include: {
@@ -29,9 +38,17 @@ export async function GET(): Promise<NextResponse> {
                 id: true,
                 firstName: true,
                 lastName: true,
+                email: true,
                 isApproved: true,
               },
             },
+          },
+        },
+        haulJobs: {
+          select: {
+            id: true,
+            jobCode: true,
+            status: true,
           },
         },
       },

@@ -517,14 +517,17 @@ export class AppointmentBillingService {
         throw new Error(`Invoice creation failed: ${invoiceResult.error}`);
       }
 
-      // Update appointment with invoice details and new status
+      // Update appointment with invoice details, charge ID, and new status
       await updateAppointmentStatus(appointment.id, newStatus, {
         invoiceUrl: invoiceResult.invoiceUrl,
         invoiceTotal: invoiceResult.total,
+        ...(invoiceResult.chargeId && {
+          stripeChargeId: invoiceResult.chargeId,
+        }),
       });
 
       console.log(
-        `Invoice created successfully: ${invoiceResult.invoice?.id}, Total: $${invoiceResult.total}`
+        `Invoice created successfully: ${invoiceResult.invoice?.id}, Total: $${invoiceResult.total}, Charge: ${invoiceResult.chargeId || 'N/A'}`
       );
 
       // Handle subscription creation for storage appointments

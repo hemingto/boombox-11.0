@@ -22,11 +22,13 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeftIcon, CubeIcon } from '@heroicons/react/24/outline';
 import { useTask } from '@/hooks';
 import { Button } from '@/components/ui/primitives/Button';
+import { Select } from '@/components/ui/primitives/Select/Select';
+import type { SelectOption } from '@/components/ui/primitives/Select/Select';
 
 interface Warehouse {
   id: number;
@@ -43,9 +45,7 @@ export function UpdateLocationPage({ taskId }: UpdateLocationPageProps) {
   const router = useRouter();
   const { task, isLoading, error } = useTask(taskId);
   const [warehouseLocation, setWarehouseLocation] = useState('');
-  const [selectedWarehouseId, setSelectedWarehouseId] = useState<number | ''>(
-    ''
-  );
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>('');
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -69,9 +69,18 @@ export function UpdateLocationPage({ taskId }: UpdateLocationPageProps) {
 
   useEffect(() => {
     if (task?.warehouseId && warehouses.length > 0) {
-      setSelectedWarehouseId(task.warehouseId);
+      setSelectedWarehouseId(String(task.warehouseId));
     }
   }, [task, warehouses]);
+
+  const warehouseOptions: SelectOption[] = useMemo(
+    () =>
+      warehouses.map(wh => ({
+        value: String(wh.id),
+        label: `${wh.name} — ${wh.city}, ${wh.state}`,
+      })),
+    [warehouses]
+  );
 
   const handleSubmit = async () => {
     if (!warehouseLocation.trim()) {
@@ -91,7 +100,9 @@ export function UpdateLocationPage({ taskId }: UpdateLocationPageProps) {
           },
           body: JSON.stringify({
             warehouseLocation: warehouseLocation,
-            warehouseId: selectedWarehouseId || undefined,
+            warehouseId: selectedWarehouseId
+              ? Number(selectedWarehouseId)
+              : undefined,
           }),
         }
       );
@@ -186,27 +197,16 @@ export function UpdateLocationPage({ taskId }: UpdateLocationPageProps) {
               </h2>
 
               <div className="mb-6 max-w-lg">
-                <label htmlFor="warehouse" className="form-label">
-                  Warehouse
-                </label>
-                <select
+                <Select
                   id="warehouse"
+                  label="Warehouse"
+                  placeholder="Select a warehouse"
+                  options={warehouseOptions}
                   value={selectedWarehouseId}
-                  onChange={e =>
-                    setSelectedWarehouseId(
-                      e.target.value ? Number(e.target.value) : ''
-                    )
-                  }
-                  className="input-field"
-                  aria-label="Select warehouse"
-                >
-                  <option value="">Select a warehouse</option>
-                  {warehouses.map(wh => (
-                    <option key={wh.id} value={wh.id}>
-                      {wh.name} — {wh.city}, {wh.state}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setSelectedWarehouseId}
+                  name="warehouse"
+                  fullWidth
+                />
               </div>
 
               <div className="mb-6 max-w-lg">

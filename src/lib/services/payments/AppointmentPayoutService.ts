@@ -8,7 +8,7 @@ import { prisma } from '@/lib/database/prismaClient';
 import { stripe } from '@/lib/integrations/stripeClient';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { driverPayoutNotificationTemplate } from '@/lib/messaging/templates/sms/payment';
-import { formatCurrency } from '@/lib/utils/currencyUtils';
+import { formatCurrency } from '@/lib/utils';
 
 export interface PayoutResult {
   success: boolean;
@@ -37,7 +37,7 @@ function calculatePlatformFee(amount: number, workerType: string): number {
     return 0;
   }
   const percentageFee = amount * 0.15;
-  const minimumFee = 0.30;
+  const minimumFee = 0.3;
   return Math.max(percentageFee, minimumFee);
 }
 
@@ -45,8 +45,8 @@ function calculatePlatformFee(amount: number, workerType: string): number {
  * Helper function to update payout status for multiple tasks
  */
 async function updateAllTaskPayoutStatus(
-  tasks: any[], 
-  status: string, 
+  tasks: any[],
+  status: string,
   failureReason?: string
 ): Promise<void> {
   for (const task of tasks) {
@@ -56,8 +56,8 @@ async function updateAllTaskPayoutStatus(
         payoutStatus: status,
         payoutFailureReason: failureReason || null,
         payoutRetryCount: status === 'failed' ? { increment: 1 } : undefined,
-        payoutLastAttemptAt: new Date()
-      }
+        payoutLastAttemptAt: new Date(),
+      },
     });
   }
 }
@@ -66,44 +66,50 @@ async function updateAllTaskPayoutStatus(
  * Process payout for all tasks in an appointment when job is complete (Step 3)
  * Aggregates all task costs and pays the worker once for the complete job
  */
-export async function processAppointmentPayout(appointmentId: number): Promise<PayoutResult> {
+export async function processAppointmentPayout(
+  appointmentId: number
+): Promise<PayoutResult> {
   try {
-    console.log(`Processing appointment payout for appointment ${appointmentId}`);
-    
+    console.log(
+      `Processing appointment payout for appointment ${appointmentId}`
+    );
+
     // Get all tasks for this appointment with their costs
     const tasks = await prisma.onfleetTask.findMany({
       where: { appointmentId },
       include: {
         appointment: {
           include: {
-            movingPartner: true
-          }
+            movingPartner: true,
+          },
         },
-        driver: true
-      }
+        driver: true,
+      },
     });
 
     if (tasks.length === 0) {
       return {
         success: false,
-        error: 'No tasks found for appointment'
+        error: 'No tasks found for appointment',
       };
     }
 
     // Check if any task already has a completed payout
-    const completedPayout = tasks.find(task => task.payoutStatus === 'completed');
+    const completedPayout = tasks.find(
+      task => task.payoutStatus === 'completed'
+    );
     if (completedPayout) {
       return {
         success: true,
         transferId: completedPayout.payoutTransferId!,
         amount: completedPayout.payoutAmount!,
-        error: 'Payout already completed for this appointment'
+        error: 'Payout already completed for this appointment',
       };
     }
 
     // Get the first task to determine worker type and details
     const firstTask = tasks[0];
-    
+
     // Calculate total payout amount by summing all task costs
     // Also calculate breakdown totals for logging and metadata
     let totalPayoutAmount = 0;
@@ -112,27 +118,29 @@ export async function processAppointmentPayout(appointmentId: number): Promise<P
     let totalDriveTime = 0;
     let totalServiceTime = 0;
     let costsCalculated = 0;
-    
+
     for (const task of tasks) {
       // Use actualCost if available, otherwise use estimatedCost
       const taskCost = task.actualCost || task.estimatedCost || 0;
       totalPayoutAmount += taskCost;
-      
+
       // Aggregate breakdown components (use actual breakdown if available, otherwise use estimated)
       totalFixedFee += task.fixedFeePay || 0;
       totalMileage += task.mileagePay || 0;
       totalDriveTime += task.driveTimePay || 0;
       totalServiceTime += task.serviceTimePay || 0;
-      
+
       if (taskCost > 0) costsCalculated++;
-      
-      console.log(`Task ${task.shortId} (Step ${task.stepNumber}): $${taskCost.toFixed(2)} [fixed: $${task.fixedFeePay || 0}, mileage: $${task.mileagePay || 0}, drive: $${task.driveTimePay || 0}, service: $${task.serviceTimePay || 0}] (${task.actualCost ? 'actual' : 'estimated'})`);
+
+      console.log(
+        `Task ${task.shortId} (Step ${task.stepNumber}): $${taskCost.toFixed(2)} [fixed: $${task.fixedFeePay || 0}, mileage: $${task.mileagePay || 0}, drive: $${task.driveTimePay || 0}, service: $${task.serviceTimePay || 0}] (${task.actualCost ? 'actual' : 'estimated'})`
+      );
     }
 
     if (costsCalculated === 0) {
       return {
         success: false,
-        error: 'No costs calculated for any tasks in appointment'
+        error: 'No costs calculated for any tasks in appointment',
       };
     }
 
@@ -148,45 +156,65 @@ export async function processAppointmentPayout(appointmentId: number): Promise<P
     let workerName: string = '';
     let workerPhone: string | null = null;
 
-    if (firstTask.workerType === 'moving_partner' && firstTask.appointment.movingPartner) {
-      stripeConnectAccountId = firstTask.appointment.movingPartner.stripeConnectAccountId;
+    if (
+      firstTask.workerType === 'moving_partner' &&
+      firstTask.appointment.movingPartner
+    ) {
+      stripeConnectAccountId =
+        firstTask.appointment.movingPartner.stripeConnectAccountId;
       workerName = firstTask.appointment.movingPartner.name;
       workerPhone = firstTask.appointment.movingPartner.phoneNumber;
-      
+
       // Verify moving partner account is ready for payouts
       if (!firstTask.appointment.movingPartner.stripeConnectPayoutsEnabled) {
-        await updateAllTaskPayoutStatus(tasks, 'failed', 'Moving partner Stripe account not enabled for payouts');
+        await updateAllTaskPayoutStatus(
+          tasks,
+          'failed',
+          'Moving partner Stripe account not enabled for payouts'
+        );
         return {
           success: false,
-          error: 'Moving partner Stripe account not enabled for payouts'
+          error: 'Moving partner Stripe account not enabled for payouts',
         };
       }
     } else if (firstTask.workerType === 'boombox_driver' && firstTask.driver) {
       stripeConnectAccountId = firstTask.driver.stripeConnectAccountId;
       workerName = `${firstTask.driver.firstName} ${firstTask.driver.lastName}`;
       workerPhone = firstTask.driver.phoneNumber;
-      
+
       // Verify driver account is ready for payouts
       if (!firstTask.driver.stripeConnectPayoutsEnabled) {
-        await updateAllTaskPayoutStatus(tasks, 'failed', 'Driver Stripe account not enabled for payouts');
+        await updateAllTaskPayoutStatus(
+          tasks,
+          'failed',
+          'Driver Stripe account not enabled for payouts'
+        );
         return {
           success: false,
-          error: 'Driver Stripe account not enabled for payouts'
+          error: 'Driver Stripe account not enabled for payouts',
         };
       }
     } else {
-      await updateAllTaskPayoutStatus(tasks, 'failed', 'No worker found or worker type not recognized');
+      await updateAllTaskPayoutStatus(
+        tasks,
+        'failed',
+        'No worker found or worker type not recognized'
+      );
       return {
         success: false,
-        error: 'No worker found or worker type not recognized'
+        error: 'No worker found or worker type not recognized',
       };
     }
 
     if (!stripeConnectAccountId) {
-      await updateAllTaskPayoutStatus(tasks, 'failed', 'Worker does not have a Stripe Connect account');
+      await updateAllTaskPayoutStatus(
+        tasks,
+        'failed',
+        'Worker does not have a Stripe Connect account'
+      );
       return {
         success: false,
-        error: 'Worker does not have a Stripe Connect account'
+        error: 'Worker does not have a Stripe Connect account',
       };
     }
 
@@ -195,14 +223,21 @@ export async function processAppointmentPayout(appointmentId: number): Promise<P
 
     // Calculate platform fee and net payout
     // Platform fee only applies to moving partners, not Boombox delivery drivers
-    const platformFeeAmount = calculatePlatformFee(totalPayoutAmount, firstTask.workerType || 'boombox_driver');
+    const platformFeeAmount = calculatePlatformFee(
+      totalPayoutAmount,
+      firstTask.workerType || 'boombox_driver'
+    );
     const netPayoutAmount = totalPayoutAmount - platformFeeAmount;
 
-    console.log(`Platform fee: $${platformFeeAmount}, Net payout: $${netPayoutAmount}`);
+    console.log(
+      `Platform fee: $${platformFeeAmount}, Net payout: $${netPayoutAmount}`
+    );
 
     // Create Stripe Connect transfer for the entire job
-    // Using idempotency key to prevent duplicate payouts on retries
-    const transfer = await stripe.transfers.create({
+    // Using source_transaction to tie the transfer to the customer's invoice charge,
+    // which prevents "insufficient funds" errors on the platform account.
+    // Using idempotency key to prevent duplicate payouts on retries.
+    const transferParams: Record<string, unknown> = {
       amount: Math.round(netPayoutAmount * 100), // Convert to cents
       currency: 'usd',
       destination: stripeConnectAccountId,
@@ -212,16 +247,31 @@ export async function processAppointmentPayout(appointmentId: number): Promise<P
         workerType: firstTask.workerType || 'unknown',
         totalTasks: tasks.length.toString(),
         appointmentType: firstTask.appointment.appointmentType,
-        // Payout breakdown for auditing
         grossAmount: totalPayoutAmount.toFixed(2),
         platformFee: platformFeeAmount.toFixed(2),
         fixedFee: totalFixedFee.toFixed(2),
         mileage: totalMileage.toFixed(2),
         driveTime: totalDriveTime.toFixed(2),
-        serviceTime: totalServiceTime.toFixed(2)
-      }
-    }, {
-      idempotencyKey: `appointment-payout-${appointmentId}`
+        serviceTime: totalServiceTime.toFixed(2),
+      },
+    };
+
+    // Link transfer to the customer's invoice charge so Stripe funds it
+    // from that payment rather than requiring available platform balance
+    const stripeChargeId = firstTask.appointment.stripeChargeId;
+    if (stripeChargeId) {
+      transferParams.source_transaction = stripeChargeId;
+      console.log(
+        `Using source_transaction: ${stripeChargeId} for appointment ${appointmentId} payout`
+      );
+    } else {
+      console.warn(
+        `No stripeChargeId found for appointment ${appointmentId} — transfer will use platform balance`
+      );
+    }
+
+    const transfer = await stripe.transfers.create(transferParams, {
+      idempotencyKey: `appointment-payout-${appointmentId}`,
     });
 
     // Update all tasks with successful payout details
@@ -234,12 +284,14 @@ export async function processAppointmentPayout(appointmentId: number): Promise<P
           payoutTransferId: transfer.id,
           payoutProcessedAt: new Date(),
           payoutFailureReason: null,
-          payoutLastAttemptAt: new Date()
-        }
+          payoutLastAttemptAt: new Date(),
+        },
       });
     }
 
-    console.log(`Appointment payout completed: $${netPayoutAmount} to ${workerName} (${firstTask.workerType}) for ${tasks.length} tasks`);
+    console.log(
+      `Appointment payout completed: $${netPayoutAmount} to ${workerName} (${firstTask.workerType}) for ${tasks.length} tasks`
+    );
 
     // Send SMS notification to worker
     if (workerPhone) {
@@ -248,12 +300,14 @@ export async function processAppointmentPayout(appointmentId: number): Promise<P
         await MessageService.sendSms(
           workerPhone,
           driverPayoutNotificationTemplate,
-          { 
-            payoutAmount: formatCurrency(netPayoutAmount), 
-            jobCode: jobCode.toString()
+          {
+            payoutAmount: formatCurrency(netPayoutAmount),
+            jobCode: jobCode.toString(),
           }
         );
-        console.log(`Payout SMS sent to ${workerName} (${workerPhone}): ${formatCurrency(netPayoutAmount)}`);
+        console.log(
+          `Payout SMS sent to ${workerName} (${workerPhone}): ${formatCurrency(netPayoutAmount)}`
+        );
       } catch (smsError) {
         console.error('Error sending payout SMS:', smsError);
         // Don't fail the payout if SMS fails
@@ -263,22 +317,29 @@ export async function processAppointmentPayout(appointmentId: number): Promise<P
     return {
       success: true,
       transferId: transfer.id,
-      amount: netPayoutAmount
+      amount: netPayoutAmount,
     };
-
   } catch (error: any) {
-    console.error(`Appointment payout failed for appointment ${appointmentId}:`, error);
-    
+    console.error(
+      `Appointment payout failed for appointment ${appointmentId}:`,
+      error
+    );
+
     // Update all tasks with failure
     const tasks = await prisma.onfleetTask.findMany({
-      where: { appointmentId }
+      where: { appointmentId },
     });
-    
-    await updateAllTaskPayoutStatus(tasks, 'failed', error.message || 'Unknown error');
+
+    await updateAllTaskPayoutStatus(
+      tasks,
+      'failed',
+      error.message || 'Unknown error'
+    );
 
     return {
       success: false,
-      error: error.message || 'Unknown error occurred during appointment payout'
+      error:
+        error.message || 'Unknown error occurred during appointment payout',
     };
   }
 }
@@ -312,22 +373,35 @@ export async function getAppointmentPayoutSummary(appointmentId: number) {
       payoutTransferId: true,
       payoutProcessedAt: true,
       payoutFailureReason: true,
-      workerType: true
-    }
+      workerType: true,
+    },
   });
 
   // Calculate totals
-  const totalCost = tasks.reduce((sum, task) => sum + (task.actualCost || task.estimatedCost || 0), 0);
-  const totalPayouts = tasks.reduce((sum, task) => sum + (task.payoutAmount || 0), 0);
-  const completedPayouts = tasks.filter(task => task.payoutStatus === 'completed').length;
-  const failedPayouts = tasks.filter(task => task.payoutStatus === 'failed').length;
+  const totalCost = tasks.reduce(
+    (sum, task) => sum + (task.actualCost || task.estimatedCost || 0),
+    0
+  );
+  const totalPayouts = tasks.reduce(
+    (sum, task) => sum + (task.payoutAmount || 0),
+    0
+  );
+  const completedPayouts = tasks.filter(
+    task => task.payoutStatus === 'completed'
+  ).length;
+  const failedPayouts = tasks.filter(
+    task => task.payoutStatus === 'failed'
+  ).length;
 
   // Calculate breakdown totals
   const breakdown = {
     fixedFee: tasks.reduce((sum, task) => sum + (task.fixedFeePay || 0), 0),
     mileage: tasks.reduce((sum, task) => sum + (task.mileagePay || 0), 0),
     driveTime: tasks.reduce((sum, task) => sum + (task.driveTimePay || 0), 0),
-    serviceTime: tasks.reduce((sum, task) => sum + (task.serviceTimePay || 0), 0),
+    serviceTime: tasks.reduce(
+      (sum, task) => sum + (task.serviceTimePay || 0),
+      0
+    ),
   };
 
   return {
@@ -363,27 +437,29 @@ export async function getAppointmentPayoutSummary(appointmentId: number) {
       transferId: task.payoutTransferId,
       processedAt: task.payoutProcessedAt,
       failureReason: task.payoutFailureReason,
-      workerType: task.workerType
-    }))
+      workerType: task.workerType,
+    })),
   };
 }
 
 /**
  * Retry failed payouts for appointments
  */
-export async function retryFailedAppointmentPayouts(maxRetries: number = 10): Promise<PayoutSummary[]> {
+export async function retryFailedAppointmentPayouts(
+  maxRetries: number = 10
+): Promise<PayoutSummary[]> {
   const failedTasks = await prisma.onfleetTask.findMany({
     where: {
       payoutStatus: 'failed',
       payoutRetryCount: { lt: 3 },
-      actualCost: { not: null }
+      actualCost: { not: null },
     },
     take: maxRetries,
     orderBy: { payoutLastAttemptAt: 'asc' },
     select: {
-      appointmentId: true
+      appointmentId: true,
     },
-    distinct: ['appointmentId']
+    distinct: ['appointmentId'],
   });
 
   const results: PayoutSummary[] = [];
@@ -394,7 +470,7 @@ export async function retryFailedAppointmentPayouts(maxRetries: number = 10): Pr
     processedAppointments.add(task.appointmentId);
 
     const result = await processAppointmentPayout(task.appointmentId);
-    
+
     results.push({
       taskId: `appointment-${task.appointmentId}`,
       workerType: 'boombox_driver',
@@ -402,7 +478,7 @@ export async function retryFailedAppointmentPayouts(maxRetries: number = 10): Pr
       amount: result.amount || 0,
       status: result.success ? 'completed' : 'failed',
       transferId: result.transferId,
-      error: result.error
+      error: result.error,
     });
   }
 
@@ -413,5 +489,5 @@ export async function retryFailedAppointmentPayouts(maxRetries: number = 10): Pr
 export const AppointmentPayoutService = {
   processAppointmentPayout,
   getAppointmentPayoutSummary,
-  retryFailedAppointmentPayouts
+  retryFailedAppointmentPayouts,
 };

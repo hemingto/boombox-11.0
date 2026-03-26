@@ -129,7 +129,7 @@ export function AdminHaulersPage() {
       const response = await fetch('/api/admin/hauling-partners');
       if (!response.ok) throw new Error('Failed to fetch hauling partners');
       const data = await response.json();
-      setHaulers(data);
+      setHaulers(data.haulers);
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Unknown error'));
     } finally {
