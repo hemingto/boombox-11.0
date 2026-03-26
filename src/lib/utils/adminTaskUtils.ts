@@ -914,21 +914,21 @@ export async function updateStorageUnitWarehouseLocation(
   adminId: number,
   warehouseId?: number
 ) {
-  return await prisma.$transaction(async prisma => {
-    const usage = await prisma.storageUnitUsage.findUnique({
-      where: { id: usageId },
-      include: { storageUnit: true },
-    });
+  const usage = await prisma.storageUnitUsage.findUnique({
+    where: { id: usageId },
+    include: { storageUnit: true },
+  });
 
-    if (!usage) {
-      throw new Error('Storage unit usage not found');
-    }
+  if (!usage) {
+    throw new Error('Storage unit usage not found');
+  }
 
-    const resolvedWarehouseId =
-      warehouseId ?? usage.warehouseId ?? (await getDefaultWarehouseId());
-    const warehouseName = await resolveWarehouseName(resolvedWarehouseId);
+  const resolvedWarehouseId =
+    warehouseId ?? usage.warehouseId ?? (await getDefaultWarehouseId());
+  const warehouseName = await resolveWarehouseName(resolvedWarehouseId);
 
-    const updatedUsage = await prisma.storageUnitUsage.update({
+  return await prisma.$transaction(async tx => {
+    const updatedUsage = await tx.storageUnitUsage.update({
       where: { id: usageId },
       data: {
         warehouseLocation,
@@ -937,8 +937,7 @@ export async function updateStorageUnitWarehouseLocation(
       },
     });
 
-    // Create admin log entry
-    const adminLog = await prisma.adminLog.create({
+    const adminLog = await tx.adminLog.create({
       data: {
         adminId: adminId,
         action: `UPDATE_WAREHOUSE_LOCATION: Updated warehouse location for unit ${usage.storageUnit.storageUnitNumber} to ${warehouseLocation}`,
