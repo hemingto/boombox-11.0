@@ -149,7 +149,7 @@ export function QuoteBuilder({
         </div>
 
         {/* Storage Term Selection */}
-        <div className="mb-4 sm:mb-8">
+        <div className="mt-8 mb-4 sm:mb-8">
           <StorageTermSelector
             selectedTerm={selectedStorageTerm}
             onTermChange={onStorageTermChange}

@@ -34,7 +34,7 @@ export default async function DriverPaymentPage({
       <div className="flex flex-col lg:px-16 px-6 max-w-5xl w-full mx-auto mb-16">
         {/* Pay Breakdown Note */}
         <div
-          className="mb-8 p-3 border border-border rounded-md max-w-fit"
+          className="-mt-4 mb-8 p-3 border border-border rounded-md max-w-fit"
           role="note"
           aria-label="Driver pay breakdown information"
         >
