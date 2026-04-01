@@ -26,7 +26,8 @@ import {
 } from '@/lib/validations/api.validations';
 import { NotificationService } from '@/lib/services/NotificationService';
 import { TimeSlotBookingService } from '@/lib/services/TimeSlotBookingService';
-import { deleteDriverTimeSlotBooking } from '@/lib/utils';
+// eslint-disable-next-line no-restricted-imports -- server-side only; not safe to re-export from central index
+import { deleteDriverTimeSlotBooking } from '@/lib/utils/driverAssignmentUtils';
 
 // Cancellation fee configuration
 const CANCELLATION_FEE = 65; // $65 fee for cancellations within 48 hours

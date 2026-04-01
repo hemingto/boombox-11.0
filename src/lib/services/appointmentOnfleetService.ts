@@ -6,14 +6,15 @@
 
 import { prisma } from '@/lib/database/prismaClient';
 import { geocodeAddress } from '@/lib/services/geocodingService';
+// eslint-disable-next-line no-restricted-imports -- server-side only; not safe to re-export from central index
 import {
   calculateTaskTimeWindows,
   updateStorageUnitNotes,
   buildTaskDestination,
   type TaskPayload,
   WAREHOUSE_ADDRESS,
-  parseAddress,
-} from '@/lib/utils';
+} from '@/lib/utils/onfleetTaskUtils';
+import { parseAddress } from '@/lib/utils';
 import {
   calculateStepCostBreakdown,
   calculateTravelMetrics,

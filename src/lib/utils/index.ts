@@ -192,14 +192,9 @@ export * from './sessionUtils';
 // Webhook / storage-usage query utilities (explicit exports)
 export { findActiveStorageUsage } from './webhookQueries';
 
-// Onfleet task utilities (explicit exports for server-side usage)
-export {
-  calculateTaskTimeWindows,
-  updateStorageUnitNotes,
-  buildTaskDestination,
-  type TaskPayload,
-  WAREHOUSE_ADDRESS,
-} from './onfleetTaskUtils';
+// NOTE: onfleetTaskUtils contains server-side code (Onfleet client) and should
+// only be imported directly in API routes and Server Components, not exported here
+// to avoid bundling Node.js modules (fs, net, tls) in client code.
 
-// Driver assignment utilities (explicit exports for server-side usage)
-export { deleteDriverTimeSlotBooking } from './driverAssignmentUtils';
+// NOTE: driverAssignmentUtils contains server-side code (Prisma) and should
+// only be imported directly in API routes and Server Components, not exported here.
