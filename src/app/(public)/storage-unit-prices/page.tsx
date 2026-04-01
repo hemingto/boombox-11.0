@@ -49,7 +49,7 @@ export default function StorageUnitPrices() {
   return (
     <>
       <HeroSection
-        title="Cheaper than self storage"
+        title="More affordable than self storage"
         buttontext="Check Rate"
         images={STORAGE_HERO_IMAGES}
         shuffleKey="storage-hero"

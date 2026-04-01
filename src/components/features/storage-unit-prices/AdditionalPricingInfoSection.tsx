@@ -27,17 +27,91 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/20/solid';
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll';
+
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+function drawFromShuffleBag(storageKey: string, allImages: string[]): string {
+  try {
+    const stored = sessionStorage.getItem(storageKey);
+    let remaining: string[] = stored ? JSON.parse(stored) : [];
+
+    if (remaining.length === 0) {
+      remaining = shuffleArray(allImages);
+    }
+
+    const selected = remaining.pop()!;
+    sessionStorage.setItem(storageKey, JSON.stringify(remaining));
+    return selected;
+  } catch {
+    return allImages[Math.floor(Math.random() * allImages.length)];
+  }
+}
 
 interface PricingStep {
   title: string;
   subtitle: string;
   description: string;
-  imageSrc: string;
+  images: string[];
+  shuffleKey: string;
+  fallbackImage: string;
   imageAlt: string;
+}
+
+function PricingCard({ step }: { step: PricingStep }) {
+  const [imageSrc] = useState(() => {
+    if (typeof window === 'undefined') return step.fallbackImage;
+    return drawFromShuffleBag(step.shuffleKey, step.images);
+  });
+
+  const [imageError, setImageError] = useState(false);
+  const resolvedSrc = imageError ? step.fallbackImage : imageSrc;
+
+  return (
+    <div className="flex-none">
+      <article className="relative bg-surface-tertiary w-[297.6px] sm:w-[372px] h-[569.6px] sm:h-[712px] rounded-3xl transform transition-transform duration-300 sm:hover:scale-[102%] hover:z-10 overflow-hidden">
+        <div className="absolute inset-0 w-full h-full">
+          <Image
+            src={resolvedSrc}
+            alt={step.imageAlt}
+            fill
+            className="object-fill"
+            loading="lazy"
+            quality={85}
+            sizes="(max-width: 640px) 297.6px, 372px"
+            onError={() => setImageError(true)}
+          />
+        </div>
+
+        <div
+          className="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-transparent"
+          aria-hidden="true"
+        />
+
+        <div className="relative z-10">
+          <p className="bg-surface-primary rounded-full py-2.5 px-4 font-semibold inline-block m-4 text-sm font-inter text-text-primary">
+            {step.title}
+          </p>
+          <h2 className="ml-5 mb-2 text-text-inverse drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
+            {step.subtitle}
+          </h2>
+          <p className="mx-5 text-text-inverse drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
+            {step.description}
+          </p>
+        </div>
+      </article>
+    </div>
+  );
 }
 
 export function AdditionalPricingInfoSection(): React.ReactElement {
@@ -46,14 +120,20 @@ export function AdditionalPricingInfoSection(): React.ReactElement {
       gap: 16,
     });
 
-  // Pricing information content
   const steps: PricingStep[] = [
     {
       title: 'Free',
       subtitle: 'Initial Delivery',
       description:
         'Your Boombox is delivered right to your door. Free for the first hour, $50/hr after first hour.',
-      imageSrc: '/storage-unit-prices/initial-pickup.png',
+      images: [
+        '/storage-unit-prices/initial-delivery/initial-delivery-a.png',
+        '/storage-unit-prices/initial-delivery/initial-delivery-b.png',
+        '/storage-unit-prices/initial-delivery/initial-delivery-c.png',
+        '/storage-unit-prices/initial-delivery/initial-delivery-d.png',
+      ],
+      shuffleKey: 'pricing-initial-delivery',
+      fallbackImage: '/storage-unit-prices/initial-pickup.png',
       imageAlt: 'Mobile storage unit being delivered to customer location',
     },
     {
@@ -61,7 +141,14 @@ export function AdditionalPricingInfoSection(): React.ReactElement {
       subtitle: 'Optional Loading Help',
       description:
         'We partner with local moving pros to save your back and your wallet.',
-      imageSrc: '/storage-unit-prices/loading-help.png',
+      images: [
+        '/storage-unit-prices/loading-help/loading-help-a.png',
+        '/storage-unit-prices/loading-help/loading-help-b.png',
+        '/storage-unit-prices/loading-help/loading-help-c.png',
+        '/storage-unit-prices/loading-help/loading-help-d.png',
+      ],
+      shuffleKey: 'pricing-loading-help',
+      fallbackImage: '/storage-unit-prices/loading-help.png',
       imageAlt: 'Professional movers helping load items into storage unit',
     },
     {
@@ -69,7 +156,14 @@ export function AdditionalPricingInfoSection(): React.ReactElement {
       subtitle: 'Storage Unit Access',
       description:
         "Need something back? We'll deliver your storage unit to where you need us.",
-      imageSrc: '/storage-unit-prices/storage-access.png',
+      images: [
+        '/storage-unit-prices/storage-access/storage-access-a.png',
+        '/storage-unit-prices/storage-access/storage-access-b.png',
+        '/storage-unit-prices/storage-access/storage-access-c.png',
+        '/storage-unit-prices/storage-access/storage-access-d.png',
+      ],
+      shuffleKey: 'pricing-storage-access',
+      fallbackImage: '/storage-unit-prices/storage-access.png',
       imageAlt:
         'Storage unit access service - unit being delivered for customer access',
     },
@@ -78,7 +172,14 @@ export function AdditionalPricingInfoSection(): React.ReactElement {
       subtitle: 'Packing Supplies',
       description:
         'Need packing supplies? Order boxes, tape, and more from our online store.',
-      imageSrc: '/storage-unit-prices/packing-supplies.png',
+      images: [
+        '/storage-unit-prices/packing-supplies/packing-supplies-a.png',
+        '/storage-unit-prices/packing-supplies/packing-supplies-b.png',
+        '/storage-unit-prices/packing-supplies/packing-supplies-c.png',
+        '/storage-unit-prices/packing-supplies/packing-supplies-d.png',
+      ],
+      shuffleKey: 'pricing-packing-supplies',
+      fallbackImage: '/storage-unit-prices/packing-supplies.png',
       imageAlt: 'Packing supplies including boxes, tape, and moving materials',
     },
   ];
@@ -131,41 +232,7 @@ export function AdditionalPricingInfoSection(): React.ReactElement {
           className="lg:px-16 px-6 py-4 flex gap-4 flex-nowrap"
         >
           {steps.map((step, index) => (
-            <div key={index} className="flex-none">
-              <article className="relative bg-surface-tertiary w-[297.6px] sm:w-[372px] h-[569.6px] sm:h-[712px] rounded-3xl transform transition-transform duration-300 sm:hover:scale-[102%] hover:z-10 overflow-hidden">
-                {/* Background image - spans entire card */}
-                <div className="absolute inset-0 w-full h-full">
-                  <Image
-                    src={step.imageSrc}
-                    alt={step.imageAlt}
-                    fill
-                    className="object-fill"
-                    loading="lazy"
-                    quality={85}
-                    sizes="(max-width: 640px) 297.6px, 372px"
-                  />
-                </div>
-
-                {/* Gradient overlay for text readability */}
-                <div
-                  className="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-transparent"
-                  aria-hidden="true"
-                />
-
-                {/* Content section - positioned at top, overlays the image */}
-                <div className="relative z-10">
-                  <p className="bg-surface-primary rounded-full py-2.5 px-4 font-semibold inline-block m-4 text-sm font-inter text-text-primary">
-                    {step.title}
-                  </p>
-                  <h2 className="ml-5 mb-2 text-text-inverse drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
-                    {step.subtitle}
-                  </h2>
-                  <p className="mx-5 text-text-inverse drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
-                    {step.description}
-                  </p>
-                </div>
-              </article>
-            </div>
+            <PricingCard key={index} step={step} />
           ))}
 
           {/* Spacer div for proper scrolling */}
