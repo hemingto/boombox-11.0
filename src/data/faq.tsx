@@ -672,13 +672,27 @@ export const faqs: {
     question: 'Is there a minimum payment term?',
     answer: (
       <>
-        Yes, the minimum payment term is 2 months. You can receive your items
-        back before the two-month period has ended, but you'll still be charged
-        for the minimum term of 2 months.
+        No, there is no minimum payment term! However, you can unlock pickup and
+        delivery perks by storing longer:
         <br />
         <br />
-        If you have a clear idea of how long you'll be storing your items,
-        please let us know as it helps us make sure our operation runs smoothly.
+        <ul
+          className="list-disc list-inside ml-6"
+          style={{ listStylePosition: 'outside' }}
+        >
+          <li className="mb-2">
+            <strong>Less than 6 months:</strong> Pickup is $75 and delivery is
+            $75.
+          </li>
+          <li className="mb-2">
+            <strong>6+ months:</strong> Pickup is free. Delivery is $75.
+          </li>
+          <li className="mb-2">
+            <strong>12+ months:</strong> Pickup and delivery are both free.
+          </li>
+        </ul>
+        <br />
+        The longer you store, the more you save!
       </>
     ),
     category: 'Pricing',

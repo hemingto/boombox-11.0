@@ -103,6 +103,47 @@ export async function POST(req: Request) {
       );
     }
 
+    // For End Storage Term, look up the original appointment's term data
+    // so early termination bill-back logic works correctly
+    let originalTermData: {
+      storageTerm?: string | null;
+      pickupFeeWaived?: boolean;
+      returnFeeWaived?: boolean;
+      returnFee?: number | null;
+    } = {};
+
+    if (
+      deliveryReason === 'End storage term' ||
+      deliveryReason === 'End Storage Term'
+    ) {
+      const originalUsage = await prisma.storageUnitUsage.findFirst({
+        where: {
+          userId: numericUserId,
+          storageUnitId: numericStorageUnitIds[0],
+          usageEndDate: null,
+        },
+        include: {
+          startAppointment: {
+            select: {
+              storageTerm: true,
+              pickupFeeWaived: true,
+              returnFeeWaived: true,
+              returnFee: true,
+            },
+          },
+        },
+      });
+
+      if (originalUsage?.startAppointment) {
+        originalTermData = {
+          storageTerm: originalUsage.startAppointment.storageTerm,
+          pickupFeeWaived: originalUsage.startAppointment.pickupFeeWaived,
+          returnFeeWaived: originalUsage.startAppointment.returnFeeWaived,
+          returnFee: originalUsage.startAppointment.returnFee,
+        };
+      }
+    }
+
     // Prepare appointment data
     const appointmentData: StorageAccessAppointmentData = {
       userId: numericUserId,
@@ -124,6 +165,7 @@ export async function POST(req: Request) {
       thirdPartyMovingPartnerId: thirdPartyMovingPartnerId
         ? parseInt(String(thirdPartyMovingPartnerId), 10)
         : undefined,
+      ...originalTermData,
     };
 
     // Create the appointment using centralized utility

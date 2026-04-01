@@ -81,6 +81,8 @@ interface MyQuoteProps {
   planType?: string;
   // Green date scheduling discount
   hasGreenDateDiscount?: boolean;
+  // Free delivery for 12+ month customers
+  isAccessDeliveryFree?: boolean;
 }
 
 const containerStyle = {
@@ -128,6 +130,7 @@ export function MyQuote({
   storageTerm = null,
   planType = '',
   hasGreenDateDiscount = false,
+  isAccessDeliveryFree = false,
 }: MyQuoteProps) {
   // Only treat as DIY once a plan has actually been selected (selectedPlanName
   // is empty until the user picks one). This prevents the pickup fee from
@@ -162,6 +165,7 @@ export function MyQuote({
     storageTerm,
     planType: effectivePlanType,
     hasGreenDateDiscount,
+    isAccessDeliveryFree,
   });
 
   // Get Boombox price for display
@@ -329,10 +333,19 @@ export function MyQuote({
                 Storage Unit{' '}
                 {accessStorageUnitCount > 1 ? 'Deliveries' : 'Delivery'}{' '}
               </p>
-              <p className="text-text-primary">
-                {accessStorageUnitCount > 0
-                  ? `$${accessStorageUnitCount * accessStorageUnitPricing}`
-                  : '---'}
+              <p className="text-text-primary flex items-center gap-1">
+                {isAccessDeliveryFree && accessStorageUnitCount > 0 ? (
+                  <>
+                    <span className="px-2.5 py-1 text-xs rounded-full bg-status-bg-success text-status-success font-medium">
+                      Free Delivery
+                    </span>
+                    $0
+                  </>
+                ) : accessStorageUnitCount > 0 ? (
+                  `$${accessStorageUnitCount * accessStorageUnitPricing}`
+                ) : (
+                  '---'
+                )}
               </p>
             </div>
           )}
@@ -595,10 +608,19 @@ export function MyQuote({
                         ? 'Deliveries'
                         : 'Delivery'}{' '}
                     </p>
-                    <p className="text-text-inverse">
-                      {accessStorageUnitCount > 0
-                        ? `$${accessStorageUnitCount * accessStorageUnitPricing}`
-                        : '---'}
+                    <p className="text-text-inverse flex items-center gap-1">
+                      {isAccessDeliveryFree && accessStorageUnitCount > 0 ? (
+                        <>
+                          <span className="px-2.5 py-1 text-xs rounded-full bg-status-bg-success text-status-success font-medium">
+                            Free Delivery
+                          </span>
+                          $0
+                        </>
+                      ) : accessStorageUnitCount > 0 ? (
+                        `$${accessStorageUnitCount * accessStorageUnitPricing}`
+                      ) : (
+                        '---'
+                      )}
                     </p>
                   </div>
                 )}

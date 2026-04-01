@@ -382,15 +382,13 @@ export function AppointmentCard({
                               <span className="text-sm">
                                 Return Delivery Fee
                               </span>
-                              <span className="text-sm font-medium">
+                              <span className="text-sm font-medium flex items-center gap-1">
                                 {returnFeeWaived ? (
                                   <>
-                                    <span className="text-text-tertiary line-through text-xs mr-1">
-                                      ${returnFee || 75}
+                                    <span className="px-2.5 py-1 text-xs rounded-full bg-status-bg-success text-status-success font-medium">
+                                      Free Delivery
                                     </span>
-                                    <span className="text-status-success">
-                                      Waived
-                                    </span>
+                                    $0
                                   </>
                                 ) : (
                                   formatCurrencyCompact(returnFee || 0)

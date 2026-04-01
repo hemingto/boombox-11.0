@@ -5,16 +5,13 @@
 
 const { seedBlogData } = require('./seeds/blogSeed.cjs');
 const { seedMovingPartnersAndDrivers } = require('./seeds/movingPartnerSeed.cjs');
-const { seedProducts } = require('./seeds/productSeed.cjs');
+
 const { seedAdminTasks } = require('./seeds/adminTasksSeed.cjs');
 
 async function main() {
   console.log('🌱 Starting database seeding...');
   
   try {
-    // Seed products
-    await seedProducts();
-    
     // Seed moving partners and drivers
     await seedMovingPartnersAndDrivers();
     

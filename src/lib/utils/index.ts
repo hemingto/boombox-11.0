@@ -188,3 +188,6 @@ export * from './trackingStatusUtils';
 
 // Session utilities
 export * from './sessionUtils';
+
+// Webhook / storage-usage query utilities (explicit exports)
+export { findActiveStorageUsage } from './webhookQueries';

@@ -24,6 +24,7 @@ import {
 } from '@/data/processingFeeConfig';
 import { BillingCalculator } from '../billing/BillingCalculator';
 import { DIY_FREE_SERVICE_MINUTES } from '@/data/storageTermPricing';
+import { findActiveStorageUsage } from '@/lib/utils';
 
 // Import types from existing system (matches Prisma schema nullability)
 interface AppointmentWithRelations {
@@ -261,6 +262,35 @@ export class StripeInvoiceService {
   }
 
   /**
+   * Check if the customer has been storing for 12+ months based on the
+   * earliest active StorageUnitUsage start date across all requested units.
+   */
+  private static async isStoredOver12Months(
+    storageUnitIds: number[]
+  ): Promise<boolean> {
+    if (!storageUnitIds.length) return false;
+    try {
+      const usages = await Promise.all(
+        storageUnitIds.map(id => findActiveStorageUsage(id))
+      );
+      const validUsages = usages.filter(Boolean);
+      if (!validUsages.length) return false;
+
+      const earliestStart = validUsages.reduce((earliest, usage) => {
+        const start = new Date(usage!.usageStartDate);
+        return start < earliest ? start : earliest;
+      }, new Date(validUsages[0]!.usageStartDate));
+
+      const monthsStored =
+        (Date.now() - earliestStart.getTime()) / (1000 * 60 * 60 * 24 * 30);
+      return monthsStored >= 12;
+    } catch (error) {
+      console.error('Error checking storage duration:', error);
+      return false;
+    }
+  }
+
+  /**
    * Create invoice for Access Storage appointments
    */
   private static async createAccessStorageInvoice(
@@ -269,10 +299,15 @@ export class StripeInvoiceService {
     serviceTimeMinutes: number
   ): Promise<{ invoice: Stripe.Invoice; total: number }> {
     const storageUnitCount = appointment.requestedStorageUnits.length;
-    const accessStorageTotal = accessStorageUnitPricing * storageUnitCount;
+    const storageUnitIds = appointment.requestedStorageUnits.map(
+      u => u.storageUnitId
+    );
+    const isDeliveryFeeWaived = await this.isStoredOver12Months(storageUnitIds);
+    const accessStorageTotal = isDeliveryFeeWaived
+      ? 0
+      : accessStorageUnitPricing * storageUnitCount;
     let subtotal = loadingHelpTotal + accessStorageTotal;
 
-    // Create invoice
     const invoice = await stripe.invoices.create({
       customer: appointment.user.stripeCustomerId!,
       auto_advance: true,
@@ -288,7 +323,9 @@ export class StripeInvoiceService {
         customer: appointment.user.stripeCustomerId!,
         amount: Math.round(accessStorageTotal * 100),
         currency: 'usd',
-        description: `Storage Unit Access (${storageUnitCount} units)`,
+        description: isDeliveryFeeWaived
+          ? `Storage Unit Access (${storageUnitCount} units - Free Delivery)`
+          : `Storage Unit Access (${storageUnitCount} units)`,
       },
       {
         customer: appointment.user.stripeCustomerId!,
@@ -337,7 +374,13 @@ export class StripeInvoiceService {
     serviceTimeMinutes: number
   ): Promise<{ invoice: Stripe.Invoice; total: number }> {
     const storageUnitCount = appointment.requestedStorageUnits.length;
-    const accessStorageTotal = accessStorageUnitPricing * storageUnitCount;
+    const storageUnitIds = appointment.requestedStorageUnits.map(
+      u => u.storageUnitId
+    );
+    const isDeliveryFeeWaived = await this.isStoredOver12Months(storageUnitIds);
+    const accessStorageTotal = isDeliveryFeeWaived
+      ? 0
+      : accessStorageUnitPricing * storageUnitCount;
     let subtotal = loadingHelpTotal + accessStorageTotal;
 
     const invoice = await stripe.invoices.create({
@@ -355,7 +398,9 @@ export class StripeInvoiceService {
         customer: appointment.user.stripeCustomerId!,
         amount: Math.round(accessStorageTotal * 100),
         currency: 'usd',
-        description: `Storage Unit Access (${storageUnitCount} units)`,
+        description: isDeliveryFeeWaived
+          ? `Storage Unit Access (${storageUnitCount} units - Free Delivery)`
+          : `Storage Unit Access (${storageUnitCount} units)`,
       },
       {
         customer: appointment.user.stripeCustomerId!,

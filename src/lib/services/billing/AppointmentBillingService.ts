@@ -146,6 +146,35 @@ export class AppointmentBillingService {
   }
 
   /**
+   * Check if the customer has been storing for 12+ months based on the
+   * earliest active StorageUnitUsage start date across all requested units.
+   */
+  private static async isStoredOver12Months(
+    storageUnitIds: number[]
+  ): Promise<boolean> {
+    if (!storageUnitIds.length) return false;
+    try {
+      const usages = await Promise.all(
+        storageUnitIds.map(id => findActiveStorageUsage(id))
+      );
+      const validUsages = usages.filter(Boolean);
+      if (!validUsages.length) return false;
+
+      const earliestStart = validUsages.reduce((earliest, usage) => {
+        const start = new Date(usage!.usageStartDate);
+        return start < earliest ? start : earliest;
+      }, new Date(validUsages[0]!.usageStartDate));
+
+      const monthsStored =
+        (Date.now() - earliestStart.getTime()) / (1000 * 60 * 60 * 24 * 30);
+      return monthsStored >= 12;
+    } catch (error) {
+      console.error('Error checking storage duration:', error);
+      return false;
+    }
+  }
+
+  /**
    * Process billing for access appointments (Access Storage, End Storage Term)
    */
   static async processAccessAppointmentBilling(
@@ -172,10 +201,19 @@ export class AppointmentBillingService {
         };
       }
 
+      // Check if customer has stored 12+ months for free delivery
+      const storageUnitIds = appointment.requestedStorageUnits.map(
+        u => u.storageUnitId
+      );
+      const isDeliveryFeeWaived =
+        await this.isStoredOver12Months(storageUnitIds);
+
       // Calculate charges
       const unitCount = appointment.requestedStorageUnits.length;
-      const accessCharges =
-        BillingCalculator.calculateAccessStorageTotal(unitCount);
+      const accessCharges = BillingCalculator.calculateAccessStorageTotal(
+        unitCount,
+        isDeliveryFeeWaived
+      );
 
       const loadingHelp = BillingCalculator.calculateLoadingHelpTotal(
         serviceMetrics.serviceTimeMinutes,

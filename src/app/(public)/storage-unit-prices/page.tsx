@@ -22,6 +22,16 @@ import {
 // Note: Page is client component
 // SEO metadata should be added via generateMetadata when converting to server component
 
+const STORAGE_HERO_IMAGES = [
+  '/storage-unit-prices/hero-imgs/hero-square-a.png',
+  '/storage-unit-prices/hero-imgs/hero-square-b.png',
+  '/storage-unit-prices/hero-imgs/hero-square-c.png',
+  '/storage-unit-prices/hero-imgs/hero-square-d.png',
+  '/storage-unit-prices/hero-imgs/hero-square-e.png',
+  '/storage-unit-prices/hero-imgs/hero-square-f.png',
+  '/storage-unit-prices/hero-imgs/hero-square-g.png',
+];
+
 export default function StorageUnitPrices() {
   const featuresData = [
     { feature: 'Affordability', boombox: true, competitors: false },
@@ -41,7 +51,8 @@ export default function StorageUnitPrices() {
       <HeroSection
         title="Cheaper than self storage"
         buttontext="Check Rate"
-        imageSrc="/storage-unit-prices/grateful-dead-square.png"
+        images={STORAGE_HERO_IMAGES}
+        shuffleKey="storage-hero"
       />
       <AdditionalPricingInfoSection />
       <CompetitorChartSection features={featuresData} />

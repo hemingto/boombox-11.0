@@ -24,6 +24,7 @@ interface UseQuoteParams {
   setMonthlyStorageRate: (rate: number) => void;
   setMonthlyInsuranceRate: (rate: number) => void;
   hasGreenDateDiscount?: boolean;
+  isAccessDeliveryFree?: boolean;
 }
 
 interface UseQuoteReturn {
@@ -56,6 +57,7 @@ export function useQuote(params: UseQuoteParams): UseQuoteReturn {
     setMonthlyStorageRate,
     setMonthlyInsuranceRate,
     hasGreenDateDiscount = false,
+    isAccessDeliveryFree = false,
   } = params;
 
   // Mobile state
@@ -96,6 +98,7 @@ export function useQuote(params: UseQuoteParams): UseQuoteReturn {
       storageTerm,
       planType,
       hasGreenDateDiscount,
+      isAccessDeliveryFree,
     });
   }, [
     zipCode,
@@ -107,6 +110,7 @@ export function useQuote(params: UseQuoteParams): UseQuoteReturn {
     storageTerm,
     planType,
     hasGreenDateDiscount,
+    isAccessDeliveryFree,
   ]);
 
   // Update parent component with total calculation

@@ -110,12 +110,16 @@ export class BillingCalculator {
   }
 
   /**
-   * Calculate access storage charges (one-time fee)
+   * Calculate access storage charges (one-time fee).
+   * When isDeliveryFeeWaived is true (customer stored 12+ months), the fee is $0.
    */
   static calculateAccessStorageTotal(
-    unitCount: number
+    unitCount: number,
+    isDeliveryFeeWaived: boolean = false
   ): AccessStorageCalculation {
-    const accessRatePerUnit = accessStorageUnitPricing;
+    const accessRatePerUnit = isDeliveryFeeWaived
+      ? 0
+      : accessStorageUnitPricing;
     const total = accessRatePerUnit * unitCount;
 
     return {
@@ -237,9 +241,13 @@ export class BillingCalculator {
   static calculateAccessAppointmentTotal(
     unitCount: number,
     serviceTimeMinutes: number,
-    hourlyRate: number
+    hourlyRate: number,
+    isDeliveryFeeWaived: boolean = false
   ): number {
-    const accessCharges = this.calculateAccessStorageTotal(unitCount);
+    const accessCharges = this.calculateAccessStorageTotal(
+      unitCount,
+      isDeliveryFeeWaived
+    );
     const loadingHelp = this.calculateLoadingHelpTotal(
       serviceTimeMinutes,
       hourlyRate

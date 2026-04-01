@@ -33,6 +33,7 @@ import {
   useAccessStorageSubmission,
   useAccessStorageAppointmentData,
   useAccessStorageForm_RHF,
+  useAccessStorageUnits,
 } from './AccessStorageProvider';
 import {
   AccessStorageStep,
@@ -70,6 +71,19 @@ function AccessStorageForm() {
     isEditMode,
     appointmentId,
   } = useAccessStorageAppointmentData();
+  const { rawStorageUnits } = useAccessStorageUnits();
+
+  const isAccessDeliveryFree = useMemo(() => {
+    if (!rawStorageUnits.length) return false;
+    const now = new Date();
+    const earliestStart = rawStorageUnits.reduce((earliest, unit) => {
+      const startDate = new Date(unit.usageStartDate);
+      return startDate < earliest ? startDate : earliest;
+    }, new Date(rawStorageUnits[0].usageStartDate));
+    const monthsStored =
+      (now.getTime() - earliestStart.getTime()) / (1000 * 60 * 60 * 24 * 30);
+    return monthsStored >= 12;
+  }, [rawStorageUnits]);
 
   // ===== COMBINED DATE TIME FOR LABOR SELECTION =====
 
@@ -324,6 +338,7 @@ function AccessStorageForm() {
       setMonthlyInsuranceRate: handleSetMonthlyInsuranceRate,
       isAccessStorage: true,
       hasGreenDateDiscount: false,
+      isAccessDeliveryFree,
       buttonTexts: MY_QUOTE_BUTTON_TEXTS,
       deliveryReason: formState.deliveryReason,
 
@@ -358,6 +373,7 @@ function AccessStorageForm() {
       formState.deliveryReason,
       formState.calculatedTotal,
       currentStep,
+      isAccessDeliveryFree,
       handleSubmitOrProceed,
       handleCalculateTotal,
       handleSetMonthlyStorageRate,

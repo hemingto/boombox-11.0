@@ -3,14 +3,12 @@
  * Seeds the database with initial data for development and testing
  */
 
-import { seedProducts } from './seeds/productSeed.js';
 import { seedWarehouses } from './seeds/warehouseSeed.js';
 
 async function main() {
   console.log('🌱 Starting database seeding...');
 
   try {
-    await seedProducts();
     await seedWarehouses();
 
     console.log('🎉 Database seeding completed successfully!');

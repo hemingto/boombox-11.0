@@ -124,6 +124,18 @@ export interface HeroSectionProps {
   imageSrc?: string;
 
   /**
+   * Array of images to shuffle through via a shuffle bag.
+   * When provided, overrides `imageSrc` with a randomly selected image.
+   */
+  images?: string[];
+
+  /**
+   * sessionStorage key for the shuffle bag (required when `images` is provided)
+   * @default 'hero-square'
+   */
+  shuffleKey?: string;
+
+  /**
    * Hero image alt text
    * @default 'San Francisco Bay Area mobile storage service'
    */
@@ -200,6 +212,8 @@ export function HeroSection({
   title,
   buttontext,
   imageSrc = DEFAULT_HERO_IMAGE,
+  images,
+  shuffleKey = 'hero-square',
   imageAlt = 'San Francisco Bay Area mobile storage service',
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   fallbackSrc: _fallbackSrc,
@@ -210,14 +224,17 @@ export function HeroSection({
   const [imageError, setImageError] = useState<boolean>(false);
   const router = useRouter();
 
+  const imagePool = images ?? HERO_SQUARE_IMAGES;
+  const bagKey = images ? shuffleKey : 'hero-square';
+
   const [heroImage] = useState(() =>
     typeof window !== 'undefined'
-      ? drawFromShuffleBag('hero-square', HERO_SQUARE_IMAGES)
-      : HERO_SQUARE_IMAGES[0]
+      ? drawFromShuffleBag(bagKey, imagePool)
+      : imagePool[0]
   );
 
   const resolvedImageSrc =
-    imageSrc === DEFAULT_HERO_IMAGE ? heroImage : imageSrc;
+    images || imageSrc === DEFAULT_HERO_IMAGE ? heroImage : imageSrc;
 
   const handleRadioChange = (value: string) => {
     setSelectedValue(value);

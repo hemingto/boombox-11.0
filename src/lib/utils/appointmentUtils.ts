@@ -56,6 +56,10 @@ export interface StorageAccessAppointmentData {
   calculatedTotal: number;
   movingPartnerId?: number;
   thirdPartyMovingPartnerId?: number;
+  storageTerm?: string | null;
+  returnFee?: number | null;
+  pickupFeeWaived?: boolean;
+  returnFeeWaived?: boolean;
 }
 
 export interface AdditionalStorageAppointmentData {
@@ -755,6 +759,10 @@ export async function createStorageAccessAppointment(
       status: 'Scheduled',
       description: data.description || 'No added info',
       jobCode: generateJobCode(),
+      storageTerm: data.storageTerm || null,
+      returnFee: data.returnFee ?? 75,
+      pickupFeeWaived: data.pickupFeeWaived ?? false,
+      returnFeeWaived: data.returnFeeWaived ?? false,
       // Create RequestedAccessStorageUnit records
       requestedStorageUnits: {
         create: data.selectedStorageUnits.map((unitId: number) => ({

@@ -127,6 +127,7 @@ export function calculateQuotePricing(params: {
   storageTerm?: StorageTerm | null;
   planType?: string;
   hasGreenDateDiscount?: boolean;
+  isAccessDeliveryFree?: boolean;
 }): PricingCalculation {
   const {
     zipCode,
@@ -138,6 +139,7 @@ export function calculateQuotePricing(params: {
     storageTerm,
     planType,
     hasGreenDateDiscount = false,
+    isAccessDeliveryFree = false,
   } = params;
 
   const monthlyStorageRate = calculateMonthlyStorageRate(
@@ -153,7 +155,9 @@ export function calculateQuotePricing(params: {
   );
 
   const loadingHelpRate = parseLoadingHelpPrice(loadingHelpPrice);
-  const accessStorageRate = calculateAccessStorageRate(accessStorageUnitCount);
+  const accessStorageRate = isAccessDeliveryFree
+    ? 0
+    : calculateAccessStorageRate(accessStorageUnitCount);
 
   let pickupFee =
     storageTerm && planType === 'Do It Yourself Plan'
