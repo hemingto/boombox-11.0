@@ -7,17 +7,17 @@
 import { MessageTemplate } from '../../../types';
 
 export const driverOfferTemplate: MessageTemplate = {
-  text: `🚚 Boombox Route Offer: \${totalStops} stops, \${deliveryArea}, \${formattedDate}. Pay: \${payoutEstimate} (~\${estimatedDuration}). Reply YES to accept or click: \${offerUrl} (expires \${timeoutMinutes}min)`,
+  text: `Boombox Route Offer: \${totalStops} stops, \${deliveryArea}, \${formattedDate}. Pay: \${payoutEstimate} (~\${estimatedDuration}). Reply YES to accept or click: \${offerUrl} (expires \${timeoutMinutes}min)`,
   requiredVariables: [
     'totalStops',
-    'deliveryArea', 
+    'deliveryArea',
     'formattedDate',
     'payoutEstimate',
     'estimatedDuration',
     'offerUrl',
-    'timeoutMinutes'
+    'timeoutMinutes',
   ],
   channel: 'sms',
   domain: 'logistics',
-  description: 'Driver route offer notification with accept/decline links'
-}; 
+  description: 'Driver route offer notification with accept/decline links',
+};

@@ -6,13 +6,8 @@
 import { MessageTemplate } from '../../../types';
 
 export const driverReassignmentOfferTemplate: MessageTemplate = {
-  text: `Boombox Storage: A previously assigned job is now available for \${formattedTime} \${formattedDate} at \${address}. Reply YES to accept or NO to decline. Details: \${webViewUrl}`,
-  requiredVariables: [
-    'formattedTime',
-    'formattedDate', 
-    'address',
-    'webViewUrl'
-  ],
+  text: `Boombox Storage: A previously assigned job is now available for \${formattedTime} \${formattedDate}. Reply YES to accept or NO to decline. Details: \${webViewUrl}`,
+  requiredVariables: ['formattedTime', 'formattedDate', 'webViewUrl'],
   channel: 'sms',
-  domain: 'booking'
-}; 
+  domain: 'booking',
+};

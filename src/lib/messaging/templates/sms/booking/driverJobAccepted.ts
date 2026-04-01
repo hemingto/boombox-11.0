@@ -7,15 +7,9 @@
 import { MessageTemplate } from '@/lib/messaging/types';
 
 export const driverJobAcceptedSms: MessageTemplate = {
-  text: 'Boombox: Job accepted! ${appointmentType} on ${formattedDate} at ${formattedTime}. Address: ${address}. See you there!',
-  requiredVariables: [
-    'appointmentType',
-    'formattedDate',
-    'formattedTime',
-    'address',
-  ],
+  text: 'Boombox: Job accepted! ${appointmentType} on ${formattedDate} at ${formattedTime}. Log on to your onfleet driver app to see the details!',
+  requiredVariables: ['appointmentType', 'formattedDate', 'formattedTime'],
   channel: 'sms',
   domain: 'booking',
   description: 'Confirmation sent to driver after accepting a job',
 };
-

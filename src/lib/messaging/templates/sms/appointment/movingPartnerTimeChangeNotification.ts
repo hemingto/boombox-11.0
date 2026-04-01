@@ -7,17 +7,16 @@
 import { MessageTemplate } from '@/lib/messaging/types';
 
 export const movingPartnerTimeChangeNotificationSms: MessageTemplate = {
-  text: 'Boombox: Job time changed for appointment ${appointmentId}. Changed from ${originalDate} at ${originalTime} to ${newDate} at ${newTime}. Customer: ${customerName}. Address: ${address}',
+  text: 'Boombox: Job time changed for appointment ${appointmentId}. Changed from ${originalDate} at ${originalTime} to ${newDate} at ${newTime}. Customer: ${customerName}.',
   requiredVariables: [
     'appointmentId',
     'originalDate',
     'originalTime',
-    'newDate', 
+    'newDate',
     'newTime',
     'customerName',
-    'address'
   ],
   channel: 'sms',
   domain: 'booking',
   description: 'SMS sent to moving partners when appointment time changes',
-}; 
+};

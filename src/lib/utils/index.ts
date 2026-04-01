@@ -191,3 +191,15 @@ export * from './sessionUtils';
 
 // Webhook / storage-usage query utilities (explicit exports)
 export { findActiveStorageUsage } from './webhookQueries';
+
+// Onfleet task utilities (explicit exports for server-side usage)
+export {
+  calculateTaskTimeWindows,
+  updateStorageUnitNotes,
+  buildTaskDestination,
+  type TaskPayload,
+  WAREHOUSE_ADDRESS,
+} from './onfleetTaskUtils';
+
+// Driver assignment utilities (explicit exports for server-side usage)
+export { deleteDriverTimeSlotBooking } from './driverAssignmentUtils';

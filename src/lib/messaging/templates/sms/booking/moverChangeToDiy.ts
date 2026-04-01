@@ -6,8 +6,8 @@
 import { MessageTemplate } from '@/lib/messaging/types';
 
 export const moverChangeToDiyTemplate: MessageTemplate = {
-  text: "Perfect! We've switched your appointment to our DIY plan. Our drivers will handle the delivery and you'll take care of loading/unloading. Your updated quote is $${newQuotedPrice}.",
+  text: "Perfect! We've switched your appointment to our DIY plan. Your updated quote is $${newQuotedPrice}.",
   requiredVariables: ['newQuotedPrice'],
   channel: 'sms',
-  domain: 'booking'
-}; 
+  domain: 'booking',
+};

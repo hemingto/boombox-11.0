@@ -7,8 +7,8 @@
 import type { MessageTemplate } from '../../../types';
 
 export const packingSupplyAcceptedTemplate: MessageTemplate = {
-  text: '🎉 Great! You\'ve accepted the packing supply delivery route (${totalStops} stops). Check your Onfleet app for navigation details. Thanks for driving with Boombox!',
+  text: "Great! You've accepted the packing supply delivery route (${totalStops} stops). Check your Onfleet app for navigation details. Thanks for driving with Boombox!",
   requiredVariables: ['totalStops'],
   channel: 'sms',
-  domain: 'driver'
+  domain: 'driver',
 };

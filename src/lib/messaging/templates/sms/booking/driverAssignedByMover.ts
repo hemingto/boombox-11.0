@@ -6,14 +6,10 @@
 import { MessageTemplate } from '@/lib/messaging/types';
 
 export const driverAssignedByMoverSms: MessageTemplate = {
-  text: 'Boombox: You have been assigned to a ${appointmentType} job on ${formattedDate} at ${formattedTime}. Address: ${address}. Contact your dispatcher for details.',
-  requiredVariables: [
-    'appointmentType',
-    'formattedDate',
-    'formattedTime',
-    'address',
-  ],
+  text: 'Boombox: You have been assigned to a ${appointmentType} job on ${formattedDate} at ${formattedTime}. Log on to your onfleet driver app for more job details.',
+  requiredVariables: ['appointmentType', 'formattedDate', 'formattedTime'],
   channel: 'sms',
   domain: 'booking',
-  description: 'SMS sent to drivers when they are assigned to a job by their moving partner',
+  description:
+    'SMS sent to drivers when they are assigned to a job by their moving partner',
 };

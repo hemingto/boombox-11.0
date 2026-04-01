@@ -123,9 +123,9 @@ export function AdditionalPricingInfoSection(): React.ReactElement {
   const steps: PricingStep[] = [
     {
       title: 'Free',
-      subtitle: 'Initial Delivery',
+      subtitle: 'Initial Pickup',
       description:
-        'Your Boombox is delivered right to your door. Free for the first hour, $50/hr after first hour.',
+        'Your Boombox is delivered right to your door. Free with 6 month storage commitment.',
       images: [
         '/storage-unit-prices/initial-delivery/initial-delivery-a.png',
         '/storage-unit-prices/initial-delivery/initial-delivery-b.png',
@@ -155,7 +155,7 @@ export function AdditionalPricingInfoSection(): React.ReactElement {
       title: '$75 flat rate',
       subtitle: 'Storage Unit Access',
       description:
-        "Need something back? We'll deliver your storage unit to where you need us.",
+        "Need something back? We'll deliver your boombox to where you need us.",
       images: [
         '/storage-unit-prices/storage-access/storage-access-a.png',
         '/storage-unit-prices/storage-access/storage-access-b.png',

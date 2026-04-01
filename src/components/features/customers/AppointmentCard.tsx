@@ -9,7 +9,7 @@
  * - Supports appointment cancellation with reason selection
  * - Shows tracking button for in-progress appointments
  * - Allows appointment editing when tracking is not active
- * - Displays cancellation fee warning for appointments within 24 hours
+ * - Displays cancellation fee warning for appointments within 48 hours
  *
  * API ROUTES UPDATED:
  * - Old: POST /api/appointments/${appointmentId}/cancel → New: POST /api/orders/appointments/${appointmentId}/cancel
@@ -47,11 +47,7 @@ import {
   calculateProcessingFee,
   PROCESSING_FEE_LABEL,
 } from '@/data/processingFeeConfig';
-import {
-  isAppointmentWithin24Hours,
-  formatCurrency,
-  formatCurrencyCompact,
-} from '@/lib/utils';
+import { formatCurrency, formatCurrencyCompact } from '@/lib/utils';
 import { PICKUP_FEE_PER_UNIT } from '@/data/storageTermPricing';
 
 interface RequestedStorageUnit {
@@ -141,13 +137,24 @@ export function AppointmentCard({
   );
   const [mapZoom] = useState<number>(14);
 
-  // Check if appointment is within 24 hours (for cancellation fee)
-  const isWithin24Hours = isAppointmentWithin24Hours(date);
-
-  // Check if editing should be disabled (within 24 hours OR already passed)
+  // Check if appointment is within 48 hours (for cancellation fee)
   const appointmentDateTime = new Date(date);
+  const now = new Date();
+  const hoursUntilAppointment =
+    (appointmentDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+  const isWithin48Hours =
+    hoursUntilAppointment <= 48 && hoursUntilAppointment > 0;
+  const isSameDay =
+    appointmentDateTime.getFullYear() === now.getFullYear() &&
+    appointmentDateTime.getMonth() === now.getMonth() &&
+    appointmentDateTime.getDate() === now.getDate();
+  const applicableFee = isSameDay
+    ? cancelationPricing.sameDay
+    : cancelationPricing.within48Hours;
+
+  // Check if editing should be disabled (within 48 hours OR already passed)
   const isAppointmentPassed = appointmentDateTime.getTime() <= Date.now();
-  const isEditDisabled = isWithin24Hours || isAppointmentPassed;
+  const isEditDisabled = isWithin48Hours || isAppointmentPassed;
 
   // Geocode location to coordinates
   useEffect(() => {
@@ -561,14 +568,14 @@ export function AppointmentCard({
         size="md"
       >
         <div className="space-y-4">
-          {isWithin24Hours && (
+          {isWithin48Hours && (
             <div className="bg-status-bg-warning p-3 border border-border-warning rounded-md">
               <p className="text-sm text-status-warning">
                 Your order is subject to a{' '}
                 <span className="font-semibold">
-                  {formatCurrency(cancelationPricing.fee)} cancellation fee
+                  {formatCurrency(applicableFee)} cancellation fee
                 </span>
-                . We require at least 24 hours notice to avoid a cancellation
+                . We require at least 48 hours notice to avoid a cancellation
                 fee.
               </p>
             </div>

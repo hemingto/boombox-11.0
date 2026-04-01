@@ -5,7 +5,7 @@
  */
 
 export const cancelationPricing = {
-  within24Hours: 65, // $65 cancellation fee for appointments within 24 hours
+  within48Hours: 65, // $65 cancellation fee for appointments within 48 hours
+  sameDay: 150, // $150 cancellation fee for same-day cancellations
   fee: 65, // Legacy property for backwards compatibility
 };
-

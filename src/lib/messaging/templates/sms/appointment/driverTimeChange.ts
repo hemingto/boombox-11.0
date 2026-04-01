@@ -7,7 +7,7 @@
 import { MessageTemplate } from '@/lib/messaging/types';
 
 export const driverTimeChangeNotificationSms: MessageTemplate = {
-  text: 'Boombox: Job time changed for appointment ${appointmentId}. Changed from ${originalDate} at ${originalTime} to ${newDate} at ${newTime}. Customer: ${customerName}. Address: ${address}',
+  text: 'Boombox: Job time changed for appointment ${appointmentId}. Changed from ${originalDate} at ${originalTime} to ${newDate} at ${newTime}. Customer: ${customerName}.',
   requiredVariables: [
     'appointmentId',
     'originalDate',
@@ -15,9 +15,7 @@ export const driverTimeChangeNotificationSms: MessageTemplate = {
     'newDate',
     'newTime',
     'customerName',
-    'address',
   ],
   channel: 'sms',
   domain: 'appointment',
 };
-

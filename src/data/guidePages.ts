@@ -58,7 +58,7 @@ export const guidePages: Record<string, GuidePage> = {
       },
       {
         type: 'heading',
-        content: 'Scheduling Your Delivery',
+        content: 'Scheduling Your Pickup',
         metadata: { level: 2 },
       },
       {
@@ -74,7 +74,7 @@ export const guidePages: Record<string, GuidePage> = {
       {
         type: 'paragraph',
         content:
-          'Once the Boombox delivery driver arrives at your delivery address, they will contact you and your free loading time begins. The driver will position the container at your location and make it accessible for loading. Each container rests about 6 inches off the ground to keep your belongings safe and dry.',
+          'Once the Boombox delivery driver arrives at your pickup address, they will contact you and your free loading time begins. The driver will position the container at your location and make it accessible for loading. Each container rests about 6 inches off the ground to keep your belongings safe and dry.',
       },
       {
         type: 'heading',
@@ -84,7 +84,7 @@ export const guidePages: Record<string, GuidePage> = {
       {
         type: 'paragraph',
         content:
-          'You can take as much time as you need to pack your unit. The first 60 minutes of loading time are free. If you pack your container within that first hour, you will not be charged anything extra for the delivery. If you need more time, the driver can wait at your location at a rate of $50 per hour after the first free hour.',
+          'You can take as much time as you need to pack your unit. The first 90 minutes of loading time are free. If you pack your container within that first hour, you will not be charged anything extra for the delivery. If you need more time, the driver can wait at your location at a rate of $50 per hour after the first free hour.',
       },
       {
         type: 'callout',
@@ -93,7 +93,7 @@ export const guidePages: Record<string, GuidePage> = {
       },
       {
         type: 'heading',
-        content: "What's Included in Your Delivery",
+        content: "What's Included?",
         metadata: { level: 2 },
       },
       {
@@ -120,7 +120,7 @@ export const guidePages: Record<string, GuidePage> = {
       {
         type: 'paragraph',
         content:
-          'If you need more than one container, we will send a maximum of two Boombox containers at the same time to ensure there is enough space at your delivery address. Any remaining containers will be staggered about an hour after the first two have been delivered.',
+          'If you need more than one container, we will send a maximum of two Boombox containers at the same time to ensure there is enough space at your pickup address. Any remaining containers will be staggered about an hour after the first two have been delivered.',
       },
       {
         type: 'heading',
@@ -130,7 +130,7 @@ export const guidePages: Record<string, GuidePage> = {
       {
         type: 'paragraph',
         content:
-          'You will not be charged until the day of your delivery. When you book your reservation, we ask for credit card information to hold your spot and charge a reversible $10 hold to verify the card. On delivery day, you will be charged for your first month of storage along with any optional add-ons you selected. After that, your storage bill recurs every 30 days.',
+          'You will not be charged until the day of your delivery. When you book your reservation, we ask for credit card information to hold your spot and charge a reversible $10 hold to verify the card. On the day of your initial pickup, you will be charged for your first month of storage along with any optional add-ons you selected. After that, your storage bill recurs every 30 days.',
       },
       {
         type: 'heading',
@@ -140,7 +140,7 @@ export const guidePages: Record<string, GuidePage> = {
       {
         type: 'paragraph',
         content:
-          'Once your storage unit is packed, the Boombox delivery driver will return it to our secure storage facility. We recommend taking photos of your stored items before the container is closed so you can remember what you packed. You can upload these photos to your account page later for easy reference.',
+          'Once your storage unit is packed, the Boombox driver will return it to our secure storage facility. We recommend taking photos of your stored items before the container is closed so you can remember what you packed. You can upload these photos to your account page later for easy reference.',
       },
     ],
   },
@@ -315,7 +315,7 @@ export const guidePages: Record<string, GuidePage> = {
       {
         type: 'paragraph',
         content:
-          'You can access your storage unit Monday through Saturday, 8:30 am to 5:30 pm, by setting up a delivery request on your account page. A Boombox delivery driver will bring your storage unit straight to your door at a flat rate of $75 per delivery. Simply log in, select the unit you need, and choose a delivery window that works for you.',
+          'You can access your storage unit by setting up a delivery request on your account page. A Boombox driver will bring your storage unit straight to your door at a flat rate of $75 per delivery. Simply log in, select the unit you need, and choose a delivery window that works for you.',
       },
       {
         type: 'heading',
@@ -380,7 +380,7 @@ export const guidePages: Record<string, GuidePage> = {
       {
         type: 'paragraph',
         content:
-          'You can edit or cancel existing reservations from your account page, where you will see all your upcoming appointments. We ask for at least 12 hours of notice for cancellations. If we do not receive 24 hours of notice, a $65 cancellation fee may apply.',
+          'You can edit or cancel existing reservations from your account page, where you will see all your upcoming appointments. We ask for at least 48 hours of notice for cancellations. If we do not receive 48 hours of notice, a $65 cancellation fee may apply. Same-day cancellations are subject to a $150 fee.',
       },
       {
         type: 'heading',
@@ -391,11 +391,6 @@ export const guidePages: Record<string, GuidePage> = {
         type: 'paragraph',
         content:
           'To end your storage term, log in to your account and book a delivery. In the delivery form, make sure to note that this is your final delivery. You will need to ensure your container is completely empty at the end of the appointment. Once your container is returned empty, your monthly storage bill ends and you will no longer be charged.',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'Keep in mind that Boombox has a 2-month minimum payment term. You can receive your items back before the two months are up, but you will still be charged for the full minimum term.',
       },
     ],
   },
@@ -423,7 +418,7 @@ export const guidePages: Record<string, GuidePage> = {
       {
         type: 'paragraph',
         content:
-          'Boombox proudly serves the San Francisco Bay Area with mobile storage and moving services. Our fleet of delivery drivers covers a wide range of cities across the Peninsula, South Bay, East Bay, and San Francisco. This guide helps you understand our service area and what to do if your needs fall outside it.',
+          'Boombox proudly serves the San Francisco Bay Area with mobile storage and moving services. Our fleet of drivers covers a wide range of cities across the Peninsula, South Bay, East Bay, and San Francisco. This guide helps you understand our service area and what to do if your needs fall outside it.',
       },
       {
         type: 'heading',

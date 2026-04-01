@@ -1,10 +1,10 @@
 /**
  * @fileoverview Access Storage service for API integration
  * @source boombox-10.0/src/app/components/access-storage/accessstorageform.tsx (API submission logic)
- * 
+ *
  * API ROUTES UPDATED:
  * - Old: /api/accessStorageUnit → New: /api/orders/access-storage-unit
- * 
+ *
  * @refactor Extracted API calls to dedicated service layer with updated API endpoints
  */
 
@@ -13,7 +13,7 @@ import {
   AccessStorageSubmissionData,
   AccessStorageApiResponse,
   DeliveryReason,
-  AppointmentType
+  AppointmentType,
 } from '@/types/accessStorage.types';
 import { validateAccessStorageSubmission } from '@/lib/validations/accessStorage.validations';
 
@@ -108,18 +108,25 @@ async function withRetry<T>(
       return await operation();
     } catch (error) {
       lastError = error instanceof Error ? error : new Error('Unknown error');
-      
+
       if (attempt === maxAttempts) {
         throw lastError;
       }
 
       // Don't retry on client errors (4xx), only server errors (5xx) and network errors
-      if (lastError.message.includes('400') || lastError.message.includes('404') || 
-          lastError.message.includes('Bad request') || lastError.message.includes('Invalid appointment data')) {
+      if (
+        lastError.message.includes('400') ||
+        lastError.message.includes('404') ||
+        lastError.message.includes('Bad request') ||
+        lastError.message.includes('Invalid appointment data')
+      ) {
         throw lastError;
       }
 
-      console.warn(`Attempt ${attempt} failed, retrying in ${delayMs}ms:`, lastError.message);
+      console.warn(
+        `Attempt ${attempt} failed, retrying in ${delayMs}ms:`,
+        lastError.message
+      );
       await delay(delayMs);
     }
   }
@@ -150,13 +157,15 @@ export async function submitAccessStorageAppointment(
         error: {
           code: 'VALIDATION_ERROR',
           message: 'Form validation failed',
-          details: validationResult.errors
-        }
+          details: validationResult.errors,
+        },
       };
     }
 
     // Prepare the API call
-    const apiCall = async (): Promise<ApiResponse<AccessStorageSubmissionResult>> => {
+    const apiCall = async (): Promise<
+      ApiResponse<AccessStorageSubmissionResult>
+    > => {
       const response = await fetchWithTimeout(
         '/api/orders/access-storage-unit',
         {
@@ -172,16 +181,20 @@ export async function submitAccessStorageAppointment(
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || 
-          errorData.error || 
-          `HTTP ${response.status}: ${response.statusText}`
+          errorData.message ||
+            errorData.error ||
+            `HTTP ${response.status}: ${response.statusText}`
         );
       }
 
       const responseData: AccessStorageApiResponse = await response.json();
 
       if (!responseData.success) {
-        throw new Error(responseData.error || responseData.message || 'Appointment creation failed');
+        throw new Error(
+          responseData.error ||
+            responseData.message ||
+            'Appointment creation failed'
+        );
       }
 
       return {
@@ -190,13 +203,12 @@ export async function submitAccessStorageAppointment(
         meta: {
           timestamp: new Date().toISOString(),
           requestId: response.headers.get('x-request-id') || undefined,
-        }
+        },
       };
     };
 
     // Execute with retry logic
     return await withRetry(apiCall, config.retryAttempts, config.retryDelay);
-
   } catch (error) {
     console.error('Error submitting access storage appointment:', error);
 
@@ -208,17 +220,21 @@ export async function submitAccessStorageAppointment(
           error: {
             code: 'TIMEOUT_ERROR',
             message: 'Request timed out. Please try again.',
-          }
+          },
         };
       }
 
-      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      if (
+        error.message.includes('Failed to fetch') ||
+        error.message.includes('NetworkError')
+      ) {
         return {
           success: false,
           error: {
             code: 'NETWORK_ERROR',
-            message: 'Network error. Please check your connection and try again.',
-          }
+            message:
+              'Network error. Please check your connection and try again.',
+          },
         };
       }
     }
@@ -227,8 +243,11 @@ export async function submitAccessStorageAppointment(
       success: false,
       error: {
         code: 'SUBMISSION_ERROR',
-        message: error instanceof Error ? error.message : 'Failed to schedule access. Please try again.',
-      }
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to schedule access. Please try again.',
+      },
     };
   }
 }
@@ -246,7 +265,9 @@ export async function getAccessStorageAppointment(
   const config = { ...DEFAULT_OPTIONS, ...options };
 
   try {
-    const apiCall = async (): Promise<ApiResponse<AccessStorageAppointment>> => {
+    const apiCall = async (): Promise<
+      ApiResponse<AccessStorageAppointment>
+    > => {
       const response = await fetchWithTimeout(
         `/api/orders/access-storage-unit/${appointmentId}`,
         {
@@ -261,16 +282,20 @@ export async function getAccessStorageAppointment(
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || 
-          errorData.error || 
-          `HTTP ${response.status}: ${response.statusText}`
+          errorData.message ||
+            errorData.error ||
+            `HTTP ${response.status}: ${response.statusText}`
         );
       }
 
       const responseData = await response.json();
 
       if (!responseData.success) {
-        throw new Error(responseData.error || responseData.message || 'Failed to fetch appointment');
+        throw new Error(
+          responseData.error ||
+            responseData.message ||
+            'Failed to fetch appointment'
+        );
       }
 
       return {
@@ -279,12 +304,11 @@ export async function getAccessStorageAppointment(
         meta: {
           timestamp: new Date().toISOString(),
           requestId: response.headers.get('x-request-id') || undefined,
-        }
+        },
       };
     };
 
     return await withRetry(apiCall, config.retryAttempts, config.retryDelay);
-
   } catch (error) {
     console.error('Error fetching access storage appointment:', error);
 
@@ -292,8 +316,11 @@ export async function getAccessStorageAppointment(
       success: false,
       error: {
         code: 'FETCH_ERROR',
-        message: error instanceof Error ? error.message : 'Failed to fetch appointment details.',
-      }
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to fetch appointment details.',
+      },
     };
   }
 }
@@ -320,11 +347,13 @@ export async function cancelAccessStorageAppointment(
         error: {
           code: 'VALIDATION_ERROR',
           message: 'Cancellation reason is required',
-        }
+        },
       };
     }
 
-    const apiCall = async (): Promise<ApiResponse<{ cancelled: boolean; refundAmount?: number }>> => {
+    const apiCall = async (): Promise<
+      ApiResponse<{ cancelled: boolean; refundAmount?: number }>
+    > => {
       const response = await fetchWithTimeout(
         `/api/orders/access-storage-unit/${appointmentId}/cancel`,
         {
@@ -340,16 +369,20 @@ export async function cancelAccessStorageAppointment(
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || 
-          errorData.error || 
-          `HTTP ${response.status}: ${response.statusText}`
+          errorData.message ||
+            errorData.error ||
+            `HTTP ${response.status}: ${response.statusText}`
         );
       }
 
       const responseData = await response.json();
 
       if (!responseData.success) {
-        throw new Error(responseData.error || responseData.message || 'Failed to cancel appointment');
+        throw new Error(
+          responseData.error ||
+            responseData.message ||
+            'Failed to cancel appointment'
+        );
       }
 
       return {
@@ -358,12 +391,11 @@ export async function cancelAccessStorageAppointment(
         meta: {
           timestamp: new Date().toISOString(),
           requestId: response.headers.get('x-request-id') || undefined,
-        }
+        },
       };
     };
 
     return await withRetry(apiCall, config.retryAttempts, config.retryDelay);
-
   } catch (error) {
     console.error('Error cancelling access storage appointment:', error);
 
@@ -371,8 +403,11 @@ export async function cancelAccessStorageAppointment(
       success: false,
       error: {
         code: 'CANCELLATION_ERROR',
-        message: error instanceof Error ? error.message : 'Failed to cancel appointment.',
-      }
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to cancel appointment.',
+      },
     };
   }
 }
@@ -392,7 +427,9 @@ export async function updateAccessStorageAppointment(
   const config = { ...DEFAULT_OPTIONS, ...options };
 
   try {
-    const apiCall = async (): Promise<ApiResponse<AccessStorageAppointment>> => {
+    const apiCall = async (): Promise<
+      ApiResponse<AccessStorageAppointment>
+    > => {
       const response = await fetchWithTimeout(
         `/api/orders/access-storage-unit/${appointmentId}`,
         {
@@ -408,16 +445,20 @@ export async function updateAccessStorageAppointment(
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || 
-          errorData.error || 
-          `HTTP ${response.status}: ${response.statusText}`
+          errorData.message ||
+            errorData.error ||
+            `HTTP ${response.status}: ${response.statusText}`
         );
       }
 
       const responseData = await response.json();
 
       if (!responseData.success) {
-        throw new Error(responseData.error || responseData.message || 'Failed to update appointment');
+        throw new Error(
+          responseData.error ||
+            responseData.message ||
+            'Failed to update appointment'
+        );
       }
 
       return {
@@ -426,12 +467,11 @@ export async function updateAccessStorageAppointment(
         meta: {
           timestamp: new Date().toISOString(),
           requestId: response.headers.get('x-request-id') || undefined,
-        }
+        },
       };
     };
 
     return await withRetry(apiCall, config.retryAttempts, config.retryDelay);
-
   } catch (error) {
     console.error('Error updating access storage appointment:', error);
 
@@ -439,8 +479,11 @@ export async function updateAccessStorageAppointment(
       success: false,
       error: {
         code: 'UPDATE_ERROR',
-        message: error instanceof Error ? error.message : 'Failed to update appointment.',
-      }
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to update appointment.',
+      },
     };
   }
 }
@@ -452,11 +495,14 @@ export async function updateAccessStorageAppointment(
  * @param appointmentDateTime - Scheduled appointment date/time
  * @returns True if cancellation is free (48+ hours in advance)
  */
-export function canCancelWithoutFee(appointmentDateTime: string | Date): boolean {
+export function canCancelWithoutFee(
+  appointmentDateTime: string | Date
+): boolean {
   const appointmentDate = new Date(appointmentDateTime);
   const now = new Date();
-  const hoursUntilAppointment = (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-  
+  const hoursUntilAppointment =
+    (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
   return hoursUntilAppointment >= 48;
 }
 
@@ -465,17 +511,24 @@ export function canCancelWithoutFee(appointmentDateTime: string | Date): boolean
  * @param appointmentDateTime - Scheduled appointment date/time
  * @returns Cancellation fee amount
  */
-export function calculateCancellationFee(appointmentDateTime: string | Date): number {
+export function calculateCancellationFee(
+  appointmentDateTime: string | Date
+): number {
   const appointmentDate = new Date(appointmentDateTime);
   const now = new Date();
-  const hoursUntilAppointment = (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-  
+  const hoursUntilAppointment =
+    (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
   if (hoursUntilAppointment >= 48) {
     return 0; // Free cancellation
-  } else if (hoursUntilAppointment >= 24) {
-    return 100; // $100 fee for 24-48 hours
+  } else if (
+    appointmentDate.getFullYear() === now.getFullYear() &&
+    appointmentDate.getMonth() === now.getMonth() &&
+    appointmentDate.getDate() === now.getDate()
+  ) {
+    return 150; // $150 fee for same-day cancellation
   } else {
-    return 200; // $200 fee for same-day cancellation
+    return 65; // $65 fee for cancellations within 48 hours
   }
 }
 
@@ -484,30 +537,31 @@ export function calculateCancellationFee(appointmentDateTime: string | Date): nu
  * @param appointmentDateTime - Appointment date/time to validate
  * @returns Validation result with error message if invalid
  */
-export function validateAppointmentTiming(
-  appointmentDateTime: string | Date
-): { isValid: boolean; error?: string } {
+export function validateAppointmentTiming(appointmentDateTime: string | Date): {
+  isValid: boolean;
+  error?: string;
+} {
   const appointmentDate = new Date(appointmentDateTime);
   const now = new Date();
-  
+
   if (appointmentDate <= now) {
     return {
       isValid: false,
-      error: 'Appointment cannot be scheduled in the past'
+      error: 'Appointment cannot be scheduled in the past',
     };
   }
-  
+
   // Check if appointment is too far in the future (e.g., 6 months)
   const sixMonthsFromNow = new Date();
   sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
-  
+
   if (appointmentDate > sixMonthsFromNow) {
     return {
       isValid: false,
-      error: 'Appointment cannot be scheduled more than 6 months in advance'
+      error: 'Appointment cannot be scheduled more than 6 months in advance',
     };
   }
-  
+
   return { isValid: true };
 }
 
@@ -516,18 +570,21 @@ export function validateAppointmentTiming(
  * @param appointmentDateTime - Scheduled appointment date/time
  * @returns True if cancellation is free (more than 48 hours away)
  */
-export function canCancelWithoutFees(appointmentDateTime: string | Date): boolean {
+export function canCancelWithoutFees(
+  appointmentDateTime: string | Date
+): boolean {
   try {
     const appointmentDate = new Date(appointmentDateTime);
-    
+
     // Check if date is valid
     if (isNaN(appointmentDate.getTime())) {
       return false;
     }
-    
+
     const now = new Date();
-    const hoursUntilAppointment = (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-    
+    const hoursUntilAppointment =
+      (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
     return hoursUntilAppointment > 48;
   } catch (error) {
     return false;

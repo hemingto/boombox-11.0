@@ -48,31 +48,31 @@ export function ItemsThatFitSection() {
   // Item content data
   const items: ItemCard[] = [
     {
-      icon: <CheckIcon className="w-6 h-6" />,
+      icon: <CheckIcon className="w-4 h-4" />,
       subtitle: 'King Mattress',
       description:
-        'A Boombox can fit a California King mattress standing up. The height of the container is 90" giving you about 6 inches of clearance for your mattress.',
+        'A Boombox can fit a California King mattress standing up. The height of the container is 90".',
       imageSrc: '/storage-calculator/king-mattress.png',
     },
     {
-      icon: <CheckIcon className="w-6 h-6" />,
+      icon: <CheckIcon className="w-4 h-4" />,
       subtitle: '3 Seat Sofa',
       description:
-        'The inside length of a Boombox is 90" and can fit most 3 seat sofas. Please make sure to measure before loading to make sure your sofa isn\'t longer than 90".',
+        'Typical three seat sofas are less than 90" long, which will fit in a Boombox.',
       imageSrc: '/storage-calculator/three-seat-couch.png',
     },
     {
-      icon: <CheckIcon className="w-6 h-6" />,
+      icon: <CheckIcon className="w-4 h-4" />,
       subtitle: 'Large Dining Table',
       description:
-        'Your Boombox can fit most 6 seat dining tables. As long as the table top is less than 90". We recommend taking the legs off your dining table before loading to ensure it is safely stored.',
+        'Your Boombox can fit most 6 seat dining tables. Take the legs off your dining table before loading to ensure it is safely stored.',
       imageSrc: '/storage-calculator/dining-table.png',
     },
     {
-      icon: <CheckIcon className="w-6 h-6" />,
+      icon: <CheckIcon className="w-4 h-4" />,
       subtitle: '50 Medium Boxes',
       description:
-        'The Boombox can fit up to 50 medium boxes with the following dimensions 18-1/8" x 18" x 16". Make sure to stack lighter boxes on top of heavier boxes.',
+        'The Boombox can fit up to 50 medium boxes. Make sure to stack lighter boxes on top of heavier boxes.',
       imageSrc: '/storage-calculator/boxes.png',
     },
   ];

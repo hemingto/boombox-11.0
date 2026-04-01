@@ -7,16 +7,22 @@
 import { MessageTemplate } from '../../../types';
 
 export const packingSupplyOrderConfirmationSms: MessageTemplate = {
-  text: `Hi \${customerName}! 📦 Your Boombox packing supply order #\${orderId} has been confirmed (\${totalPrice}). 
+  text: `Hi \${customerName}! Your Boombox packing supply order #\${orderId} has been confirmed (\${totalPrice}). 
 
-📧 A receipt was sent to your email.
+A receipt was sent to your email.
 
-🚚 Expected delivery: \${deliveryTimeText}
+Expected delivery: \${deliveryTimeText}
 
-📱 Track your order: \${trackingUrl}
+Track your order: \${trackingUrl}
 
 Thanks for choosing Boombox!`,
-  requiredVariables: ['customerName', 'orderId', 'totalPrice', 'deliveryTimeText', 'trackingUrl'],
+  requiredVariables: [
+    'customerName',
+    'orderId',
+    'totalPrice',
+    'deliveryTimeText',
+    'trackingUrl',
+  ],
   channel: 'sms',
-  domain: 'booking'
-}; 
+  domain: 'booking',
+};

@@ -27,19 +27,6 @@ export interface StorageGuideline {
 export const storageGuidelines: StorageGuideline[] = [
   {
     number: 1,
-    title: 'Storage term commitment determines your fee structure',
-    description: (
-      <p>
-        Storage term commitment determines your pickup and delivery fee
-        structure. Month-to-month customers have no minimum commitment.
-        Longer-term commitments (6-month or 12-month) include waived pickup
-        and/or delivery fees, but ending storage early may result in those
-        waived fees being billed back.
-      </p>
-    ),
-  },
-  {
-    number: 2,
     title: 'All items must fit into your Boombox storage container',
     description: (
       <>
@@ -57,7 +44,7 @@ export const storageGuidelines: StorageGuideline[] = [
     ),
   },
   {
-    number: 3,
+    number: 2,
     title: 'Pack Smart',
     description: (
       <>
@@ -105,7 +92,7 @@ export const storageGuidelines: StorageGuideline[] = [
     ),
   },
   {
-    number: 4,
+    number: 3,
     title: 'Inform us about heavy items or difficult moving conditions',
     description: (
       <>
@@ -125,7 +112,7 @@ export const storageGuidelines: StorageGuideline[] = [
     ),
   },
   {
-    number: 5,
+    number: 4,
     title: "Don't store anything that's illegal and/or unsafe",
     description: (
       <>
@@ -154,7 +141,7 @@ export const storageGuidelines: StorageGuideline[] = [
     ),
   },
   {
-    number: 6,
+    number: 5,
     title: 'Your Boombox Driver is not allowed to help load your storage unit',
     description: (
       <>
@@ -178,6 +165,19 @@ export const storageGuidelines: StorageGuideline[] = [
           matched with a local pro.
         </p>
       </>
+    ),
+  },
+  {
+    number: 6,
+    title: 'Storage term commitment determines your fee structure',
+    description: (
+      <p>
+        Storage term commitment determines your pickup and delivery fee
+        structure. Month-to-month customers have no minimum commitment.
+        Longer-term commitments (6-month or 12-month) include waived pickup
+        and/or delivery fees, but ending storage early may result in those
+        waived fees being billed back.
+      </p>
     ),
   },
 ];

@@ -100,12 +100,12 @@ export interface GuidesProps {
 const DEFAULT_GUIDES: Guide[] = [
   {
     title: 'Initial Appointment',
-    subtitle: 'Delivery Guide',
+    subtitle: 'Pickup Guide',
     description:
       'Learn the what to expect on the day of your first appointment',
     link: '/guides/delivery-guide',
     imageSrc: '/help-center/delivery-guide.png',
-    imageAlt: 'Boombox delivery truck arriving at a home',
+    imageAlt: 'Boombox trailer arriving at a home',
   },
   {
     title: 'Packing',

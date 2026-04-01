@@ -145,14 +145,21 @@ export const faqs: {
     question: 'How does Boombox work?',
     answer: (
       <>
-        Boombox arrives at your delivery location with a mobile storage unit.
-        You can pack the unit yourself or get paired with local pros. If you
-        want to remember the items you've stored, we recommend taking photos of
-        your stored items, which you can then upload later to your account page.
+        Boombox arrives at your pickup location with a mobile storage unit. Our
+        driver will provide 5 moving blankets and a floor dolly. As your unit is
+        being packed your driver will wait with your unit. We give you 1.5 hours
+        of free loading time. If you need more time, no worries! The driver can
+        wait at your location while you pack at a rate of $50/hr. You can pack
+        the unit yourself or get paired with local pros.
         <br />
         <br />
-        Once your storage unit is packed, our Boombox delivery driver will
-        return your unit to our secure storage facility.
+        If you want to remember the items you've stored, we recommend taking
+        photos of your stored items, which you can then upload later to your
+        account page.
+        <br />
+        <br />
+        Once your storage unit is packed, our Boombox driver will return your
+        unit to our secure storage facility.
         <br />
         <br />
         Whenever you need access to your storage unit, simply log in to your
@@ -170,29 +177,33 @@ export const faqs: {
     answer: (
       <>
         <p>
-          You can take as much time as you need! However, the less time you take
-          packing your unit the less you'll pay.
+          You can take as much time as you need! A boombox typically takes about
+          1 hour to load. We give you 1.5 hours of free loading time. If you
+          need more time, no worries! The driver can wait at your location while
+          you pack at a rate of $50/hr.
         </p>
         <br />
         <p>
-          The first 60 mins are free. The driver will arrive at your delivery
-          address and once you have been contacted your first hour of free
-          loading time will begin. If you pack your container within that first
-          hour - GREAT! - you won't be charged for your delivery. If you need
-          more time, no worries! The driver can wait at your location while you
-          pack at a rate of $55/hr.
+          The first 90 mins are free. The driver will arrive at your delivery
+          address and once you have been contacted your first hour and a half of
+          free loading time will begin. If you pack your container within that
+          first hour - GREAT! - you won't be charged for your pickup. If you
+          need more time, no worries! The driver can wait at your location while
+          you pack at a rate of $55/hr.
         </p>
         <br />
         <p>
           Before ordering a Boombox, we recommend going through our pre pickup
           checklist to make sure you are prepared and ready to go before your
           crew arrives. Typically, we can have a Boombox container delivered
-          with as little as 1 days notice so make sure prepare before you order
+          with as little as 2 days notice so make sure prepare before you order
           to have your move go as smoothy as possible.
         </p>
         <br />
-        <strong>Initial 60 mins are Free</strong>
+        <strong>Initial 90 mins are Free</strong>
+        <br />
         <strong>$50/hr after first hour</strong>
+        <br />
         <br />
         <p>
           Our mobile storage solutions are designed to fit seamlessly into the
@@ -212,18 +223,21 @@ export const faqs: {
         <p>We try to make delivery as easy as possible!</p>
         <br />
         <p>
-          You can access your storage unit Monday through Saturday, 8:30 am to
-          5:30 pm, by setting up a delivery request on your account page.
+          You can access your storage unit by logging on to your account page
+          and setting up a delivery appointment
         </p>
         <br />
         <p>
           A Boombox delivery driver will bring your storage unit straight to
-          your door, all with straightforward, flat-rate pricing.
+          your door. The delivery is a $75 flat rate which includes 1.5 hours of
+          free loading time.
         </p>
         <br />
         <p>
           Please be mindful of the driver's time to keep things moving smoothly,
-          limiting the loading and unloading to just what's needed.
+          limiting the loading and unloading to just what's needed. If you need
+          more time, no worries! The driver can wait at your location while you
+          pack at a rate of $50/hr.
         </p>
         <br />
         <strong>Delivery is a $75 flat rate</strong>
@@ -262,12 +276,14 @@ export const faqs: {
     answer: (
       <>
         Your Boombox quote includes the full amount you'll pay on the day of
-        your initial delivery. Including:
+        your initial pickup. Including:
         <br />
         <br />
         - Your first month's rent
         <br />
         - Loading Help (Optional)
+        <br />
+        - Pickup fee (if applicable)
         <br />
         - Insurance Coverage (Optional)
         <br />
@@ -280,10 +296,10 @@ export const faqs: {
     image: '',
   },
   {
-    question: 'When do I pay for my initial Boombox delivery?',
+    question: 'When do I pay for my initial Boombox pickup?',
     answer: (
       <>
-        You won't be charged until the day of your delivery.
+        You won't be charged until the day of your pickup.
         <br />
         <br />
         We ask for credit card information in order to hold your reservation to
@@ -293,8 +309,8 @@ export const faqs: {
         We charge a reversible $10 charge to make sure the card is valid.
         <br />
         <br />
-        Every month or 30 days after your initial storage delivery we will
-        charge your credit card on file for your monthly storage payment.
+        Every month or 30 days after your initial storage pickup we will charge
+        your credit card on file for your monthly storage payment.
       </>
     ),
     category: 'Pricing',
@@ -310,11 +326,18 @@ export const faqs: {
         <br />
         <br />
         To get an accurate quote for your Boombox, click{' '}
-        <a href="/get-quote">here</a>.
+        <a className="font-semibold" href="/get-quote">
+          here
+        </a>
+        .
         <br />
         <br />
         Or you can check out our pricing page to get a general idea of the
-        overall costs by clicking <a href="/storage-unit-prices">here</a>.
+        overall costs by clicking{' '}
+        <a className="font-semibold" href="/storage-unit-prices">
+          here
+        </a>
+        .
       </>
     ),
     category: 'Pricing',
@@ -390,16 +413,16 @@ export const faqs: {
   },
   {
     question:
-      'If I choose to have multiple Boombox containers delivered, will all of them arrive at the same time?',
+      'If I need multiple Boombox containers, will all of them arrive at the same time?',
     answer: (
       <>
         We will send a max of two Boombox containers at the same time to ensure
-        there is enough space at your delivery address for your move to go
+        there is enough space at your pickup address for your move to go
         smoothly.
         <br />
         <br />
-        The remaining container deliveries will be staggered an hour after the
-        first two containers have been delivered.
+        The remaining containers will be staggered an hour after the first two
+        containers have arrived.
       </>
     ),
     category: 'Scheduling',
@@ -410,12 +433,12 @@ export const faqs: {
     answer: (
       <>
         We partner with local moving pros for all moving labor needs. You can
-        add labor help to your order when booking your initial delivery.
+        add labor help to your order when booking your initial pickup.
         <br />
         <br />
-        Our delivery drivers will bring your Boombox to your delivery address
-        but are not expected or insured to help with moving your belongings into
-        the container.
+        Our drivers will bring your Boombox to your pickup address but are not
+        expected or insured to help with moving your belongings into the
+        container.
         <br />
         <br />
         We can let you use a floor dolly to help move your items, but if you
@@ -449,7 +472,11 @@ export const faqs: {
         them from being scratched.
         <br />
         <br />
-        You can check out our full pre-delivery checklist <a href="#">here</a>.
+        You can check out our full pre-delivery checklist{' '}
+        <a className="font-semibold" href="#">
+          here
+        </a>
+        .
       </>
     ),
     category: 'Best Practices',
@@ -562,8 +589,9 @@ export const faqs: {
         "cancel reservation" button.
         <br />
         <br />
-        We ask for at least 12 hours notice for cancellations. If we don't
-        receive 24 hours notice, you'll be subject to a $65 fee.
+        We ask for at least 48 hours notice for cancellations. If we don't
+        receive 48 hours notice, you'll be subject to a $65 fee. If you cancel
+        on the day of your appointment, the fee increases to $150.
       </>
     ),
     category: 'Scheduling',
@@ -599,7 +627,11 @@ export const faqs: {
         hazards in the unlikely event that they occur.
         <br />
         <br />
-        You can find our full insurance coverage details <a href="#">here</a>.
+        You can find our full insurance coverage details{' '}
+        <a className="font-semibold" href="#">
+          here
+        </a>
+        .
       </>
     ),
     category: 'Insurance',
@@ -787,8 +819,8 @@ export const faqs: {
         If you need help during peak hours (weekends), labor will cost more.
         <br />
         <br />
-        We will give as accurate an estimate as we can when you go through the
-        website to get a quote.
+        Each local pro sets their own rate. We will give an accurate estimate
+        when you go through the website to get a quote.
       </>
     ),
     category: 'Labor',

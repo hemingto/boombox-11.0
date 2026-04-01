@@ -1,11 +1,11 @@
 /**
  * @fileoverview Handle customer appointment cancellations with driver/mover notifications
  * @refactor New route for customer-initiated appointment cancellations
- * 
+ *
  * ROUTE FUNCTIONALITY:
  * POST endpoint that handles customer appointment cancellations.
  * Calculates cancellation fees, processes refunds, and notifies assigned drivers/movers via SMS.
- * 
+ *
  * INTEGRATION NOTES:
  * - Notifies assigned drivers and moving partners via SMS when customer cancels
  * - Calculates cancellation fees based on timing (24-hour rule)
@@ -15,22 +15,23 @@
 
 import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { formatTime } from '@/lib/utils/dateUtils';
+import { formatTime } from '@/lib/utils';
 import { prisma } from '@/lib/database/prismaClient';
 import { deleteOnfleetTask } from '@/lib/integrations/onfleetClient';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { customerCancellationNotificationSms } from '@/lib/messaging/templates/sms/appointment/customerCancellationNotification';
-import { 
-  CustomerCancelAppointmentRequestSchema, 
-  CustomerCancelAppointmentResponseSchema 
+import {
+  CustomerCancelAppointmentRequestSchema,
+  CustomerCancelAppointmentResponseSchema,
 } from '@/lib/validations/api.validations';
 import { NotificationService } from '@/lib/services/NotificationService';
 import { TimeSlotBookingService } from '@/lib/services/TimeSlotBookingService';
-import { deleteDriverTimeSlotBooking } from '@/lib/utils/driverAssignmentUtils';
+import { deleteDriverTimeSlotBooking } from '@/lib/utils';
 
 // Cancellation fee configuration
-const CANCELLATION_FEE = 65; // $65 fee for cancellations within 24 hours
-const MINIMUM_NOTICE_HOURS = 24;
+const CANCELLATION_FEE = 65; // $65 fee for cancellations within 48 hours
+const SAME_DAY_CANCELLATION_FEE = 150; // $150 fee for same-day cancellations
+const MINIMUM_NOTICE_HOURS = 48;
 
 export async function POST(
   request: NextRequest,
@@ -68,7 +69,10 @@ export async function POST(
 
     if (!validationResult.success) {
       return NextResponse.json(
-        { error: 'Invalid request parameters', details: validationResult.error.errors },
+        {
+          error: 'Invalid request parameters',
+          details: validationResult.error.errors,
+        },
         { status: 400 }
       );
     }
@@ -85,15 +89,15 @@ export async function POST(
             id: true,
             firstName: true,
             lastName: true,
-            phoneNumber: true
-          }
+            phoneNumber: true,
+          },
         },
         movingPartner: {
           select: {
             id: true,
             name: true,
-            phoneNumber: true
-          }
+            phoneNumber: true,
+          },
         },
         onfleetTasks: {
           include: {
@@ -102,11 +106,11 @@ export async function POST(
                 id: true,
                 firstName: true,
                 lastName: true,
-                phoneNumber: true
-              }
-            }
-          }
-        }
+                phoneNumber: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -136,9 +140,23 @@ export async function POST(
     // Calculate cancellation fee based on timing
     const currentTime = new Date();
     const appointmentDateTime = new Date(appointment.date);
-    const hoursUntilAppointment = (appointmentDateTime.getTime() - currentTime.getTime()) / (1000 * 60 * 60);
-    const isWithinNoticeWindow = hoursUntilAppointment <= MINIMUM_NOTICE_HOURS && hoursUntilAppointment > 0;
-    const cancellationFee = isWithinNoticeWindow ? CANCELLATION_FEE : 0;
+    const hoursUntilAppointment =
+      (appointmentDateTime.getTime() - currentTime.getTime()) /
+      (1000 * 60 * 60);
+    const isSameDay =
+      appointmentDateTime.getFullYear() === currentTime.getFullYear() &&
+      appointmentDateTime.getMonth() === currentTime.getMonth() &&
+      appointmentDateTime.getDate() === currentTime.getDate();
+
+    let cancellationFee = 0;
+    if (hoursUntilAppointment > 0 && isSameDay) {
+      cancellationFee = SAME_DAY_CANCELLATION_FEE;
+    } else if (
+      hoursUntilAppointment <= MINIMUM_NOTICE_HOURS &&
+      hoursUntilAppointment > 0
+    ) {
+      cancellationFee = CANCELLATION_FEE;
+    }
 
     // Process the cancellation
     await processCancellation(appointment, cancellationReason, cancellationFee);
@@ -148,18 +166,18 @@ export async function POST(
 
     // Create in-app notification for customer
     try {
-      await NotificationService.notifyAppointmentCancelled(
-        appointment.userId,
-        {
-          appointmentId: appointment.id,
-          appointmentType: appointment.appointmentType,
-          date: appointment.date,
-          address: appointment.address,
-          cancellationReason
-        }
-      );
+      await NotificationService.notifyAppointmentCancelled(appointment.userId, {
+        appointmentId: appointment.id,
+        appointmentType: appointment.appointmentType,
+        date: appointment.date,
+        address: appointment.address,
+        cancellationReason,
+      });
     } catch (notificationError) {
-      console.error('Error creating in-app cancellation notification:', notificationError);
+      console.error(
+        'Error creating in-app cancellation notification:',
+        notificationError
+      );
       // Don't fail the cancellation if notification fails
     }
 
@@ -171,7 +189,8 @@ export async function POST(
     };
 
     // Validate response format
-    const responseValidation = CustomerCancelAppointmentResponseSchema.safeParse(response);
+    const responseValidation =
+      CustomerCancelAppointmentResponseSchema.safeParse(response);
     if (!responseValidation.success) {
       console.error('Response validation failed:', responseValidation.error);
       return NextResponse.json(
@@ -181,7 +200,6 @@ export async function POST(
     }
 
     return NextResponse.json(response);
-
   } catch (error) {
     console.error('Error cancelling appointment:', error);
     return NextResponse.json(
@@ -204,7 +222,7 @@ async function processCancellation(
     where: { id: appointment.id },
     data: {
       status: 'Canceled',
-    }
+    },
   });
 
   // Record the cancellation
@@ -214,7 +232,7 @@ async function processCancellation(
       cancellationFee: cancellationFee,
       cancellationReason: cancellationReason,
       cancellationDate: new Date(),
-    }
+    },
   });
 
   // Delete TimeSlotBooking record (for moving partner bookings)
@@ -239,14 +257,21 @@ async function processCancellation(
       try {
         // Delete task from Onfleet using direct HTTP API
         const deleteResult = await deleteOnfleetTask(task.taskId);
-        
+
         if (deleteResult.success) {
-          console.log(`Deleted Onfleet task ${task.taskId} for cancelled appointment ${appointment.id}`);
+          console.log(
+            `Deleted Onfleet task ${task.taskId} for cancelled appointment ${appointment.id}`
+          );
         } else {
-          console.error(`Failed to delete Onfleet task ${task.taskId}: ${deleteResult.error}`);
+          console.error(
+            `Failed to delete Onfleet task ${task.taskId}: ${deleteResult.error}`
+          );
         }
       } catch (onfleetError) {
-        console.error(`Error deleting Onfleet task ${task.taskId}:`, onfleetError);
+        console.error(
+          `Error deleting Onfleet task ${task.taskId}:`,
+          onfleetError
+        );
       }
 
       // Update task status in database regardless of Onfleet deletion result
@@ -254,12 +279,14 @@ async function processCancellation(
         where: { id: task.id },
         data: {
           driverNotificationStatus: 'cancelled_by_customer',
-        }
+        },
       });
     }
   }
 
-  console.log(`Appointment ${appointment.id} cancelled by customer. Fee: $${cancellationFee}`);
+  console.log(
+    `Appointment ${appointment.id} cancelled by customer. Fee: $${cancellationFee}`
+  );
 }
 
 /**
@@ -271,10 +298,10 @@ async function notifyAssignedWorkersOfCancellation(
 ): Promise<void> {
   const appointmentDate = new Date(appointment.date);
   const appointmentTime = new Date(appointment.time);
-  const formattedDate = appointmentDate.toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    month: 'long', 
-    day: 'numeric' 
+  const formattedDate = appointmentDate.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
   });
   const formattedTime = formatTime(appointmentTime);
 
@@ -289,9 +316,13 @@ async function notifyAssignedWorkersOfCancellation(
   // Notify assigned drivers
   if (appointment.onfleetTasks && appointment.onfleetTasks.length > 0) {
     const notifiedDrivers = new Set<number>();
-    
+
     for (const task of appointment.onfleetTasks) {
-      if (task.driver && task.driver.phoneNumber && !notifiedDrivers.has(task.driver.id)) {
+      if (
+        task.driver &&
+        task.driver.phoneNumber &&
+        !notifiedDrivers.has(task.driver.id)
+      ) {
         try {
           await MessageService.sendSms(
             task.driver.phoneNumber,
@@ -299,9 +330,14 @@ async function notifyAssignedWorkersOfCancellation(
             notificationData
           );
           notifiedDrivers.add(task.driver.id);
-          console.log(`Cancellation SMS sent to driver ${task.driver.firstName} ${task.driver.lastName} (${task.driver.phoneNumber})`);
+          console.log(
+            `Cancellation SMS sent to driver ${task.driver.firstName} ${task.driver.lastName} (${task.driver.phoneNumber})`
+          );
         } catch (error) {
-          console.error(`Error sending cancellation SMS to driver ${task.driver.id}:`, error);
+          console.error(
+            `Error sending cancellation SMS to driver ${task.driver.id}:`,
+            error
+          );
         }
       }
     }
@@ -315,13 +351,20 @@ async function notifyAssignedWorkersOfCancellation(
         customerCancellationNotificationSms,
         notificationData
       );
-      console.log(`Cancellation SMS sent to moving partner ${appointment.movingPartner.name} (${appointment.movingPartner.phoneNumber})`);
+      console.log(
+        `Cancellation SMS sent to moving partner ${appointment.movingPartner.name} (${appointment.movingPartner.phoneNumber})`
+      );
     } catch (error) {
-      console.error(`Error sending cancellation SMS to moving partner ${appointment.movingPartner.id}:`, error);
+      console.error(
+        `Error sending cancellation SMS to moving partner ${appointment.movingPartner.id}:`,
+        error
+      );
     }
   }
 
   if (!appointment.onfleetTasks?.length && !appointment.movingPartner) {
-    console.log(`No drivers or moving partners to notify for cancelled appointment ${appointment.id}`);
+    console.log(
+      `No drivers or moving partners to notify for cancelled appointment ${appointment.id}`
+    );
   }
-} 
+}

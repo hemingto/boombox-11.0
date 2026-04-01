@@ -7,12 +7,11 @@
 import { MessageTemplate } from '@/lib/messaging/types';
 
 export const driverJobOfferSms: MessageTemplate = {
-  text: 'Boombox: ${appointmentType} Job ${formattedTime} ${formattedDate} at ${shortAddress}. Est Pay: ~${paymentEstimate}. Text YES to Accept or NO to Decline. Details: ${webViewUrl}',
+  text: 'Boombox: ${appointmentType} Job ${formattedTime} ${formattedDate}. Est Pay: ~${paymentEstimate}. Text YES to Accept or NO to Decline. Details: ${webViewUrl}',
   requiredVariables: [
     'appointmentType',
     'formattedTime',
     'formattedDate',
-    'shortAddress',
     'paymentEstimate',
     'webViewUrl',
   ],

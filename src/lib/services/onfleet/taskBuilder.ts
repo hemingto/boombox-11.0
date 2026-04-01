@@ -4,9 +4,6 @@
  * @refactor Extracted task building logic from 1,156-line monolith into reusable utilities
  */
 
-import { parseAddress } from '@/lib/utils/formatUtils';
-import { WAREHOUSE_ADDRESS } from '@/lib/utils/onfleetTaskUtils';
-
 // ===== TASK TIMING UTILITIES =====
 
 export interface TaskTimingConfig {
@@ -25,39 +22,49 @@ export interface TaskTimingResult {
  * Calculates task timing with offsets for multiple units
  * Ensures times are not in the past
  */
-export function calculateTaskTiming(config: TaskTimingConfig): TaskTimingResult {
+export function calculateTaskTiming(
+  config: TaskTimingConfig
+): TaskTimingResult {
   const { appointmentTime, existingUnitCount, currentUnitIndex } = config;
-  
+
   const routeStartTime = new Date(appointmentTime.getTime() - 60 * 60 * 1000); // 1 hour before
   const windowEnd = new Date(appointmentTime.getTime() + 60 * 60 * 1000); // 1 hour after
-  
+
   // Calculate time offset based on how many units already exist plus current new unit index
   // This ensures new units get properly sequenced after existing ones
   // Each unit gets 45 minute offset
   const timeOffset = (existingUnitCount + currentUnitIndex) * 45 * 60 * 1000;
-  
+
   let adjustedStartTime = new Date(routeStartTime.getTime() + timeOffset);
-  let adjustedAppointmentTime = new Date(appointmentTime.getTime() + timeOffset);
+  let adjustedAppointmentTime = new Date(
+    appointmentTime.getTime() + timeOffset
+  );
   let adjustedWindowEnd = new Date(windowEnd.getTime() + timeOffset);
-  
+
   // Validate timestamps are not in the past
   const now = new Date().getTime();
-  
+
   if (adjustedStartTime.getTime() < now) {
-    console.warn(`Warning: adjustedStartTime is in the past. Using now + 1 hour instead.`);
+    console.warn(
+      `Warning: adjustedStartTime is in the past. Using now + 1 hour instead.`
+    );
     adjustedStartTime = new Date(now + 60 * 60 * 1000);
   }
-  
+
   if (adjustedAppointmentTime.getTime() < now) {
-    console.warn(`Warning: adjustedAppointmentTime is in the past. Using now + 2 hours instead.`);
+    console.warn(
+      `Warning: adjustedAppointmentTime is in the past. Using now + 2 hours instead.`
+    );
     adjustedAppointmentTime = new Date(now + 2 * 60 * 60 * 1000);
   }
-  
+
   if (adjustedWindowEnd.getTime() < now) {
-    console.warn(`Warning: adjustedWindowEnd is in the past. Using now + 3 hours instead.`);
+    console.warn(
+      `Warning: adjustedWindowEnd is in the past. Using now + 3 hours instead.`
+    );
     adjustedWindowEnd = new Date(now + 3 * 60 * 60 * 1000);
   }
-  
+
   return {
     adjustedStartTime,
     adjustedAppointmentTime,
@@ -233,226 +240,128 @@ export function buildTaskCustomFields(config: {
 
 // ===== TASK NOTES BUILDERS =====
 
-export interface TaskNotesPayload {
-  firstName: string;
-  lastName: string;
-  phoneNumber: string;
-  deliveryReason?: string;
-  description?: string;
-  parsedLoadingHelpPrice?: number;
-  selectedLabor?: {
-    title?: string;
-  };
+export interface TaskNotesConfig {
+  appointmentType: string;
+  jobCode: string;
+  isDIY: boolean;
+  isFirstUnit: boolean;
+  totalUnits: number;
+  currentUnitNumber: number;
+  storageUnitNumber: string;
+  movingPartnerName: string;
 }
 
-/**
- * Builds task notes for DIY Plan - Pickup step
- */
-export function buildDiyPickupNotes(
-  payload: TaskNotesPayload,
-  unitNumber: string,
-  allUnits: string
-): string {
+function isAccessOrEndTerm(appointmentType: string): boolean {
+  return (
+    appointmentType === 'Storage Unit Access' ||
+    appointmentType === 'End Storage Term'
+  );
+}
+
+function buildStep1Notes(config: TaskNotesConfig): string {
+  const unitLine = isAccessOrEndTerm(config.appointmentType)
+    ? `Warehouse staff will attach trailer and ${config.storageUnitNumber} to your vehicle`
+    : 'Warehouse staff will attach trailer and storage unit to your vehicle';
+
   return `STEP 1: WAREHOUSE PICKUP
 
-Customer needs access to storage unit ${unitNumber}.
+Job Code: ${config.jobCode}
 
-All requested units: ${allUnits}
+Check in with warehouse staff when you arrive
 
-Customer Name: ${payload.firstName} ${payload.lastName}
-Phone: ${payload.phoneNumber}
-Reason: ${payload.deliveryReason || 'Initial Storage'}
-Plan: Do It Yourself Plan (Customer will handle loading/unloading)
+Share job code
 
-Instructions: Please locate and retrieve unit ${unitNumber}`;
+${unitLine}
+
+Take photo of the storage unit attached and the back door is closed and secure`;
 }
 
-/**
- * Builds task notes for DIY Plan - Customer delivery step
- */
-export function buildDiyCustomerNotes(
-  payload: TaskNotesPayload,
-  unitNumber: string
-): string {
-  return `STEP 2: CUSTOMER DELIVERY
+function buildStep2Notes(config: TaskNotesConfig): string {
+  const isAccess = isAccessOrEndTerm(config.appointmentType);
+  const isEndTerm = config.appointmentType === 'End Storage Term';
+  const isMultiUnit = config.totalUnits > 1;
+  const isAdditionalUnit = !config.isFirstUnit;
 
-Storage Unit Access: ${unitNumber}
+  const intro = `Drive to customer's address. Find a safe and secure place to park. Call customer if they do not come outside within 5 mins. Greet them in a professional manner.`;
 
-Customer Name: ${payload.firstName} ${payload.lastName}
-Phone: ${payload.phoneNumber}
-Plan: Do It Yourself Plan (Customer will handle loading/unloading)
+  let taskParagraph: string;
+  let photoParagraph: string;
 
-Instructions: Customer will handle loading/unloading. Please wait for them to complete.
-Additional Notes: ${payload.description || 'No added info'}`;
-}
-
-/**
- * Builds task notes for DIY Plan - Return step
- */
-export function buildDiyReturnNotes(
-  payload: TaskNotesPayload,
-  unitNumber: string
-): string {
-  return `STEP 3: RETURN TO WAREHOUSE
-
-Return storage unit #${unitNumber} to warehouse.
-
-Customer Name: ${payload.firstName} ${payload.lastName}
-Phone: ${payload.phoneNumber}
-Instructions: Return unit to warehouse, ensure unit is secure.`;
-}
-
-/**
- * Builds task notes for Full Service Plan - Pickup step (with moving partner)
- */
-export function buildFullServicePickupNotes(
-  payload: TaskNotesPayload,
-  unitNumber: string
-): string {
-  return `STEP 1: WAREHOUSE PICKUP
-
-Customer needs access to storage unit #${unitNumber}.
-
-Customer Name: ${payload.firstName} ${payload.lastName}
-Phone: ${payload.phoneNumber}
-Reason: ${payload.deliveryReason || 'Initial Storage'}
-Plan: Full Service Plan (Moving partner will assist with loading/unloading)
-
-Instructions: Please locate and retrieve unit #${unitNumber}`;
-}
-
-/**
- * Builds task notes for Full Service Plan - Customer delivery step (with moving partner)
- */
-export function buildFullServiceCustomerNotes(
-  payload: TaskNotesPayload,
-  unitNumber: string
-): string {
-  return `STEP 2: CUSTOMER DELIVERY
-
-Storage Unit Access: #${unitNumber}
-
-Customer Name: ${payload.firstName} ${payload.lastName}
-Phone: ${payload.phoneNumber}
-Plan: Full Service (Moving partner will assist with loading/unloading)
-
-Partner: ${payload.selectedLabor?.title || 'Moving Partner'}
-Rate: ${payload.parsedLoadingHelpPrice}/hr
-
-Instructions: Assist customer with loading/unloading as needed.
-Additional Notes: ${payload.description || 'No added info'}`;
-}
-
-/**
- * Builds task notes for Full Service Plan - Additional units (driver network)
- */
-export function buildDriverNetworkPickupNotes(
-  payload: TaskNotesPayload,
-  unitNumber: string
-): string {
-  return `STEP 1: WAREHOUSE PICKUP
-
-Customer needs access to storage unit #${unitNumber}.
-
-Customer Name: ${payload.firstName} ${payload.lastName}
-Phone: ${payload.phoneNumber}
-Reason: ${payload.deliveryReason || 'Initial Storage'}
-Plan: Full Service Plan (Additional unit)
-
-Instructions: Please locate and retrieve unit #${unitNumber}`;
-}
-
-/**
- * Builds task notes for Full Service Plan - Additional units customer delivery
- */
-export function buildDriverNetworkCustomerNotes(
-  payload: TaskNotesPayload,
-  unitNumber: string
-): string {
-  return `STEP 2: CUSTOMER DELIVERY (Additional Unit)
-
-Storage Unit Access: #${unitNumber}
-
-Customer Name: ${payload.firstName} ${payload.lastName}
-Phone: ${payload.phoneNumber}
-Instructions: This is an additional unit for this customer. Deliver to customer location.
-Additional Notes: ${payload.description || 'No added info'}`;
-}
-
-/**
- * Builds task notes for Return step (both DIY and Full Service)
- */
-export function buildReturnNotes(
-  payload: TaskNotesPayload,
-  unitNumber: string
-): string {
-  return `STEP 3: RETURN TO WAREHOUSE
-
-Return storage unit #${unitNumber} to warehouse.
-
-Customer Name: ${payload.firstName} ${payload.lastName}
-Phone: ${payload.phoneNumber}
-Instructions: Return unit to warehouse, ensure unit is secure.`;
-}
-
-/**
- * Factory function to build all 3 task notes based on plan type and unit number
- */
-export function buildTaskNotes(
-  payload: TaskNotesPayload,
-  unitNumber: string,
-  allUnits: string,
-  isDIY: boolean,
-  isFirstUnit: boolean,
-  isAccessAppointment: boolean
-) {
-  if (isAccessAppointment) {
-    if (isDIY) {
-      return {
-        pickup: buildDiyPickupNotes(payload, unitNumber, allUnits),
-        customer: buildDiyCustomerNotes(payload, unitNumber),
-        return: buildDiyReturnNotes(payload, unitNumber),
-      };
+  if (config.isDIY) {
+    if (isAccess) {
+      taskParagraph =
+        'Wait for the customer to unload the items they need from their unit. You are not insured to assist with the packing process. Politely explain this to the customer if they ask for your help.';
     } else {
-      // Full Service Plan
-      if (isFirstUnit) {
-        return {
-          pickup: buildFullServicePickupNotes(payload, unitNumber),
-          customer: buildFullServiceCustomerNotes(payload, unitNumber),
-          return: buildReturnNotes(payload, unitNumber),
-        };
-      } else {
-        // Additional units
-        return {
-          pickup: buildDriverNetworkPickupNotes(payload, unitNumber),
-          customer: buildDriverNetworkCustomerNotes(payload, unitNumber),
-          return: buildReturnNotes(payload, unitNumber),
-        };
-      }
+      taskParagraph =
+        'Wait for the customer to pack their unit. You are not insured to assist with the packing process. Politely explain this to the customer if they ask for your help.';
+    }
+    photoParagraph =
+      '[Important] Once the unit is packed, take a photo of the storage unit with the door open. Stand directly behind the unit so you can see the full opening of the storage unit door.';
+  } else if (isAdditionalUnit) {
+    taskParagraph = `Your unit is being packed by ${config.movingPartnerName} and the customer. You are ${config.currentUnitNumber} out of ${config.totalUnits}.`;
+    if (isAccess) {
+      photoParagraph =
+        '[Important] Once the customer is done with their unit, take a photo of the storage unit you towed with the door open. Stand directly behind the unit so you can see the full opening of the storage unit door.';
+    } else {
+      photoParagraph =
+        '[Important] Once your unit is packed, take a photo of the storage unit that you towed with the door open. Stand directly behind the unit so you can see the full opening of the storage unit door.';
+    }
+  } else if (isMultiUnit) {
+    if (isAccess) {
+      taskParagraph = `Assist the customer with unloading or loading all of their units. There are ${config.totalUnits} in this order.`;
+      photoParagraph =
+        '[Important] Once the customer is done with their unit, take a photo of the storage unit you towed with the door open. Stand directly behind the unit so you can see the full opening of the storage unit door.';
+    } else {
+      taskParagraph = `You are packing ${config.totalUnits} total. Assist the customer with loading all of their units and packing their items so they are ready to be stored safely and securely. Pack the unit you towed last to clear up parking space at the customer's location.`;
+      photoParagraph =
+        '[Important] Once your unit is packed, take a photo of the storage unit that you towed with the door open. Stand directly behind the unit so you can see the full opening of the storage unit door.';
     }
   } else {
-    // Standard appointment (not access)
-    if (isDIY) {
-      return {
-        pickup: buildDiyPickupNotes(payload, unitNumber, allUnits),
-        customer: buildDiyCustomerNotes(payload, unitNumber),
-        return: buildDiyReturnNotes(payload, unitNumber),
-      };
+    if (isAccess) {
+      taskParagraph =
+        'Assist the customer with unloading or loading their unit.';
+      photoParagraph =
+        '[Important] Once the customer is done with their unit, take a photo of the storage unit with the door open. Stand directly behind the unit so you can see the full opening of the storage unit door.';
     } else {
-      if (isFirstUnit) {
-        return {
-          pickup: buildFullServicePickupNotes(payload, unitNumber),
-          customer: buildFullServiceCustomerNotes(payload, unitNumber),
-          return: buildReturnNotes(payload, unitNumber),
-        };
-      } else {
-        return {
-          pickup: buildDriverNetworkPickupNotes(payload, unitNumber),
-          customer: buildDriverNetworkCustomerNotes(payload, unitNumber),
-          return: buildReturnNotes(payload, unitNumber),
-        };
-      }
+      taskParagraph =
+        'Assist the customer with loading their unit and packing their items so they are ready to be stored safely and securely';
+      photoParagraph =
+        '[Important] Once the unit is packed, take a photo of the storage unit with the door open. Stand directly behind the unit so you can see the full opening of the storage unit door.';
     }
   }
+
+  if (isEndTerm) {
+    taskParagraph += ' Please ensure the unit is completely empty.';
+  }
+
+  return `STEP 2: CUSTOMER DELIVERY
+
+${intro}
+
+${taskParagraph}
+
+${photoParagraph}
+
+Make sure the back door is secure and padlocked before leaving.`;
 }
 
+function buildStep3Notes(): string {
+  return `STEP 3: RETURN TO WAREHOUSE
+
+Return directly to the Boombox facility.
+
+Check in with the warehouse staff when you arrive and the crew will unload the storage unit and remove the trailer from your vehicle if this is your last job of the day.
+
+Take a photo of the unit back at the storage facility.`;
+}
+
+/**
+ * Factory function to build all 3 task notes based on appointment type, plan type, and unit scenario
+ */
+export function buildTaskNotes(config: TaskNotesConfig) {
+  return {
+    pickup: buildStep1Notes(config),
+    customer: buildStep2Notes(config),
+    return: buildStep3Notes(),
+  };
+}

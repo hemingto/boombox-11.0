@@ -1,21 +1,21 @@
 /**
  * @fileoverview Access Storage Confirmation Step - Final appointment confirmation
  * @source boombox-10.0/src/app/components/access-storage/accessstorageconfirmappointment.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * Final step of the access storage form that allows users to add additional details about their delivery
  * and provides information about payment processing and cancellation policies. Includes smart back navigation
  * based on the selected plan type.
- * 
+ *
  * API ROUTES UPDATED:
  * - No direct API routes used in this component (handled by form submission)
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Replaced InformationalPopup with Modal component from primitives
  * - Applied semantic color tokens (text-text-primary, bg-surface-primary, etc.)
  * - Used form utility classes for consistent styling
  * - Updated focus states and accessibility attributes
- * 
+ *
  * @refactor Replaced InformationalPopup with Modal component, integrated with form context,
  * added comprehensive accessibility support, and updated to use design system colors.
  */
@@ -45,7 +45,10 @@ function AccessStorageConfirmAppointment({
   // Get description from form context
   const description = form.watch('description') || '';
   const setDescription = (value: string) => {
-    form.setValue('description', value, { shouldValidate: true, shouldDirty: true });
+    form.setValue('description', value, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
   };
 
   const handleBackClick = () => {
@@ -55,7 +58,9 @@ function AccessStorageConfirmAppointment({
     goBackToStep2();
   };
 
-  const handleDescriptionChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleDescriptionChange = (
+    event: React.ChangeEvent<HTMLTextAreaElement>
+  ) => {
     setDescription(event.target.value);
   };
 
@@ -73,9 +78,7 @@ function AccessStorageConfirmAppointment({
             >
               <ChevronLeftIcon className="w-8" />
             </button>
-            <h1 className="text-4xl text-text-primary">
-              Confirm appointment
-            </h1>
+            <h1 className="text-4xl text-text-primary">Confirm appointment</h1>
           </div>
         </header>
 
@@ -96,34 +99,30 @@ function AccessStorageConfirmAppointment({
               aria-label="Delivery details and special instructions"
               aria-describedby="description-help"
             />
-            <div 
-              id="description-help" 
-              className="sr-only"
-            >
-              Optional field to provide additional details about your delivery that may help with the appointment
+            <div id="description-help" className="sr-only">
+              Optional field to provide additional details about your delivery
+              that may help with the appointment
             </div>
           </div>
         </fieldset>
 
         {/* Payment Information */}
-        <section 
+        <section
           className="flex-col gap-2"
           role="region"
           aria-labelledby="payment-info-heading"
         >
-          <h2 
-            id="payment-info-heading" 
-            className="sr-only"
-          >
+          <h2 id="payment-info-heading" className="sr-only">
             Payment Information
           </h2>
           <div className="mt-4 p-3 sm:mb-4 mb-2 border border-border bg-surface-primary rounded-md max-w-fit">
             <p className="text-xs text-text-primary">
-              You won&apos;t be charged anything today. Your payment will be processed on the default card on file.
+              You won&apos;t be charged anything today. Your payment will be
+              processed on the default card on file.
               <br />
               <br />
             </p>
-            
+
             {/* Payment Details Modal */}
             <button
               type="button"
@@ -134,7 +133,6 @@ function AccessStorageConfirmAppointment({
               When will I be charged?
             </button>
 
-            
             <Modal
               open={isPaymentModalOpen}
               onClose={() => setIsPaymentModalOpen(false)}
@@ -143,26 +141,32 @@ function AccessStorageConfirmAppointment({
               aria-labelledby="payment-modal-title"
               aria-describedby="payment-modal-content"
             >
-              <div 
-                className="space-y-4"
-                id="payment-modal-content"
-              >
+              <div className="space-y-4" id="payment-modal-content">
                 <p className="text-sm text-text-primary leading-5">
-                  Reserving is free! You&apos;ll only be charged for your first month of storage and the pickup fee after your appointment is completed. We&apos;ll run a pre-authorization check 7 days before your appointment to ensure there are enough funds. If your appointment is in less than 7 days, we&apos;ll do the check right after booking. This hold will be released once the check is done.
+                  Reserving is free! You&apos;ll only be charged for your first
+                  month of storage and the pickup fee after your appointment is
+                  completed. We&apos;ll run a pre-authorization check 7 days
+                  before your appointment to ensure there are enough funds. If
+                  your appointment is in less than 7 days, we&apos;ll do the
+                  check right after booking. This hold will be released once the
+                  check is done.
                 </p>
-                
+
                 <div className="border-t border-border pt-4 pb-6">
-                  <h2 
+                  <h2
                     className="text-xl font-semibold text-text-primary mb-4"
                     id="reschedule-heading"
                   >
                     What if I need to reschedule?
                   </h2>
-                  <p 
+                  <p
                     className="text-sm text-text-primary leading-5"
                     aria-labelledby="reschedule-heading"
                   >
-                    Please reschedule or cancel at least 48 hours in advance to avoid a $100 fee. If you cancel on the day of your appointment, the fee increases to $200. It&apos;s easy to make changes online!
+                    Please reschedule or cancel at least 48 hours in advance to
+                    avoid a $65 fee. If you cancel on the day of your
+                    appointment, the fee increases to $150. It&apos;s easy to
+                    make changes online!
                   </p>
                 </div>
               </div>
