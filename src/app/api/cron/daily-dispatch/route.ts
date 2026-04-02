@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { systemFailureTemplate } from '@/lib/messaging/templates/email/admin';
+// eslint-disable-next-line no-restricted-imports -- isValidDispatchTime/getPSTTime not re-exported from barrel
 import { isValidDispatchTime, getPSTTime } from '@/lib/utils/dateUtils';
 import {
   validateApiRequest,
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
     // Skip auth check in development
     if (
       process.env.NODE_ENV === 'production' &&
-      authHeader !== `Bearer ${process.env.CRON_API_SECRET}`
+      authHeader !== `Bearer ${process.env.CRON_SECRET}`
     ) {
       return NextResponse.json(
         {
@@ -271,7 +272,7 @@ async function executeDispatch(options: {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.INTERNAL_API_SECRET || process.env.CRON_API_SECRET}`,
+        Authorization: `Bearer ${process.env.INTERNAL_API_SECRET || process.env.CRON_SECRET}`,
       },
       body: JSON.stringify({
         targetDate: options.targetDate,
@@ -447,7 +448,7 @@ async function checkDispatchHealth(): Promise<{
       const response = await fetch(`${baseUrl}${DISPATCH_API_ENDPOINT}`, {
         method: 'GET',
         headers: {
-          Authorization: `Bearer ${process.env.INTERNAL_API_SECRET || process.env.CRON_API_SECRET}`,
+          Authorization: `Bearer ${process.env.INTERNAL_API_SECRET || process.env.CRON_SECRET}`,
         },
       });
       checks.apiEndpoint = response.ok;

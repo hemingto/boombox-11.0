@@ -3,10 +3,10 @@
  * @source boombox-10.0/src/app/api/admin/drivers/[driverId]/approve/route.ts
  * @target api/admin/drivers/[id]/approve/route.ts
  * @refactor Migrated with centralized Onfleet service and comprehensive error handling
- * 
+ *
  * API Routes:
  * - POST: Approve a driver and create Onfleet worker integration
- * 
+ *
  * Business Logic:
  * - Validates driver exists and has required data
  * - Handles moving partner drivers vs. Boombox delivery network drivers
@@ -17,7 +17,7 @@
  * - Handles duplicate phone number errors by linking to existing Onfleet worker
  * - Updates driver status to approved and active upon success
  * - Sends approval notifications (in-app, SMS, email) upon success
- * 
+ *
  * Complex Integrations:
  * - Onfleet API worker creation with team assignment
  * - Vehicle type mapping for Onfleet (Car, Truck, Motorcycle, Bicycle)
@@ -25,7 +25,7 @@
  * - Service-to-team mapping with environment variable configuration
  * - Comprehensive error handling for API failures
  * - Multi-channel notification delivery
- * 
+ *
  * Dependencies:
  * - @/lib/services/onfleet-driver-service: approveDriverWithOnfleet
  * - @/lib/services/ApprovalNotificationService: notification orchestration
@@ -33,13 +33,13 @@
  * - @/lib/database/prismaClient: database access
  */
 
-import { NextResponse, NextRequest } from 'next/server';
+import { NextResponse, NextRequest, after } from 'next/server';
 import { approveDriverWithOnfleet } from '@/lib/services/onfleet-driver-service';
 import { ApprovalNotificationService } from '@/lib/services/ApprovalNotificationService';
 import { prisma } from '@/lib/database/prismaClient';
-import { 
+import {
   ApproveDriverRequestSchema,
-  validateApiRequest 
+  validateApiRequest,
 } from '@/lib/validations/api.validations';
 
 export async function POST(
@@ -51,7 +51,9 @@ export async function POST(
     const driverIdNum = parseInt(id, 10);
 
     // Validate driver ID format
-    const validation = validateApiRequest(ApproveDriverRequestSchema, { driverId: driverIdNum });
+    const validation = validateApiRequest(ApproveDriverRequestSchema, {
+      driverId: driverIdNum,
+    });
     if (!validation.success) {
       return NextResponse.json(
         { error: 'Invalid driver ID format', details: validation.error.errors },
@@ -72,48 +74,56 @@ export async function POST(
           lastName: true,
           email: true,
           phoneNumber: true,
-          services: true
-        }
+          services: true,
+        },
       });
 
-      // Send approval notifications (non-blocking)
       if (driver) {
-        ApprovalNotificationService.notifyDriverApproved({
-          id: driver.id,
-          firstName: driver.firstName,
-          lastName: driver.lastName,
-          email: driver.email,
-          phoneNumber: driver.phoneNumber,
-          services: driver.services || []
-        }).catch((error) => {
-          // Log but don't fail the approval if notifications fail
-          console.error('Error sending driver approval notifications:', error);
+        after(async () => {
+          try {
+            await ApprovalNotificationService.notifyDriverApproved({
+              id: driver.id,
+              firstName: driver.firstName,
+              lastName: driver.lastName,
+              email: driver.email,
+              phoneNumber: driver.phoneNumber,
+              services: driver.services || [],
+            });
+          } catch (error) {
+            console.error(
+              'Error sending driver approval notifications:',
+              error
+            );
+          }
         });
       }
 
-      return NextResponse.json({ 
+      return NextResponse.json({
         success: true,
         message: result.message,
         driver: {
           id: driverIdNum,
           onfleetWorkerId: result.onfleetWorkerId,
-          assignedTeams: result.assignedTeams
-        }
+          assignedTeams: result.assignedTeams,
+        },
       });
     } else {
       // Determine appropriate HTTP status based on error type
       let statusCode = 500;
       if (result.error?.includes('not found')) {
         statusCode = 404;
-      } else if (result.error?.includes('must have') || result.error?.includes('Invalid')) {
+      } else if (
+        result.error?.includes('must have') ||
+        result.error?.includes('Invalid')
+      ) {
         statusCode = 400;
       }
 
       return NextResponse.json(
-        { 
+        {
           success: false,
           error: result.error,
-          message: result.message
+          message: result.message,
         },
         { status: statusCode }
       );
@@ -121,12 +131,12 @@ export async function POST(
   } catch (error: any) {
     console.error('Error in driver approval endpoint:', error);
     return NextResponse.json(
-      { 
+      {
         success: false,
         error: 'Internal server error during driver approval',
-        message: 'An unexpected error occurred while approving the driver'
+        message: 'An unexpected error occurred while approving the driver',
       },
       { status: 500 }
     );
   }
-} 
+}

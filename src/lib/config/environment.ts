@@ -47,7 +47,6 @@ const envSchema = z.object({
   CLOUDINARY_API_SECRET: z.string().min(1).optional(),
 
   // Cron Jobs & Internal APIs
-  CRON_API_SECRET: z.string().min(1).optional(),
   CRON_SECRET: z.string().min(1).optional(),
   INTERNAL_API_SECRET: z.string().min(1).optional(),
 
@@ -132,7 +131,6 @@ export const config = {
 
   // Cron Jobs & Internal APIs
   cron: {
-    apiSecret: env.CRON_API_SECRET,
     secret: env.CRON_SECRET,
     internalApiSecret: env.INTERNAL_API_SECRET,
   },

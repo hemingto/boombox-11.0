@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     // Skip auth check in development
     if (
       process.env.NODE_ENV === 'production' &&
-      authHeader !== `Bearer ${process.env.CRON_API_SECRET}`
+      authHeader !== `Bearer ${process.env.CRON_SECRET}`
     ) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

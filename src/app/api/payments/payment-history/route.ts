@@ -22,7 +22,8 @@
 
 import { NextResponse } from 'next/server';
 import { stripe } from '@/lib/integrations/stripeClient';
-import { formatCurrency } from '@/lib/utils/currencyUtils';
+import { formatCurrency } from '@/lib/utils';
+// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import { getStripeCustomerId } from '@/lib/utils/stripeUtils';
 import type { Stripe } from 'stripe';
 
@@ -30,16 +31,13 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
-    
+
     if (!userId) {
-      return NextResponse.json(
-        { message: 'Missing userId' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Missing userId' }, { status: 400 });
     }
 
     const stripeCustomerId = await getStripeCustomerId(userId);
-    
+
     if (!stripeCustomerId) {
       return NextResponse.json(
         { message: 'Stripe customer not found' },
@@ -52,13 +50,13 @@ export async function GET(request: Request) {
       stripe.paymentIntents.list({
         customer: stripeCustomerId,
         limit: 100,
-        expand: ['data.payment_method']
+        expand: ['data.payment_method'],
       }),
       stripe.invoices.list({
         customer: stripeCustomerId,
         limit: 100,
-        status: 'paid'
-      })
+        status: 'paid',
+      }),
     ]);
 
     // Create a map of payment intents that have invoices
@@ -73,23 +71,42 @@ export async function GET(request: Request) {
       const paymentMethod = payment.payment_method as Stripe.PaymentMethod;
       const hasInvoice = invoiceMap.has(payment.id);
       const invoice = invoiceMap.get(payment.id);
-      
+
       // Extract card information
-      const cardInfo = paymentMethod && 'card' in paymentMethod ? paymentMethod.card : null;
+      const cardInfo =
+        paymentMethod && 'card' in paymentMethod ? paymentMethod.card : null;
       const cardBrand = cardInfo?.brand || '';
       const last4 = cardInfo?.last4 || '';
-      
+
+      // Derive a human-readable title:
+      // 1. Invoice-linked payments: use the invoice description (e.g. "Initial Pickup appointment" → "Initial Pickup Invoice")
+      // 2. Subscription payments: "Monthly Storage Payment"
+      // 3. Fallback to payment intent description or generic "Payment"
+      let title = payment.description || 'Payment';
+      if (hasInvoice && invoice?.description) {
+        const desc = invoice.description as string;
+        if (desc.endsWith(' appointment')) {
+          title = desc.replace(' appointment', ' Invoice');
+        } else if (desc.startsWith('Early Termination')) {
+          title = 'Early Termination Invoice';
+        } else {
+          title = desc;
+        }
+      } else if (payment.description?.includes('Subscription')) {
+        title = 'Monthly Storage Payment';
+      }
+
       return {
         id: payment.id,
         status: payment.status === 'succeeded' ? 'Paid' : 'Outstanding',
         dueDate: new Date(payment.created * 1000).toLocaleDateString(),
         amount: formatCurrency(payment.amount / 100),
-        title: payment.description || 'Payment',
+        title,
         last4: last4,
         cardBrand: cardBrand,
         hasInvoice: hasInvoice,
         invoiceId: invoice?.id || null,
-        type: hasInvoice ? 'invoice' : 'payment'
+        type: hasInvoice ? 'invoice' : 'payment',
       };
     });
 
@@ -101,4 +118,4 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
-} 
+}

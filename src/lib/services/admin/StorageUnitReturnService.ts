@@ -2,30 +2,32 @@
  * @fileoverview Service for handling storage unit return processing and inspection
  * @source boombox-10.0/src/app/api/admin/tasks/[taskId]/route.ts (storage-return task display logic)
  * @source boombox-10.0/src/app/api/admin/appointments/[id]/storage-unit-return/route.ts (return processing logic)
- * 
+ *
  * SERVICE FUNCTIONALITY:
  * - Get storage unit return task details for display
  * - Process storage unit returns with damage inspection
  * - Handle different appointment types (Initial Pickup, Storage Access, End Storage)
  * - Manage storage unit status transitions and usage records
  * - Create damage reports and admin audit logs
- * 
+ *
  * USED BY:
  * - Admin task management interface
  * - Storage unit return processing workflows
  * - Damage inspection and reporting systems
- * 
+ *
  * @refactor Extracted from monolithic admin tasks route for better organization
  */
 
 import { prisma } from '@/lib/database/prismaClient';
-import { 
+// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
+import {
   formatTaskDate,
   createStorageUnitDamageReports,
   updateStorageUnitForReturn,
   updateStorageUnitUsageForAccess,
-  createStorageReturnLog
+  createStorageReturnLog,
 } from '@/lib/utils/adminTaskUtils';
+import { StripeSubscriptionService } from '@/lib/services/stripe/stripeSubscriptionService';
 
 // Storage unit return task interface
 export interface StorageUnitReturnTask {
@@ -86,7 +88,10 @@ export class StorageUnitReturnService {
    * Get storage unit return task details for display
    * @source boombox-10.0/src/app/api/admin/tasks/[taskId]/route.ts (lines 346-494)
    */
-  async getStorageUnitReturnTask(appointmentId: number, storageUnitId?: number): Promise<StorageUnitReturnTask | null> {
+  async getStorageUnitReturnTask(
+    appointmentId: number,
+    storageUnitId?: number
+  ): Promise<StorageUnitReturnTask | null> {
     try {
       const appointment = await prisma.appointment.findUnique({
         where: { id: appointmentId },
@@ -99,54 +104,52 @@ export class StorageUnitReturnService {
           user: {
             select: {
               firstName: true,
-              lastName: true
-              
-            }
+              lastName: true,
+            },
           },
           movingPartner: {
             select: {
               name: true,
               email: true,
               phoneNumber: true,
-              imageSrc: true
-            }
+              imageSrc: true,
+            },
           },
           onfleetTasks: {
             where: {
-              driverId: { not: null }
+              driverId: { not: null },
             },
             select: {
               driver: {
                 select: {
                   firstName: true,
-              lastName: true
-                  
-                }
-              }
+                  lastName: true,
+                },
+              },
             },
-            take: 1
+            take: 1,
           },
           requestedStorageUnits: {
             include: {
               storageUnit: {
                 select: {
                   id: true,
-                  storageUnitNumber: true
-                }
-              }
-            }
+                  storageUnitNumber: true,
+                },
+              },
+            },
           },
           storageStartUsages: {
             include: {
               storageUnit: {
                 select: {
                   id: true,
-                  storageUnitNumber: true
-                }
-              }
-            }
-          }
-        }
+                  storageUnitNumber: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!appointment) {
@@ -154,44 +157,48 @@ export class StorageUnitReturnService {
       }
 
       const formattedDate = formatTaskDate(appointment.date);
-      const customerName = `${appointment.user?.firstName || ''} ${appointment.user?.lastName || ''}`.trim();
-      
+      const customerName =
+        `${appointment.user?.firstName || ''} ${appointment.user?.lastName || ''}`.trim();
+
       // Find storage unit info - complex logic from original
-      let storageUnitInfo: { id: number; storageUnitNumber: string } | null = null;
-      
+      let storageUnitInfo: { id: number; storageUnitNumber: string } | null =
+        null;
+
       if (storageUnitId) {
         // Try to find specific storage unit
-        const requestedUnit = await prisma.requestedAccessStorageUnit.findFirst({
-          where: { appointmentId, storageUnitId },
-          include: { storageUnit: true }
-        });
-        
+        const requestedUnit = await prisma.requestedAccessStorageUnit.findFirst(
+          {
+            where: { appointmentId, storageUnitId },
+            include: { storageUnit: true },
+          }
+        );
+
         if (requestedUnit?.storageUnit) {
           storageUnitInfo = {
             id: requestedUnit.storageUnit.id,
-            storageUnitNumber: requestedUnit.storageUnit.storageUnitNumber
+            storageUnitNumber: requestedUnit.storageUnit.storageUnitNumber,
           };
         } else {
           // Try storage usage records
           const usageRecord = await prisma.storageUnitUsage.findFirst({
             where: { startAppointmentId: appointmentId, storageUnitId },
-            include: { storageUnit: true }
+            include: { storageUnit: true },
           });
-          
+
           if (usageRecord?.storageUnit) {
             storageUnitInfo = {
               id: usageRecord.storageUnit.id,
-              storageUnitNumber: usageRecord.storageUnit.storageUnitNumber
+              storageUnitNumber: usageRecord.storageUnit.storageUnitNumber,
             };
           } else {
             // Direct lookup
             const storageUnit = await prisma.storageUnit.findUnique({
-              where: { id: storageUnitId }
+              where: { id: storageUnitId },
             });
             if (storageUnit) {
               storageUnitInfo = {
                 id: storageUnit.id,
-                storageUnitNumber: storageUnit.storageUnitNumber
+                storageUnitNumber: storageUnit.storageUnitNumber,
               };
             }
           }
@@ -203,7 +210,7 @@ export class StorageUnitReturnService {
           if (firstUsage.storageUnit) {
             storageUnitInfo = {
               id: firstUsage.storageUnit.id,
-              storageUnitNumber: firstUsage.storageUnit.storageUnitNumber
+              storageUnitNumber: firstUsage.storageUnit.storageUnitNumber,
             };
           }
         } else if (appointment.requestedStorageUnits.length > 0) {
@@ -211,14 +218,16 @@ export class StorageUnitReturnService {
           if (firstRequest.storageUnit) {
             storageUnitInfo = {
               id: firstRequest.storageUnit.id,
-              storageUnitNumber: firstRequest.storageUnit.storageUnitNumber
+              storageUnitNumber: firstRequest.storageUnit.storageUnitNumber,
             };
           }
         }
       }
 
       // Generate task ID in the expected format
-      const taskId = storageUnitId ? `storage-return-${appointmentId}-${storageUnitId}` : `storage-return-${appointmentId}`;
+      const taskId = storageUnitId
+        ? `storage-return-${appointmentId}-${storageUnitId}`
+        : `storage-return-${appointmentId}`;
 
       // Get driver from onfleetTasks if available
       const driver = appointment.onfleetTasks?.[0]?.driver ?? null;
@@ -226,20 +235,25 @@ export class StorageUnitReturnService {
       return {
         id: taskId,
         title: 'Storage Unit Return',
-        description: 'Check back in unit. Inspect for unit damage. Verify empty or not.',
+        description:
+          'Check back in unit. Inspect for unit damage. Verify empty or not.',
         action: 'Process Return',
         color: 'purple',
         details: `<strong>Job Code:</strong> ${appointment.jobCode ?? ''}<br><strong>Job Type:</strong> ${appointment.appointmentType ?? ''}${storageUnitInfo ? `<br><strong>Unit Number:</strong> ${storageUnitInfo.storageUnitNumber}` : ''}`,
-        movingPartner: appointment.movingPartner ? {
-          name: appointment.movingPartner.name,
-          email: appointment.movingPartner.email ?? '',
-          phoneNumber: appointment.movingPartner.phoneNumber ?? '',
-          imageSrc: appointment.movingPartner.imageSrc
-        } : null,
-        driver: driver ? {
-          firstName: driver.firstName,
-          lastName: driver.lastName
-        } : null,
+        movingPartner: appointment.movingPartner
+          ? {
+              name: appointment.movingPartner.name,
+              email: appointment.movingPartner.email ?? '',
+              phoneNumber: appointment.movingPartner.phoneNumber ?? '',
+              imageSrc: appointment.movingPartner.imageSrc,
+            }
+          : null,
+        driver: driver
+          ? {
+              firstName: driver.firstName,
+              lastName: driver.lastName,
+            }
+          : null,
         jobCode: appointment.jobCode ?? '',
         customerName: customerName,
         appointmentDate: formattedDate,
@@ -250,8 +264,8 @@ export class StorageUnitReturnService {
         appointment: {
           date: formattedDate,
           appointmentType: appointment.appointmentType ?? '',
-          user: appointment.user
-        }
+          user: appointment.user,
+        },
       };
     } catch (error) {
       console.error('Error getting storage unit return task:', error);
@@ -269,14 +283,14 @@ export class StorageUnitReturnService {
     request: StorageUnitReturnRequest
   ): Promise<StorageUnitReturnResult> {
     try {
-      const { 
-        hasDamage, 
-        damageDescription, 
-        frontPhotos, 
+      const {
+        hasDamage,
+        damageDescription,
+        frontPhotos,
         backPhotos,
         isStillStoringItems,
         isAllItemsRemoved,
-        isUnitEmpty
+        isUnitEmpty,
       } = request;
 
       // Get the appointment and its associated storage unit usage
@@ -288,10 +302,15 @@ export class StorageUnitReturnService {
               storageUnit: true,
             },
           },
+          requestedStorageUnits: {
+            select: { storageUnitId: true },
+          },
           user: {
             select: {
+              id: true,
               firstName: true,
               lastName: true,
+              stripeCustomerId: true,
             },
           },
         },
@@ -301,7 +320,7 @@ export class StorageUnitReturnService {
         return {
           success: false,
           message: '',
-          error: 'Appointment not found'
+          error: 'Appointment not found',
         };
       }
 
@@ -314,12 +333,15 @@ export class StorageUnitReturnService {
       const appointmentType = appointment.appointmentType ?? '';
 
       // Handle different appointment types with specific business logic
-      if (appointmentType === 'Initial Pickup' || appointmentType === 'Additional Storage') {
+      if (
+        appointmentType === 'Initial Pickup' ||
+        appointmentType === 'Additional Storage'
+      ) {
         if (isUnitEmpty === undefined) {
           return {
             success: false,
             message: '',
-            error: 'Missing required field: isUnitEmpty'
+            error: 'Missing required field: isUnitEmpty',
           };
         }
 
@@ -339,7 +361,7 @@ export class StorageUnitReturnService {
         for (const usage of appointment.storageStartUsages) {
           await updateStorageUnitForReturn(usage, appointmentId, isUnitEmpty);
         }
-        
+
         // Create admin log entry
         await createStorageReturnLog(
           adminId,
@@ -348,26 +370,45 @@ export class StorageUnitReturnService {
           hasDamage,
           `COMPLETED_${isUnitEmpty ? 'EMPTY' : 'OCCUPIED'}`
         );
-        
       } else if (appointmentType === 'Storage Unit Access') {
         if (isStillStoringItems === undefined) {
           return {
             success: false,
             message: '',
-            error: 'Missing required field: isStillStoringItems'
+            error: 'Missing required field: isStillStoringItems',
           };
         }
-        
+
+        // Resolve actual usages: for access appointments, storageStartUsages
+        // belongs to the original pickup — use requestedStorageUnits to find
+        // the active usages for the units in this appointment.
+        let accessUsages = appointment.storageStartUsages;
+        if (
+          accessUsages.length === 0 &&
+          appointment.requestedStorageUnits.length > 0
+        ) {
+          const unitIds = appointment.requestedStorageUnits.map(
+            r => r.storageUnitId
+          );
+          accessUsages = await prisma.storageUnitUsage.findMany({
+            where: {
+              storageUnitId: { in: unitIds },
+              userId: appointment.userId,
+              usageEndDate: null,
+            },
+            include: { storageUnit: true },
+          });
+        }
+
         // Update storage unit usage records
-        for (const usage of appointment.storageStartUsages) {
+        for (const usage of accessUsages) {
           await updateStorageUnitUsageForAccess(usage, appointmentId);
         }
-        
+
         if (isStillStoringItems) {
-          // Customer still storing items - unit remains Occupied
           if (hasDamage) {
             await createStorageUnitDamageReports(
-              appointment.storageStartUsages,
+              accessUsages,
               appointmentId,
               adminId,
               damageDescription,
@@ -375,7 +416,7 @@ export class StorageUnitReturnService {
               backPhotos
             );
           }
-          
+
           await createStorageReturnLog(
             adminId,
             appointmentId,
@@ -384,10 +425,9 @@ export class StorageUnitReturnService {
             'COMPLETED_STILL_STORING'
           );
         } else {
-          // Customer not storing items anymore (unexpected emptying)
           if (hasDamage) {
             await createStorageUnitDamageReports(
-              appointment.storageStartUsages,
+              accessUsages,
               appointmentId,
               adminId,
               damageDescription,
@@ -395,43 +435,80 @@ export class StorageUnitReturnService {
               backPhotos
             );
           }
-          
-          // Update storage units to Pending Cleaning
-          for (const usage of appointment.storageStartUsages) {
+
+          for (const usage of accessUsages) {
             await prisma.storageUnit.update({
               where: { id: usage.storageUnitId },
               data: { status: 'Pending Cleaning' },
             });
           }
-          
+
+          // Adjust subscription billing for remaining units
+          if (appointment.user.stripeCustomerId) {
+            const adjustResult =
+              await StripeSubscriptionService.adjustSubscriptionsForPartialTermination(
+                appointment.user.id,
+                appointment.user.stripeCustomerId
+              );
+            if (adjustResult.success) {
+              console.log(
+                `[StorageUnitReturn] Subscription adjusted: ${adjustResult.remainingUnits} units remaining`
+              );
+            } else {
+              console.error(
+                '[StorageUnitReturn] Subscription adjustment failed:',
+                adjustResult.error
+              );
+            }
+          }
+
           await createStorageReturnLog(
             adminId,
             appointmentId,
             'STORAGE_UNIT_ACCESS',
             hasDamage,
-            'COMPLETED_EMPTIED_UNEXPECTEDLY'
+            'COMPLETED_EMPTIED'
           );
         }
-        
       } else if (appointmentType === 'End Storage Term') {
         if (isAllItemsRemoved === undefined) {
           return {
             success: false,
             message: '',
-            error: 'Missing required field: isAllItemsRemoved'
+            error: 'Missing required field: isAllItemsRemoved',
           };
         }
-        
+
+        // Resolve actual usages: for end-term appointments, storageStartUsages
+        // belongs to the original pickup — use requestedStorageUnits to find
+        // the active usages for the units in this appointment.
+        let endTermUsages = appointment.storageStartUsages;
+        if (
+          endTermUsages.length === 0 &&
+          appointment.requestedStorageUnits.length > 0
+        ) {
+          const unitIds = appointment.requestedStorageUnits.map(
+            r => r.storageUnitId
+          );
+          endTermUsages = await prisma.storageUnitUsage.findMany({
+            where: {
+              storageUnitId: { in: unitIds },
+              userId: appointment.userId,
+              usageEndDate: null,
+            },
+            include: { storageUnit: true },
+          });
+        }
+
         // Update storage unit usage records
-        for (const usage of appointment.storageStartUsages) {
+        for (const usage of endTermUsages) {
           await updateStorageUnitUsageForAccess(usage, appointmentId);
         }
-        
+
         if (isAllItemsRemoved) {
-          // Customer removed all items
           if (hasDamage) {
             await createStorageUnitDamageReports(
-              appointment.storageStartUsages,
+              endTermUsages,
               appointmentId,
               adminId,
               damageDescription,
@@ -439,15 +516,14 @@ export class StorageUnitReturnService {
               backPhotos
             );
           }
-          
-          // Update storage units to Pending Cleaning
-          for (const usage of appointment.storageStartUsages) {
+
+          for (const usage of endTermUsages) {
             await prisma.storageUnit.update({
               where: { id: usage.storageUnitId },
               data: { status: 'Pending Cleaning' },
             });
           }
-          
+
           await createStorageReturnLog(
             adminId,
             appointmentId,
@@ -456,10 +532,9 @@ export class StorageUnitReturnService {
             hasDamage ? 'COMPLETED_WITH_DAMAGE' : 'COMPLETED_NO_DAMAGE'
           );
         } else {
-          // Customer did not remove all items (unexpected continuation)
           if (hasDamage) {
             await createStorageUnitDamageReports(
-              appointment.storageStartUsages,
+              endTermUsages,
               appointmentId,
               adminId,
               damageDescription,
@@ -467,7 +542,7 @@ export class StorageUnitReturnService {
               backPhotos
             );
           }
-          
+
           await createStorageReturnLog(
             adminId,
             appointmentId,
@@ -481,15 +556,14 @@ export class StorageUnitReturnService {
       return {
         success: true,
         message: 'Storage unit return processed successfully',
-        appointment: updatedAppointment
+        appointment: updatedAppointment,
       };
-
     } catch (error) {
       console.error('Error processing storage unit return:', error);
       return {
         success: false,
         message: '',
-        error: 'Failed to process storage unit return'
+        error: 'Failed to process storage unit return',
       };
     }
   }
@@ -497,7 +571,7 @@ export class StorageUnitReturnService {
   /**
    * Check if appointment needs storage unit return processing
    * Used by the task listing service to determine if tasks should be created
-   * 
+   *
    * Appointment types that need storage unit return:
    * - Initial Pickup: Unit returns with customer items, needs check-in
    * - Additional Storage: Additional units returning with items
@@ -512,12 +586,12 @@ export class StorageUnitReturnService {
           appointmentType: true,
           status: true,
           storageStartUsages: {
-            select: { id: true }
+            select: { id: true },
           },
           requestedStorageUnits: {
-            select: { id: true }
-          }
-        }
+            select: { id: true },
+          },
+        },
       });
 
       if (!appointment) return false;
@@ -525,16 +599,20 @@ export class StorageUnitReturnService {
       // All appointment types that involve a storage unit returning to warehouse
       const returnTypes = [
         'Initial Pickup',
-        'Additional Storage', 
+        'Additional Storage',
         'Storage Unit Access',
         'End Storage Term',
-        'End Storage Plan'
+        'End Storage Plan',
       ];
-      const hasStorageUnits = appointment.storageStartUsages.length > 0 || appointment.requestedStorageUnits.length > 0;
-      
-      return returnTypes.includes(appointment.appointmentType ?? '') && 
-             appointment.status === 'Awaiting Admin Check In' &&
-             hasStorageUnits;
+      const hasStorageUnits =
+        appointment.storageStartUsages.length > 0 ||
+        appointment.requestedStorageUnits.length > 0;
+
+      return (
+        returnTypes.includes(appointment.appointmentType ?? '') &&
+        appointment.status === 'Awaiting Admin Check In' &&
+        hasStorageUnits
+      );
     } catch (error) {
       console.error('Error checking storage return need:', error);
       return false;
@@ -544,7 +622,7 @@ export class StorageUnitReturnService {
   /**
    * Get all storage returns that need processing for task listing
    * Helper method for AdminTaskListingService
-   * 
+   *
    * Returns appointments with status 'Awaiting Admin Check In' for all types:
    * - Initial Pickup: Driver returned unit with customer items
    * - Additional Storage: Driver returned additional units with items
@@ -561,10 +639,10 @@ export class StorageUnitReturnService {
               'Additional Storage',
               'Storage Unit Access',
               'End Storage Term',
-              'End Storage Plan'
-            ]
+              'End Storage Plan',
+            ],
           },
-          status: 'Awaiting Admin Check In'
+          status: 'Awaiting Admin Check In',
         },
         select: {
           id: true,
@@ -578,10 +656,10 @@ export class StorageUnitReturnService {
               storageUnit: {
                 select: {
                   id: true,
-                  storageUnitNumber: true
-                }
-              }
-            }
+                  storageUnitNumber: true,
+                },
+              },
+            },
           },
           // For End Storage Term/Plan
           storageEndUsages: {
@@ -590,10 +668,10 @@ export class StorageUnitReturnService {
               storageUnit: {
                 select: {
                   id: true,
-                  storageUnitNumber: true
-                }
-              }
-            }
+                  storageUnitNumber: true,
+                },
+              },
+            },
           },
           // For Storage Unit Access
           requestedStorageUnits: {
@@ -602,42 +680,51 @@ export class StorageUnitReturnService {
               storageUnit: {
                 select: {
                   id: true,
-                  storageUnitNumber: true
-                }
-              }
-            }
-          }
+                  storageUnitNumber: true,
+                },
+              },
+            },
+          },
         },
         orderBy: {
-          date: 'asc'
-        }
+          date: 'asc',
+        },
       });
 
       return appointments.map(appointment => {
-        const formattedDate = new Date(appointment.date).toLocaleDateString('en-US', {
-          weekday: 'short',
-          month: 'short',
-          day: 'numeric'
-        });
+        const formattedDate = new Date(appointment.date).toLocaleDateString(
+          'en-US',
+          {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+          }
+        );
 
         // Get storage units based on appointment type
         let storageUnits: string[] = [];
         const appointmentType = appointment.appointmentType ?? '';
-        
-        if (appointmentType === 'Initial Pickup' || appointmentType === 'Additional Storage') {
+
+        if (
+          appointmentType === 'Initial Pickup' ||
+          appointmentType === 'Additional Storage'
+        ) {
           // These types use storageStartUsages
-          storageUnits = appointment.storageStartUsages.map(usage => 
-            usage.storageUnit.storageUnitNumber
+          storageUnits = appointment.storageStartUsages.map(
+            usage => usage.storageUnit.storageUnitNumber
           );
-        } else if (appointmentType === 'End Storage Term' || appointmentType === 'End Storage Plan') {
+        } else if (
+          appointmentType === 'End Storage Term' ||
+          appointmentType === 'End Storage Plan'
+        ) {
           // These types use storageEndUsages
-          storageUnits = appointment.storageEndUsages.map(usage => 
-            usage.storageUnit.storageUnitNumber
+          storageUnits = appointment.storageEndUsages.map(
+            usage => usage.storageUnit.storageUnitNumber
           );
         } else if (appointmentType === 'Storage Unit Access') {
           // This type uses requestedStorageUnits
-          storageUnits = appointment.requestedStorageUnits.map(req => 
-            req.storageUnit.storageUnitNumber
+          storageUnits = appointment.requestedStorageUnits.map(
+            req => req.storageUnit.storageUnitNumber
           );
         }
 
@@ -646,7 +733,7 @@ export class StorageUnitReturnService {
           jobCode: appointment.jobCode ?? '',
           appointmentDate: formattedDate,
           appointmentType: appointmentType,
-          storageUnits
+          storageUnits,
         };
       });
     } catch (error) {

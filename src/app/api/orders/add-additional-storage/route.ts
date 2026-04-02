@@ -22,7 +22,7 @@
  * @refactor Improved organization with centralized utilities and messaging system
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import {
   createAdditionalStorageAppointment,
@@ -208,57 +208,48 @@ export async function POST(req: NextRequest) {
       // Don't fail the appointment creation if SMS fails
     }
 
-    // Create Onfleet tasks asynchronously (doesn't block response)
-    processOnfleetAndAssignDriver(appointment.id, {
-      userId: user.id,
-      selectedInsurance,
-      stripeCustomerId: user.stripeCustomerId ?? undefined,
-      deliveryReason: 'Additional Storage',
-    })
-      .then(async taskResult => {
-        // Handle driver assignment for DIY and Full Service plans after tasks are created
+    // Process Onfleet tasks and driver assignment after the response is sent.
+    // Uses next/server after() to guarantee the work completes on Vercel serverless.
+    after(async () => {
+      try {
+        const taskResult = await processOnfleetAndAssignDriver(appointment.id, {
+          userId: user.id,
+          selectedInsurance,
+          stripeCustomerId: user.stripeCustomerId ?? undefined,
+          deliveryReason: 'Additional Storage',
+        });
+
         if (
           taskResult.success &&
           (planType === 'Do It Yourself Plan' ||
             planType === 'Full Service Plan')
         ) {
-          try {
-            // Import driver assignment handler (safe to do in API route)
-            const { handleInitialAssignment } = await import(
-              '@/app/api/onfleet/driver-assign/route'
-            );
+          const { handleInitialAssignment } = await import(
+            '@/app/api/onfleet/driver-assign/route'
+          );
 
-            // Refetch appointment with onfleetTasks included
-            const refreshedAppointment = await prisma.appointment.findUnique({
-              where: { id: appointment.id },
-              include: {
-                onfleetTasks: true,
-                user: true,
-              },
-            });
+          const refreshedAppointment = await prisma.appointment.findUnique({
+            where: { id: appointment.id },
+            include: {
+              onfleetTasks: true,
+              user: true,
+            },
+          });
 
-            if (refreshedAppointment) {
-              await handleInitialAssignment(refreshedAppointment);
-              console.log(
-                `Successfully assigned driver for Appointment ID: ${appointment.id}`
-              );
-            }
-          } catch (driverError) {
-            console.error(
-              'ADD_STORAGE: DEBUG - Error in driver assignment:',
-              driverError
+          if (refreshedAppointment) {
+            await handleInitialAssignment(refreshedAppointment);
+            console.log(
+              `ADD_STORAGE: Successfully assigned driver for Appointment ID: ${appointment.id}`
             );
-            // Continue - driver assignment can be retried later
           }
         }
-      })
-      .catch(error => {
+      } catch (error) {
         console.error(
-          'ADD_STORAGE: DEBUG - Error in Onfleet task creation:',
+          'ADD_STORAGE: Error in Onfleet task creation or driver assignment:',
           error
         );
-        // Continue without failing the response - this is asynchronous processing
-      });
+      }
+    });
 
     // Revalidate user page for real-time updates
     revalidatePath(`/customer/${numericUserId}`);

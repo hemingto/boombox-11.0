@@ -2,18 +2,18 @@
  * @fileoverview API endpoint to approve moving partners and create Onfleet teams
  * @source boombox-10.0/src/app/api/admin/movers/[id]/approve/route.ts
  * @refactor PHASE 4 - Admin Domain Routes
- * 
+ *
  * ROUTE FUNCTIONALITY:
  * POST endpoint that approves moving partners and creates associated Onfleet teams.
  * Sets partner status based on available drivers and handles Onfleet API integration.
  * Sends approval notifications (in-app, SMS, email) upon success.
- * 
+ *
  * USED BY (boombox-10.0 files):
  * - Admin moving partner approval workflow
  * - Partner onboarding completion
  * - Onfleet team management
  * - Partner status management
- * 
+ *
  * INTEGRATION NOTES:
  * - Creates Onfleet team with partner name
  * - Updates partner with isApproved=true and onfleetTeamId
@@ -22,11 +22,11 @@
  * - Handles Onfleet API errors including duplicate team names
  * - Uses MovingPartnerStatus enum for type safety
  * - Sends multi-channel approval notifications
- * 
+ *
  * @refactor Uses centralized Onfleet client from @/lib/integrations
  */
 
-import { NextResponse, NextRequest } from 'next/server';
+import { NextResponse, NextRequest, after } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
 import { getOnfleetClient } from '@/lib/integrations/onfleetClient';
 import { MovingPartnerStatus } from '@prisma/client';
@@ -42,7 +42,7 @@ export async function POST(
     const moverId = parseInt(id);
 
     const mover = await prisma.movingPartner.findUnique({
-      where: { id: moverId }
+      where: { id: moverId },
     });
 
     if (!mover) {
@@ -61,7 +61,7 @@ export async function POST(
         workers: [], // No workers initially
         managers: [], // No managers initially
         hub: null, // No hub initially
-        enableSelfAssignment: false
+        enableSelfAssignment: false,
       });
       console.log('Onfleet team created successfully:', team);
 
@@ -73,20 +73,28 @@ export async function POST(
         data: {
           isApproved: true,
           onfleetTeamId: team.id,
-          status: MovingPartnerStatus.INACTIVE
+          status: MovingPartnerStatus.INACTIVE,
         },
       });
-      console.log('Mover updated with Onfleet team ID:', updatedMover.onfleetTeamId);
+      console.log(
+        'Mover updated with Onfleet team ID:',
+        updatedMover.onfleetTeamId
+      );
 
-      // Send pending drivers notification (non-blocking, in-app only)
-      ApprovalNotificationService.notifyMoverPendingDrivers({
-        id: updatedMover.id,
-        name: updatedMover.name,
-        email: updatedMover.email,
-        phoneNumber: updatedMover.phoneNumber
-      }).catch((error) => {
-        // Log but don't fail the approval if notification fails
-        console.error('Error sending mover pending drivers notification:', error);
+      after(async () => {
+        try {
+          await ApprovalNotificationService.notifyMoverPendingDrivers({
+            id: updatedMover.id,
+            name: updatedMover.name,
+            email: updatedMover.email,
+            phoneNumber: updatedMover.phoneNumber,
+          });
+        } catch (error) {
+          console.error(
+            'Error sending mover pending drivers notification:',
+            error
+          );
+        }
       });
 
       return NextResponse.json(updatedMover);
@@ -111,4 +119,4 @@ export async function POST(
       { status: 500 }
     );
   }
-} 
+}

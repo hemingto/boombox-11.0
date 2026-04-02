@@ -12,7 +12,7 @@
  * - Route assignment fallback system
  *
  * INTEGRATION NOTES:
- * - Critical for route assignment reliability 
+ * - Critical for route assignment reliability
  * - Prevents routes from being stuck in 'sent' status
  * - Automatically finds next available drivers
  * - Admin notifications when no drivers available
@@ -23,19 +23,18 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
-import { 
-  findAndNotifyNextDriverForRoute 
-} from '@/lib/utils/driverNotificationUtils';
-import { 
+// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
+import { findAndNotifyNextDriverForRoute } from '@/lib/utils/driverNotificationUtils';
+import {
   HandleExpiredOffersRequestSchema,
-  HandleExpiredOffersGetSchema 
+  HandleExpiredOffersGetSchema,
 } from '@/lib/validations/api.validations';
 
 export async function POST(request: NextRequest) {
   try {
     // Simple API key check to prevent unauthorized access
     const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_API_SECRET}`) {
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -80,7 +79,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    console.log(`Found ${expiredOfferRoutes.length} expired route offers to process`);
+    console.log(
+      `Found ${expiredOfferRoutes.length} expired route offers to process`
+    );
 
     const results = [];
     for (const route of expiredOfferRoutes) {
@@ -108,9 +109,11 @@ export async function POST(request: NextRequest) {
           nextDriverFound: nextDriverResult.success,
           message: nextDriverResult.message,
         });
-
       } catch (error: any) {
-        console.error(`Error processing expired route ${route.routeId}:`, error);
+        console.error(
+          `Error processing expired route ${route.routeId}:`,
+          error
+        );
         results.push({
           routeId: route.routeId,
           status: 'error',
@@ -119,7 +122,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const successfullyProcessed = results.filter(r => r.status === 'processed').length;
+    const successfullyProcessed = results.filter(
+      r => r.status === 'processed'
+    ).length;
     const failedProcessing = results.filter(r => r.status === 'error').length;
     const nextDriversFound = results.filter(r => r.nextDriverFound).length;
 
@@ -135,7 +140,6 @@ export async function POST(request: NextRequest) {
       },
       results,
     });
-
   } catch (error: any) {
     console.error('Error in expired offer cleanup:', error);
     return NextResponse.json(
@@ -148,12 +152,12 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    
+
     // Validate query parameters
     const validation = HandleExpiredOffersGetSchema.safeParse({
-      dryRun: searchParams.get('dryRun')
+      dryRun: searchParams.get('dryRun'),
     });
-    
+
     if (!validation.success) {
       return NextResponse.json(
         { error: 'Validation failed', details: validation.error.issues },
@@ -187,17 +191,21 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: dryRun ? 'Dry run - showing expired offers that would be processed' : 'Current expired offers',
+      message: dryRun
+        ? 'Dry run - showing expired offers that would be processed'
+        : 'Current expired offers',
       expiredOffersCount: expiredOfferRoutes.length,
       expiredOffers: expiredOfferRoutes.map(route => ({
         routeId: route.routeId,
         deliveryDate: route.deliveryDate,
         totalStops: route.totalStops,
         expiresAt: route.driverOfferExpiresAt,
-        minutesExpired: Math.floor((currentTime.getTime() - route.driverOfferExpiresAt!.getTime()) / (1000 * 60)),
+        minutesExpired: Math.floor(
+          (currentTime.getTime() - route.driverOfferExpiresAt!.getTime()) /
+            (1000 * 60)
+        ),
       })),
     });
-
   } catch (error: any) {
     console.error('Error getting expired offers:', error);
     return NextResponse.json(
@@ -205,4 +213,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

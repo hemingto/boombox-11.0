@@ -65,43 +65,59 @@ export interface CreateOrderResponse {
 export function calculateDeliveryTimeWindow(): DeliveryTimeWindow {
   const now = new Date();
 
-  // Convert current time to Pacific Time (America/Los_Angeles)
-  // This properly handles PST/PDT transitions
-  const pstTimeString = now.toLocaleString('en-US', {
+  // Get current date/time components in Pacific timezone using Intl API
+  const pacificParts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Los_Angeles',
-  });
-  const pstNow = new Date(pstTimeString);
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    hour12: false,
+  }).formatToParts(now);
+
+  const pstYear = parseInt(pacificParts.find(p => p.type === 'year')!.value);
+  const pstMonth =
+    parseInt(pacificParts.find(p => p.type === 'month')!.value) - 1;
+  const pstDay = parseInt(pacificParts.find(p => p.type === 'day')!.value);
+  const currentHour = parseInt(
+    pacificParts.find(p => p.type === 'hour')!.value
+  );
 
   // 12 PM PST cutoff for same-day delivery
   const cutoffHour = 12;
-  const currentHour = pstNow.getHours();
-
-  let deliveryDate: Date;
   let isSameDay: boolean;
+  let deliveryYear: number;
+  let deliveryMonth: number;
+  let deliveryDay: number;
 
   if (currentHour < cutoffHour) {
-    // Same-day delivery (before 12 PM PST)
-    deliveryDate = new Date(pstNow);
+    deliveryYear = pstYear;
+    deliveryMonth = pstMonth;
+    deliveryDay = pstDay;
     isSameDay = true;
   } else {
-    // Next-day delivery (after 12 PM PST)
-    deliveryDate = new Date(pstNow);
-    deliveryDate.setDate(deliveryDate.getDate() + 1);
+    const nextDay = new Date(pstYear, pstMonth, pstDay + 1);
+    deliveryYear = nextDay.getFullYear();
+    deliveryMonth = nextDay.getMonth();
+    deliveryDay = nextDay.getDate();
     isSameDay = false;
   }
 
-  // Delivery window: 12 PM - 7 PM PST on the delivery date
-  const windowStart = new Date(deliveryDate);
-  windowStart.setHours(12, 0, 0, 0);
+  // Delivery window: 12 PM - 7 PM Pacific Time (correctly converted to UTC)
+  const windowStart = pacificTimeToUtc(
+    deliveryYear,
+    deliveryMonth,
+    deliveryDay,
+    12
+  );
+  const windowEnd = pacificTimeToUtc(
+    deliveryYear,
+    deliveryMonth,
+    deliveryDay,
+    19
+  );
 
-  const windowEnd = new Date(deliveryDate);
-  windowEnd.setHours(19, 0, 0, 0);
-
-  // Format delivery date as YYYY-MM-DD to avoid timezone issues
-  const year = deliveryDate.getFullYear();
-  const month = String(deliveryDate.getMonth() + 1).padStart(2, '0');
-  const day = String(deliveryDate.getDate()).padStart(2, '0');
-  const deliveryDateString = `${year}-${month}-${day}`;
+  const deliveryDateString = `${deliveryYear}-${String(deliveryMonth + 1).padStart(2, '0')}-${String(deliveryDay).padStart(2, '0')}`;
 
   return {
     start: windowStart,
@@ -109,6 +125,33 @@ export function calculateDeliveryTimeWindow(): DeliveryTimeWindow {
     isSameDay,
     deliveryDate: deliveryDateString,
   };
+}
+
+/**
+ * Convert a date/time in Pacific timezone (America/Los_Angeles) to a UTC Date.
+ * Handles PST/PDT transitions automatically via Intl.DateTimeFormat.
+ */
+function pacificTimeToUtc(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number = 0
+): Date {
+  // Use a reference point at 20:00 UTC on the target date to determine the
+  // Pacific UTC offset (this time is mid-afternoon Pacific, safely away from
+  // any 2 AM DST transition boundary)
+  const refUtc = new Date(Date.UTC(year, month, day, 20, 0, 0));
+  const refPacificHour = parseInt(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Los_Angeles',
+      hour: '2-digit',
+      hour12: false,
+    }).format(refUtc)
+  );
+  const offsetHours = 20 - refPacificHour;
+
+  return new Date(Date.UTC(year, month, day, hour + offsetHours, minute, 0, 0));
 }
 
 /**

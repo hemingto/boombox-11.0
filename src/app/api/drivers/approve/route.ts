@@ -20,15 +20,19 @@
  * @refactor Moved to /api/drivers/approve/ structure, extracted Onfleet utilities to driverUtils
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
 import { getOnfleetClient } from '@/lib/integrations/onfleetClient';
-import { 
+// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
+import {
   buildOnfleetWorkerPayload,
   formatPhoneForOnfleet,
   DRIVER_STATUSES,
 } from '@/lib/utils/driverUtils';
-import { ApproveDriverRequestSchema, type ApproveDriverRequest } from '@/lib/validations/api.validations';
+import {
+  ApproveDriverRequestSchema,
+  type ApproveDriverRequest,
+} from '@/lib/validations/api.validations';
 import { ApiResponse, ApiError, API_ERROR_CODES } from '@/types/api.types';
 import { ApprovalNotificationService } from '@/lib/services/ApprovalNotificationService';
 import { MovingPartnerStatus } from '@prisma/client';
@@ -47,59 +51,61 @@ interface DriverApprovalResponse {
   message: string;
 }
 
-export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<DriverApprovalResponse>>> {
+export async function POST(
+  request: NextRequest
+): Promise<NextResponse<ApiResponse<DriverApprovalResponse>>> {
   try {
     const body = await request.json();
-    
+
     // Validate request data
     const validationResult = ApproveDriverRequestSchema.safeParse(body);
     if (!validationResult.success) {
       const error: ApiError = {
         code: API_ERROR_CODES.VALIDATION_ERROR,
         message: 'Invalid request data',
-        details: { validationErrors: validationResult.error.errors }
+        details: { validationErrors: validationResult.error.errors },
       };
       return NextResponse.json({ success: false, error }, { status: 400 });
     }
 
     const { driverId }: ApproveDriverRequest = validationResult.data;
-    
+
     // Get the driver details
     const driver = await prisma.driver.findUnique({
       where: { id: driverId },
       include: {
         vehicles: {
           where: { isApproved: true },
-          take: 1
+          take: 1,
         },
         movingPartnerAssociations: {
           include: {
-            movingPartner: true
-          }
-        }
-      }
+            movingPartner: true,
+          },
+        },
+      },
     });
-    
+
     if (!driver) {
       const error: ApiError = {
         code: API_ERROR_CODES.NOT_FOUND,
-        message: 'Driver not found'
+        message: 'Driver not found',
       };
       return NextResponse.json({ success: false, error }, { status: 404 });
     }
-    
+
     // Check if already has Onfleet ID
     if (driver.onfleetWorkerId) {
       const error: ApiError = {
         code: API_ERROR_CODES.VALIDATION_ERROR,
-        message: 'Driver is already registered with Onfleet'
+        message: 'Driver is already registered with Onfleet',
       };
       return NextResponse.json({ success: false, error }, { status: 400 });
     }
-    
+
     // Get team IDs from the driver's onfleetTeamIds array
     let teamIds = driver.onfleetTeamIds || [];
-    
+
     // If no teams assigned, fall back to default based on services or default team
     if (teamIds.length === 0) {
       const defaultTeamId = process.env.BOOMBOX_DELIVERY_NETWORK_TEAM_ID;
@@ -107,18 +113,18 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
         teamIds = [defaultTeamId];
       }
     }
-    
+
     if (teamIds.length === 0) {
       const error: ApiError = {
         code: API_ERROR_CODES.VALIDATION_ERROR,
-        message: 'No Onfleet teams configured for this driver'
+        message: 'No Onfleet teams configured for this driver',
       };
       return NextResponse.json({ success: false, error }, { status: 400 });
     }
 
     // Create the Onfleet worker payload
     const onfleetPayload = buildOnfleetWorkerPayload(driver, teamIds);
-    
+
     console.log('Onfleet payload:', JSON.stringify(onfleetPayload));
     console.log(`Assigning driver to ${teamIds.length} team(s):`, teamIds);
 
@@ -134,51 +140,66 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
         data: {
           onfleetWorkerId: onfleetData.id,
           isApproved: true,
-          status: DRIVER_STATUSES.ACTIVE
-        }
+          status: DRIVER_STATUSES.ACTIVE,
+        },
       });
 
       // Check if this driver is linked to a moving partner
       // If so, check if this is their first approved driver and activate the mover account
-      if (driver.movingPartnerAssociations && driver.movingPartnerAssociations.length > 0) {
+      if (
+        driver.movingPartnerAssociations &&
+        driver.movingPartnerAssociations.length > 0
+      ) {
         for (const mpDriver of driver.movingPartnerAssociations) {
           const mover = mpDriver.movingPartner;
-          
+
           // Only process if mover is approved but still INACTIVE
-          if (mover.isApproved && mover.status === MovingPartnerStatus.INACTIVE) {
+          if (
+            mover.isApproved &&
+            mover.status === MovingPartnerStatus.INACTIVE
+          ) {
             // Count other approved drivers for this mover
-            const otherApprovedDrivers = await prisma.movingPartnerDriver.count({
-              where: {
-                movingPartnerId: mover.id,
-                isActive: true,
-                driver: {
-                  isApproved: true,
-                  id: { not: driverId } // Exclude the current driver being approved
-                }
+            const otherApprovedDrivers = await prisma.movingPartnerDriver.count(
+              {
+                where: {
+                  movingPartnerId: mover.id,
+                  isActive: true,
+                  driver: {
+                    isApproved: true,
+                    id: { not: driverId }, // Exclude the current driver being approved
+                  },
+                },
               }
-            });
+            );
 
             // If this is the first approved driver, activate the mover account
             if (otherApprovedDrivers === 0) {
-              console.log(`[Driver Approval Trigger] Activating mover ${mover.id} - first approved driver ${driverId}`);
-              
+              console.log(
+                `[Driver Approval Trigger] Activating mover ${mover.id} - first approved driver ${driverId}`
+              );
+
               await prisma.movingPartner.update({
                 where: { id: mover.id },
-                data: { status: MovingPartnerStatus.ACTIVE }
+                data: { status: MovingPartnerStatus.ACTIVE },
               });
 
-              // Send mover activation notifications (email, SMS, in-app)
-              ApprovalNotificationService.notifyMoverActivated(
-                {
-                  id: mover.id,
-                  name: mover.name,
-                  email: mover.email,
-                  phoneNumber: mover.phoneNumber
-                },
-                `${updatedDriver.firstName} ${updatedDriver.lastName}`
-              ).catch((error) => {
-                // Log but don't fail the driver approval if notifications fail
-                console.error('Error sending mover activation notifications:', error);
+              after(async () => {
+                try {
+                  await ApprovalNotificationService.notifyMoverActivated(
+                    {
+                      id: mover.id,
+                      name: mover.name,
+                      email: mover.email,
+                      phoneNumber: mover.phoneNumber,
+                    },
+                    `${updatedDriver.firstName} ${updatedDriver.lastName}`
+                  );
+                } catch (error) {
+                  console.error(
+                    'Error sending mover activation notifications:',
+                    error
+                  );
+                }
               });
             }
           }
@@ -187,22 +208,31 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
 
       // Send driver approval notifications (in-app, SMS, email)
       // Customize message if driver is linked to a moving partner
-      const movingPartnerName = driver.movingPartnerAssociations && driver.movingPartnerAssociations.length > 0 
-        ? driver.movingPartnerAssociations[0].movingPartner.name 
-        : undefined;
-      
-      ApprovalNotificationService.notifyDriverApproved({
-        id: updatedDriver.id,
-        firstName: updatedDriver.firstName,
-        lastName: updatedDriver.lastName,
-        email: updatedDriver.email,
-        phoneNumber: updatedDriver.phoneNumber,
-        services: driver.services ? (Array.isArray(driver.services) ? driver.services : [driver.services]) : undefined,
-        movingPartnerName,
-        isMovingPartnerDriver: !!movingPartnerName
-      }).catch((error) => {
-        // Log but don't fail the approval if notifications fail
-        console.error('Error sending driver approval notifications:', error);
+      const movingPartnerName =
+        driver.movingPartnerAssociations &&
+        driver.movingPartnerAssociations.length > 0
+          ? driver.movingPartnerAssociations[0].movingPartner.name
+          : undefined;
+
+      after(async () => {
+        try {
+          await ApprovalNotificationService.notifyDriverApproved({
+            id: updatedDriver.id,
+            firstName: updatedDriver.firstName,
+            lastName: updatedDriver.lastName,
+            email: updatedDriver.email,
+            phoneNumber: updatedDriver.phoneNumber,
+            services: driver.services
+              ? Array.isArray(driver.services)
+                ? driver.services
+                : [driver.services]
+              : undefined,
+            movingPartnerName,
+            isMovingPartnerDriver: !!movingPartnerName,
+          });
+        } catch (error) {
+          console.error('Error sending driver approval notifications:', error);
+        }
       });
 
       const responseData: DriverApprovalResponse = {
@@ -213,49 +243,54 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
           email: updatedDriver.email,
           onfleetWorkerId: updatedDriver.onfleetWorkerId!,
           status: updatedDriver.status,
-          isApproved: updatedDriver.isApproved
+          isApproved: updatedDriver.isApproved,
         },
         assignedTeams: teamIds,
-        message: `Driver approved and registered with Onfleet successfully. Assigned to ${teamIds.length} team(s).`
+        message: `Driver approved and registered with Onfleet successfully. Assigned to ${teamIds.length} team(s).`,
       };
 
       return NextResponse.json({
         success: true,
         data: responseData,
         meta: {
-          timestamp: new Date().toISOString()
-        }
+          timestamp: new Date().toISOString(),
+        },
       });
-      
     } catch (onfleetError: any) {
       console.error('Onfleet API error:', onfleetError.message);
-      
+
       // Check if this is a duplicate phone number error
       const errorMessage = onfleetError.message || '';
-      if (errorMessage.includes('uniqueness constraint') || errorMessage.includes('already exists') || errorMessage.includes('DuplicatePhoneNumber')) {
+      if (
+        errorMessage.includes('uniqueness constraint') ||
+        errorMessage.includes('already exists') ||
+        errorMessage.includes('DuplicatePhoneNumber')
+      ) {
         // @REFACTOR-P9-TEMP: Handle duplicate phone number by finding existing worker
         // TODO: Implement proper duplicate handling by fetching existing workers and updating teams
         const error: ApiError = {
           code: API_ERROR_CODES.ONFLEET_ERROR,
           message: `Onfleet registration failed: ${onfleetError.message}`,
-          details: { originalError: errorMessage }
+          details: { originalError: errorMessage },
         };
         return NextResponse.json({ success: false, error }, { status: 500 });
       }
-      
+
       const error: ApiError = {
         code: API_ERROR_CODES.ONFLEET_ERROR,
-        message: `Onfleet registration failed: ${onfleetError.message}`
+        message: `Onfleet registration failed: ${onfleetError.message}`,
       };
       return NextResponse.json({ success: false, error }, { status: 500 });
     }
-    
   } catch (error: any) {
     console.error('Error approving driver:', error);
     const apiError: ApiError = {
       code: API_ERROR_CODES.INTERNAL_ERROR,
-      message: error.message || 'Unknown error occurred'
+      message: error.message || 'Unknown error occurred',
     };
-    return NextResponse.json({ success: false, error: apiError }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: apiError },
+      { status: 500 }
+    );
   }
-} 
+}

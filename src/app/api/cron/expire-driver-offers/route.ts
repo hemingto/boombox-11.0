@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     // Skip auth check in development
     if (
       process.env.NODE_ENV === 'production' &&
-      authHeader !== `Bearer ${process.env.CRON_API_SECRET}`
+      authHeader !== `Bearer ${process.env.CRON_SECRET}`
     ) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     for (const route of expiredOffers) {
       try {
         const result = await DriverOfferService.processExpiredOffer(route);
-        
+
         if (result.action === 'reoffered' && result.driverId) {
           console.log(
             `Route ${route.routeId}: Re-offered to driver ${result.driverId}`
@@ -115,7 +115,9 @@ export async function GET(request: NextRequest) {
 /**
  * Send notification to admin when routes have no available drivers
  */
-async function notifyAdminNoDriversAvailable(routeIds: string[]): Promise<void> {
+async function notifyAdminNoDriversAvailable(
+  routeIds: string[]
+): Promise<void> {
   try {
     console.log(
       `Sending admin notification for ${routeIds.length} routes with no available drivers`
@@ -172,4 +174,3 @@ async function notifyAdminNoDriversAvailable(routeIds: string[]): Promise<void> 
     console.error('Failed to send admin notification:', error);
   }
 }
-

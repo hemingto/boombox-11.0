@@ -5,10 +5,10 @@
  */
 
 import { prisma } from '@/lib/database/prismaClient';
-import type { 
-  Appointment, 
-  PackingSupplyOrder, 
-  OnfleetTask
+import type {
+  Appointment,
+  PackingSupplyOrder,
+  OnfleetTask,
 } from '@prisma/client';
 
 // Simplified type definitions using Prisma's include types
@@ -32,9 +32,9 @@ export async function findAppointmentByOnfleetTask(
     onfleetTasks: {
       some: {
         shortId: taskShortId,
-        ...(stepNumber && { stepNumber })
-      }
-    }
+        ...(stepNumber && { stepNumber }),
+      },
+    },
   };
 
   if (excludeStatus) {
@@ -48,20 +48,20 @@ export async function findAppointmentByOnfleetTask(
         select: {
           id: true,
           phoneNumber: true,
-          stripeCustomerId: true
-        }
+          stripeCustomerId: true,
+        },
       },
       movingPartner: {
         select: {
           id: true,
-          name: true
-        }
+          name: true,
+        },
       },
       thirdPartyMovingPartner: {
         select: {
           id: true,
-          title: true
-        }
+          title: true,
+        },
       },
       onfleetTasks: true,
       requestedStorageUnits: {
@@ -69,12 +69,12 @@ export async function findAppointmentByOnfleetTask(
           storageUnit: {
             select: {
               id: true,
-              storageUnitNumber: true
-            }
-          }
-        }
-      }
-    }
+              storageUnitNumber: true,
+            },
+          },
+        },
+      },
+    },
   });
 }
 
@@ -92,34 +92,36 @@ export async function findPackingSupplyOrderById(orderId: number) {
             select: {
               id: true,
               title: true,
-              price: true
-            }
-          }
-        }
+              price: true,
+            },
+          },
+        },
       },
       assignedDriver: {
         select: {
           id: true,
           firstName: true,
-          lastName: true
-        }
+          lastName: true,
+        },
       },
       user: {
         select: {
           id: true,
-          phoneNumber: true
-        }
-      }
-    }
+          phoneNumber: true,
+        },
+      },
+    },
   });
 }
 
 /**
  * Find OnfleetTask to get unitNumber and other metadata
  */
-export async function findOnfleetTaskByShortId(shortId: string): Promise<OnfleetTask | null> {
+export async function findOnfleetTaskByShortId(
+  shortId: string
+): Promise<OnfleetTask | null> {
   return await prisma.onfleetTask.findUnique({
-    where: { shortId }
+    where: { shortId },
   });
 }
 
@@ -136,8 +138,8 @@ export async function updateAppointmentStatus(
     where: { id: appointmentId },
     data: {
       status,
-      ...additionalData
-    }
+      ...additionalData,
+    },
   });
 }
 
@@ -153,8 +155,8 @@ export async function updatePackingSupplyOrderStatus(
     where: { id: orderId },
     data: {
       status,
-      ...additionalData
-    }
+      ...additionalData,
+    },
   });
 }
 
@@ -168,7 +170,7 @@ export async function updateOnfleetTaskWebhookTime(
 ): Promise<OnfleetTask> {
   return await prisma.onfleetTask.update({
     where: { shortId },
-    data: { webhookTime }
+    data: { webhookTime },
   });
 }
 
@@ -184,12 +186,12 @@ export async function updateStorageUnitUsageForTermination(
     await prisma.storageUnitUsage.updateMany({
       where: {
         storageUnitId,
-        usageEndDate: null
+        usageEndDate: null,
       },
       data: {
         usageEndDate: new Date(),
-        endAppointmentId: appointmentId
-      }
+        endAppointmentId: appointmentId,
+      },
     });
   }
 }
@@ -204,11 +206,11 @@ export async function updateStorageUnitMainImage(
   await prisma.storageUnitUsage.updateMany({
     where: {
       storageUnitId,
-      usageEndDate: null // Only update active usage records
+      usageEndDate: null, // Only update active usage records
     },
     data: {
-      mainImage: imageUrl
-    }
+      mainImage: imageUrl,
+    },
   });
 }
 
@@ -226,28 +228,47 @@ export async function updateStorageUnitPhotosFromWebhook(
   const usage = await prisma.storageUnitUsage.findFirst({
     where: {
       storageUnitId,
-      usageEndDate: null // Only update active usage records
-    }
+      usageEndDate: null, // Only update active usage records
+    },
   });
 
   if (!usage) {
-    console.log(`[webhookQueries] No active StorageUnitUsage found for storageUnitId: ${storageUnitId}`);
+    console.log(
+      `[webhookQueries] No active StorageUnitUsage found for storageUnitId: ${storageUnitId}`
+    );
     return;
   }
 
   // Merge existing uploadedImages with new ones, avoiding duplicates
   const existingImages = usage.uploadedImages || [];
-  const newImages = additionalImages.filter(url => !existingImages.includes(url));
+  const newImages = additionalImages.filter(
+    url => !existingImages.includes(url)
+  );
 
   await prisma.storageUnitUsage.update({
     where: { id: usage.id },
     data: {
       mainImage,
-      uploadedImages: [...existingImages, ...newImages]
-    }
+      uploadedImages: [...existingImages, ...newImages],
+    },
   });
 
-  console.log(`[webhookQueries] Updated StorageUnitUsage ${usage.id}: mainImage set, ${newImages.length} new photos added to uploadedImages`);
+  console.log(
+    `[webhookQueries] Updated StorageUnitUsage ${usage.id}: mainImage set, ${newImages.length} new photos added to uploadedImages`
+  );
+}
+
+/**
+ * Save Stripe subscription ID to the appointment record
+ */
+export async function saveSubscriptionIdToAppointment(
+  appointmentId: number,
+  stripeSubscriptionId: string
+): Promise<void> {
+  await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: { stripeSubscriptionId },
+  });
 }
 
 /**
@@ -257,10 +278,10 @@ export async function findActiveStorageUsage(storageUnitId: number) {
   return await prisma.storageUnitUsage.findFirst({
     where: {
       storageUnitId,
-      usageEndDate: null
+      usageEndDate: null,
     },
     orderBy: {
-      usageStartDate: 'asc'
-    }
+      usageStartDate: 'asc',
+    },
   });
-} 
+}

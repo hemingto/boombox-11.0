@@ -51,6 +51,7 @@ model Appointment {
   trackingUrl               String?
   invoiceUrl                String?
   stripeChargeId            String?
+  stripeSubscriptionId      String?
   serviceStartTime          String?
   serviceEndTime            String?
   calledMovingPartner       Boolean                      @default(false)

@@ -15,6 +15,7 @@
  */
 
 import { stripe } from '@/lib/integrations/stripeClient';
+import { prisma } from '@/lib/database/prismaClient';
 import { StripeCustomerService } from './stripeCustomerService';
 import { StripeInvoiceService } from './stripeInvoiceService';
 import { BillingCalculator } from '../billing/BillingCalculator';
@@ -72,6 +73,14 @@ export interface EarlyTerminationResult {
   error?: string;
 }
 
+export interface SubscriptionAdjustmentResult {
+  success: boolean;
+  remainingUnits: number;
+  updatedSubscriptions: string[];
+  cancelledSubscriptions: string[];
+  error?: string;
+}
+
 export class StripeSubscriptionService {
   /**
    * Create monthly storage subscription for Initial Pickup or Additional Storage
@@ -113,6 +122,7 @@ export class StripeSubscriptionService {
       // Create subscription with storage, insurance, and processing fee items
       const subscription = await stripe.subscriptions.create({
         customer: customerId,
+        description: 'Monthly Storage Payment',
         items: [
           {
             price_data: {
@@ -359,32 +369,68 @@ export class StripeSubscriptionService {
   }
 
   /**
-   * Update subscription quantities (e.g., when adding/removing storage units)
+   * Update subscription quantities (e.g., when adding/removing storage units).
+   * Recalculates the processing fee line item to stay in sync with the new totals.
    */
   static async updateSubscriptionQuantity(
     subscriptionId: string,
-    storageQuantity: number,
-    insuranceQuantity: number
+    newQuantity: number
   ): Promise<SubscriptionResult> {
     try {
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      const items = subscription.items.data;
 
-      // Update quantities for storage and insurance line items
+      if (items.length < 3) {
+        return {
+          success: false,
+          error: `Subscription ${subscriptionId} has ${items.length} items, expected 3 (storage, insurance, processing fee)`,
+        };
+      }
+
+      const storageItem = items[0];
+      const insuranceItem = items[1];
+      const processingFeeItem = items[2];
+
+      const storageUnitAmount = storageItem.price.unit_amount ?? 0;
+      const insuranceUnitAmount = insuranceItem.price.unit_amount ?? 0;
+
+      const newMonthlySubtotal =
+        (storageUnitAmount + insuranceUnitAmount) * newQuantity;
+      const newProcessingFeeAmount = Math.round(
+        newMonthlySubtotal * PROCESSING_FEE_RATE
+      );
+
       const updatedSubscription = await stripe.subscriptions.update(
         subscriptionId,
         {
           items: [
             {
-              id: subscription.items.data[0].id, // Storage item
-              quantity: storageQuantity,
+              id: storageItem.id,
+              quantity: newQuantity,
             },
             {
-              id: subscription.items.data[1].id, // Insurance item
-              quantity: insuranceQuantity,
+              id: insuranceItem.id,
+              quantity: newQuantity,
+            },
+            {
+              id: processingFeeItem.id,
+              price_data: {
+                currency: 'usd',
+                product:
+                  process.env.STRIPE_PROCESSING_FEE_PRODUCT_ID ||
+                  process.env.STRIPE_STORAGE_PRODUCT_ID!,
+                recurring: { interval: 'month' },
+                unit_amount: newProcessingFeeAmount,
+              },
+              quantity: 1,
             },
           ],
           proration_behavior: 'always_invoice',
         }
+      );
+
+      console.log(
+        `Updated subscription ${subscriptionId}: quantity → ${newQuantity}, processing fee → ${newProcessingFeeAmount}`
       );
 
       return {
@@ -395,6 +441,161 @@ export class StripeSubscriptionService {
       console.error('Error updating subscription quantity:', error);
       return {
         success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  /**
+   * Adjust subscriptions after a partial storage termination (customer returns
+   * some units but keeps others). Counts remaining active usages, groups them
+   * by the appointment that created each subscription, then either reduces
+   * quantity or cancels subscriptions that no longer have active units.
+   */
+  static async adjustSubscriptionsForPartialTermination(
+    userId: number,
+    stripeCustomerId: string
+  ): Promise<SubscriptionAdjustmentResult> {
+    try {
+      const remainingUsages = await prisma.storageUnitUsage.findMany({
+        where: { userId, usageEndDate: null },
+        select: { startAppointmentId: true },
+      });
+
+      const remainingUnits = remainingUsages.length;
+
+      if (remainingUnits === 0) {
+        console.log(
+          `[adjustSubscriptions] No remaining units for user ${userId}, cancelling all subscriptions`
+        );
+        const result = await this.cancelAllUserSubscriptions(stripeCustomerId);
+        return {
+          success: result.success,
+          remainingUnits: 0,
+          updatedSubscriptions: [],
+          cancelledSubscriptions: result.cancelledSubscriptions,
+          error: result.error,
+        };
+      }
+
+      // Group remaining usages by the appointment that started them
+      const unitsByAppointment = new Map<number, number>();
+      for (const usage of remainingUsages) {
+        if (usage.startAppointmentId) {
+          const current = unitsByAppointment.get(usage.startAppointmentId) ?? 0;
+          unitsByAppointment.set(usage.startAppointmentId, current + 1);
+        }
+      }
+
+      // Look up stripeSubscriptionId for each relevant appointment
+      const appointmentIds = Array.from(unitsByAppointment.keys());
+      const appointments = await prisma.appointment.findMany({
+        where: { id: { in: appointmentIds } },
+        select: { id: true, stripeSubscriptionId: true },
+      });
+
+      const subIdByAppointment = new Map<number, string | null>();
+      for (const appt of appointments) {
+        subIdByAppointment.set(appt.id, appt.stripeSubscriptionId);
+      }
+
+      // Build a map of subscriptionId → desired quantity
+      const desiredQuantityBySub = new Map<string, number>();
+      const unmatchedAppointmentIds: number[] = [];
+
+      for (const [apptId, count] of unitsByAppointment) {
+        const subId = subIdByAppointment.get(apptId);
+        if (subId) {
+          const current = desiredQuantityBySub.get(subId) ?? 0;
+          desiredQuantityBySub.set(subId, current + count);
+        } else {
+          unmatchedAppointmentIds.push(apptId);
+        }
+      }
+
+      // Fallback: match unmatched appointments via Stripe subscription metadata
+      if (unmatchedAppointmentIds.length > 0) {
+        console.log(
+          `[adjustSubscriptions] ${unmatchedAppointmentIds.length} appointment(s) missing stripeSubscriptionId, falling back to metadata match`
+        );
+        const activeSubscriptions =
+          await this.getActiveStorageSubscriptions(stripeCustomerId);
+
+        for (const sub of activeSubscriptions) {
+          const metaApptId = sub.metadata?.appointmentId
+            ? parseInt(sub.metadata.appointmentId, 10)
+            : null;
+          if (metaApptId && unmatchedAppointmentIds.includes(metaApptId)) {
+            const count = unitsByAppointment.get(metaApptId) ?? 0;
+            const current = desiredQuantityBySub.get(sub.id) ?? 0;
+            desiredQuantityBySub.set(sub.id, current + count);
+
+            // Persist the match for future lookups
+            await prisma.appointment.update({
+              where: { id: metaApptId },
+              data: { stripeSubscriptionId: sub.id },
+            });
+          }
+        }
+      }
+
+      // Get all active subscriptions so we can cancel any that are no longer needed
+      const allActiveSubscriptions =
+        await this.getActiveStorageSubscriptions(stripeCustomerId);
+
+      const updatedSubscriptions: string[] = [];
+      const cancelledSubscriptions: string[] = [];
+
+      for (const sub of allActiveSubscriptions) {
+        const desiredQty = desiredQuantityBySub.get(sub.id);
+
+        if (desiredQty === undefined || desiredQty === 0) {
+          console.log(
+            `[adjustSubscriptions] Cancelling subscription ${sub.id} — no remaining active units`
+          );
+          await stripe.subscriptions.cancel(sub.id);
+          cancelledSubscriptions.push(sub.id);
+        } else {
+          const currentQty = sub.items.data[0]?.quantity ?? 0;
+          if (currentQty !== desiredQty) {
+            console.log(
+              `[adjustSubscriptions] Updating subscription ${sub.id}: ${currentQty} → ${desiredQty}`
+            );
+            const result = await this.updateSubscriptionQuantity(
+              sub.id,
+              desiredQty
+            );
+            if (result.success) {
+              updatedSubscriptions.push(sub.id);
+            } else {
+              console.error(
+                `[adjustSubscriptions] Failed to update ${sub.id}: ${result.error}`
+              );
+            }
+          }
+        }
+      }
+
+      console.log(
+        `[adjustSubscriptions] Complete — ${remainingUnits} units remaining, ${updatedSubscriptions.length} updated, ${cancelledSubscriptions.length} cancelled`
+      );
+
+      return {
+        success: true,
+        remainingUnits,
+        updatedSubscriptions,
+        cancelledSubscriptions,
+      };
+    } catch (error) {
+      console.error(
+        '[adjustSubscriptions] Error adjusting subscriptions:',
+        error
+      );
+      return {
+        success: false,
+        remainingUnits: -1,
+        updatedSubscriptions: [],
+        cancelledSubscriptions: [],
         error: error instanceof Error ? error.message : 'Unknown error',
       };
     }

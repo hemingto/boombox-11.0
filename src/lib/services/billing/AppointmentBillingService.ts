@@ -34,6 +34,7 @@ import {
   updateAppointmentStatus,
   updateStorageUnitUsageForTermination,
   findActiveStorageUsage,
+  saveSubscriptionIdToAppointment,
 } from '../../utils/webhookQueries';
 
 // Import types (matches existing interfaces)
@@ -650,12 +651,16 @@ export class AppointmentBillingService {
         appointment
       );
 
-    if (subscriptionResult.success) {
+    if (subscriptionResult.success && subscriptionResult.subscription) {
       console.log(
         'Storage subscription created:',
-        subscriptionResult.subscription?.id
+        subscriptionResult.subscription.id
       );
-    } else {
+      await saveSubscriptionIdToAppointment(
+        appointment.id,
+        subscriptionResult.subscription.id
+      );
+    } else if (!subscriptionResult.success) {
       console.error('Subscription creation failed:', subscriptionResult.error);
       // Don't throw error - invoice was successful, subscription failure shouldn't break workflow
     }
@@ -678,12 +683,23 @@ export class AppointmentBillingService {
         await this.processEarlyTermination(appointment, storageUsage);
       }
 
-      // Cancel all customer subscriptions
+      // Adjust subscriptions: cancel or reduce quantity based on remaining units
       if (appointment.user.stripeCustomerId) {
-        await this.cancelUserSubscriptions(appointment.user.stripeCustomerId);
+        const adjustResult =
+          await StripeSubscriptionService.adjustSubscriptionsForPartialTermination(
+            appointment.userId ?? appointment.user.id,
+            appointment.user.stripeCustomerId
+          );
+        if (adjustResult.success) {
+          console.log(
+            `Subscription adjustment complete: ${adjustResult.remainingUnits} units remaining, ${adjustResult.cancelledSubscriptions.length} cancelled, ${adjustResult.updatedSubscriptions.length} updated`
+          );
+        } else {
+          console.error('Subscription adjustment failed:', adjustResult.error);
+        }
       } else {
         console.log(
-          'No stripe customer ID found, skipping subscription cancellation'
+          'No stripe customer ID found, skipping subscription adjustment'
         );
       }
 

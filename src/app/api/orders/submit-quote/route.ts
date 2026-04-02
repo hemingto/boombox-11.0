@@ -22,7 +22,7 @@
  *           added comprehensive validation with Zod schema
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
 import {
   createAppointmentWithDriverAssignment,
@@ -299,34 +299,32 @@ export async function POST(req: NextRequest) {
       console.error('Error sending welcome notifications:', errorMessage);
     }
 
-    console.log(
-      `SUBMIT_QUOTE: DEBUG - Appointment ID: ${appointment.id}, User ID: ${user.id} - Before calling processOnfleetAndAssignDriver.`
-    );
-
-    // Create Onfleet tasks and assign drivers asynchronously to avoid blocking the response
-    // This is no longer part of the transaction to prevent long-running transactions
-    processOnfleetAndAssignDriver(appointment.id, user.id, {
-      selectedInsurance,
-      stripeCustomerId,
-      deliveryReason:
-        appointmentType === 'Initial Pickup'
-          ? 'Initial Storage'
-          : appointmentType === 'Additional Storage'
-            ? 'Additional Storage'
-            : appointmentType === 'Storage Unit Access'
-              ? 'Access Storage'
-              : 'End Storage Term',
-    }).catch((error: unknown) => {
-      console.error(
-        'SUBMIT_QUOTE: DEBUG - Error in processOnfleetAndAssignDriver promise:',
-        error
-      );
-      // We don't want to fail the response even if this part fails
+    // Process Onfleet tasks and driver assignment after the response is sent.
+    // Uses next/server after() to guarantee the work completes on Vercel serverless.
+    after(async () => {
+      try {
+        await processOnfleetAndAssignDriver(appointment.id, user.id, {
+          selectedInsurance,
+          stripeCustomerId,
+          deliveryReason:
+            appointmentType === 'Initial Pickup'
+              ? 'Initial Storage'
+              : appointmentType === 'Additional Storage'
+                ? 'Additional Storage'
+                : appointmentType === 'Storage Unit Access'
+                  ? 'Access Storage'
+                  : 'End Storage Term',
+        });
+        console.log(
+          `SUBMIT_QUOTE: Successfully completed Onfleet tasks and driver assignment for Appointment ID: ${appointment.id}`
+        );
+      } catch (error) {
+        console.error(
+          'SUBMIT_QUOTE: Error in Onfleet task creation or driver assignment:',
+          error
+        );
+      }
     });
-
-    console.log(
-      `SUBMIT_QUOTE: DEBUG - Appointment ID: ${appointment.id} - After calling processOnfleetAndAssignDriver (call is async).`
-    );
 
     return NextResponse.json({
       message: 'Appointment scheduled successfully',
