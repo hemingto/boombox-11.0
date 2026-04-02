@@ -31,15 +31,14 @@ import {
   packingSupplyFailedTemplate,
   storagePickupStartedTemplate,
   storageDeliveryStartedTemplate,
-  storageServiceArrivalTemplate
+  storageServiceArrivalTemplate,
 } from '@/lib/messaging/templates/sms/booking';
 import { driverPayoutNotificationTemplate } from '@/lib/messaging/templates/sms/payment';
+// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import {
   WebhookTaskDetails,
   WebhookWorkerData,
   extractDeliveryPhotoUrl,
-  createTrackingToken,
-  createFeedbackToken,
   ensurePackingSupplyTrackingToken,
   calculateIndividualTaskMetrics,
   convertWebhookTimestamp,
@@ -47,13 +46,13 @@ import {
   getMetadataValue,
   updateTaskCompletionPhoto,
   buildTrackingUrl,
-  buildFeedbackUrl
+  buildFeedbackUrl,
 } from '@/lib/utils/onfleetWebhookUtils';
-import { 
+import {
   OnfleetWebhookPayloadSchema,
   OnfleetWebhookGetRequestSchema,
   type OnfleetWebhookPayload,
-  type OnfleetWebhookGetRequest
+  type OnfleetWebhookGetRequest,
 } from '@/lib/validations/api.validations';
 
 // GET handler for Onfleet validation and manual testing
@@ -63,51 +62,56 @@ export async function GET(req: NextRequest) {
     const params: OnfleetWebhookGetRequest = {
       check: url.searchParams.get('check') || undefined,
       testOrderId: url.searchParams.get('testOrderId') || undefined,
-      testPhotoUrl: url.searchParams.get('testPhotoUrl') || undefined
+      testPhotoUrl: url.searchParams.get('testPhotoUrl') || undefined,
     };
 
     // Validate parameters
     const validationResult = OnfleetWebhookGetRequestSchema.safeParse(params);
     if (!validationResult.success) {
-      return NextResponse.json({ 
-        error: 'Invalid request parameters',
-        details: validationResult.error.issues 
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: 'Invalid request parameters',
+          details: validationResult.error.issues,
+        },
+        { status: 400 }
+      );
     }
 
     const { check, testOrderId, testPhotoUrl } = validationResult.data;
-    
+
     if (check) {
       // Onfleet webhook validation - return with minimal headers and explicit encoding
       return new Response(check, {
         status: 200,
-        headers: { 
-          'Content-Type': 'text/plain; charset=utf-8'
-        }
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+        },
       });
     }
 
     // Manual testing endpoints (simplified)
     if (testOrderId && testPhotoUrl) {
       console.log(`Manual test: Adding photo URL to order ${testOrderId}`);
-      
+
       const updatedOrder = await prisma.packingSupplyOrder.update({
         where: { id: parseInt(testOrderId) },
-        data: { 
-          deliveryPhotoUrl: testPhotoUrl 
+        data: {
+          deliveryPhotoUrl: testPhotoUrl,
         },
       });
 
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         message: `Photo URL added to order ${testOrderId}`,
-        photoUrl: updatedOrder.deliveryPhotoUrl
+        photoUrl: updatedOrder.deliveryPhotoUrl,
       });
     }
 
     if (testOrderId) {
-      console.log(`Manual test: Processing completion for order ${testOrderId}`);
-      
+      console.log(
+        `Manual test: Processing completion for order ${testOrderId}`
+      );
+
       const order = await prisma.packingSupplyOrder.findUnique({
         where: { id: parseInt(testOrderId) },
         include: {
@@ -126,25 +130,27 @@ export async function GET(req: NextRequest) {
       }
 
       // Simple test response - complex logic deferred to future phases
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         message: `Manual completion test queued for order ${testOrderId}`,
         note: 'Full functionality available after API migration phases',
-        orderStatus: 'Test completed'
+        orderStatus: 'Test completed',
       });
     }
 
     return new Response('OK', {
       status: 200,
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
     });
-
   } catch (error) {
     console.error('GET request error:', error);
-    return NextResponse.json({ 
-      error: 'Request processing failed', 
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: 'Request processing failed',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -152,26 +158,31 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const webhookData = await req.json();
-    
+
     // Validate webhook payload
     const validationResult = OnfleetWebhookPayloadSchema.safeParse(webhookData);
     if (!validationResult.success) {
       console.error('Invalid webhook payload:', validationResult.error.issues);
-      return NextResponse.json({ 
-        error: 'Invalid webhook payload',
-        details: validationResult.error.issues 
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: 'Invalid webhook payload',
+          details: validationResult.error.issues,
+        },
+        { status: 400 }
+      );
     }
 
     const { taskId, time, triggerName, data } = validationResult.data;
-    
+
     const taskDetails = data?.task;
     const metadata = taskDetails?.metadata;
     const step = getMetadataValue(metadata, 'step');
     const worker = taskDetails?.worker;
 
     // Enhanced logging for debugging
-    console.log(`Webhook received: ${triggerName} for task ${taskDetails?.shortId}`);
+    console.log(
+      `Webhook received: ${triggerName} for task ${taskDetails?.shortId}`
+    );
     console.log(`Task metadata:`, metadata);
     console.log(`Step: ${step}`);
 
@@ -183,46 +194,60 @@ export async function POST(req: NextRequest) {
     console.log(`Is packing supply task: ${isPackingSupplyTask}`);
 
     if (isPackingSupplyTask) {
-      console.log(`Processing packing supply webhook: ${triggerName} for task ${taskDetails?.shortId}`);
+      console.log(
+        `Processing packing supply webhook: ${triggerName} for task ${taskDetails?.shortId}`
+      );
       return handlePackingSupplyWebhook(validationResult.data);
     }
 
     // Storage unit logic (simplified)
-    console.log(`Processing storage unit webhook: ${triggerName} for task ${taskDetails?.shortId}, step ${step}`);
+    console.log(
+      `Processing storage unit webhook: ${triggerName} for task ${taskDetails?.shortId}, step ${step}`
+    );
 
     if (!taskDetails) {
       console.error('No task details in webhook data');
-      return NextResponse.json({ error: 'No task details found' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'No task details found' },
+        { status: 400 }
+      );
     }
 
     // Save completion photos using centralized utilities
-    if (triggerName === 'taskCompleted' && [1, 2, 3, 4].includes(Number(step))) {
+    if (
+      triggerName === 'taskCompleted' &&
+      [1, 2, 3, 4].includes(Number(step))
+    ) {
       await updateTaskCompletionPhoto(taskDetails);
       console.log(`Photo processing completed for task ${taskDetails.shortId}`);
     }
 
     // Simplified response - complex business logic deferred to future phases
     console.log(`Webhook processing completed for ${triggerName} step ${step}`);
-    console.log('NOTE: Full business logic will be restored in API migration phases API_005-API_008');
+    console.log(
+      'NOTE: Full business logic will be restored in API migration phases API_005-API_008'
+    );
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       message: 'Webhook processed successfully',
       note: 'Simplified version - full functionality available after API migration phases',
       processed: {
         triggerName,
         step,
         taskId: taskDetails?.shortId,
-        isPackingSupply: isPackingSupplyTask
-      }
+        isPackingSupply: isPackingSupplyTask,
+      },
     });
-
   } catch (error) {
     console.error('Webhook error:', error);
-    return NextResponse.json({ 
-      error: 'Webhook processing failed', 
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: 'Webhook processing failed',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -233,13 +258,18 @@ async function handlePackingSupplyWebhook(webhookData: OnfleetWebhookPayload) {
     const taskDetails = data?.task;
     const metadata = taskDetails?.metadata;
 
-    console.log(`Processing packing supply webhook - Trigger: ${triggerName}, Task: ${taskDetails?.shortId}`);
+    console.log(
+      `Processing packing supply webhook - Trigger: ${triggerName}, Task: ${taskDetails?.shortId}`
+    );
 
     // Extract order ID from metadata using centralized utility
     const orderId = getMetadataValue(metadata, 'order_id');
 
     if (!orderId) {
-      console.error('No order ID found in packing supply task metadata:', metadata);
+      console.error(
+        'No order ID found in packing supply task metadata:',
+        metadata
+      );
       return NextResponse.json({ error: 'No order ID found' }, { status: 400 });
     }
 
@@ -279,14 +309,21 @@ async function handlePackingSupplyWebhook(webhookData: OnfleetWebhookPayload) {
 
       // Send SMS using centralized MessageService
       try {
-        const result = await MessageService.sendSms(order.contactPhone, packingSupplyStartedTemplate, {
-          driverName,
-          trackingUrl
-        });
+        const result = await MessageService.sendSms(
+          order.contactPhone,
+          packingSupplyStartedTemplate,
+          {
+            driverName,
+            trackingUrl,
+          }
+        );
         if (result.success) {
           console.log(`Started SMS sent for packing supply order ${order.id}`);
         } else {
-          console.error(`Failed to send SMS for order ${order.id}:`, result.error);
+          console.error(
+            `Failed to send SMS for order ${order.id}:`,
+            result.error
+          );
         }
       } catch (smsError) {
         console.error(`Failed to send SMS for order ${order.id}:`, smsError);
@@ -296,22 +333,28 @@ async function handlePackingSupplyWebhook(webhookData: OnfleetWebhookPayload) {
     // @REFACTOR-P9-TEMP: Implement full packing supply webhook handlers when payout services are migrated
     // Priority: High | Est: 4h | Dependencies: API_005_DRIVERS_DOMAIN, API_006_MOVING_PARTNERS_DOMAIN
     // Other triggers simplified - full implementation in future phases
-    console.log(`Packing supply webhook ${triggerName} processed for order ${orderId}`);
-    console.log('NOTE: Full payout and completion logic will be restored in future API migration phases');
+    console.log(
+      `Packing supply webhook ${triggerName} processed for order ${orderId}`
+    );
+    console.log(
+      'NOTE: Full payout and completion logic will be restored in future API migration phases'
+    );
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       message: 'Packing supply webhook processed',
       note: 'Simplified version - full functionality available after API migration phases',
       processed: {
         triggerName,
         orderId,
-        orderStatus: order.status
-      }
+        orderStatus: order.status,
+      },
     });
-
   } catch (error) {
     console.error('Error processing packing supply webhook:', error);
-    return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Webhook processing failed' },
+      { status: 500 }
+    );
   }
-} 
+}

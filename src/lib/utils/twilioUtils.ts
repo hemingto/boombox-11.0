@@ -15,37 +15,40 @@ import { config } from '@/lib/config/environment';
  * @param body - Parsed form data body
  * @returns Promise<boolean> - Whether signature is valid
  */
-export async function validateTwilioRequest(request: NextRequest, body: any): Promise<boolean> {
+export async function validateTwilioRequest(
+  request: NextRequest,
+  body: any
+): Promise<boolean> {
   // Skip validation in development
   if (config.app.isDevelopment) {
     return true;
   }
-  
+
   // Get the URL of the request
   const url = request.url;
-  
+
   // Get the X-Twilio-Signature header
   const headersList = await headers();
   const twilioSignature = headersList.get('x-twilio-signature');
-  
+
   if (!twilioSignature || !config.twilio.authToken) {
     return false;
   }
-  
+
   // Create body string by sorting keys and concatenating
   const bodyString = Object.keys(body)
     .sort()
     .reduce((acc, key) => acc + key + body[key], '');
-  
+
   // Combine the URL and the request body
   const data = url + bodyString;
-  
+
   // Generate the HMAC
   const hmac = crypto
     .createHmac('sha1', config.twilio.authToken)
     .update(data)
     .digest('base64');
-  
+
   // Compare the signatures
   return hmac === twilioSignature;
 }
@@ -55,17 +58,20 @@ export async function validateTwilioRequest(request: NextRequest, body: any): Pr
  * @param formData - FormData from Twilio webhook
  * @returns Object with from (phone) and body (message text)
  */
-export function parseInboundMessage(formData: FormData): { from: string; body: string } {
+export function parseInboundMessage(formData: FormData): {
+  from: string;
+  body: string;
+} {
   const body: Record<string, string> = {};
-  
+
   // Convert FormData to a plain object
   formData.forEach((value, key) => {
     body[key] = value.toString();
   });
-  
+
   return {
     from: body.From || '',
-    body: (body.Body?.trim().toLowerCase()) || ''
+    body: body.Body?.trim().toLowerCase() || '',
   };
 }
 
@@ -75,20 +81,26 @@ export function parseInboundMessage(formData: FormData): { from: string; body: s
  * @param expiresIn - Token expiration (default: 5 minutes)
  * @returns JWT token string
  */
-export function generateSmsResponseToken(payload: any, expiresIn: string = '5m'): string {
+export function generateSmsResponseToken(
+  payload: any,
+  expiresIn: string = '5m'
+): string {
   const jwt = require('jsonwebtoken');
-  return jwt.sign(
-    payload,
-    config.auth.jwtSecret,
-    { expiresIn }
-  );
+  return jwt.sign(payload, config.auth.jwtSecret, { expiresIn });
 }
 
 /**
- * Generate base64 token for mover change responses (legacy format)
- * @param tokenData - Data to encode
- * @returns Base64 encoded token
+ * Generate a secure short token for mover change responses, stored in ShortToken table
  */
-export function generateMoverChangeToken(tokenData: any): string {
-  return Buffer.from(JSON.stringify(tokenData)).toString('base64');
+export async function generateMoverChangeToken(
+  tokenData: any
+): Promise<string> {
+  const { createShortToken, expiresIn, DURATIONS } = await import(
+    '@/lib/services/shortTokenService'
+  );
+  return createShortToken(
+    'mover_change',
+    tokenData,
+    expiresIn(DURATIONS.HOURS_24)
+  );
 }

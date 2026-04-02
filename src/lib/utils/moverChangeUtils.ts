@@ -7,14 +7,20 @@
 
 import { prisma } from '@/lib/database/prismaClient';
 import { getOnfleetClient } from '@/lib/integrations/onfleetClient';
-import { formatTime24Hour } from '@/lib/utils/dateUtils';
+import { formatTime24Hour } from './dateUtils';
 
 /**
  * Find available drivers for appointment
  */
-export async function findAvailableDrivers(appointment: any, task: any, excludeDriverIds: number[] = []) {
+export async function findAvailableDrivers(
+  appointment: any,
+  task: any,
+  excludeDriverIds: number[] = []
+) {
   const appointmentDate = new Date(appointment.date);
-  const dayOfWeek = appointmentDate.toLocaleDateString("en-US", { weekday: "long" });
+  const dayOfWeek = appointmentDate.toLocaleDateString('en-US', {
+    weekday: 'long',
+  });
   const appointmentTime = new Date(appointment.time);
   const formattedTime = formatTime24Hour(appointmentTime);
 
@@ -30,8 +36,8 @@ export async function findAvailableDrivers(appointment: any, task: any, excludeD
           dayOfWeek,
           startTime: { lte: formattedTime },
           endTime: { gte: formattedTime },
-          isBlocked: false
-        }
+          isBlocked: false,
+        },
       },
       NOT: {
         assignedTasks: {
@@ -39,84 +45,105 @@ export async function findAvailableDrivers(appointment: any, task: any, excludeD
             appointment: {
               date: { equals: appointmentDate },
               time: {
-                gte: new Date(appointmentTime.getTime() - (60 * 60 * 1000)),
-                lte: new Date(appointmentTime.getTime() + (60 * 60 * 1000))
-              }
-            }
-          }
-        }
-      }
+                gte: new Date(appointmentTime.getTime() - 60 * 60 * 1000),
+                lte: new Date(appointmentTime.getTime() + 60 * 60 * 1000),
+              },
+            },
+          },
+        },
+      },
     },
     include: { _count: { select: { assignedTasks: true } } },
-    orderBy: [{ assignedTasks: { _count: 'desc' } }]
+    orderBy: [{ assignedTasks: { _count: 'desc' } }],
   });
 }
 
 /**
  * Assign moving partner driver to appointment
  */
-export async function assignMovingPartnerDriver(appointment: any, movingPartnerId: number) {
+export async function assignMovingPartnerDriver(
+  appointment: any,
+  movingPartnerId: number
+) {
   // Get available drivers for this moving partner
   const movingPartnerDrivers = await prisma.movingPartnerDriver.findMany({
-    where: { 
+    where: {
       movingPartnerId,
-      isActive: true 
+      isActive: true,
     },
     include: {
       driver: {
         include: {
-          availability: true
-        }
-      }
-    }
+          availability: true,
+        },
+      },
+    },
   });
 
   const appointmentDate = new Date(appointment.date);
   const appointmentTime = new Date(appointment.time);
-  const dayOfWeek = appointmentDate.toLocaleDateString("en-US", { weekday: "long" });
+  const dayOfWeek = appointmentDate.toLocaleDateString('en-US', {
+    weekday: 'long',
+  });
   const formattedTime = formatTime24Hour(appointmentTime);
 
   // Find available driver from this moving partner
   const availableDriver = movingPartnerDrivers.find(mpd => {
     const driver = mpd.driver;
-    return driver.isApproved && 
-           driver.applicationComplete && 
-           driver.status === 'Active' &&
-           driver.onfleetWorkerId &&
-           driver.availability.some(avail => 
-             avail.dayOfWeek === dayOfWeek &&
-             avail.startTime <= formattedTime &&
-             avail.endTime >= formattedTime &&
-             !avail.isBlocked
-           );
+    return (
+      driver.isApproved &&
+      driver.applicationComplete &&
+      driver.status === 'Active' &&
+      driver.onfleetWorkerId &&
+      driver.availability.some(
+        avail =>
+          avail.dayOfWeek === dayOfWeek &&
+          avail.startTime <= formattedTime &&
+          avail.endTime >= formattedTime &&
+          !avail.isBlocked
+      )
+    );
   });
 
   return availableDriver?.driver || null;
 }
 
 /**
- * Decode mover change token
+ * Decode mover change token via ShortToken DB lookup.
  */
-export function decodeMoverChangeToken(token: string) {
-  try {
-    const decoded = Buffer.from(token, 'base64').toString();
-    return JSON.parse(decoded);
-  } catch (error) {
-    throw new Error('Invalid token format');
-  }
+export async function decodeMoverChangeToken(token: string) {
+  const { resolveShortToken } = await import(
+    '@/lib/services/shortTokenService'
+  );
+  return resolveShortToken(token, 'mover_change');
 }
 
 /**
  * Validate mover change token data
  */
 export function validateMoverChangeTokenData(tokenData: any) {
-  const { appointmentId, suggestedMovingPartnerId, originalMovingPartnerId, timestamp } = tokenData;
+  const {
+    appointmentId,
+    suggestedMovingPartnerId,
+    originalMovingPartnerId,
+    timestamp,
+  } = tokenData;
 
-  if (!appointmentId || !suggestedMovingPartnerId || !originalMovingPartnerId || !timestamp) {
+  if (
+    !appointmentId ||
+    !suggestedMovingPartnerId ||
+    !originalMovingPartnerId ||
+    !timestamp
+  ) {
     throw new Error('Invalid token data');
   }
 
-  return { appointmentId, suggestedMovingPartnerId, originalMovingPartnerId, timestamp };
+  return {
+    appointmentId,
+    suggestedMovingPartnerId,
+    originalMovingPartnerId,
+    timestamp,
+  };
 }
 
 /**
@@ -125,7 +152,9 @@ export function validateMoverChangeTokenData(tokenData: any) {
 export function checkMoverChangeRequestStatus(appointment: any) {
   let appointmentDescription;
   try {
-    appointmentDescription = appointment.description ? JSON.parse(appointment.description) : {};
+    appointmentDescription = appointment.description
+      ? JSON.parse(appointment.description)
+      : {};
   } catch {
     appointmentDescription = {};
   }
@@ -141,13 +170,18 @@ export function checkMoverChangeRequestStatus(appointment: any) {
 /**
  * Create time slot booking for moving partner
  */
-export async function createTimeSlotBooking(appointment: any, movingPartnerId: number) {
+export async function createTimeSlotBooking(
+  appointment: any,
+  movingPartnerId: number
+) {
   const appointmentDate = new Date(appointment.date);
   const appointmentTime = new Date(appointment.time);
-  const endTime = new Date(appointmentTime.getTime() + (3 * 60 * 60 * 1000)); // 3 hours duration
+  const endTime = new Date(appointmentTime.getTime() + 3 * 60 * 60 * 1000); // 3 hours duration
 
   // Find availability slot for the moving partner
-  const dayOfWeek = appointmentDate.toLocaleDateString("en-US", { weekday: "long" });
+  const dayOfWeek = appointmentDate.toLocaleDateString('en-US', {
+    weekday: 'long',
+  });
   const formattedTime = formatTime24Hour(appointmentTime);
 
   const availabilitySlot = await prisma.movingPartnerAvailability.findFirst({
@@ -156,8 +190,8 @@ export async function createTimeSlotBooking(appointment: any, movingPartnerId: n
       dayOfWeek,
       startTime: { lte: formattedTime },
       endTime: { gte: formattedTime },
-      isBlocked: false
-    }
+      isBlocked: false,
+    },
   });
 
   if (availabilitySlot) {
@@ -166,8 +200,8 @@ export async function createTimeSlotBooking(appointment: any, movingPartnerId: n
         movingPartnerAvailabilityId: availabilitySlot.id,
         appointmentId: appointment.id,
         bookingDate: appointmentDate,
-        endDate: endTime
-      }
+        endDate: endTime,
+      },
     });
   }
 }
@@ -177,40 +211,43 @@ export async function createTimeSlotBooking(appointment: any, movingPartnerId: n
  */
 export async function processDiyPlanConversion(appointment: any) {
   const onfleetClient = await getOnfleetClient();
-  
+
   for (const task of appointment.onfleetTasks) {
     try {
       // Move task to Boombox Delivery Network team
       await (onfleetClient as any).tasks.update(task.taskId, {
-        container: { type: "TEAM", team: process.env.BOOMBOX_DELIVERY_NETWORK_TEAM_ID },
-        worker: null
+        container: {
+          type: 'TEAM',
+          team: process.env.BOOMBOX_DELIVERY_NETWORK_TEAM_ID,
+        },
+        worker: null,
       });
 
       await prisma.onfleetTask.update({
         where: { id: task.id },
-        data: { 
+        data: {
           driverId: null,
-          driverNotificationStatus: 'switched_to_diy'
-        }
+          driverNotificationStatus: 'switched_to_diy',
+        },
       });
 
       // Find and notify available Boombox drivers
       const availableDrivers = await findAvailableDrivers(appointment, task);
-      
+
       if (availableDrivers.length > 0) {
         const topDriver = availableDrivers[0];
-        
+
         // Assign the highest-rated driver
         await (onfleetClient as any).tasks.update(task.taskId, {
-          worker: topDriver.onfleetWorkerId
+          worker: topDriver.onfleetWorkerId,
         });
 
         await prisma.onfleetTask.update({
           where: { id: task.id },
-          data: { 
+          data: {
             driverId: topDriver.id,
-            driverNotificationStatus: 'assigned_diy_driver'
-          }
+            driverNotificationStatus: 'assigned_diy_driver',
+          },
         });
       }
     } catch (error) {
@@ -224,20 +261,27 @@ export async function processDiyPlanConversion(appointment: any) {
  * @source boombox-10.0/src/app/api/cron/process-expired-mover-changes/route.ts (lines 130-306)
  * @refactor Extracted the business logic for processing expired mover change requests
  */
-export async function processExpiredMoverChange(appointment: any, moverChangeRequest: any) {
+export async function processExpiredMoverChange(
+  appointment: any,
+  moverChangeRequest: any
+) {
   // Get the suggested moving partner
   const suggestedMover = await prisma.movingPartner.findUnique({
-    where: { id: moverChangeRequest.suggestedMovingPartnerId }
+    where: { id: moverChangeRequest.suggestedMovingPartnerId },
   });
 
   if (!suggestedMover) {
-    throw new Error(`Suggested mover ${moverChangeRequest.suggestedMovingPartnerId} not found for appointment ${appointment.id}`);
+    throw new Error(
+      `Suggested mover ${moverChangeRequest.suggestedMovingPartnerId} not found for appointment ${appointment.id}`
+    );
   }
 
   // Check if the suggested mover is still available
   const appointmentDate = new Date(appointment.date);
   const appointmentTime = new Date(appointment.time);
-  const dayOfWeek = appointmentDate.toLocaleDateString("en-US", { weekday: "long" });
+  const dayOfWeek = appointmentDate.toLocaleDateString('en-US', {
+    weekday: 'long',
+  });
   const formattedTime = formatTime24Hour(appointmentTime);
 
   const isStillAvailable = await prisma.movingPartnerAvailability.findFirst({
@@ -246,24 +290,26 @@ export async function processExpiredMoverChange(appointment: any, moverChangeReq
       dayOfWeek,
       startTime: { lte: formattedTime },
       endTime: { gte: formattedTime },
-      isBlocked: false
+      isBlocked: false,
     },
     include: {
       timeSlotBookings: {
         where: {
           bookingDate: appointmentDate,
-          endDate: { gte: appointmentTime }
-        }
-      }
-    }
+          endDate: { gte: appointmentTime },
+        },
+      },
+    },
   });
 
   return {
     suggestedMover,
-    isStillAvailable: isStillAvailable && isStillAvailable.timeSlotBookings.length < isStillAvailable.maxCapacity,
+    isStillAvailable:
+      isStillAvailable &&
+      isStillAvailable.timeSlotBookings.length < isStillAvailable.maxCapacity,
     availabilityRecord: isStillAvailable,
     appointmentDate,
-    appointmentTime
+    appointmentTime,
   };
 }
 
@@ -272,10 +318,15 @@ export async function processExpiredMoverChange(appointment: any, moverChangeReq
  * @source boombox-10.0/src/app/api/cron/process-expired-mover-changes/route.ts (lines 310-381)
  * @refactor Extracted the business logic for processing expired third-party mover requests
  */
-export async function processExpiredThirdPartyMover(appointment: any, thirdPartyMoverRequest: any) {
+export async function processExpiredThirdPartyMover(
+  appointment: any,
+  thirdPartyMoverRequest: any
+) {
   // Mark the request as escalated
-  const appointmentDescription = appointment.description ? JSON.parse(appointment.description) : {};
-  
+  const appointmentDescription = appointment.description
+    ? JSON.parse(appointment.description)
+    : {};
+
   await prisma.appointment.update({
     where: { id: appointment.id },
     data: {
@@ -285,14 +336,14 @@ export async function processExpiredThirdPartyMover(appointment: any, thirdParty
           ...thirdPartyMoverRequest,
           status: 'escalated_to_admin',
           escalatedAt: new Date().toISOString(),
-          reason: 'customer_no_response_timeout'
-        }
-      })
-    }
+          reason: 'customer_no_response_timeout',
+        },
+      }),
+    },
   });
 
   return {
     appointmentDescription,
-    escalated: true
+    escalated: true,
   };
-} 
+}

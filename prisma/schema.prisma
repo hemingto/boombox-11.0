@@ -403,13 +403,14 @@ model Feedback {
   tipAmount          Float          @default(0)
   tipPaymentIntentId String?
   tipPaymentStatus   String?
-  responded          Boolean        @default(false)
-  response           String?
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
-  appointment        Appointment    @relation(fields: [appointmentId], references: [id])
-  movingPartner      MovingPartner? @relation(fields: [movingPartnerId], references: [id])
-  tipTransfers       TipTransfer[]
+  responded                Boolean        @default(false)
+  response                 String?
+  googleReviewRequestSent  Boolean        @default(false)
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @updatedAt
+  appointment              Appointment    @relation(fields: [appointmentId], references: [id])
+  movingPartner            MovingPartner? @relation(fields: [movingPartnerId], references: [id])
+  tipTransfers             TipTransfer[]
 
   @@index([movingPartnerId])
 }
@@ -444,12 +445,13 @@ model PackingSupplyFeedback {
   tipAmount            Float              @default(0)
   tipPaymentIntentId   String?
   tipPaymentStatus     String?
-  driverRating         String?
-  responded            Boolean            @default(false)
-  response             String?
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
-  packingSupplyOrder   PackingSupplyOrder @relation(fields: [packingSupplyOrderId], references: [id])
+  driverRating              String?
+  responded                 Boolean            @default(false)
+  response                  String?
+  googleReviewRequestSent   Boolean            @default(false)
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+  packingSupplyOrder        PackingSupplyOrder @relation(fields: [packingSupplyOrderId], references: [id])
 
   @@index([packingSupplyOrderId])
 }
@@ -1166,6 +1168,18 @@ model HaulingPartnerDriverInvitation {
   @@index([token])
   @@index([haulingPartnerId])
   @@index([email])
+}
+
+model ShortToken {
+  id        Int       @id @default(autoincrement())
+  token     String    @unique
+  type      String
+  payload   Json
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([type])
+  @@index([expiresAt])
 }
 
 model HaulingPartnerAvailability {

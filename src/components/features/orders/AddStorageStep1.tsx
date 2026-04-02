@@ -181,7 +181,7 @@ export default function AddStorageStep1({
               <RadioCards
                 id="option1"
                 title="No, I'll load my storage unit myself"
-                description="Free! 1st hour"
+                description="$75 pickup fee"
                 plan="Do It Yourself Plan"
                 icon={
                   <FurnitureIcon

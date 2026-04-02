@@ -8,19 +8,25 @@ import { prisma } from '@/lib/database/prismaClient';
 import { assignRoutePlanToWorker } from '@/lib/services/onfleet-route-plan';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { driverOfferTemplate } from '@/lib/messaging/templates/sms/packing-supply';
+// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import {
   calculateRoutePayoutEstimate,
   calculateEstimatedDuration,
   getDeliveryArea,
 } from '@/lib/utils/packingSupplyUtils';
-import jwt from 'jsonwebtoken';
 import type { PackingSupplyRoute, Driver } from '@prisma/client';
+import { createShortToken } from '@/lib/services/shortTokenService';
 
 const OFFER_TIMEOUT_MINUTES = 20;
 
 export type AcceptOfferResult = {
   success: boolean;
-  error?: 'EXPIRED' | 'ALREADY_ACCEPTED' | 'NOT_FOUND' | 'WRONG_DRIVER' | 'NOT_SENT';
+  error?:
+    | 'EXPIRED'
+    | 'ALREADY_ACCEPTED'
+    | 'NOT_FOUND'
+    | 'WRONG_DRIVER'
+    | 'NOT_SENT';
   route?: PackingSupplyRoute;
 };
 
@@ -39,14 +45,14 @@ export class DriverOfferService {
    * 1. Offer status is still 'sent' (pending acceptance)
    * 2. Offer has not expired (expiresAt > now)
    * 3. Route is still unassigned (driverId is null)
-   * 
+   *
    * This prevents race conditions where multiple drivers try to accept the same offer
    */
   static async acceptOfferAtomic(
     routeId: string,
     driverId: number
   ): Promise<AcceptOfferResult> {
-    return await prisma.$transaction(async (tx) => {
+    return await prisma.$transaction(async tx => {
       // Lock and check the route in one query
       const route = await tx.packingSupplyRoute.findFirst({
         where: {
@@ -207,7 +213,10 @@ export class DriverOfferService {
       }
 
       if (!driver || !driver.phoneNumber) {
-        return { success: false, error: 'Driver not found or has no phone number' };
+        return {
+          success: false,
+          error: 'Driver not found or has no phone number',
+        };
       }
 
       // Calculate payout estimate
@@ -231,10 +240,10 @@ export class DriverOfferService {
         expiresAt: Date.now() + OFFER_TIMEOUT_MINUTES * 60 * 1000,
       };
 
-      const offerToken = jwt.sign(
+      const offerToken = await createShortToken(
+        'ps_route_offer',
         tokenPayload,
-        process.env.JWT_SECRET || 'fallback-secret',
-        { expiresIn: `${OFFER_TIMEOUT_MINUTES}m` }
+        new Date(Date.now() + OFFER_TIMEOUT_MINUTES * 60 * 1000)
       );
 
       const baseUrl =
@@ -259,7 +268,9 @@ export class DriverOfferService {
       );
 
       // Update route with offer details and add driver to offeredDriverIds
-      const expiresAt = new Date(Date.now() + OFFER_TIMEOUT_MINUTES * 60 * 1000);
+      const expiresAt = new Date(
+        Date.now() + OFFER_TIMEOUT_MINUTES * 60 * 1000
+      );
       await prisma.packingSupplyRoute.update({
         where: { routeId },
         data: {
@@ -329,9 +340,7 @@ export class DriverOfferService {
    * Process an expired offer - mark as expired and attempt to offer to next driver
    * Returns info about what happened
    */
-  static async processExpiredOffer(
-    route: PackingSupplyRoute
-  ): Promise<{
+  static async processExpiredOffer(route: PackingSupplyRoute): Promise<{
     routeId: string;
     action: 'reoffered' | 'admin_notified' | 'marked_expired';
     driverId?: number;
@@ -343,7 +352,10 @@ export class DriverOfferService {
     const nextDriver = await this.findNextCandidateDriver(route);
 
     if (nextDriver) {
-      const offerResult = await this.sendDriverOffer(route.routeId, nextDriver.id);
+      const offerResult = await this.sendDriverOffer(
+        route.routeId,
+        nextDriver.id
+      );
       if (offerResult.success) {
         return {
           routeId: route.routeId,
@@ -361,4 +373,3 @@ export class DriverOfferService {
     };
   }
 }
-

@@ -11,8 +11,9 @@ export { moverChangeProcessingErrorTemplate } from './moverChangeProcessingError
 export { moverChangeAcceptedTemplate } from './moverChangeAccepted';
 export { moverChangeDiyTemplate } from './moverChangeDiy';
 export { unexpectedErrorTemplate } from './unexpectedError';
-export { 
-  generalSupportTemplate, 
-  moverChangeAmbiguousTemplate, 
-  generalAmbiguousTemplate 
+export {
+  generalSupportTemplate,
+  moverChangeAmbiguousTemplate,
+  generalAmbiguousTemplate,
 } from './generalSupportMessage';
+export { googleReviewRequestSms } from './googleReviewRequest';

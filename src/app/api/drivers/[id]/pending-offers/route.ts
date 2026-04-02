@@ -2,16 +2,16 @@
  * @fileoverview Driver Pending Offers API Route - Fetch pending job offers for a driver
  * @description Returns both appointment offers and packing supply route offers that are
  * pending acceptance/decline by the specified driver.
- * 
+ *
  * @usage GET /api/drivers/[id]/pending-offers - Fetch pending offers for a driver
- * 
+ *
  * @functionality
  * - Fetches pending appointment offers via OnfleetTask (driverNotificationStatus = 'sent', lastNotifiedDriverId = driverId)
  * - Fetches pending packing supply route offers via PackingSupplyRoute (driverOfferStatus = 'sent', lastNotifiedDriverId = driverId)
  * - Returns unified format with offer type indicator
  * - Includes expiration time for countdown displays
  * - Orders by notification/offer time (oldest first for urgency)
- * 
+ *
  * @integration
  * - Used by JobOffers component on driver jobs page
  * - Supplements existing SMS token-based offer flow
@@ -19,20 +19,25 @@
 
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
-import { 
+import {
   validateApiRequest,
-  formatValidationErrors 
+  formatValidationErrors,
 } from '@/lib/validations/api.validations';
 import { z } from 'zod';
 import { calculateDriverPayment } from '@/lib/services/payment-calculator';
+// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import { formatRouteMetrics } from '@/lib/utils/driverNotificationUtils';
+// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import { generateDriverToken } from '@/lib/utils/driverAssignmentUtils';
+import { createShortToken } from '@/lib/services/shortTokenService';
 
 // Validation schema for the request
 const DriverPendingOffersRequestSchema = z.object({
-  driverId: z.union([z.string(), z.number()]).transform((val): number => 
-    typeof val === 'string' ? parseInt(val, 10) : val
-  ),
+  driverId: z
+    .union([z.string(), z.number()])
+    .transform((val): number =>
+      typeof val === 'string' ? parseInt(val, 10) : val
+    ),
 });
 
 // Response types
@@ -89,7 +94,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const validation = validateApiRequest(DriverPendingOffersRequestSchema, { driverId: id });
+    const validation = validateApiRequest(DriverPendingOffersRequestSchema, {
+      driverId: id,
+    });
 
     if (!validation.success) {
       const errors = formatValidationErrors(validation.error);
@@ -108,10 +115,7 @@ export async function GET(
     });
 
     if (!driver) {
-      return NextResponse.json(
-        { error: 'Driver not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Driver not found' }, { status: 404 });
     }
 
     const offers: PendingOffer[] = [];
@@ -145,14 +149,20 @@ export async function GET(
 
     // Group tasks by appointment and unit number to avoid duplicates
     // Keep track of which ones are reconfirmation requests
-    const appointmentUnitsMap = new Map<string, typeof appointmentOffers[0]>();
+    const appointmentUnitsMap = new Map<
+      string,
+      (typeof appointmentOffers)[0]
+    >();
     const reconfirmationMap = new Map<string, boolean>();
-    
+
     for (const task of appointmentOffers) {
       const key = `${task.appointmentId}-${task.unitNumber}`;
       if (!appointmentUnitsMap.has(key)) {
         appointmentUnitsMap.set(key, task);
-        reconfirmationMap.set(key, task.driverNotificationStatus === 'pending_reconfirmation');
+        reconfirmationMap.set(
+          key,
+          task.driverNotificationStatus === 'pending_reconfirmation'
+        );
       }
     }
 
@@ -161,8 +171,10 @@ export async function GET(
       if (!task.appointment || !task.driverNotificationSentAt) continue;
 
       const notifiedAt = new Date(task.driverNotificationSentAt);
-      const expiresAt = new Date(notifiedAt.getTime() + APPOINTMENT_OFFER_EXPIRY_MS);
-      
+      const expiresAt = new Date(
+        notifiedAt.getTime() + APPOINTMENT_OFFER_EXPIRY_MS
+      );
+
       // Skip expired offers
       if (expiresAt < new Date()) continue;
 
@@ -172,15 +184,18 @@ export async function GET(
       try {
         // Sum estimated costs for only THIS unit's tasks (Step 1, 2, 3 for this unitNumber)
         const unitTasks = await prisma.onfleetTask.findMany({
-          where: { 
+          where: {
             appointmentId: task.appointmentId,
-            unitNumber: task.unitNumber  // Filter to only this unit's tasks
+            unitNumber: task.unitNumber, // Filter to only this unit's tasks
           },
-          select: { estimatedCost: true }
+          select: { estimatedCost: true },
         });
-        
-        const unitTaskCostSum = unitTasks.reduce((sum, t) => sum + (t.estimatedCost || 0), 0);
-        
+
+        const unitTaskCostSum = unitTasks.reduce(
+          (sum, t) => sum + (t.estimatedCost || 0),
+          0
+        );
+
         if (unitTaskCostSum > 0) {
           // Use sum of this unit's task costs
           payEstimate = `$${Math.round(unitTaskCostSum)}`;
@@ -224,12 +239,14 @@ export async function GET(
         notifiedAt,
         expiresAt,
         token,
-        customer: task.appointment.user ? {
-          firstName: task.appointment.user.firstName,
-          lastName: task.appointment.user.lastName,
-        } : undefined,
+        customer: task.appointment.user
+          ? {
+              firstName: task.appointment.user.firstName,
+              lastName: task.appointment.user.lastName,
+            }
+          : undefined,
         isReconfirmation,
-        reconfirmationMessage: isReconfirmation 
+        reconfirmationMessage: isReconfirmation
           ? `Please confirm you can still work this job (Unit ${task.unitNumber})`
           : undefined,
       });
@@ -237,7 +254,7 @@ export async function GET(
 
     // Fetch pending packing supply route offers
     // Note: This requires the lastNotifiedDriverId field on PackingSupplyRoute
-    // If not present, we'll check for routes where driverOfferStatus is 'sent' 
+    // If not present, we'll check for routes where driverOfferStatus is 'sent'
     // and driverId matches (though driverId is null when pending)
     const routeOffers = await prisma.packingSupplyRoute.findMany({
       where: {
@@ -271,21 +288,25 @@ export async function GET(
       // Get route metrics
       const metrics = formatRouteMetrics(
         route.totalStops,
-        route.totalDistance ? parseFloat(route.totalDistance.toString()) : undefined,
+        route.totalDistance
+          ? parseFloat(route.totalDistance.toString())
+          : undefined,
         route.totalTime ?? undefined
       );
 
       // Get first stop address for display
-      const firstStopAddress = route.orders[0]?.deliveryAddress || 'Multiple locations';
+      const firstStopAddress =
+        route.orders[0]?.deliveryAddress || 'Multiple locations';
 
-      // Note: For packing supply routes, the token is generated via JWT in the 
-      // driver-offer API. For dashboard offers, we would need to generate a new token
-      // or retrieve the existing one. For now, we'll generate a simple reference token.
-      const token = Buffer.from(JSON.stringify({
-        routeId: route.routeId,
-        driverId,
-        expiresAt: route.driverOfferExpiresAt.getTime(),
-      })).toString('base64');
+      const token = await createShortToken(
+        'ps_route_offer',
+        {
+          routeId: route.routeId,
+          driverId,
+          expiresAt: route.driverOfferExpiresAt.getTime(),
+        },
+        route.driverOfferExpiresAt
+      );
 
       offers.push({
         id: route.id,
@@ -304,8 +325,9 @@ export async function GET(
     }
 
     // Sort all offers by notification time (oldest first - most urgent)
-    offers.sort((a, b) => 
-      new Date(a.notifiedAt).getTime() - new Date(b.notifiedAt).getTime()
+    offers.sort(
+      (a, b) =>
+        new Date(a.notifiedAt).getTime() - new Date(b.notifiedAt).getTime()
     );
 
     return NextResponse.json({
@@ -313,7 +335,6 @@ export async function GET(
       offers,
       count: offers.length,
     });
-
   } catch (error) {
     console.error('Error fetching pending offers:', error);
     return NextResponse.json(
@@ -322,4 +343,3 @@ export async function GET(
     );
   }
 }
-

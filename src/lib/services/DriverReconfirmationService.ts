@@ -11,9 +11,9 @@ import { driverUnitShiftReconfirmationSms } from '@/lib/messaging/templates/sms/
 import {
   generateDriverReconfirmToken,
   generateDriverWebViewUrl,
-  formatTimeMinusOneHour
-} from '@/lib/utils/appointmentUtils';
-import { formatVerboseDate } from '@/lib/utils/dateUtils';
+  formatTimeMinusOneHour,
+} from '@/lib/utils';
+import { formatVerboseDate } from '@/lib/utils';
 
 /**
  * Driver info for reconfirmation
@@ -53,7 +53,7 @@ export interface ReconfirmationResult {
 export class DriverReconfirmationService {
   /**
    * Send reconfirmation request to a driver after time change
-   * 
+   *
    * @param driver - Driver info
    * @param appointment - Appointment info
    * @param oldTime - Original appointment time
@@ -68,19 +68,25 @@ export class DriverReconfirmationService {
     unitNumber: number
   ): Promise<ReconfirmationResult> {
     try {
-      console.log(`📱 Sending reconfirmation request to driver ${driver.id} for appointment ${appointment.id}`);
+      console.log(
+        `📱 Sending reconfirmation request to driver ${driver.id} for appointment ${appointment.id}`
+      );
 
       if (!driver.phoneNumber) {
         console.warn(`⚠️  Driver ${driver.id} has no phone number`);
         return {
           success: false,
           driverId: driver.id,
-          error: 'Driver has no phone number'
+          error: 'Driver has no phone number',
         };
       }
 
       // Generate reconfirmation token and URL
-      const token = generateDriverReconfirmToken(driver.id, appointment.id, unitNumber);
+      const token = await generateDriverReconfirmToken(
+        driver.id,
+        appointment.id,
+        unitNumber
+      );
       const webViewUrl = generateDriverWebViewUrl(token);
 
       // Format times for SMS
@@ -99,17 +105,20 @@ export class DriverReconfirmationService {
           originalTime,
           newDate,
           newTime: newTimeFormatted,
-          webViewUrl
+          webViewUrl,
         }
       );
 
       if (!smsResult.success) {
-        console.error(`❌ Failed to send reconfirmation SMS to driver ${driver.id}:`, smsResult.error);
+        console.error(
+          `❌ Failed to send reconfirmation SMS to driver ${driver.id}:`,
+          smsResult.error
+        );
         return {
           success: false,
           driverId: driver.id,
           smsSent: false,
-          error: smsResult.error
+          error: smsResult.error,
         };
       }
 
@@ -118,21 +127,24 @@ export class DriverReconfirmationService {
       return {
         success: true,
         driverId: driver.id,
-        smsSent: true
+        smsSent: true,
       };
     } catch (error) {
-      console.error(`❌ Error sending reconfirmation to driver ${driver.id}:`, error);
+      console.error(
+        `❌ Error sending reconfirmation to driver ${driver.id}:`,
+        error
+      );
       return {
         success: false,
         driverId: driver.id,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
 
   /**
    * Update task status to pending reconfirmation
-   * 
+   *
    * @param appointmentId - Appointment ID
    * @param driverId - Driver ID
    * @param unitNumber - Unit number for the tasks
@@ -142,19 +154,21 @@ export class DriverReconfirmationService {
     driverId: number,
     unitNumber: number
   ): Promise<void> {
-    console.log(`📝 Updating tasks to pending_reconfirmation for appointment ${appointmentId}, driver ${driverId}`);
+    console.log(
+      `📝 Updating tasks to pending_reconfirmation for appointment ${appointmentId}, driver ${driverId}`
+    );
 
     await prisma.onfleetTask.updateMany({
       where: {
         appointmentId,
         driverId,
-        unitNumber
+        unitNumber,
       },
       data: {
         driverNotificationStatus: 'pending_reconfirmation',
         lastNotifiedDriverId: driverId,
-        driverNotificationSentAt: new Date()
-      }
+        driverNotificationSentAt: new Date(),
+      },
     });
 
     console.log(`✅ Task status updated to pending_reconfirmation`);
@@ -163,7 +177,7 @@ export class DriverReconfirmationService {
   /**
    * Process reconfirmation for all assigned drivers on an appointment
    * Called when time changes and drivers need to reconfirm
-   * 
+   *
    * @param appointment - Appointment with relations
    * @param oldTime - Original appointment time
    * @param newTime - New appointment time
@@ -192,7 +206,9 @@ export class DriverReconfirmationService {
     oldTime: Date,
     newTime: Date
   ): Promise<ReconfirmationResult[]> {
-    console.log(`🔄 Processing reconfirmations for appointment ${appointment.id}`);
+    console.log(
+      `🔄 Processing reconfirmations for appointment ${appointment.id}`
+    );
 
     const results: ReconfirmationResult[] = [];
     const processedDriverUnitPairs = new Set<string>();
@@ -205,7 +221,9 @@ export class DriverReconfirmationService {
       // Only send reconfirmation to Boombox Delivery Network drivers
       // Moving Partner drivers coordinate with their employer, they don't need our reconfirmation
       if (task.workerType !== 'boombox_driver') {
-        console.log(`⏭️ Skipping reconfirmation for driver ${task.driverId} - workerType: ${task.workerType || 'unknown'} (not boombox_driver)`);
+        console.log(
+          `⏭️ Skipping reconfirmation for driver ${task.driverId} - workerType: ${task.workerType || 'unknown'} (not boombox_driver)`
+        );
         continue;
       }
 
@@ -225,7 +243,7 @@ export class DriverReconfirmationService {
           address: appointment.address,
           date: appointment.date,
           time: appointment.time,
-          description: appointment.description
+          description: appointment.description,
         },
         oldTime,
         newTime,
@@ -250,7 +268,7 @@ export class DriverReconfirmationService {
 
   /**
    * Check if any drivers need reconfirmation for an appointment
-   * 
+   *
    * @param appointmentId - Appointment ID
    * @returns True if any tasks have assigned drivers
    */
@@ -258,8 +276,8 @@ export class DriverReconfirmationService {
     const tasksWithDrivers = await prisma.onfleetTask.count({
       where: {
         appointmentId,
-        driverId: { not: null }
-      }
+        driverId: { not: null },
+      },
     });
 
     return tasksWithDrivers > 0;
@@ -269,20 +287,24 @@ export class DriverReconfirmationService {
    * Check if any Boombox Delivery Network drivers are assigned to an appointment
    * Only Boombox drivers need reconfirmation when time changes.
    * Moving Partner drivers coordinate with their employer instead.
-   * 
+   *
    * @param appointmentId - Appointment ID
    * @returns True if any tasks have assigned Boombox drivers
    */
-  static async hasAssignedBoomboxDrivers(appointmentId: number): Promise<boolean> {
+  static async hasAssignedBoomboxDrivers(
+    appointmentId: number
+  ): Promise<boolean> {
     const tasksWithBoomboxDrivers = await prisma.onfleetTask.count({
       where: {
         appointmentId,
         driverId: { not: null },
-        workerType: 'boombox_driver'  // Note: value is 'boombox_driver' not 'boombox'
-      }
+        workerType: 'boombox_driver', // Note: value is 'boombox_driver' not 'boombox'
+      },
     });
 
-    console.log(`DEBUG: hasAssignedBoomboxDrivers for appointment ${appointmentId}: ${tasksWithBoomboxDrivers} tasks found`);
+    console.log(
+      `DEBUG: hasAssignedBoomboxDrivers for appointment ${appointmentId}: ${tasksWithBoomboxDrivers} tasks found`
+    );
     return tasksWithBoomboxDrivers > 0;
   }
 
@@ -290,7 +312,7 @@ export class DriverReconfirmationService {
    * Send unit shift reconfirmation request to a driver
    * Used when a driver is shifted to a different unit (e.g., DIY → Full Service)
    * and needs to confirm the new arrival time works for them.
-   * 
+   *
    * @param driver - Driver info
    * @param appointmentId - Appointment ID
    * @param appointmentDate - Date of the appointment
@@ -307,20 +329,28 @@ export class DriverReconfirmationService {
     newArrivalTime: Date
   ): Promise<ReconfirmationResult> {
     try {
-      console.log(`📱 Sending unit shift reconfirmation to driver ${driver.id} for appointment ${appointmentId}`);
-      console.log(`   Shift: Unit ${oldUnitNumber} → Unit ${newUnitNumber}, arrival time: ${newArrivalTime.toISOString()}`);
+      console.log(
+        `📱 Sending unit shift reconfirmation to driver ${driver.id} for appointment ${appointmentId}`
+      );
+      console.log(
+        `   Shift: Unit ${oldUnitNumber} → Unit ${newUnitNumber}, arrival time: ${newArrivalTime.toISOString()}`
+      );
 
       if (!driver.phoneNumber) {
         console.warn(`⚠️  Driver ${driver.id} has no phone number`);
         return {
           success: false,
           driverId: driver.id,
-          error: 'Driver has no phone number'
+          error: 'Driver has no phone number',
         };
       }
 
       // Generate reconfirmation token and URL for the NEW unit
-      const token = generateDriverReconfirmToken(driver.id, appointmentId, newUnitNumber);
+      const token = await generateDriverReconfirmToken(
+        driver.id,
+        appointmentId,
+        newUnitNumber
+      );
       const webViewUrl = generateDriverWebViewUrl(token);
 
       // Format date and time for SMS
@@ -335,33 +365,41 @@ export class DriverReconfirmationService {
           appointmentDate: formattedDate,
           newUnit: newUnitNumber.toString(),
           newArrivalTime: formattedArrivalTime,
-          webViewUrl
+          webViewUrl,
         }
       );
 
       if (!smsResult.success) {
-        console.error(`❌ Failed to send unit shift reconfirmation SMS to driver ${driver.id}:`, smsResult.error);
+        console.error(
+          `❌ Failed to send unit shift reconfirmation SMS to driver ${driver.id}:`,
+          smsResult.error
+        );
         return {
           success: false,
           driverId: driver.id,
           smsSent: false,
-          error: smsResult.error
+          error: smsResult.error,
         };
       }
 
-      console.log(`✅ Unit shift reconfirmation SMS sent to driver ${driver.id}`);
+      console.log(
+        `✅ Unit shift reconfirmation SMS sent to driver ${driver.id}`
+      );
 
       return {
         success: true,
         driverId: driver.id,
-        smsSent: true
+        smsSent: true,
       };
     } catch (error) {
-      console.error(`❌ Error sending unit shift reconfirmation to driver ${driver.id}:`, error);
+      console.error(
+        `❌ Error sending unit shift reconfirmation to driver ${driver.id}:`,
+        error
+      );
       return {
         success: false,
         driverId: driver.id,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
@@ -369,7 +407,7 @@ export class DriverReconfirmationService {
   /**
    * Update tasks for a driver being shifted to a new unit.
    * Sets status to pending_reconfirmation and prepares tasks for the new unit assignment.
-   * 
+   *
    * @param appointmentId - Appointment ID
    * @param driverId - Driver ID
    * @param oldUnitNumber - Original unit number (to clear)
@@ -381,23 +419,27 @@ export class DriverReconfirmationService {
     oldUnitNumber: number,
     newUnitNumber: number
   ): Promise<void> {
-    console.log(`📝 Updating tasks for unit shift reconfirmation: appointment ${appointmentId}, driver ${driverId}`);
-    console.log(`   Clearing assignment from unit ${oldUnitNumber}, setting pending_reconfirmation for unit ${newUnitNumber}`);
+    console.log(
+      `📝 Updating tasks for unit shift reconfirmation: appointment ${appointmentId}, driver ${driverId}`
+    );
+    console.log(
+      `   Clearing assignment from unit ${oldUnitNumber}, setting pending_reconfirmation for unit ${newUnitNumber}`
+    );
 
     // 1. Clear driver from old unit tasks
     await prisma.onfleetTask.updateMany({
       where: {
         appointmentId,
         unitNumber: oldUnitNumber,
-        driverId
+        driverId,
       },
       data: {
         driverNotificationStatus: null,
         lastNotifiedDriverId: null,
         driverNotificationSentAt: null,
         driverAcceptedAt: null,
-        driverDeclinedAt: null
-      }
+        driverDeclinedAt: null,
+      },
     });
 
     // Disconnect driver relation (need individual updates for relation field)
@@ -405,15 +447,15 @@ export class DriverReconfirmationService {
       where: {
         appointmentId,
         unitNumber: oldUnitNumber,
-        driverId
+        driverId,
       },
-      select: { id: true }
+      select: { id: true },
     });
 
     for (const task of oldUnitTasks) {
       await prisma.onfleetTask.update({
         where: { id: task.id },
-        data: { driver: { disconnect: true } }
+        data: { driver: { disconnect: true } },
       });
     }
 
@@ -421,16 +463,15 @@ export class DriverReconfirmationService {
     await prisma.onfleetTask.updateMany({
       where: {
         appointmentId,
-        unitNumber: newUnitNumber
+        unitNumber: newUnitNumber,
       },
       data: {
         driverNotificationStatus: 'pending_reconfirmation',
         lastNotifiedDriverId: driverId,
-        driverNotificationSentAt: new Date()
-      }
+        driverNotificationSentAt: new Date(),
+      },
     });
 
     console.log(`✅ Tasks updated for unit shift reconfirmation`);
   }
 }
-

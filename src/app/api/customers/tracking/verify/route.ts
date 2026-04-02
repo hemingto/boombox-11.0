@@ -72,7 +72,9 @@
  */
 
 import { NextResponse } from 'next/server';
+// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import { verifyTrackingToken } from '@/lib/utils/appointmentUtils';
+// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import {
   determineStepStatuses,
   getStepTitle,
@@ -80,7 +82,10 @@ import {
   type DecodedTrackingToken,
   type TrackingTaskIds,
 } from '@/lib/utils/trackingUtils';
-import { fetchTaskByShortId, fetchWorkerById } from '@/lib/integrations/onfleetClient';
+import {
+  fetchTaskByShortId,
+  fetchWorkerById,
+} from '@/lib/integrations/onfleetClient';
 import { geocodeAddress } from '@/lib/services/geocodingService';
 import {
   TrackingVerifyRequestSchema,
@@ -107,8 +112,8 @@ export async function POST(req: Request) {
 
     const { token } = validationResult.data;
 
-    // Verify the JWT token using centralized utility
-    const tokenResult = verifyTrackingToken(token);
+    // Verify the tracking token using centralized utility
+    const tokenResult = await verifyTrackingToken(token);
 
     if (!tokenResult.valid || !tokenResult.appointmentId) {
       return NextResponse.json(
@@ -137,15 +142,22 @@ export async function POST(req: Request) {
       );
     }
 
-    // Verify latest token for webhook data
-    const jwt = require('jsonwebtoken');
+    // Resolve the latest tracking token stored on the appointment
     const latestToken = appointment?.trackingToken;
-    const decodedLatest = latestToken
-      ? (jwt.verify(
-          latestToken,
-          process.env.JWT_SECRET || 'fallback-secret'
-        ) as DecodedTrackingToken)
-      : (tokenResult as any); // Use the verified token as fallback
+    let decodedLatest: DecodedTrackingToken;
+    if (latestToken) {
+      try {
+        const { resolveShortToken } = await import(
+          '@/lib/services/shortTokenService'
+        );
+        const payload = await resolveShortToken(latestToken, 'appt_tracking');
+        decodedLatest = payload as unknown as DecodedTrackingToken;
+      } catch {
+        decodedLatest = tokenResult as any;
+      }
+    } else {
+      decodedLatest = tokenResult as any;
+    }
 
     // Group tasks by step number and unit number
     const taskIds: TrackingTaskIds = {

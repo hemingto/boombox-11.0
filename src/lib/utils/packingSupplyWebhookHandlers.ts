@@ -6,30 +6,34 @@
 
 import { prisma } from '@/lib/database/prismaClient';
 import { MessageService } from '@/lib/messaging/MessageService';
-import { formatCurrency } from '@/lib/utils/currencyUtils';
+import { formatCurrency } from './currencyUtils';
 import {
   packingSupplyStartedTemplate,
   packingSupplyArrivalTemplate,
   packingSupplyCompletedTemplate,
-  packingSupplyFailedTemplate
+  packingSupplyFailedTemplate,
 } from '@/lib/messaging/templates/sms/booking';
 import {
   WebhookTaskDetails,
   WebhookWorkerData,
   extractDeliveryPhotoUrl,
-  createFeedbackToken,
   ensurePackingSupplyTrackingToken,
   calculateIndividualTaskMetrics,
   convertWebhookTimestamp,
   getWorkerName,
   buildTrackingUrl,
-  buildFeedbackUrl
+  buildFeedbackUrl,
 } from './onfleetWebhookUtils';
+import {
+  createShortToken,
+  expiresIn,
+  DURATIONS,
+} from '@/lib/services/shortTokenService';
 import { PackingSupplyPayoutService } from '@/lib/services/payments/PackingSupplyPayoutService';
-import { 
-  checkRouteCompletion, 
-  calculateRouteMetrics, 
-  completeRoute 
+import {
+  checkRouteCompletion,
+  calculateRouteMetrics,
+  completeRoute,
 } from '@/lib/services/route-manager';
 import { processRoutePayout } from '@/lib/services/routePayoutService';
 
@@ -37,10 +41,17 @@ import { processRoutePayout } from '@/lib/services/routePayoutService';
  * Handles packing supply task started webhook event
  * Updates order status and sends tracking SMS to customer
  */
-export async function handlePackingSupplyTaskStarted(order: any, taskDetails: WebhookTaskDetails, worker: WebhookWorkerData, time: number) {
+export async function handlePackingSupplyTaskStarted(
+  order: any,
+  taskDetails: WebhookTaskDetails,
+  worker: WebhookWorkerData,
+  time: number
+) {
   try {
-    console.log(`Packing supply delivery started for order ${order.id} with task ${taskDetails.shortId}`);
-    
+    console.log(
+      `Packing supply delivery started for order ${order.id} with task ${taskDetails.shortId}`
+    );
+
     // Update order status
     await prisma.packingSupplyOrder.update({
       where: { id: order.id },
@@ -54,19 +65,21 @@ export async function handlePackingSupplyTaskStarted(order: any, taskDetails: We
     // Update task short ID for tracking
     await prisma.packingSupplyOrder.update({
       where: { id: order.id },
-      data: { onfleetTaskShortId: taskDetails.shortId }
+      data: { onfleetTaskShortId: taskDetails.shortId },
     });
 
     // Send SMS notification using centralized template
     const driverName = getWorkerName(worker, order.assignedDriver);
-    
+
     await MessageService.sendSms(
       order.contactPhone,
       packingSupplyStartedTemplate,
       { driverName, trackingUrl }
     );
 
-    console.log(`Tracking SMS sent for packing supply order ${order.id} using task ${taskDetails.shortId}`);
+    console.log(
+      `Tracking SMS sent for packing supply order ${order.id} using task ${taskDetails.shortId}`
+    );
   } catch (error) {
     console.error('Error handling packing supply task started:', error);
     throw error;
@@ -77,10 +90,15 @@ export async function handlePackingSupplyTaskStarted(order: any, taskDetails: We
  * Handles packing supply task arrival webhook event
  * Updates order status and sends arrival SMS to customer
  */
-export async function handlePackingSupplyTaskArrival(order: any, taskDetails: WebhookTaskDetails, worker: WebhookWorkerData, time: number) {
+export async function handlePackingSupplyTaskArrival(
+  order: any,
+  taskDetails: WebhookTaskDetails,
+  worker: WebhookWorkerData,
+  time: number
+) {
   try {
     console.log(`Driver arrived for packing supply order ${order.id}`);
-    
+
     // Update order status
     await prisma.packingSupplyOrder.update({
       where: { id: order.id },
@@ -89,7 +107,7 @@ export async function handlePackingSupplyTaskArrival(order: any, taskDetails: We
 
     // Send arrival SMS using centralized template
     const driverName = getWorkerName(worker);
-    
+
     await MessageService.sendSms(
       order.contactPhone,
       packingSupplyArrivalTemplate,
@@ -107,71 +125,96 @@ export async function handlePackingSupplyTaskArrival(order: any, taskDetails: We
  * Handles packing supply task completed webhook event
  * Updates order status, processes photos, handles payouts, and sends completion SMS
  */
-export async function handlePackingSupplyTaskCompleted(order: any, taskDetails: WebhookTaskDetails, worker: WebhookWorkerData, time: number) {
+export async function handlePackingSupplyTaskCompleted(
+  order: any,
+  taskDetails: WebhookTaskDetails,
+  worker: WebhookWorkerData,
+  time: number
+) {
   try {
-    console.log(`Packing supply delivery completed for order ${order.id} with task ${taskDetails.shortId}`);
-    
+    console.log(
+      `Packing supply delivery completed for order ${order.id} with task ${taskDetails.shortId}`
+    );
+
     // Convert timestamp and extract photo
     const completionTime = convertWebhookTimestamp(time);
     const individualTaskMetrics = calculateIndividualTaskMetrics(taskDetails);
     const deliveryPhotoUrl = extractDeliveryPhotoUrl(taskDetails);
-    
+
     console.log(`Individual task metrics:`, individualTaskMetrics);
     console.log(`Delivery photo URL: ${deliveryPhotoUrl}`);
-    
+
     // Update individual order status and completion time
     const updateResult = await prisma.packingSupplyOrder.update({
       where: { id: order.id },
-      data: { 
+      data: {
         status: 'Delivered',
         actualDeliveryTime: completionTime,
         routeMetrics: individualTaskMetrics,
         deliveryPhotoUrl: deliveryPhotoUrl,
       },
     });
-    
+
     console.log(`Order ${order.id} updated successfully:`, {
       status: updateResult.status,
       actualDeliveryTime: updateResult.actualDeliveryTime,
       routeMetrics: updateResult.routeMetrics,
-      deliveryPhotoUrl: updateResult.deliveryPhotoUrl
+      deliveryPhotoUrl: updateResult.deliveryPhotoUrl,
     });
 
     // Handle route completion or individual payout
     if (order.routeId) {
-      console.log(`Order ${order.id} is part of route ${order.routeId}, checking route completion...`);
-      
+      console.log(
+        `Order ${order.id} is part of route ${order.routeId}, checking route completion...`
+      );
+
       const routeCompletion = await checkRouteCompletion(order.routeId);
       console.log(`Route completion status:`, routeCompletion);
-      
+
       if (routeCompletion.isComplete) {
-        console.log(`Route ${order.routeId} is complete! Processing route-based payout...`);
-        
+        console.log(
+          `Route ${order.routeId} is complete! Processing route-based payout...`
+        );
+
         const routeMetrics = await calculateRouteMetrics(order.routeId);
-        
+
         if (routeMetrics) {
           await completeRoute(order.routeId, routeMetrics);
           const payoutResult = await processRoutePayout(order.routeId);
-          
+
           if (payoutResult.success) {
-            console.log(`Route payout processed successfully for ${order.routeId}: $${(payoutResult as any).amount}`);
+            console.log(
+              `Route payout processed successfully for ${order.routeId}: $${(payoutResult as any).amount}`
+            );
           } else {
-            console.error(`Route payout processing failed for ${order.routeId}: ${payoutResult.error}`);
+            console.error(
+              `Route payout processing failed for ${order.routeId}: ${payoutResult.error}`
+            );
           }
         } else {
-          console.error(`Could not calculate route metrics for ${order.routeId}`);
+          console.error(
+            `Could not calculate route metrics for ${order.routeId}`
+          );
         }
       } else {
-        console.log(`Route ${order.routeId} still has ${routeCompletion.pendingOrders.length} pending orders`);
+        console.log(
+          `Route ${order.routeId} still has ${routeCompletion.pendingOrders.length} pending orders`
+        );
       }
     } else {
       // Individual order payout
-      console.log(`Order ${order.id} is not part of a route, processing individual payout...`);
+      console.log(
+        `Order ${order.id} is not part of a route, processing individual payout...`
+      );
       await processPackingSupplyPayoutFromWebhook(order, taskDetails);
     }
 
     // Generate feedback token and send completion SMS
-    const feedbackToken = createFeedbackToken(taskDetails.shortId);
+    const feedbackToken = await createShortToken(
+      'ps_feedback',
+      { taskShortId: taskDetails.shortId, orderId: order.id },
+      expiresIn(DURATIONS.DAYS_30)
+    );
     const feedbackUrl = buildFeedbackUrl(feedbackToken, 'packing-supply');
 
     try {
@@ -181,12 +224,19 @@ export async function handlePackingSupplyTaskCompleted(order: any, taskDetails: 
         { feedbackUrl }
       );
 
-      console.log(`Completion SMS sent successfully for packing supply order ${order.id}`);
+      console.log(
+        `Completion SMS sent successfully for packing supply order ${order.id}`
+      );
     } catch (smsError) {
-      console.error(`Failed to send completion SMS for order ${order.id}:`, smsError);
+      console.error(
+        `Failed to send completion SMS for order ${order.id}:`,
+        smsError
+      );
     }
 
-    console.log(`Completion processing finished for packing supply order ${order.id}`);
+    console.log(
+      `Completion processing finished for packing supply order ${order.id}`
+    );
   } catch (error) {
     console.error('Error handling packing supply task completed:', error);
     throw error;
@@ -197,10 +247,15 @@ export async function handlePackingSupplyTaskCompleted(order: any, taskDetails: 
  * Handles packing supply task failed webhook event
  * Updates order status and sends failure notification SMS
  */
-export async function handlePackingSupplyTaskFailed(order: any, taskDetails: WebhookTaskDetails, worker: WebhookWorkerData, time: number) {
+export async function handlePackingSupplyTaskFailed(
+  order: any,
+  taskDetails: WebhookTaskDetails,
+  worker: WebhookWorkerData,
+  time: number
+) {
   try {
     console.log(`Packing supply delivery failed for order ${order.id}`);
-    
+
     // Update order status
     await prisma.packingSupplyOrder.update({
       where: { id: order.id },
@@ -225,10 +280,14 @@ export async function handlePackingSupplyTaskFailed(order: any, taskDetails: Web
  * Processes packing supply driver payout from webhook
  * Calculates payout and processes Stripe Connect transfer
  */
-export async function processPackingSupplyPayoutFromWebhook(order: any, taskDetails: WebhookTaskDetails) {
+export async function processPackingSupplyPayoutFromWebhook(
+  order: any,
+  taskDetails: WebhookTaskDetails
+) {
   try {
     const routeMetrics = calculateIndividualTaskMetrics(taskDetails);
-    const payoutCalculation = PackingSupplyPayoutService.calculatePackingSupplyPayout(routeMetrics);
+    const payoutCalculation =
+      PackingSupplyPayoutService.calculatePackingSupplyPayout(routeMetrics);
 
     // Update order with payout information
     await prisma.packingSupplyOrder.update({
@@ -243,18 +302,28 @@ export async function processPackingSupplyPayoutFromWebhook(order: any, taskDeta
       },
     });
 
-    console.log(`Payout calculated for order ${order.id}: ${formatCurrency(payoutCalculation.totalPayout)}`);
-    
+    console.log(
+      `Payout calculated for order ${order.id}: ${formatCurrency(payoutCalculation.totalPayout)}`
+    );
+
     // Process the actual Stripe Connect payout
-    const payoutResult = await PackingSupplyPayoutService.processPackingSupplyPayout(order.id);
-    
+    const payoutResult =
+      await PackingSupplyPayoutService.processPackingSupplyPayout(order.id);
+
     if (payoutResult.success) {
-      console.log(`Payout processed successfully for order ${order.id}: $${payoutResult.amount}`);
+      console.log(
+        `Payout processed successfully for order ${order.id}: $${payoutResult.amount}`
+      );
     } else {
-      console.error(`Payout processing failed for order ${order.id}: ${payoutResult.error}`);
+      console.error(
+        `Payout processing failed for order ${order.id}: ${payoutResult.error}`
+      );
     }
   } catch (error) {
-    console.error('Error processing packing supply payout from webhook:', error);
+    console.error(
+      'Error processing packing supply payout from webhook:',
+      error
+    );
     throw error;
   }
-} 
+}

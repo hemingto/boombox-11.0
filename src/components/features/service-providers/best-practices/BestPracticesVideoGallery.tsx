@@ -5,7 +5,7 @@
  * COMPONENT FUNCTIONALITY:
  * Displays a paginated gallery of training videos for service providers with category filtering.
  * Features include:
- * - Filter dropdown for video categories (All, Packing, Transportation)
+ * - Filter dropdown for video categories (All, Packing, Transportation, Onfleet)
  * - Pagination controls for navigating through videos (3 per page)
  * - YouTube video embeds with responsive aspect ratio
  * - Click-outside detection for closing dropdown
@@ -41,17 +41,14 @@ import {
 
 export function BestPracticesVideoGallery() {
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedFilter, setSelectedFilter] = useState<
-    VideoFilterOption['value']
-  >('all');
+  const [selectedFilter, setSelectedFilter] =
+    useState<VideoFilterOption['value']>('all');
 
   const itemsPerPage = 3;
 
   const filteredVideos = useMemo(() => {
     if (selectedFilter === 'all') return TRAINING_VIDEOS;
-    return TRAINING_VIDEOS.filter(
-      (video) => video.category === selectedFilter
-    );
+    return TRAINING_VIDEOS.filter(video => video.category === selectedFilter);
   }, [selectedFilter]);
 
   const totalPages = Math.ceil(filteredVideos.length / itemsPerPage);
@@ -89,14 +86,14 @@ export function BestPracticesVideoGallery() {
 
       {/* Video List */}
       <div>
-        {paginatedVideos.map((video) => (
+        {paginatedVideos.map(video => (
           <div key={video.title} className="py-4">
             <h3 className="text-lg font-medium text-text-primary">
               {video.title}
             </h3>
             <iframe
               className="w-full aspect-video mt-2 rounded-md"
-              src={video.link.replace('watch?v=', 'embed/')}
+              src={`https://www.youtube.com/embed/${new URL(video.link).searchParams.get('v')}`}
               title={video.title}
               allowFullScreen
               loading="lazy"
@@ -142,4 +139,3 @@ export function BestPracticesVideoGallery() {
     </div>
   );
 }
-

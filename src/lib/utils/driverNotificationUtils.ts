@@ -33,10 +33,14 @@ export interface AdminNotificationOptions {
  * Find and notify the next available driver for a packing supply route
  * Consolidates findAndNotifyNextDriver and findAndNotifyNextDriverForExpiredRoute
  */
-export async function findAndNotifyNextDriverForRoute(options: RouteDriverNotificationOptions): Promise<DriverNotificationResult> {
+export async function findAndNotifyNextDriverForRoute(
+  options: RouteDriverNotificationOptions
+): Promise<DriverNotificationResult> {
   try {
     const { deliveryDate, routeId, excludeDriverIds = [], context } = options;
-    const dayOfWeek = deliveryDate.toLocaleDateString('en-US', { weekday: 'long' });
+    const dayOfWeek = deliveryDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+    });
     const startOfDay = new Date(deliveryDate.toDateString());
     const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
 
@@ -52,7 +56,8 @@ export async function findAndNotifyNextDriverForRoute(options: RouteDriverNotifi
         onfleetTeamIds: {
           has: process.env.BOOMBOX_PACKING_SUPPLY_DELIVERY_DRIVERS || '',
         },
-        id: excludeDriverIds.length > 0 ? { notIn: excludeDriverIds } : undefined,
+        id:
+          excludeDriverIds.length > 0 ? { notIn: excludeDriverIds } : undefined,
         availability: {
           some: {
             dayOfWeek,
@@ -85,7 +90,8 @@ export async function findAndNotifyNextDriverForRoute(options: RouteDriverNotifi
         deliveryDate,
         totalStops: 0, // Will be fetched by admin notification
         reason: getNoDriverReason(context),
-        source: context === 'expired' ? 'expired_offer_cleanup' : 'driver_response',
+        source:
+          context === 'expired' ? 'expired_offer_cleanup' : 'driver_response',
       });
 
       return {
@@ -97,16 +103,19 @@ export async function findAndNotifyNextDriverForRoute(options: RouteDriverNotifi
     // Send offer to next driver by calling the API endpoint
     const nextDriver = availableDrivers[0];
     try {
-      const driverOfferResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/onfleet/packing-supplies/driver-offer`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          routeId,
-          targetDate: deliveryDate.toISOString(),
-        }),
-      });
+      const driverOfferResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_APP_URL}/api/onfleet/packing-supplies/driver-offer`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            routeId,
+            targetDate: deliveryDate.toISOString(),
+          }),
+        }
+      );
 
       if (driverOfferResponse.ok) {
         const offerResult = await driverOfferResponse.json();
@@ -128,7 +137,6 @@ export async function findAndNotifyNextDriverForRoute(options: RouteDriverNotifi
         message: `Error sending offer: ${error.message}`,
       };
     }
-
   } catch (error: any) {
     console.error('Error finding next driver for route:', error);
     return {
@@ -142,7 +150,9 @@ export async function findAndNotifyNextDriverForRoute(options: RouteDriverNotifi
  * Notify admin that no drivers are available for a route
  * Consolidates notifyAdminNoDrivers and notifyAdminNoDriversForExpiredRoute
  */
-export async function notifyAdminNoDriversForRoute(options: AdminNotificationOptions): Promise<void> {
+export async function notifyAdminNoDriversForRoute(
+  options: AdminNotificationOptions
+): Promise<void> {
   try {
     const { routeId, deliveryDate, totalStops, reason, source } = options;
 
@@ -157,22 +167,30 @@ export async function notifyAdminNoDriversForRoute(options: AdminNotificationOpt
     }
 
     // Call admin notification endpoint
-    const adminNotifyResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/admin/notify-no-driver`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        routeId,
-        deliveryDate,
-        totalStops: actualTotalStops,
-        reason,
-        source,
-      }),
-    });
+    const adminNotifyResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_APP_URL}/api/admin/notify-no-driver`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          routeId,
+          deliveryDate,
+          totalStops: actualTotalStops,
+          reason,
+          source,
+        }),
+      }
+    );
 
     if (!adminNotifyResponse.ok) {
-      console.error('Failed to notify admin about route:', await adminNotifyResponse.text());
+      console.error(
+        'Failed to notify admin about route:',
+        await adminNotifyResponse.text()
+      );
     } else {
-      console.log(`Admin notified about unassigned route ${routeId} (${reason})`);
+      console.log(
+        `Admin notified about unassigned route ${routeId} (${reason})`
+      );
     }
   } catch (error) {
     console.error('Error notifying admin about route:', error);
@@ -180,31 +198,19 @@ export async function notifyAdminNoDriversForRoute(options: AdminNotificationOpt
 }
 
 /**
- * Verify JWT token for driver route offers
+ * Verify token for driver route offers via ShortToken DB lookup.
  */
-export function verifyDriverOfferToken(token: string): { valid: boolean; payload?: any; error?: string } {
+export async function verifyDriverOfferToken(
+  token: string
+): Promise<{ valid: boolean; payload?: any; error?: string }> {
   try {
-    // JWT tokens have 3 parts separated by dots: header.payload.signature
-    const tokenParts = token.split('.');
-    if (tokenParts.length !== 3) {
-      return { valid: false, error: 'Invalid JWT format' };
-    }
-    
-    // Decode the payload (second part)
-    const payload = tokenParts[1];
-    // Add padding if needed for base64 decoding
-    const paddedPayload = payload + '='.repeat((4 - payload.length % 4) % 4);
-    const decoded = JSON.parse(atob(paddedPayload));
-    
-    // Check if token has expired
-    const now = Date.now();
-    if (decoded.expiresAt && now > decoded.expiresAt) {
-      return { valid: false, error: 'Token has expired' };
-    }
-    
-    return { valid: true, payload: decoded };
-  } catch (error) {
-    return { valid: false, error: 'Invalid token format' };
+    const { resolveShortToken } = await import(
+      '@/lib/services/shortTokenService'
+    );
+    const payload = await resolveShortToken(token, 'ps_route_offer');
+    return { valid: true, payload };
+  } catch {
+    return { valid: false, error: 'Invalid or expired token' };
   }
 }
 
@@ -220,15 +226,19 @@ export function formatRouteMetrics(
   estimatedDuration: string;
   estimatedPayout: string;
 } {
-  const estimatedMiles = totalDistance ? Math.round(parseFloat(totalDistance.toString())) : 0;
-  const estimatedDurationMinutes = totalTime ? Math.ceil(totalTime / 60) : (totalStops * 15); // 15 min per stop fallback
+  const estimatedMiles = totalDistance
+    ? Math.round(parseFloat(totalDistance.toString()))
+    : 0;
+  const estimatedDurationMinutes = totalTime
+    ? Math.ceil(totalTime / 60)
+    : totalStops * 15; // 15 min per stop fallback
   const estimatedDuration = `${Math.floor(estimatedDurationMinutes / 60)}h ${estimatedDurationMinutes % 60}m`;
-  
+
   // Calculate payout estimate ($15 per stop + $0.50 per mile)
   const basePayPerStop = 15;
-  const mileageRate = 0.50;
-  const estimatedPayout = `$${Math.round((totalStops * basePayPerStop) + (estimatedMiles * mileageRate))}`;
-  
+  const mileageRate = 0.5;
+  const estimatedPayout = `$${Math.round(totalStops * basePayPerStop + estimatedMiles * mileageRate)}`;
+
   return {
     estimatedMiles,
     estimatedDuration,
@@ -250,4 +260,4 @@ function getNoDriverReason(context: 'decline' | 'expired' | 'failed'): string {
     default:
       return 'No drivers available for route';
   }
-} 
+}

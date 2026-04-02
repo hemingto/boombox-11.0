@@ -23,6 +23,7 @@ const timeStringSchema = z
   .regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Time must be in HH:MM format');
 const positiveIntSchema = z.number().int().positive();
 const nonNegativeIntSchema = z.number().int().min(0);
+const nonNegativeNumberSchema = z.number().min(0);
 
 // Onfleet-specific validations
 const onfleetTeamIdSchema = z.string().min(1, 'Onfleet Team ID is required');
@@ -257,10 +258,10 @@ export const CreateStorageAccessAppointmentRequestSchema = z.object({
   selectedStorageUnits: z.array(z.string().or(positiveIntSchema)),
   description: z.string().optional(),
   appointmentType: z.string().min(1, 'Appointment type is required'),
-  parsedLoadingHelpPrice: nonNegativeIntSchema.optional(),
-  monthlyStorageRate: nonNegativeIntSchema.optional(),
-  monthlyInsuranceRate: nonNegativeIntSchema.optional(),
-  calculatedTotal: nonNegativeIntSchema.optional(),
+  parsedLoadingHelpPrice: nonNegativeNumberSchema.optional(),
+  monthlyStorageRate: nonNegativeNumberSchema.optional(),
+  monthlyInsuranceRate: nonNegativeNumberSchema.optional(),
+  calculatedTotal: nonNegativeNumberSchema.optional(),
   movingPartnerId: z.string().or(positiveIntSchema).optional(),
   thirdPartyMovingPartnerId: z.string().or(positiveIntSchema).optional(),
 });
@@ -279,10 +280,10 @@ export const CreateAdditionalStorageAppointmentRequestSchema = z.object({
     .string()
     .min(1, 'Appointment date and time is required'),
   planType: z.string().optional(),
-  parsedLoadingHelpPrice: nonNegativeIntSchema.optional(),
-  monthlyStorageRate: nonNegativeIntSchema.optional(),
-  monthlyInsuranceRate: nonNegativeIntSchema.optional(),
-  calculatedTotal: nonNegativeIntSchema.optional(),
+  parsedLoadingHelpPrice: nonNegativeNumberSchema.optional(),
+  monthlyStorageRate: nonNegativeNumberSchema.optional(),
+  monthlyInsuranceRate: nonNegativeNumberSchema.optional(),
+  calculatedTotal: nonNegativeNumberSchema.optional(),
   appointmentType: z.string().min(1, 'Appointment type is required'),
   movingPartnerId: z.string().or(positiveIntSchema).optional(),
   description: z.string().optional(),
@@ -394,10 +395,10 @@ export const UpdateAppointmentRequestSchema = z.object({
     'End Storage Term',
   ]),
   loadingHelpPrice: z.string().optional(),
-  parsedLoadingHelpPrice: nonNegativeIntSchema.optional(),
-  monthlyStorageRate: nonNegativeIntSchema.optional(),
-  monthlyInsuranceRate: nonNegativeIntSchema.optional(),
-  calculatedTotal: nonNegativeIntSchema.optional(),
+  parsedLoadingHelpPrice: nonNegativeNumberSchema.optional(),
+  monthlyStorageRate: nonNegativeNumberSchema.optional(),
+  monthlyInsuranceRate: nonNegativeNumberSchema.optional(),
+  calculatedTotal: nonNegativeNumberSchema.optional(),
   movingPartnerId: z.number().int().nullable(),
   thirdPartyMovingPartnerId: z.number().int().nullable(),
   selectedLabor: z

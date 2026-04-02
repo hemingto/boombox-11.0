@@ -8,13 +8,34 @@ import { prisma } from '@/lib/database/prismaClient';
 import { getOnfleetClient } from '@/lib/integrations/onfleetClient';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { driverJobOfferSms } from '@/lib/messaging/templates/sms/booking/driverJobOffer';
-import { movingPartnerNewJobSms, movingPartnerNewJobWithDriverSms } from '@/lib/messaging/templates/sms/appointment/movingPartnerNewJob';
+import {
+  movingPartnerNewJobSms,
+  movingPartnerNewJobWithDriverSms,
+} from '@/lib/messaging/templates/sms/appointment/movingPartnerNewJob';
 import { movingPartnerNewJobEmail } from '@/lib/messaging/templates/email/appointment/movingPartnerNewJob';
-import { calculateDriverPayment, calculateMovingPartnerPayment, getShortAddress } from '@/lib/services/payment-calculator';
-import { formatTime, formatDate, TIME_ZONE, normalizePhoneNumberToE164 } from '@/lib/utils';
+import {
+  calculateDriverPayment,
+  calculateMovingPartnerPayment,
+  getShortAddress,
+} from '@/lib/services/payment-calculator';
+import {
+  formatTime,
+  formatDate,
+  TIME_ZONE,
+  normalizePhoneNumberToE164,
+} from '@/lib/utils';
 import { toZonedTime } from 'date-fns-tz';
 import { NotificationService } from '@/lib/services/NotificationService';
-import { JOB_TIMING, calculateJobBlockedWindow, doWindowsOverlap } from '@/lib/constants/jobTiming';
+import {
+  JOB_TIMING,
+  calculateJobBlockedWindow,
+  doWindowsOverlap,
+} from '@/lib/constants/jobTiming';
+import {
+  createShortToken,
+  expiresIn,
+  DURATIONS,
+} from '@/lib/services/shortTokenService';
 
 // Time window in milliseconds for driver to accept a task (2 hours)
 export const DRIVER_ACCEPTANCE_WINDOW = 2 * 60 * 60 * 1000;
@@ -53,7 +74,10 @@ export interface TokenPayload {
 /**
  * Calculate unit-specific start time with staggering
  */
-export function getUnitSpecificStartTime(originalAppointmentTime: Date, unitNumber: number): Date {
+export function getUnitSpecificStartTime(
+  originalAppointmentTime: Date,
+  unitNumber: number
+): Date {
   if (unitNumber <= 1) {
     return originalAppointmentTime;
   }
@@ -64,10 +88,10 @@ export function getUnitSpecificStartTime(originalAppointmentTime: Date, unitNumb
 
 /**
  * Calculate unit completion time (end of service, before return buffer)
- * 
+ *
  * Uses centralized JOB_TIMING constants:
  * - Service duration: 60 minutes (1 hour)
- * 
+ *
  * Note: This returns when service ends, not when the driver is fully available.
  * For the full blocked window, use calculateJobBlockedWindow() from jobTiming.ts
  */
@@ -75,34 +99,31 @@ export function getUnitCompletionTime(
   originalAppointmentTime: Date,
   unitNumber: number
 ): Date {
-  const unitStartTime = getUnitSpecificStartTime(originalAppointmentTime, unitNumber);
-  
+  const unitStartTime = getUnitSpecificStartTime(
+    originalAppointmentTime,
+    unitNumber
+  );
+
   // Service time at customer location
   const serviceDurationMs = JOB_TIMING.SERVICE_DURATION_MINUTES * 60 * 1000;
-  
+
   return new Date(unitStartTime.getTime() + serviceDurationMs);
 }
 
 /**
- * Generate a secure token for driver actions
- * @REFACTOR-P9-TEMP: This should use proper JWT or secure token generation in production
+ * Generate a secure short token for driver actions, stored in ShortToken table
  */
 export async function generateDriverToken(
-  driverId: number, 
-  appointmentId: number, 
-  unitNumber: number, 
+  driverId: number,
+  appointmentId: number,
+  unitNumber: number,
   action: string
 ): Promise<string> {
-  const payload: TokenPayload = {
-    driverId,
-    appointmentId,
-    unitNumber,
-    action,
-    timestamp: Date.now()
-  };
-  
-  // @REFACTOR-P9-TEMP: In production, use a proper JWT or other secure token
-  return Buffer.from(JSON.stringify(payload)).toString('base64');
+  return createShortToken(
+    'driver_offer',
+    { driverId, appointmentId, unitNumber, action, timestamp: Date.now() },
+    expiresIn(DURATIONS.HOURS_2)
+  );
 }
 
 /**
@@ -117,11 +138,17 @@ export async function findAvailableDrivers(
 ): Promise<AvailableDriver[]> {
   const originalAppointmentTimeForNewJob = new Date(appointment.time);
   const unitNumberForNewJob = taskForNewJob.unitNumber;
-  const newJobUnitSpecificStartTime = getUnitSpecificStartTime(originalAppointmentTimeForNewJob, unitNumberForNewJob);
+  const newJobUnitSpecificStartTime = getUnitSpecificStartTime(
+    originalAppointmentTimeForNewJob,
+    unitNumberForNewJob
+  );
   const newJobDate = new Date(appointment.date);
 
-  const dayOfWeek = newJobDate.toLocaleDateString("en-US", { weekday: "long", timeZone: TIME_ZONE });
-  
+  const dayOfWeek = newJobDate.toLocaleDateString('en-US', {
+    weekday: 'long',
+    timeZone: TIME_ZONE,
+  });
+
   // Format the original appointment time for general availability check (HH:MM)
   // Convert to PST so we compare against driver availability stored in local time
   const pstTime = toZonedTime(originalAppointmentTimeForNewJob, TIME_ZONE);
@@ -131,11 +158,13 @@ export async function findAvailableDrivers(
 
   // Determine required team based on appointment type
   let requiredTeamId: string | null = null;
-  
-  if (appointment.appointmentType === 'Initial Pickup' || 
-      appointment.appointmentType === 'Storage Unit Access' || 
-      appointment.appointmentType === 'Additional Storage' || 
-      appointment.appointmentType === 'End Storage Term') {
+
+  if (
+    appointment.appointmentType === 'Initial Pickup' ||
+    appointment.appointmentType === 'Storage Unit Access' ||
+    appointment.appointmentType === 'Additional Storage' ||
+    appointment.appointmentType === 'End Storage Term'
+  ) {
     requiredTeamId = process.env.BOOMBOX_DELIVERY_NETWORK_TEAM_ID || null;
   } else {
     requiredTeamId = process.env.BOOMBOX_DELIVERY_NETWORK_TEAM_ID || null;
@@ -149,7 +178,7 @@ export async function findAvailableDrivers(
     onfleetWorkerId: { not: null },
     id: { notIn: excludeDriverIds },
   };
-  
+
   // Only apply DriverAvailability check for Boombox Delivery Network drivers (non-moving partner)
   // Moving partner drivers don't set their own availability - the moving partner manages their schedules
   if (!movingPartnerId) {
@@ -158,31 +187,33 @@ export async function findAvailableDrivers(
         dayOfWeek,
         startTime: { lte: formattedOriginalTime },
         endTime: { gte: formattedOriginalTime },
-        isBlocked: false
-      }
+        isBlocked: false,
+      },
     };
-    
+
     // Add team membership filter only for Boombox drivers
     if (requiredTeamId) {
       whereClause.onfleetTeamIds = {
-        has: requiredTeamId
+        has: requiredTeamId,
       };
     }
   }
-  
+
   // If movingPartnerId is specified, only include drivers from that Moving Partner
   if (movingPartnerId) {
     whereClause.movingPartnerAssociations = {
       some: {
         movingPartnerId: movingPartnerId,
-        isActive: true
-      }
+        isActive: true,
+      },
     };
   }
 
   // Log the query context for debugging
   const isMovingPartnerSearch = !!movingPartnerId;
-  console.log(`DRIVER_SEARCH: ${isMovingPartnerSearch ? 'Moving Partner' : 'Boombox'} driver search for ${dayOfWeek} at ${formattedOriginalTime}${isMovingPartnerSearch ? ` (MP ID: ${movingPartnerId})` : ''}`);
+  console.log(
+    `DRIVER_SEARCH: ${isMovingPartnerSearch ? 'Moving Partner' : 'Boombox'} driver search for ${dayOfWeek} at ${formattedOriginalTime}${isMovingPartnerSearch ? ` (MP ID: ${movingPartnerId})` : ''}`
+  );
 
   // Fetch potentially available drivers with their time slot bookings
   const candidateDrivers = await prisma.driver.findMany({
@@ -200,9 +231,9 @@ export async function findAvailableDrivers(
               id: true,
               date: true,
               time: true,
-            }
-          }
-        }
+            },
+          },
+        },
       },
       availability: {
         include: {
@@ -210,25 +241,32 @@ export async function findAvailableDrivers(
             where: {
               bookingDate: {
                 gte: new Date(newJobDate.setHours(0, 0, 0, 0)),
-                lt: new Date(new Date(newJobDate).setHours(23, 59, 59, 999))
-              }
-            }
-          }
-        }
+                lt: new Date(new Date(newJobDate).setHours(23, 59, 59, 999)),
+              },
+            },
+          },
+        },
       },
-      _count: { select: { assignedTasks: true } }
-    }
+      _count: { select: { assignedTasks: true } },
+    },
   });
 
-  console.log(`DRIVER_SEARCH: Found ${candidateDrivers.length} candidate driver(s) matching base criteria`);
+  console.log(
+    `DRIVER_SEARCH: Found ${candidateDrivers.length} candidate driver(s) matching base criteria`
+  );
 
   const availableDriversFiltered = [];
 
   // Calculate the new job's blocked window using centralized timing constants
   // This ensures consistency with AvailabilityService
-  const newJobWindow = calculateJobBlockedWindow(originalAppointmentTimeForNewJob, unitNumberForNewJob);
-  
-  console.log(`DRIVER_SEARCH: New job blocks ${newJobWindow.blockedStart.toISOString()} to ${newJobWindow.blockedEnd.toISOString()} (${JOB_TIMING.TOTAL_BLOCKED_HOURS}h)`);
+  const newJobWindow = calculateJobBlockedWindow(
+    originalAppointmentTimeForNewJob,
+    unitNumberForNewJob
+  );
+
+  console.log(
+    `DRIVER_SEARCH: New job blocks ${newJobWindow.blockedStart.toISOString()} to ${newJobWindow.blockedEnd.toISOString()} (${JOB_TIMING.TOTAL_BLOCKED_HOURS}h)`
+  );
 
   for (const driver of candidateDrivers) {
     let isDriverActuallyAvailable = true;
@@ -237,22 +275,28 @@ export async function findAvailableDrivers(
     // Check OnfleetTask conflicts (primary booking records)
     for (const existingTask of driver.assignedTasks) {
       if (!existingTask.appointment) continue;
-      
+
       // Skip conflicts with the appointment being edited (for edit mode)
-      if (excludeAppointmentId && existingTask.appointment.id === excludeAppointmentId) continue;
+      if (
+        excludeAppointmentId &&
+        existingTask.appointment.id === excludeAppointmentId
+      )
+        continue;
 
       const existingTaskWindow = calculateJobBlockedWindow(
-        new Date(existingTask.appointment.time), 
+        new Date(existingTask.appointment.time),
         existingTask.unitNumber
       );
 
       // Check for overlap using centralized function
-      if (doWindowsOverlap(
-        newJobWindow.blockedStart,
-        newJobWindow.blockedEnd,
-        existingTaskWindow.blockedStart,
-        existingTaskWindow.blockedEnd
-      )) {
+      if (
+        doWindowsOverlap(
+          newJobWindow.blockedStart,
+          newJobWindow.blockedEnd,
+          existingTaskWindow.blockedStart,
+          existingTaskWindow.blockedEnd
+        )
+      ) {
         isDriverActuallyAvailable = false;
         conflictReason = `OnfleetTask conflict with appointment ${existingTask.appointment.id} (unit ${existingTask.unitNumber})`;
         break;
@@ -264,27 +308,35 @@ export async function findAvailableDrivers(
     if (isDriverActuallyAvailable && driver.availability) {
       for (const avail of driver.availability) {
         if (!avail.driverTimeSlotBookings) continue;
-        
+
         for (const booking of avail.driverTimeSlotBookings) {
           // Skip conflicts with the appointment being edited (for edit mode)
-          if (excludeAppointmentId && booking.appointmentId === excludeAppointmentId) continue;
-          
+          if (
+            excludeAppointmentId &&
+            booking.appointmentId === excludeAppointmentId
+          )
+            continue;
+
           // bookingDate = service start, endDate = service end
           // Add buffers to get full blocked window
           const bookingBlockedStart = new Date(
-            new Date(booking.bookingDate).getTime() - JOB_TIMING.BUFFER_BEFORE_MINUTES * 60 * 1000
+            new Date(booking.bookingDate).getTime() -
+              JOB_TIMING.BUFFER_BEFORE_MINUTES * 60 * 1000
           );
           const bookingBlockedEnd = new Date(
-            new Date(booking.endDate).getTime() + JOB_TIMING.BUFFER_AFTER_MINUTES * 60 * 1000
+            new Date(booking.endDate).getTime() +
+              JOB_TIMING.BUFFER_AFTER_MINUTES * 60 * 1000
           );
 
           // Check for overlap
-          if (doWindowsOverlap(
-            newJobWindow.blockedStart,
-            newJobWindow.blockedEnd,
-            bookingBlockedStart,
-            bookingBlockedEnd
-          )) {
+          if (
+            doWindowsOverlap(
+              newJobWindow.blockedStart,
+              newJobWindow.blockedEnd,
+              bookingBlockedStart,
+              bookingBlockedEnd
+            )
+          ) {
             isDriverActuallyAvailable = false;
             conflictReason = `TimeSlotBooking conflict with appointment ${booking.appointmentId}`;
             break;
@@ -296,9 +348,13 @@ export async function findAvailableDrivers(
 
     if (isDriverActuallyAvailable) {
       availableDriversFiltered.push(driver);
-      console.log(`DRIVER_SEARCH: Driver ${driver.firstName} ${driver.lastName} (ID: ${driver.id}) - AVAILABLE`);
+      console.log(
+        `DRIVER_SEARCH: Driver ${driver.firstName} ${driver.lastName} (ID: ${driver.id}) - AVAILABLE`
+      );
     } else {
-      console.log(`DRIVER_SEARCH: Driver ${driver.firstName} ${driver.lastName} (ID: ${driver.id}) - CONFLICT: ${conflictReason}`);
+      console.log(
+        `DRIVER_SEARCH: Driver ${driver.firstName} ${driver.lastName} (ID: ${driver.id}) - CONFLICT: ${conflictReason}`
+      );
     }
   }
 
@@ -306,16 +362,25 @@ export async function findAvailableDrivers(
   const driversWithRating = availableDriversFiltered.map(driver => {
     const typedDriver = driver as any;
     const appointmentDateOnlyString = new Date(appointment.date).toDateString();
-    
+
     const ratings = typedDriver.assignedTasks
       .filter((task: any) => task.appointment?.feedback)
       .map((task: any) => task.appointment.feedback.rating)
-      .filter((rating: any) => rating !== null && rating !== undefined) as number[];
-    
-    const averageRating = ratings.length > 0 ? ratings.reduce((acc: number, rating: number) => acc + rating, 0) / ratings.length : 0;
-    
-    const tasksToday = driver.assignedTasks.filter(task =>
-      task.appointment && new Date(task.appointment.date).toDateString() === appointmentDateOnlyString
+      .filter(
+        (rating: any) => rating !== null && rating !== undefined
+      ) as number[];
+
+    const averageRating =
+      ratings.length > 0
+        ? ratings.reduce((acc: number, rating: number) => acc + rating, 0) /
+          ratings.length
+        : 0;
+
+    const tasksToday = driver.assignedTasks.filter(
+      task =>
+        task.appointment &&
+        new Date(task.appointment.date).toDateString() ===
+          appointmentDateOnlyString
     ).length;
 
     return {
@@ -326,12 +391,13 @@ export async function findAvailableDrivers(
       onfleetWorkerId: driver.onfleetWorkerId,
       averageRating,
       completedTasks: typedDriver._count.assignedTasks,
-      tasksToday
+      tasksToday,
     };
   });
 
   return driversWithRating.sort((a, b) => {
-    if (b.averageRating !== a.averageRating) return b.averageRating - a.averageRating;
+    if (b.averageRating !== a.averageRating)
+      return b.averageRating - a.averageRating;
     return b.completedTasks - a.completedTasks;
   });
 }
@@ -350,15 +416,29 @@ export async function notifyDriverAboutJob(
   }
 
   const unitNumber = task.unitNumber;
-  const acceptToken = await generateDriverToken(driver.id, appointment.id, unitNumber, 'accept');
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.boomboxstorage.com';
+  const acceptToken = await generateDriverToken(
+    driver.id,
+    appointment.id,
+    unitNumber,
+    'accept'
+  );
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL || 'https://app.boomboxstorage.com';
   const webViewUrl = `${baseUrl}/service-provider/driver/offer/${acceptToken}`;
 
   // Calculate timing with unit-specific adjustments
-  const unitSpecificStartTime = getUnitSpecificStartTime(new Date(appointment.time), unitNumber);
-  const notificationDisplayTime = new Date(unitSpecificStartTime.getTime() - (60 * 60 * 1000));
+  const unitSpecificStartTime = getUnitSpecificStartTime(
+    new Date(appointment.time),
+    unitNumber
+  );
+  const notificationDisplayTime = new Date(
+    unitSpecificStartTime.getTime() - 60 * 60 * 1000
+  );
 
-  const formattedDate = formatDate(new Date(appointment.date), 'weekday-month-day');
+  const formattedDate = formatDate(
+    new Date(appointment.date),
+    'weekday-month-day'
+  );
   const formattedTime = formatTime(notificationDisplayTime, '12-hour');
   const shortAddress = getShortAddress(appointment.address);
 
@@ -366,18 +446,21 @@ export async function notifyDriverAboutJob(
   // Important: For multi-unit appointments, each driver is only offered ONE unit's worth of work
   let paymentEstimateText = '';
   let paymentEstimateNumber = 0;
-  
+
   // Sum estimated costs for only THIS unit's tasks (Step 1, 2, 3 for this unitNumber)
   const unitTasks = await prisma.onfleetTask.findMany({
-    where: { 
+    where: {
       appointmentId: appointment.id,
-      unitNumber: unitNumber  // Filter to only this unit's tasks
+      unitNumber: unitNumber, // Filter to only this unit's tasks
     },
-    select: { estimatedCost: true }
+    select: { estimatedCost: true },
   });
-  
-  const unitTaskCostSum = unitTasks.reduce((sum, t) => sum + (t.estimatedCost || 0), 0);
-  
+
+  const unitTaskCostSum = unitTasks.reduce(
+    (sum, t) => sum + (t.estimatedCost || 0),
+    0
+  );
+
   if (unitTaskCostSum > 0) {
     // Use sum of this unit's task costs
     paymentEstimateNumber = unitTaskCostSum;
@@ -391,8 +474,10 @@ export async function notifyDriverAboutJob(
     paymentEstimateNumber = paymentEstimate.total;
     paymentEstimateText = paymentEstimate.formattedEstimate;
   }
-  
-  console.log(`Driver notification: Unit ${unitNumber} payment estimate: ${paymentEstimateText} (from ${unitTasks.length} tasks)`);
+
+  console.log(
+    `Driver notification: Unit ${unitNumber} payment estimate: ${paymentEstimateText} (from ${unitTasks.length} tasks)`
+  );
 
   // Send SMS using centralized messaging system
   try {
@@ -412,29 +497,35 @@ export async function notifyDriverAboutJob(
     );
 
     if (result.success) {
-      console.log(`Notification sent to driver ${driver.id} for task ${task.id}`);
-      
+      console.log(
+        `Notification sent to driver ${driver.id} for task ${task.id}`
+      );
+
       // Create in-app notification for job offer
       try {
-        await NotificationService.notifyJobOffer(
-          driver.id,
-          {
-            appointmentId: appointment.id,
-            jobType: appointment.appointmentType,
-            date: appointment.date,
-            time: notificationDisplayTime,
-            address: appointment.address || '',
-            estimatedPayout: paymentEstimateNumber > 0 ? paymentEstimateNumber : undefined
-          }
-        );
+        await NotificationService.notifyJobOffer(driver.id, {
+          appointmentId: appointment.id,
+          jobType: appointment.appointmentType,
+          date: appointment.date,
+          time: notificationDisplayTime,
+          address: appointment.address || '',
+          estimatedPayout:
+            paymentEstimateNumber > 0 ? paymentEstimateNumber : undefined,
+        });
       } catch (notificationError) {
-        console.error('Error creating in-app job offer notification:', notificationError);
+        console.error(
+          'Error creating in-app job offer notification:',
+          notificationError
+        );
         // Don't fail if in-app notification fails
       }
-      
+
       return true;
     } else {
-      console.error(`Failed to send notification to driver ${driver.id}:`, result.error);
+      console.error(
+        `Failed to send notification to driver ${driver.id}:`,
+        result.error
+      );
       return false;
     }
   } catch (error) {
@@ -458,42 +549,48 @@ export async function findAndNotifyNextDriverForUnit(
     return {
       unitNumber,
       status: 'no_tasks_for_unit',
-      message: 'No tasks provided for this unit to assign driver.'
+      message: 'No tasks provided for this unit to assign driver.',
     };
   }
-  
+
   // Pass appointment.id to excludeAppointmentId to prevent false conflicts during edits
   const availableDrivers = await findAvailableDrivers(
-    appointment, 
-    unitTasks[0], 
+    appointment,
+    unitTasks[0],
     excludePreviouslyNotifiedForAppointment,
     undefined, // movingPartnerId - not applicable for Boombox driver search
     appointment.id // excludeAppointmentId - prevent conflicts with current appointment
   );
-  
+
   if (availableDrivers.length === 0) {
     await notifyAdminNoDrivers(appointment, unitTasks[0]);
     return {
       unitNumber,
       status: 'no_drivers',
-      message: 'No available Boombox drivers for this unit'
+      message: 'No available Boombox drivers for this unit',
     };
   }
-  
+
   const firstDriver = availableDrivers[0];
-  
+
   if (!firstDriver.phoneNumber) {
-    console.error(`Cannot notify driver ${firstDriver.id} (Boombox): no phone number`);
+    console.error(
+      `Cannot notify driver ${firstDriver.id} (Boombox): no phone number`
+    );
     return {
       unitNumber,
       status: 'error',
-      message: 'Selected Boombox driver has no phone number'
+      message: 'Selected Boombox driver has no phone number',
     };
   }
 
   // Send notification
-  const notificationSuccess = await notifyDriverAboutJob(firstDriver, appointment, unitTasks[0]);
-  
+  const notificationSuccess = await notifyDriverAboutJob(
+    firstDriver,
+    appointment,
+    unitTasks[0]
+  );
+
   if (notificationSuccess) {
     // Update all tasks for this unit
     for (const task of unitTasks) {
@@ -502,21 +599,21 @@ export async function findAndNotifyNextDriverForUnit(
         data: {
           driverNotificationSentAt: new Date(),
           driverNotificationStatus: 'sent',
-          lastNotifiedDriverId: firstDriver.id
-        }
+          lastNotifiedDriverId: firstDriver.id,
+        },
       });
     }
-    
+
     return {
       unitNumber,
       status: 'notified_boombox_driver',
-      driverId: firstDriver.id
+      driverId: firstDriver.id,
     };
   } else {
     return {
       unitNumber,
       status: 'error_sending_notification_boombox',
-      message: 'Failed to send notification to Boombox driver'
+      message: 'Failed to send notification to Boombox driver',
     };
   }
 }
@@ -525,32 +622,47 @@ export async function findAndNotifyNextDriverForUnit(
  * Notify moving partner about appointment assignment
  * Sends both SMS and email notifications using centralized MessageService
  */
-export async function notifyMovingPartner(appointment: any, driverName?: string): Promise<boolean> {
+export async function notifyMovingPartner(
+  appointment: any,
+  driverName?: string
+): Promise<boolean> {
   if (!appointment.movingPartnerId) {
     return false;
   }
 
   const movingPartner = await prisma.movingPartner.findUnique({
     where: { id: appointment.movingPartnerId },
-    select: { id: true, name: true, email: true, phoneNumber: true }
+    select: { id: true, name: true, email: true, phoneNumber: true },
   });
 
   if (!movingPartner) {
-    console.warn(`Moving partner ${appointment.movingPartnerId} not found for appointment ${appointment.id}.`);
+    console.warn(
+      `Moving partner ${appointment.movingPartnerId} not found for appointment ${appointment.id}.`
+    );
     return false;
   }
 
   const user = appointment.user;
   if (!user) {
-    console.warn(`User details not found for appointment ${appointment.id}, cannot notify moving partner.`);
+    console.warn(
+      `User details not found for appointment ${appointment.id}, cannot notify moving partner.`
+    );
     return false;
   }
-  
+
   // Format date and time (time is 1 hour earlier for notification)
-  const appointmentDateFmt = formatDate(new Date(appointment.date), 'full-date');
+  const appointmentDateFmt = formatDate(
+    new Date(appointment.date),
+    'full-date'
+  );
   const originalAppointmentTime = new Date(appointment.time);
-  const notificationAppointmentTime = new Date(originalAppointmentTime.getTime() - (60 * 60 * 1000));
-  const appointmentTimeFmt = formatTime(notificationAppointmentTime, '12-hour-padded');
+  const notificationAppointmentTime = new Date(
+    originalAppointmentTime.getTime() - 60 * 60 * 1000
+  );
+  const appointmentTimeFmt = formatTime(
+    notificationAppointmentTime,
+    '12-hour-padded'
+  );
   const customerName = `${user.firstName} ${user.lastName}`;
 
   let smsSent = false;
@@ -559,10 +671,14 @@ export async function notifyMovingPartner(appointment: any, driverName?: string)
   // Send SMS if phone number exists
   if (movingPartner.phoneNumber) {
     try {
-      const normalizedPhone = normalizePhoneNumberToE164(movingPartner.phoneNumber);
-      
+      const normalizedPhone = normalizePhoneNumberToE164(
+        movingPartner.phoneNumber
+      );
+
       // Select template based on whether driver is assigned
-      const smsTemplate = driverName ? movingPartnerNewJobWithDriverSms : movingPartnerNewJobSms;
+      const smsTemplate = driverName
+        ? movingPartnerNewJobWithDriverSms
+        : movingPartnerNewJobSms;
       const smsVariables: Record<string, string | number> = {
         customerName,
         appointmentType: appointment.appointmentType,
@@ -571,15 +687,21 @@ export async function notifyMovingPartner(appointment: any, driverName?: string)
         address: appointment.address,
         appointmentId: appointment.id,
       };
-      
+
       if (driverName) {
         smsVariables.driverName = driverName;
       }
 
-      const smsResult = await MessageService.sendSms(normalizedPhone, smsTemplate, smsVariables);
-      
+      const smsResult = await MessageService.sendSms(
+        normalizedPhone,
+        smsTemplate,
+        smsVariables
+      );
+
       if (smsResult.success) {
-        console.log(`Moving partner SMS sent to ${movingPartner.phoneNumber} for appointment ${appointment.id}`);
+        console.log(
+          `Moving partner SMS sent to ${movingPartner.phoneNumber} for appointment ${appointment.id}`
+        );
         smsSent = true;
       } else {
         console.error(`Failed to send moving partner SMS: ${smsResult.error}`);
@@ -588,7 +710,9 @@ export async function notifyMovingPartner(appointment: any, driverName?: string)
       console.error(`Error sending moving partner SMS: ${error.message}`);
     }
   } else {
-    console.warn(`Moving partner ${movingPartner.id} has no phone number. Skipping SMS notification.`);
+    console.warn(
+      `Moving partner ${movingPartner.id} has no phone number. Skipping SMS notification.`
+    );
   }
 
   // Send Email if email exists
@@ -602,7 +726,7 @@ export async function notifyMovingPartner(appointment: any, driverName?: string)
       const driverAssignmentInfo = driverName
         ? `Driver Assigned: ${driverName}`
         : 'Please log in to your Onfleet dashboard to assign a driver from your team.';
-      
+
       const driverAssignmentHtml = driverName
         ? `<p><strong>Driver Assigned:</strong> ${driverName}</p>`
         : '<p>Please log in to your Onfleet dashboard to assign a driver from your team.</p>';
@@ -626,19 +750,29 @@ export async function notifyMovingPartner(appointment: any, driverName?: string)
         driverAssignmentHtml,
       };
 
-      const emailResult = await MessageService.sendEmail(movingPartner.email, movingPartnerNewJobEmail, emailVariables);
-      
+      const emailResult = await MessageService.sendEmail(
+        movingPartner.email,
+        movingPartnerNewJobEmail,
+        emailVariables
+      );
+
       if (emailResult.success) {
-        console.log(`Moving partner email sent to ${movingPartner.email} for appointment ${appointment.id}`);
+        console.log(
+          `Moving partner email sent to ${movingPartner.email} for appointment ${appointment.id}`
+        );
         emailSent = true;
       } else {
-        console.error(`Failed to send moving partner email: ${emailResult.error}`);
+        console.error(
+          `Failed to send moving partner email: ${emailResult.error}`
+        );
       }
     } catch (error: any) {
       console.error(`Error sending moving partner email: ${error.message}`);
     }
   } else {
-    console.warn(`Moving partner ${movingPartner.id} has no email. Skipping email notification.`);
+    console.warn(
+      `Moving partner ${movingPartner.id} has no email. Skipping email notification.`
+    );
   }
 
   // Create in-app notification for the mover account page
@@ -653,10 +787,14 @@ export async function notifyMovingPartner(appointment: any, driverName?: string)
       customerName,
       driverName,
     });
-    console.log(`In-app notification created for moving partner ${movingPartner.id} for appointment ${appointment.id}`);
+    console.log(
+      `In-app notification created for moving partner ${movingPartner.id} for appointment ${appointment.id}`
+    );
     inAppNotificationSent = true;
   } catch (error: any) {
-    console.error(`Error creating in-app notification for moving partner: ${error.message}`);
+    console.error(
+      `Error creating in-app notification for moving partner: ${error.message}`
+    );
   }
 
   // Return true if at least one notification was sent successfully
@@ -676,19 +814,21 @@ export async function notifyAdminNoDrivers(
     const admins = await prisma.admin.findMany({
       where: {
         role: {
-          in: ['ADMIN', 'SUPERADMIN']
-        }
+          in: ['ADMIN', 'SUPERADMIN'],
+        },
       },
       select: {
         id: true,
         email: true,
         name: true,
-        role: true
-      }
+        role: true,
+      },
     });
 
     if (admins.length === 0) {
-      console.warn('No admin users found to notify about driver assignment failure');
+      console.warn(
+        'No admin users found to notify about driver assignment failure'
+      );
       return;
     }
 
@@ -700,8 +840,10 @@ export async function notifyAdminNoDrivers(
     for (const admin of admins) {
       try {
         // Import the email template dynamically to avoid circular dependencies
-        const { driverAssignmentFailedTemplate } = await import('@/lib/messaging/templates/email/admin/driverAssignmentFailedTemplate');
-        
+        const { driverAssignmentFailedTemplate } = await import(
+          '@/lib/messaging/templates/email/admin/driverAssignmentFailedTemplate'
+        );
+
         await MessageService.sendEmail(
           admin.email,
           driverAssignmentFailedTemplate,
@@ -712,20 +854,30 @@ export async function notifyAdminNoDrivers(
             formattedDate,
             formattedTime,
             address: appointment.address,
-            dashboardUrl
+            dashboardUrl,
           }
         );
-        
-        console.log(`Sent driver assignment failure email to admin: ${admin.email}`);
+
+        console.log(
+          `Sent driver assignment failure email to admin: ${admin.email}`
+        );
       } catch (emailError) {
-        console.error(`Failed to send email to admin ${admin.email}:`, emailError);
+        console.error(
+          `Failed to send email to admin ${admin.email}:`,
+          emailError
+        );
         // Continue to next admin even if one fails
       }
     }
-    
-    console.log(`Notified ${admins.length} admin(s) about driver assignment failure for appointment ${appointment.id}, unit ${task.unitNumber}`);
+
+    console.log(
+      `Notified ${admins.length} admin(s) about driver assignment failure for appointment ${appointment.id}, unit ${task.unitNumber}`
+    );
   } catch (error) {
-    console.error('Error notifying admins about driver assignment failure:', error);
+    console.error(
+      'Error notifying admins about driver assignment failure:',
+      error
+    );
     // Don't throw - we don't want to fail the entire assignment process if notification fails
   }
 }
@@ -740,7 +892,7 @@ export async function handleRetryAssignment(appointment: any): Promise<{
   unitResults: DriverAssignmentResult[];
 }> {
   const tasksByUnit: { [unitNumberKey: string]: any[] } = {};
-  
+
   // Group tasks by unit
   for (const task of appointment.onfleetTasks) {
     const unitNumStr = (task.unitNumber || 0).toString();
@@ -749,118 +901,137 @@ export async function handleRetryAssignment(appointment: any): Promise<{
     }
     tasksByUnit[unitNumStr].push(task);
   }
-  
+
   const unitResults: DriverAssignmentResult[] = [];
-  
+
   for (const [unitNumberKey, unitTasks] of Object.entries(tasksByUnit)) {
     const numericUnitNumber = parseInt(unitNumberKey);
-    
+
     // Check if retry is needed for this unit
     const needsRetry = unitTasks.some((task: any) => {
-      return task.driverNotificationStatus === 'sent' && 
-             task.driverNotificationSentAt && 
-             (new Date().getTime() - new Date(task.driverNotificationSentAt).getTime() > DRIVER_ACCEPTANCE_WINDOW);
+      return (
+        task.driverNotificationStatus === 'sent' &&
+        task.driverNotificationSentAt &&
+        new Date().getTime() -
+          new Date(task.driverNotificationSentAt).getTime() >
+          DRIVER_ACCEPTANCE_WINDOW
+      );
     });
-    
+
     if (!needsRetry) {
       unitResults.push({
         unitNumber: numericUnitNumber,
         status: 'no_retry_needed',
-        message: 'No tasks to retry for this unit'
+        message: 'No tasks to retry for this unit',
       });
       continue;
     }
-    
+
     const unassignedTasks = unitTasks.filter((task: any) => !task.driverId);
-    
+
     if (unassignedTasks.length === 0) {
       unitResults.push({
         unitNumber: numericUnitNumber,
         status: 'all_assigned',
-        message: 'All tasks are already assigned for this unit'
+        message: 'All tasks are already assigned for this unit',
       });
       continue;
     }
-    
+
     // Build exclude list from declined drivers and previously notified
     const excludeDriverIds: number[] = [];
     for (const task of unassignedTasks) {
       if (task.declinedDriverIds && task.declinedDriverIds.length > 0) {
         excludeDriverIds.push(...task.declinedDriverIds);
       }
-      if (task.lastNotifiedDriverId && task.driverNotificationStatus === 'sent') {
+      if (
+        task.lastNotifiedDriverId &&
+        task.driverNotificationStatus === 'sent'
+      ) {
         excludeDriverIds.push(task.lastNotifiedDriverId);
       }
     }
-    
+
     // Find next available driver
-    const movingPartnerId = appointment.planType === 'Full Service Plan' ? appointment.movingPartnerId : undefined;
-    const availableDrivers = await findAvailableDrivers(appointment, unassignedTasks[0], excludeDriverIds, movingPartnerId);
-    
+    const movingPartnerId =
+      appointment.planType === 'Full Service Plan'
+        ? appointment.movingPartnerId
+        : undefined;
+    const availableDrivers = await findAvailableDrivers(
+      appointment,
+      unassignedTasks[0],
+      excludeDriverIds,
+      movingPartnerId
+    );
+
     if (availableDrivers.length === 0) {
       await notifyAdminNoDrivers(appointment, unassignedTasks[0]);
       unitResults.push({
         unitNumber: numericUnitNumber,
         status: 'no_drivers',
-        message: 'No more available drivers for this unit, admin notified'
+        message: 'No more available drivers for this unit, admin notified',
       });
       continue;
     }
-    
+
     const nextDriver = availableDrivers[0];
-    
+
     if (!nextDriver.phoneNumber) {
       console.error(`Cannot notify driver ${nextDriver.id}: no phone number`);
       unitResults.push({
         unitNumber: numericUnitNumber,
         status: 'error',
-        message: 'Selected driver has no phone number'
+        message: 'Selected driver has no phone number',
       });
       continue;
     }
 
     // Send notification to the next driver
-    const notificationSuccess = await notifyDriverAboutJob(nextDriver, appointment, unassignedTasks[0]);
-    
+    const notificationSuccess = await notifyDriverAboutJob(
+      nextDriver,
+      appointment,
+      unassignedTasks[0]
+    );
+
     if (notificationSuccess) {
       // Update all unassigned tasks for this unit
       for (const task of unassignedTasks) {
         await prisma.onfleetTask.update({
           where: { id: task.id },
-          data: { 
-            driverNotificationSentAt: new Date(), 
-            driverNotificationStatus: 'sent', 
-            lastNotifiedDriverId: nextDriver.id, 
-            declinedDriverIds: excludeDriverIds 
-          }
+          data: {
+            driverNotificationSentAt: new Date(),
+            driverNotificationStatus: 'sent',
+            lastNotifiedDriverId: nextDriver.id,
+            declinedDriverIds: excludeDriverIds,
+          },
         });
       }
-      
+
       unitResults.push({
         unitNumber: numericUnitNumber,
         status: 'retry_sent',
-        driverId: nextDriver.id
+        driverId: nextDriver.id,
       });
     } else {
       unitResults.push({
         unitNumber: numericUnitNumber,
         status: 'error',
-        message: 'Failed to send notification to next driver'
+        message: 'Failed to send notification to next driver',
       });
     }
   }
-  
-  return { 
+
+  return {
     message: 'Retry process completed for appointment units',
     appointmentId: appointment.id,
-    unitResults
+    unitResults,
   };
 }
 
 /**
  * Create a DriverTimeSlotBooking record when a driver accepts an appointment
  * This prevents overbooking by formally reserving the driver's time slot
- * 
+ *
  * @param driverId - The driver accepting the job
  * @param appointmentId - The appointment being accepted
  * @param appointmentDate - The date of the appointment
@@ -878,10 +1049,13 @@ export async function createDriverTimeSlotBooking(
     // Calculate the unit-specific booking window
     const bookingStart = getUnitSpecificStartTime(appointmentTime, unitNumber);
     const bookingEnd = getUnitCompletionTime(appointmentTime, unitNumber);
-    
+
     // Get the day of week for finding the availability slot (in PST)
-    const dayOfWeek = appointmentDate.toLocaleDateString("en-US", { weekday: "long", timeZone: TIME_ZONE });
-    
+    const dayOfWeek = appointmentDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      timeZone: TIME_ZONE,
+    });
+
     // Format time for availability lookup (HH:MM) - convert to PST
     const pstAppointmentTime = toZonedTime(appointmentTime, TIME_ZONE);
     const hours = pstAppointmentTime.getHours();
@@ -895,22 +1069,26 @@ export async function createDriverTimeSlotBooking(
         dayOfWeek,
         startTime: { lte: formattedTime },
         endTime: { gte: formattedTime },
-        isBlocked: false
-      }
+        isBlocked: false,
+      },
     });
 
     if (!availabilitySlot) {
-      console.warn(`No availability slot found for driver ${driverId} on ${dayOfWeek} at ${formattedTime}. Skipping time slot booking creation.`);
+      console.warn(
+        `No availability slot found for driver ${driverId} on ${dayOfWeek} at ${formattedTime}. Skipping time slot booking creation.`
+      );
       return false;
     }
 
     // Check if a booking already exists for this appointment
     const existingBooking = await prisma.driverTimeSlotBooking.findUnique({
-      where: { appointmentId }
+      where: { appointmentId },
     });
 
     if (existingBooking) {
-      console.log(`DriverTimeSlotBooking already exists for appointment ${appointmentId}`);
+      console.log(
+        `DriverTimeSlotBooking already exists for appointment ${appointmentId}`
+      );
       return true;
     }
 
@@ -920,14 +1098,19 @@ export async function createDriverTimeSlotBooking(
         driverAvailabilityId: availabilitySlot.id,
         appointmentId,
         bookingDate: bookingStart,
-        endDate: bookingEnd
-      }
+        endDate: bookingEnd,
+      },
     });
 
-    console.log(`Created DriverTimeSlotBooking for driver ${driverId}, appointment ${appointmentId}, unit ${unitNumber}`);
+    console.log(
+      `Created DriverTimeSlotBooking for driver ${driverId}, appointment ${appointmentId}, unit ${unitNumber}`
+    );
     return true;
   } catch (error: any) {
-    console.error(`Error creating DriverTimeSlotBooking for driver ${driverId}, appointment ${appointmentId}:`, error);
+    console.error(
+      `Error creating DriverTimeSlotBooking for driver ${driverId}, appointment ${appointmentId}:`,
+      error
+    );
     // Don't throw - we don't want to fail the driver acceptance if booking creation fails
     // The OnfleetTask.driverId assignment serves as the primary booking record
     return false;
@@ -937,28 +1120,37 @@ export async function createDriverTimeSlotBooking(
 /**
  * Delete a DriverTimeSlotBooking record when a driver cancels or is removed from an appointment
  * This frees up the time slot for other drivers
- * 
+ *
  * @param appointmentId - The appointment to remove the booking for
  */
-export async function deleteDriverTimeSlotBooking(appointmentId: number): Promise<boolean> {
+export async function deleteDriverTimeSlotBooking(
+  appointmentId: number
+): Promise<boolean> {
   try {
     const existingBooking = await prisma.driverTimeSlotBooking.findUnique({
-      where: { appointmentId }
+      where: { appointmentId },
     });
 
     if (!existingBooking) {
-      console.log(`No DriverTimeSlotBooking found for appointment ${appointmentId} to delete`);
+      console.log(
+        `No DriverTimeSlotBooking found for appointment ${appointmentId} to delete`
+      );
       return true;
     }
 
     await prisma.driverTimeSlotBooking.delete({
-      where: { appointmentId }
+      where: { appointmentId },
     });
 
-    console.log(`Deleted DriverTimeSlotBooking for appointment ${appointmentId}`);
+    console.log(
+      `Deleted DriverTimeSlotBooking for appointment ${appointmentId}`
+    );
     return true;
   } catch (error: any) {
-    console.error(`Error deleting DriverTimeSlotBooking for appointment ${appointmentId}:`, error);
+    console.error(
+      `Error deleting DriverTimeSlotBooking for appointment ${appointmentId}:`,
+      error
+    );
     return false;
   }
 }
@@ -966,7 +1158,7 @@ export async function deleteDriverTimeSlotBooking(appointmentId: number): Promis
 /**
  * Update a DriverTimeSlotBooking record when appointment time changes
  * This recalculates the booking window based on the new time while preserving the driver assignment
- * 
+ *
  * @param appointmentId - The appointment being updated
  * @param newDate - The new date of the appointment
  * @param newTime - The new time of the appointment
@@ -985,13 +1177,15 @@ export async function updateDriverTimeSlotBooking(
       where: { appointmentId },
       include: {
         driverAvailability: {
-          select: { driverId: true }
-        }
-      }
+          select: { driverId: true },
+        },
+      },
     });
 
     if (!existingBooking) {
-      console.log(`📅 No DriverTimeSlotBooking found for appointment ${appointmentId} - skipping update`);
+      console.log(
+        `📅 No DriverTimeSlotBooking found for appointment ${appointmentId} - skipping update`
+      );
       return { success: true };
     }
 
@@ -1002,7 +1196,10 @@ export async function updateDriverTimeSlotBooking(
     const bookingEnd = getUnitCompletionTime(newTime, unitNumber);
 
     // Get the day of week for the new date (in PST)
-    const dayOfWeek = newDate.toLocaleDateString("en-US", { weekday: "long", timeZone: TIME_ZONE });
+    const dayOfWeek = newDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      timeZone: TIME_ZONE,
+    });
 
     // Format time for availability lookup (HH:MM) - convert to PST
     const pstNewTime = toZonedTime(newTime, TIME_ZONE);
@@ -1017,19 +1214,21 @@ export async function updateDriverTimeSlotBooking(
         dayOfWeek,
         startTime: { lte: formattedTime },
         endTime: { gte: formattedTime },
-        isBlocked: false
-      }
+        isBlocked: false,
+      },
     });
 
     if (!availabilitySlot) {
-      console.warn(`⚠️ No availability slot found for driver ${driverId} on ${dayOfWeek} at ${formattedTime}. Driver may need to reconfirm.`);
+      console.warn(
+        `⚠️ No availability slot found for driver ${driverId} on ${dayOfWeek} at ${formattedTime}. Driver may need to reconfirm.`
+      );
       // Delete the existing booking since driver may not be available at new time
       await prisma.driverTimeSlotBooking.delete({
-        where: { appointmentId }
+        where: { appointmentId },
       });
-      return { 
-        success: true, 
-        error: `Driver ${driverId} has no availability slot for ${dayOfWeek} at ${formattedTime}` 
+      return {
+        success: true,
+        error: `Driver ${driverId} has no availability slot for ${dayOfWeek} at ${formattedTime}`,
       };
     }
 
@@ -1039,17 +1238,22 @@ export async function updateDriverTimeSlotBooking(
       data: {
         driverAvailabilityId: availabilitySlot.id,
         bookingDate: bookingStart,
-        endDate: bookingEnd
-      }
+        endDate: bookingEnd,
+      },
     });
 
-    console.log(`📅 Updated DriverTimeSlotBooking for appointment ${appointmentId}: ${bookingStart.toISOString()} - ${bookingEnd.toISOString()}`);
+    console.log(
+      `📅 Updated DriverTimeSlotBooking for appointment ${appointmentId}: ${bookingStart.toISOString()} - ${bookingEnd.toISOString()}`
+    );
     return { success: true };
   } catch (error: any) {
-    console.error(`❌ Error updating DriverTimeSlotBooking for appointment ${appointmentId}:`, error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    console.error(
+      `❌ Error updating DriverTimeSlotBooking for appointment ${appointmentId}:`,
+      error
+    );
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
-} 
+}

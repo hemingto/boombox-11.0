@@ -7,9 +7,9 @@
  */
 
 import { PackingSupplyCartItem } from '@/types/packingSupply.types';
-import { formatCurrency } from '@/lib/utils/currencyUtils';
+import { formatCurrency } from './currencyUtils';
 import { prisma } from '@/lib/database/prismaClient';
-import crypto from 'crypto';
+import { generateShortId } from '@/lib/services/shortTokenService';
 
 export interface DeliveryTimeWindow {
   start: Date;
@@ -67,8 +67,8 @@ export function calculateDeliveryTimeWindow(): DeliveryTimeWindow {
 
   // Convert current time to Pacific Time (America/Los_Angeles)
   // This properly handles PST/PDT transitions
-  const pstTimeString = now.toLocaleString('en-US', { 
-    timeZone: 'America/Los_Angeles' 
+  const pstTimeString = now.toLocaleString('en-US', {
+    timeZone: 'America/Los_Angeles',
   });
   const pstNow = new Date(pstTimeString);
 
@@ -174,7 +174,7 @@ export function calculateOrderCapacity(
  * Generate secure tracking token for order tracking
  */
 export function generateTrackingToken(): string {
-  return crypto.randomBytes(16).toString('hex');
+  return generateShortId();
 }
 
 /**
@@ -555,15 +555,17 @@ export function formatPackingSupplyTrackingResponse(
  */
 export function calculateRoutePayoutEstimate(routeData: any): string {
   const totalStops = routeData.totalStops ?? routeData.stops?.length ?? 0;
-  const totalDistance = routeData.totalDistance 
-    ? parseFloat(routeData.totalDistance.toString()) 
+  const totalDistance = routeData.totalDistance
+    ? parseFloat(routeData.totalDistance.toString())
     : 0;
-  
+
   // Consistent formula: $15 per stop + $0.50 per mile
   const basePayPerStop = 15;
-  const mileageRate = 0.50;
-  const estimatedPayout = Math.round((totalStops * basePayPerStop) + (totalDistance * mileageRate));
-  
+  const mileageRate = 0.5;
+  const estimatedPayout = Math.round(
+    totalStops * basePayPerStop + totalDistance * mileageRate
+  );
+
   return `$${estimatedPayout}`;
 }
 

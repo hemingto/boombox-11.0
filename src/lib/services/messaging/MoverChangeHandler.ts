@@ -9,6 +9,7 @@ import {
   findPendingMoverChange,
   parseAppointmentDescription,
 } from '@/lib/utils';
+// eslint-disable-next-line no-restricted-imports -- server-only util (next/headers), not re-exported from barrel
 import { generateMoverChangeToken } from '@/lib/utils/twilioUtils';
 import { MessageService } from '../../messaging/MessageService';
 import { config } from '@/lib/config/environment';
@@ -44,7 +45,9 @@ export class MoverChangeHandler {
       }
 
       // Find pending mover change request
-      const pendingAppointment = await findPendingMoverChange(String(customer.id));
+      const pendingAppointment = await findPendingMoverChange(
+        String(customer.id)
+      );
 
       if (!pendingAppointment) {
         await MessageService.sendSms(
@@ -77,7 +80,7 @@ export class MoverChangeHandler {
         originalMovingPartnerId: moverChangeRequest.originalMovingPartnerId,
         timestamp: new Date(moverChangeRequest.requestedAt).getTime(),
       };
-      const token = generateMoverChangeToken(tokenData);
+      const token = await generateMoverChangeToken(tokenData);
 
       // Call the mover change response API
       const response = await fetch(

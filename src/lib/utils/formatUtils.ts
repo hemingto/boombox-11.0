@@ -7,8 +7,6 @@
  * @refactor Consolidated all general formatting utilities
  */
 
-import { generateSlug } from 'random-word-slugs';
-
 /**
  * Address parsing interface
  */
@@ -63,16 +61,86 @@ export function formatDistance(
   return `${numericMiles.toFixed(1)} mi`;
 }
 
+const JOB_CODE_ADJECTIVES = [
+  'Blue',
+  'Red',
+  'Green',
+  'Gold',
+  'Silver',
+  'Bright',
+  'Lucky',
+  'Happy',
+  'Swift',
+  'Brave',
+  'Bold',
+  'Cool',
+  'Calm',
+  'Sunny',
+  'Iron',
+  'Copper',
+  'Crystal',
+  'Amber',
+  'Noble',
+  'Rusty',
+  'Snowy',
+  'Sandy',
+  'Misty',
+  'Rocky',
+  'Maple',
+  'Cedar',
+  'Ivory',
+  'Coral',
+  'Pearl',
+  'Crimson',
+  'Olive',
+  'Slate',
+];
+
+const JOB_CODE_NOUNS = [
+  'Bear',
+  'Fox',
+  'Wolf',
+  'Hawk',
+  'Eagle',
+  'Lion',
+  'Tiger',
+  'Otter',
+  'Falcon',
+  'Panda',
+  'Moose',
+  'Bison',
+  'Raven',
+  'Heron',
+  'Lynx',
+  'Elk',
+  'Owl',
+  'Dove',
+  'Crow',
+  'Robin',
+  'Finch',
+  'Sparrow',
+  'Badger',
+  'Bobcat',
+  'Coyote',
+  'Osprey',
+  'Puma',
+  'Ram',
+  'Stag',
+  'Wren',
+  'Jay',
+  'Marten',
+];
+
 /**
  * Generate random job code using adjective + noun pattern
- * Example: "Brave Lion", "Quick Fox"
+ * Example: "Brave Lion", "Swift Hawk"
  */
 export function generateJobCode(): string {
-  const randomWords = generateSlug(2, {
-    format: 'title',
-    partsOfSpeech: ['adjective', 'noun'],
-  });
-  return randomWords;
+  const adj =
+    JOB_CODE_ADJECTIVES[Math.floor(Math.random() * JOB_CODE_ADJECTIVES.length)];
+  const noun =
+    JOB_CODE_NOUNS[Math.floor(Math.random() * JOB_CODE_NOUNS.length)];
+  return `${adj} ${noun}`;
 }
 
 /**

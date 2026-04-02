@@ -417,7 +417,10 @@ export function AppointmentCard({
                         <div className="flex justify-between items-center">
                           <span className="text-sm">{planType}</span>
                           <span className="text-sm font-medium flex items-center gap-1">
-                            {pickupFeeWaived ? (
+                            {appointmentType === 'Storage Unit Access' ||
+                            appointmentType === 'End Storage Term' ? (
+                              '$0'
+                            ) : pickupFeeWaived ? (
                               <>
                                 <span className="px-2.5 py-1 text-xs rounded-full bg-status-bg-success text-status-success font-medium">
                                   Free pickup

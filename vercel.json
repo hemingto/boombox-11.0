@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/sync-google-reviews",
       "schedule": "0 8 * * 1"
+    },
+    {
+      "path": "/api/cron/send-review-requests",
+      "schedule": "0 10 * * *"
     }
   ]
 }

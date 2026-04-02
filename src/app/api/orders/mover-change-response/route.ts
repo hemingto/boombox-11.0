@@ -25,32 +25,36 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
 import { getOnfleetClient } from '@/lib/integrations/onfleetClient';
 import { MessageService } from '@/lib/messaging/MessageService';
-import { 
+import {
   MoverChangeResponseRequestSchema,
-  MoverChangeResponseResponseSchema 
+  MoverChangeResponseResponseSchema,
 } from '@/lib/validations/api.validations';
+// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import {
   decodeMoverChangeToken,
   validateMoverChangeTokenData,
   checkMoverChangeRequestStatus,
   assignMovingPartnerDriver,
   createTimeSlotBooking,
-  processDiyPlanConversion
+  processDiyPlanConversion,
 } from '@/lib/utils/moverChangeUtils';
-import { 
+import {
   moverChangeAcceptedTemplate,
-  moverChangeToDiyTemplate 
+  moverChangeToDiyTemplate,
 } from '@/lib/messaging/templates/sms/booking';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     // Validate request body
     const parseResult = MoverChangeResponseRequestSchema.safeParse(body);
     if (!parseResult.success) {
       return NextResponse.json(
-        { error: 'Invalid request parameters', details: parseResult.error.format() },
+        {
+          error: 'Invalid request parameters',
+          details: parseResult.error.format(),
+        },
         { status: 400 }
       );
     }
@@ -58,8 +62,9 @@ export async function POST(request: NextRequest) {
     const { token, action, appointmentId } = parseResult.data;
 
     // Decode and validate token
-    const tokenData = decodeMoverChangeToken(token);
-    const { suggestedMovingPartnerId, originalMovingPartnerId } = validateMoverChangeTokenData(tokenData);
+    const tokenData = await decodeMoverChangeToken(token);
+    const { suggestedMovingPartnerId, originalMovingPartnerId } =
+      validateMoverChangeTokenData(tokenData);
 
     // Get appointment with related data
     const appointment = await prisma.appointment.findUnique({
@@ -70,14 +75,17 @@ export async function POST(request: NextRequest) {
           select: {
             firstName: true,
             lastName: true,
-            phoneNumber: true
-          }
-        }
-      }
+            phoneNumber: true,
+          },
+        },
+      },
     });
 
     if (!appointment) {
-      return NextResponse.json({ error: 'Appointment not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Appointment not found' },
+        { status: 404 }
+      );
     }
 
     // Check if request is still pending
@@ -86,15 +94,19 @@ export async function POST(request: NextRequest) {
     if (action === 'accept') {
       // Customer accepts the suggested moving partner
       const suggestedMover = await prisma.movingPartner.findUnique({
-        where: { id: suggestedMovingPartnerId }
+        where: { id: suggestedMovingPartnerId },
       });
 
       if (!suggestedMover) {
-        return NextResponse.json({ error: 'Suggested moving partner not found' }, { status: 404 });
+        return NextResponse.json(
+          { error: 'Suggested moving partner not found' },
+          { status: 404 }
+        );
       }
 
       // Update appointment with new moving partner
-      const priceDifference = (suggestedMover.hourlyRate || 0) - (appointment.loadingHelpPrice || 0);
+      const priceDifference =
+        (suggestedMover.hourlyRate || 0) - (appointment.loadingHelpPrice || 0);
       const newQuotedPrice = appointment.quotedPrice + priceDifference;
 
       await prisma.appointment.update({
@@ -108,37 +120,43 @@ export async function POST(request: NextRequest) {
               suggestedMovingPartnerId,
               originalMovingPartnerId,
               status: 'accepted',
-              acceptedAt: new Date().toISOString()
-            }
-          })
-        }
+              acceptedAt: new Date().toISOString(),
+            },
+          }),
+        },
       });
 
       // Create new TimeSlotBooking for the new moving partner
       await createTimeSlotBooking(appointment, suggestedMovingPartnerId);
 
       // Try to assign a driver from the new moving partner
-      const assignedDriver = await assignMovingPartnerDriver(appointment, suggestedMovingPartnerId);
-      
+      const assignedDriver = await assignMovingPartnerDriver(
+        appointment,
+        suggestedMovingPartnerId
+      );
+
       if (assignedDriver && appointment.onfleetTasks.length > 0) {
         const onfleetClient = await getOnfleetClient();
-        
+
         // Assign the driver to onfleet tasks
         for (const task of appointment.onfleetTasks) {
           try {
             await (onfleetClient as any).tasks.update(task.taskId, {
-              worker: assignedDriver.onfleetWorkerId
+              worker: assignedDriver.onfleetWorkerId,
             });
 
             await prisma.onfleetTask.update({
               where: { id: task.id },
-              data: { 
+              data: {
                 driverId: assignedDriver.id,
-                driverNotificationStatus: 'assigned_by_system'
-              }
+                driverNotificationStatus: 'assigned_by_system',
+              },
             });
           } catch (error) {
-            console.error(`Error assigning driver to task ${task.taskId}:`, error);
+            console.error(
+              `Error assigning driver to task ${task.taskId}:`,
+              error
+            );
           }
         }
       }
@@ -150,20 +168,27 @@ export async function POST(request: NextRequest) {
           moverChangeAcceptedTemplate,
           {
             newMovingPartner: suggestedMover.name,
-            assignedDriver: assignedDriver ? `${assignedDriver.firstName} ${assignedDriver.lastName}` : undefined
+            assignedDriver: assignedDriver
+              ? `${assignedDriver.firstName} ${assignedDriver.lastName}`
+              : undefined,
           }
-        ).catch(error => console.error('Error sending confirmation SMS:', error));
+        ).catch(error =>
+          console.error('Error sending confirmation SMS:', error)
+        );
       }
 
       const response = {
         success: true,
         message: 'Moving partner accepted and assigned',
         newMovingPartner: suggestedMover.name,
-        assignedDriver: assignedDriver ? `${assignedDriver.firstName} ${assignedDriver.lastName}` : null
+        assignedDriver: assignedDriver
+          ? `${assignedDriver.firstName} ${assignedDriver.lastName}`
+          : null,
       };
 
-      return NextResponse.json(MoverChangeResponseResponseSchema.parse(response));
-
+      return NextResponse.json(
+        MoverChangeResponseResponseSchema.parse(response)
+      );
     } else if (action === 'diy') {
       // Customer chooses DIY plan
       const originalLoadingHelpPrice = appointment.loadingHelpPrice || 0;
@@ -181,10 +206,10 @@ export async function POST(request: NextRequest) {
               suggestedMovingPartnerId,
               originalMovingPartnerId,
               status: 'converted_to_diy',
-              convertedAt: new Date().toISOString()
-            }
-          })
-        }
+              convertedAt: new Date().toISOString(),
+            },
+          }),
+        },
       });
 
       // Process DIY plan conversion (Onfleet task reassignment)
@@ -196,39 +221,38 @@ export async function POST(request: NextRequest) {
           appointment.user.phoneNumber,
           moverChangeToDiyTemplate,
           {
-            newQuotedPrice: newQuotedPrice.toString()
+            newQuotedPrice: newQuotedPrice.toString(),
           }
-        ).catch(error => console.error('Error sending confirmation SMS:', error));
+        ).catch(error =>
+          console.error('Error sending confirmation SMS:', error)
+        );
       }
 
       const response = {
         success: true,
         message: 'Switched to DIY plan successfully',
-        newQuotedPrice
+        newQuotedPrice,
       };
 
-      return NextResponse.json(MoverChangeResponseResponseSchema.parse(response));
-
+      return NextResponse.json(
+        MoverChangeResponseResponseSchema.parse(response)
+      );
     } else {
       return NextResponse.json(
         { error: 'Invalid action. Must be "accept" or "diy"' },
         { status: 400 }
       );
     }
-
   } catch (error) {
     console.error('Error processing mover change response:', error);
-    
+
     if (error instanceof Error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    
+
     return NextResponse.json(
       { error: 'Failed to process response' },
       { status: 500 }
     );
   }
-} 
+}

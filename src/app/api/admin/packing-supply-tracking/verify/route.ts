@@ -2,19 +2,19 @@
  * @fileoverview Packing supply tracking verification API - POST endpoint for order tracking
  * @source boombox-10.0/src/app/api/packing-supplies/tracking/verify/route.ts (lines 1-179)
  * @refactor Migrated to centralized utilities with improved tracking URL handling and feedback token generation
- * 
+ *
  * ENDPOINT FUNCTIONALITY:
  * - Verifies packing supply order tracking tokens
  * - Fetches live tracking URLs from Onfleet API
  * - Generates feedback tokens for delivered orders
  * - Returns comprehensive order status and delivery progress
- * 
+ *
  * BUSINESS LOGIC:
  * - Validates tracking tokens against database records
  * - Provides fallback tracking URLs if API fails
  * - Generates time-limited feedback tokens for completed deliveries
  * - Formats delivery progress with real-time status updates
- * 
+ *
  * USED BY:
  * - Customer tracking interface for packing supply orders
  * - Order status monitoring and delivery updates
@@ -23,17 +23,22 @@
 
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
-import { createFeedbackToken } from '@/lib/utils/onfleetWebhookUtils';
+import {
+  createShortToken,
+  expiresIn,
+  DURATIONS,
+} from '@/lib/services/shortTokenService';
+// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import {
   fetchOnfleetTrackingUrl,
-  formatPackingSupplyTrackingResponse
+  formatPackingSupplyTrackingResponse,
 } from '@/lib/utils/packingSupplyUtils';
 
 // Tracking verification request schema
 import { z } from 'zod';
 
 const PackingSupplyTrackingRequestSchema = z.object({
-  token: z.string().min(1, 'Token is required')
+  token: z.string().min(1, 'Token is required'),
 });
 
 export async function POST(req: Request) {
@@ -58,26 +63,36 @@ export async function POST(req: Request) {
             firstName: true,
             lastName: true,
             profilePicture: true,
-          }
+          },
         },
         user: true,
       },
     });
 
     if (!order) {
-      return NextResponse.json({ error: 'Invalid or expired tracking link' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Invalid or expired tracking link' },
+        { status: 404 }
+      );
     }
 
     // Get live tracking URL from Onfleet API if we have a task short ID
     let liveTrackingUrl: string | undefined = undefined;
     if (order.onfleetTaskShortId) {
-      console.log(`Fetching live tracking URL for task: ${order.onfleetTaskShortId}`);
-      liveTrackingUrl = await fetchOnfleetTrackingUrl(order.onfleetTaskShortId) || undefined;
-      
+      console.log(
+        `Fetching live tracking URL for task: ${order.onfleetTaskShortId}`
+      );
+      liveTrackingUrl =
+        (await fetchOnfleetTrackingUrl(order.onfleetTaskShortId)) || undefined;
+
       if (liveTrackingUrl) {
-        console.log(`Successfully fetched live tracking URL: ${liveTrackingUrl}`);
+        console.log(
+          `Successfully fetched live tracking URL: ${liveTrackingUrl}`
+        );
       } else {
-        console.warn(`Failed to fetch live tracking URL for task: ${order.onfleetTaskShortId}`);
+        console.warn(
+          `Failed to fetch live tracking URL for task: ${order.onfleetTaskShortId}`
+        );
         // Fallback to direct URL construction
         liveTrackingUrl = `https://onfleet.com/track/${order.onfleetTaskShortId}`;
         console.log(`Using fallback tracking URL: ${liveTrackingUrl}`);
@@ -87,7 +102,11 @@ export async function POST(req: Request) {
     // Generate feedback token if order is delivered
     let feedbackToken: string | undefined = undefined;
     if (order.status === 'Delivered' && order.onfleetTaskShortId) {
-      feedbackToken = createFeedbackToken(order.onfleetTaskShortId, 30); // 30 days expiry
+      feedbackToken = await createShortToken(
+        'ps_feedback',
+        { taskShortId: order.onfleetTaskShortId, orderId: order.id },
+        expiresIn(DURATIONS.DAYS_30)
+      );
     }
 
     // Format and return response data

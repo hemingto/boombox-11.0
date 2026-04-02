@@ -143,13 +143,12 @@ function AccessStorageConfirmAppointment({
             >
               <div className="space-y-4" id="payment-modal-content">
                 <p className="text-sm text-text-primary leading-5">
-                  Reserving is free! You&apos;ll only be charged for your first
-                  month of storage and the pickup fee after your appointment is
-                  completed. We&apos;ll run a pre-authorization check 7 days
-                  before your appointment to ensure there are enough funds. If
-                  your appointment is in less than 7 days, we&apos;ll do the
-                  check right after booking. This hold will be released once the
-                  check is done.
+                  Reserving is free! You&apos;ll only be charged the access fee
+                  after your appointment is completed. We&apos;ll run a
+                  pre-authorization check 7 days before your appointment to
+                  ensure there are enough funds. If your appointment is in less
+                  than 7 days, we&apos;ll do the check right after booking. This
+                  hold will be released once the check is done.
                 </p>
 
                 <div className="border-t border-border pt-4 pb-6">

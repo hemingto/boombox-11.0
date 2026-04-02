@@ -11,7 +11,7 @@ import {
   formatAppointmentDateForSms,
   formatTimeMinusOneHour,
   type AppointmentChanges,
-} from '@/lib/utils/appointmentUtils';
+} from '@/lib/utils';
 import { NotificationService } from './NotificationService';
 
 // Import templates (will be created in Phase 3)
@@ -105,7 +105,11 @@ export class NotificationOrchestrator {
     for (const task of tasks) {
       // Only collect moving_partner drivers (not boombox_driver)
       // boombox_driver types get reconfirmation requests instead
-      if (task.driverId && task.driver && task.workerType === 'moving_partner') {
+      if (
+        task.driverId &&
+        task.driver &&
+        task.workerType === 'moving_partner'
+      ) {
         driverMap.set(task.driverId, {
           id: task.driverId,
           firstName: task.driver.firstName,
@@ -157,10 +161,15 @@ export class NotificationOrchestrator {
         }
       );
 
-      console.log(`✅ Time change SMS sent to driver ${driver.id} at ${driver.phoneNumber}`);
+      console.log(
+        `✅ Time change SMS sent to driver ${driver.id} at ${driver.phoneNumber}`
+      );
       return true;
     } catch (error) {
-      console.error(`❌ Failed to send time change SMS to driver ${driver.id}:`, error);
+      console.error(
+        `❌ Failed to send time change SMS to driver ${driver.id}:`,
+        error
+      );
       return false;
     }
   }
@@ -205,7 +214,10 @@ export class NotificationOrchestrator {
         console.log(`✅ Time change SMS sent to moving partner ${mover.name}`);
         result.sms = true;
       } catch (error) {
-        console.error(`❌ Failed to send time change SMS to moving partner ${mover.name}:`, error);
+        console.error(
+          `❌ Failed to send time change SMS to moving partner ${mover.name}:`,
+          error
+        );
       }
     }
 
@@ -228,10 +240,15 @@ export class NotificationOrchestrator {
           }
         );
 
-        console.log(`✅ Time change email sent to moving partner ${mover.email}`);
+        console.log(
+          `✅ Time change email sent to moving partner ${mover.email}`
+        );
         result.email = true;
       } catch (error) {
-        console.error(`❌ Failed to send time change email to moving partner ${mover.email}:`, error);
+        console.error(
+          `❌ Failed to send time change email to moving partner ${mover.email}:`,
+          error
+        );
       }
     }
 
@@ -266,10 +283,15 @@ export class NotificationOrchestrator {
         }
       );
 
-      console.log(`✅ Reassignment SMS sent to driver ${driver.id} at ${driver.phoneNumber}`);
+      console.log(
+        `✅ Reassignment SMS sent to driver ${driver.id} at ${driver.phoneNumber}`
+      );
       return true;
     } catch (error) {
-      console.error(`❌ Failed to send reassignment SMS to driver ${driver.id}:`, error);
+      console.error(
+        `❌ Failed to send reassignment SMS to driver ${driver.id}:`,
+        error
+      );
       return false;
     }
   }
@@ -278,7 +300,7 @@ export class NotificationOrchestrator {
    * Notify driver of unit shift (moved to different unit, not removed from job)
    * This is used when a driver is shifted to a later unit during plan changes
    * (e.g., DIY → Full Service: Boombox driver moves from Unit 1 to Unit 2)
-   * 
+   *
    * @param driver - Driver information
    * @param appointment - Appointment information
    * @param oldUnitNumber - Original unit number
@@ -299,12 +321,12 @@ export class NotificationOrchestrator {
 
     try {
       const appointmentDateStr = formatAppointmentDateForSms(appointment.date);
-      
+
       // Format arrival time (e.g., "9:45 AM")
       const arrivalTimeStr = newArrivalTime.toLocaleTimeString('en-US', {
         hour: 'numeric',
         minute: '2-digit',
-        hour12: true
+        hour12: true,
       });
 
       await MessageService.sendSms(
@@ -318,10 +340,15 @@ export class NotificationOrchestrator {
         }
       );
 
-      console.log(`✅ Unit shift SMS sent to driver ${driver.id} at ${driver.phoneNumber} (Unit ${oldUnitNumber} → ${newUnitNumber})`);
+      console.log(
+        `✅ Unit shift SMS sent to driver ${driver.id} at ${driver.phoneNumber} (Unit ${oldUnitNumber} → ${newUnitNumber})`
+      );
       return true;
     } catch (error) {
-      console.error(`❌ Failed to send unit shift SMS to driver ${driver.id}:`, error);
+      console.error(
+        `❌ Failed to send unit shift SMS to driver ${driver.id}:`,
+        error
+      );
       return false;
     }
   }
@@ -350,7 +377,7 @@ export class NotificationOrchestrator {
           process.env.TWILIO_ACCOUNT_SID,
           process.env.TWILIO_AUTH_TOKEN
         );
-        
+
         await twilioClient.messages.create({
           body: smsMessage,
           from: process.env.TWILIO_PHONE_NUMBER,
@@ -360,7 +387,10 @@ export class NotificationOrchestrator {
         console.log(`✅ Assignment SMS sent to moving partner ${mover.name}`);
         result.sms = true;
       } catch (error) {
-        console.error(`❌ Failed to send assignment SMS to moving partner ${mover.name}:`, error);
+        console.error(
+          `❌ Failed to send assignment SMS to moving partner ${mover.name}:`,
+          error
+        );
       }
     }
 
@@ -395,10 +425,15 @@ export class NotificationOrchestrator {
         }
       );
 
-      console.log(`✅ Task cancellation SMS sent to driver ${driver.id} at ${driver.phoneNumber}`);
+      console.log(
+        `✅ Task cancellation SMS sent to driver ${driver.id} at ${driver.phoneNumber}`
+      );
       return true;
     } catch (error) {
-      console.error(`❌ Failed to send task cancellation SMS to driver ${driver.id}:`, error);
+      console.error(
+        `❌ Failed to send task cancellation SMS to driver ${driver.id}:`,
+        error
+      );
       return false;
     }
   }
@@ -426,7 +461,7 @@ export class NotificationOrchestrator {
           process.env.TWILIO_ACCOUNT_SID,
           process.env.TWILIO_AUTH_TOKEN
         );
-        
+
         await twilioClient.messages.create({
           body: smsMessage,
           from: process.env.TWILIO_PHONE_NUMBER,
@@ -436,7 +471,10 @@ export class NotificationOrchestrator {
         console.log(`✅ Plan change SMS sent to moving partner ${mover.name}`);
         result.sms = true;
       } catch (error) {
-        console.error(`❌ Failed to send plan change SMS to moving partner ${mover.name}:`, error);
+        console.error(
+          `❌ Failed to send plan change SMS to moving partner ${mover.name}:`,
+          error
+        );
       }
     }
 
@@ -457,10 +495,15 @@ export class NotificationOrchestrator {
           }
         );
 
-        console.log(`✅ Plan change email sent to moving partner ${mover.email}`);
+        console.log(
+          `✅ Plan change email sent to moving partner ${mover.email}`
+        );
         result.email = true;
       } catch (error) {
-        console.error(`❌ Failed to send plan change email to moving partner ${mover.email}:`, error);
+        console.error(
+          `❌ Failed to send plan change email to moving partner ${mover.email}:`,
+          error
+        );
       }
     }
 
@@ -481,7 +524,9 @@ export class NotificationOrchestrator {
     appointment: AppointmentInfo
   ): Promise<boolean> {
     if (!customer.phoneNumber) {
-      console.log('Customer has no phone number, cannot send mover change request');
+      console.log(
+        'Customer has no phone number, cannot send mover change request'
+      );
       return false;
     }
 
@@ -492,8 +537,9 @@ export class NotificationOrchestrator {
         newMover.id,
         oldMover.id
       );
-      
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.boomboxstorage.com';
+
+      const baseUrl =
+        process.env.NEXT_PUBLIC_APP_URL || 'https://app.boomboxstorage.com';
       const webViewUrl = `${baseUrl}/customer/mover-change/${token}`;
 
       const appointmentDateStr = formatAppointmentDateForSms(appointment.date);
@@ -506,7 +552,7 @@ export class NotificationOrchestrator {
         process.env.TWILIO_ACCOUNT_SID,
         process.env.TWILIO_AUTH_TOKEN
       );
-      
+
       await twilioClient.messages.create({
         body: message,
         from: process.env.TWILIO_PHONE_NUMBER,
@@ -522,22 +568,26 @@ export class NotificationOrchestrator {
   }
 
   /**
-   * Generate customer mover change token
+   * Generate a secure short token for customer mover change, stored in ShortToken table
    */
   private static async generateCustomerMoverChangeToken(
     appointmentId: number,
     suggestedMovingPartnerId: number,
     originalMovingPartnerId: number
   ): Promise<string> {
-    const payload = {
-      appointmentId,
-      suggestedMovingPartnerId,
-      originalMovingPartnerId,
-      requestedAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
-    };
-
-    return Buffer.from(JSON.stringify(payload)).toString('base64');
+    const { createShortToken, expiresIn, DURATIONS } = await import(
+      '@/lib/services/shortTokenService'
+    );
+    return createShortToken(
+      'mover_change',
+      {
+        appointmentId,
+        suggestedMovingPartnerId,
+        originalMovingPartnerId,
+        timestamp: Date.now(),
+      },
+      expiresIn(DURATIONS.HOURS_24)
+    );
   }
 
   /**
@@ -557,11 +607,15 @@ export class NotificationOrchestrator {
     try {
       // Handle time changes
       if (changes.timeChanged) {
-        console.log('⏰ Time changed, notifying moving partners and moving partner drivers');
+        console.log(
+          '⏰ Time changed, notifying moving partners and moving partner drivers'
+        );
 
         // Only notify Moving Partner drivers with informational SMS
         // Boombox Delivery Network drivers get reconfirmation requests (handled in AppointmentUpdateOrchestrator step 10)
-        const movingPartnerDrivers = this.collectUniqueMovingPartnerDrivers(existingAppointment.onfleetTasks);
+        const movingPartnerDrivers = this.collectUniqueMovingPartnerDrivers(
+          existingAppointment.onfleetTasks
+        );
         for (const driver of movingPartnerDrivers) {
           const sent = await this.notifyDriverOfTimeChange(
             driver,
@@ -593,23 +647,28 @@ export class NotificationOrchestrator {
               appointmentType: updatedAppointment.appointmentType,
               date: updatedAppointment.date,
               time: updatedAppointment.time,
-              address: updatedAppointment.address || ''
+              address: updatedAppointment.address || '',
             }
           );
           notificationsSent.push('customer_appointment_updated');
         } catch (notificationError) {
-          console.error('Error creating in-app update notification:', notificationError);
+          console.error(
+            'Error creating in-app update notification:',
+            notificationError
+          );
         }
       }
 
       // Handle plan changes
-      // NOTE: Driver and Moving Partner notifications for plan changes are now handled 
+      // NOTE: Driver and Moving Partner notifications for plan changes are now handled
       // by AppointmentUpdateOrchestrator.handlePlanSwitch() which uses smart reassignment
       // to send reconfirmation requests instead of simple unassign notifications.
       // We only handle customer in-app notifications here.
       if (changes.planChanged) {
-        console.log('📋 Plan changed, sending customer notification (driver notifications handled by handlePlanSwitch)');
-        
+        console.log(
+          '📋 Plan changed, sending customer notification (driver notifications handled by handlePlanSwitch)'
+        );
+
         // Create in-app notification for customer (APPOINTMENT_UPDATED for plan change)
         try {
           await NotificationService.notifyAppointmentUpdated(
@@ -619,12 +678,15 @@ export class NotificationOrchestrator {
               appointmentType: updatedAppointment.appointmentType,
               date: updatedAppointment.date,
               time: updatedAppointment.time,
-              address: updatedAppointment.address || ''
+              address: updatedAppointment.address || '',
             }
           );
           notificationsSent.push('customer_appointment_updated');
         } catch (notificationError) {
-          console.error('Error creating in-app update notification:', notificationError);
+          console.error(
+            'Error creating in-app update notification:',
+            notificationError
+          );
         }
       }
 
@@ -636,4 +698,3 @@ export class NotificationOrchestrator {
     }
   }
 }
-

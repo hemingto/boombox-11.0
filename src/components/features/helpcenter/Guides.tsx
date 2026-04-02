@@ -100,7 +100,7 @@ export interface GuidesProps {
 const DEFAULT_GUIDES: Guide[] = [
   {
     title: 'Initial Appointment',
-    subtitle: 'Pickup Guide',
+    subtitle: 'Initial Pickup Guide',
     description:
       'Learn the what to expect on the day of your first appointment',
     link: '/guides/delivery-guide',

@@ -1,5 +1,5 @@
 /**
- * @fileoverview Packing supply feedback page with JWT token
+ * @fileoverview Packing supply feedback page
  * @source boombox-10.0/src/app/packing-supplies/feedback/[token]/page.tsx
  * @refactor Migrated to (public) route group with proper error handling
  */
@@ -8,13 +8,15 @@ import { prisma } from '@/lib/database/prismaClient';
 import { format } from 'date-fns';
 import { PackingSupplyFeedbackForm } from '@/components/features/packing-supplies';
 import { notFound } from 'next/navigation';
-import { jwtDecode } from 'jwt-decode';
+import { resolveShortToken } from '@/lib/services/shortTokenService';
 
-// Define the token payload structure
-interface PackingSupplyFeedbackToken {
-  taskShortId: string;
-  exp: number;
-  iat: number;
+async function resolveTaskShortId(token: string): Promise<string | null> {
+  try {
+    const payload = await resolveShortToken(token, 'ps_feedback');
+    return (payload.taskShortId as string) || null;
+  } catch {
+    return null;
+  }
 }
 
 export default async function PackingSupplyFeedbackPage({
@@ -22,24 +24,10 @@ export default async function PackingSupplyFeedbackPage({
 }: {
   params: Promise<{ token: string }>;
 }) {
-  // Await the dynamic token
   const { token } = await params;
 
-  // Decode the JWT token to extract taskShortId
-  let decoded: PackingSupplyFeedbackToken;
-  let taskShortId: string;
-
-  try {
-    // Decode the token
-    decoded = jwtDecode<PackingSupplyFeedbackToken>(token);
-    taskShortId = decoded.taskShortId;
-
-    if (!taskShortId || typeof taskShortId !== 'string') {
-      return notFound();
-    }
-  } catch (error) {
-    return notFound();
-  }
+  const taskShortId = await resolveTaskShortId(token);
+  if (!taskShortId) return notFound();
 
   try {
     // Find the packing supply order by task short ID
@@ -70,7 +58,7 @@ export default async function PackingSupplyFeedbackPage({
     const formattedDate = format(new Date(order.orderDate), 'EEEE, MMM do');
 
     // Format items for the feedback form
-    const items = order.orderDetails.map((detail) => ({
+    const items = order.orderDetails.map(detail => ({
       name: detail.product.title,
       quantity: detail.quantity,
       price: parseFloat(detail.price.toString()),
@@ -91,14 +79,18 @@ export default async function PackingSupplyFeedbackPage({
           invoiceTotal={parseFloat(order.totalPrice.toString())}
           userId={order.userId?.toString()}
           driverName={driverName}
-          driverProfilePicture={order.assignedDriver?.profilePicture ?? undefined}
+          driverProfilePicture={
+            order.assignedDriver?.profilePicture ?? undefined
+          }
           items={items}
         />
       </div>
     );
   } catch (error) {
-    console.error('Error fetching data for packing supply feedback page:', error);
+    console.error(
+      'Error fetching data for packing supply feedback page:',
+      error
+    );
     return notFound();
   }
 }
-

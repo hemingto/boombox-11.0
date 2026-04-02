@@ -10,12 +10,15 @@ const ONFLEET_API_URL = 'https://onfleet.com/api/v2';
 export async function GET(req: NextRequest) {
   try {
     const apiKey = process.env.ONFLEET_API_KEY;
-    
+
     if (!apiKey) {
-      return NextResponse.json({
-        success: false,
-        error: 'ONFLEET_API_KEY is not defined in environment variables'
-      }, { status: 500 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'ONFLEET_API_KEY is not defined in environment variables',
+        },
+        { status: 500 }
+      );
     }
 
     console.log('🔍 Testing Onfleet API connection...');
@@ -29,21 +32,24 @@ export async function GET(req: NextRequest) {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Basic ${Buffer.from(apiKey + ':').toString('base64')}`
-      }
+        Authorization: `Basic ${Buffer.from(apiKey + ':').toString('base64')}`,
+      },
     });
 
     const orgData = await orgResponse.json();
-    
+
     if (!orgResponse.ok) {
       console.error('❌ Organization fetch failed:', orgData);
-      return NextResponse.json({
-        success: false,
-        test: 'organization',
-        status: orgResponse.status,
-        statusText: orgResponse.statusText,
-        error: orgData
-      }, { status: orgResponse.status });
+      return NextResponse.json(
+        {
+          success: false,
+          test: 'organization',
+          status: orgResponse.status,
+          statusText: orgResponse.statusText,
+          error: orgData,
+        },
+        { status: orgResponse.status }
+      );
     }
 
     console.log('✅ Organization fetch successful');
@@ -56,26 +62,29 @@ export async function GET(req: NextRequest) {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Basic ${Buffer.from(apiKey + ':').toString('base64')}`
-      }
+        Authorization: `Basic ${Buffer.from(apiKey + ':').toString('base64')}`,
+      },
     });
 
     const teamsData = await teamsResponse.json();
-    
+
     if (!teamsResponse.ok) {
       console.error('❌ Teams fetch failed:', teamsData);
-      return NextResponse.json({
-        success: false,
-        test: 'teams',
-        status: teamsResponse.status,
-        statusText: teamsResponse.statusText,
-        error: teamsData,
-        organizationTest: {
-          success: true,
-          name: orgData.name,
-          id: orgData.id
-        }
-      }, { status: teamsResponse.status });
+      return NextResponse.json(
+        {
+          success: false,
+          test: 'teams',
+          status: teamsResponse.status,
+          statusText: teamsResponse.statusText,
+          error: teamsData,
+          organizationTest: {
+            success: true,
+            name: orgData.name,
+            id: orgData.id,
+          },
+        },
+        { status: teamsResponse.status }
+      );
     }
 
     console.log('✅ Teams fetch successful');
@@ -86,8 +95,10 @@ export async function GET(req: NextRequest) {
 
     // Check if the team ID from environment exists
     const envTeamId = process.env.BOOMBOX_DELIVERY_NETWORK_TEAM_ID;
-    const teamExists = envTeamId ? teamsData.some((team: any) => team.id === envTeamId) : false;
-    
+    const teamExists = envTeamId
+      ? teamsData.some((team: any) => team.id === envTeamId)
+      : false;
+
     if (envTeamId) {
       console.log('\n🔍 Checking environment team ID:', envTeamId);
       console.log('Team exists:', teamExists ? '✅ Yes' : '❌ No');
@@ -98,43 +109,48 @@ export async function GET(req: NextRequest) {
     const testTaskPayload = {
       destination: {
         address: {
-          number: "105",
-          street: "Associated Road",
-          city: "South San Francisco",
-          state: "CA",
-          country: "USA"
-        }
+          number: '100',
+          street: 'E Grand Ave. Unit 2',
+          city: 'South San Francisco',
+          state: 'CA',
+          country: 'USA',
+        },
       },
-      recipients: [{
-        name: "Test Recipient",
-        phone: "+14153223135",
-        skipPhoneNumberValidation: true,
-        notes: ""
-      }],
-      notes: "Test task - this is a connection test",
+      recipients: [
+        {
+          name: 'Test Recipient',
+          phone: '+14153223135',
+          skipPhoneNumberValidation: true,
+          notes: '',
+        },
+      ],
+      notes: 'Test task - this is a connection test',
       serviceTime: 20,
-      completeAfter: Date.now() + (60 * 60 * 1000), // 1 hour from now
-      completeBefore: Date.now() + (90 * 60 * 1000), // 1.5 hours from now
+      completeAfter: Date.now() + 60 * 60 * 1000, // 1 hour from now
+      completeBefore: Date.now() + 90 * 60 * 1000, // 1.5 hours from now
       quantity: 1,
       container: {
-        type: "TEAM",
-        team: envTeamId || teamsData[0]?.id || "MISSING_TEAM_ID"
+        type: 'TEAM',
+        team: envTeamId || teamsData[0]?.id || 'MISSING_TEAM_ID',
       },
       recipientSkipSMSNotifications: true,
       pickupTask: true,
       customFields: [
         {
-          key: "boomboxAppointmentId",
-          value: 999999
+          key: 'boomboxAppointmentId',
+          value: 999999,
         },
         {
-          key: "boomboxUnitNumber",
-          value: "TEST001"
-        }
-      ]
+          key: 'boomboxUnitNumber',
+          value: 'TEST001',
+        },
+      ],
     };
 
-    console.log('📦 Test task payload structure:', JSON.stringify(testTaskPayload, null, 2));
+    console.log(
+      '📦 Test task payload structure:',
+      JSON.stringify(testTaskPayload, null, 2)
+    );
 
     // Return success response with all test results
     return NextResponse.json({
@@ -145,36 +161,38 @@ export async function GET(req: NextRequest) {
           success: true,
           name: orgData.name,
           id: orgData.id,
-          email: orgData.email
+          email: orgData.email,
         },
         teams: {
           success: true,
           count: teamsData.length,
           teams: teamsData.map((team: any) => ({
             name: team.name,
-            id: team.id
+            id: team.id,
           })),
           environmentTeamId: envTeamId,
-          environmentTeamExists: teamExists
+          environmentTeamExists: teamExists,
         },
         taskPayload: {
           valid: true,
-          structure: 'Validated - structure looks correct'
-        }
+          structure: 'Validated - structure looks correct',
+        },
       },
       apiKey: {
         exists: true,
         prefix: apiKey.substring(0, 8) + '...',
-        length: apiKey.length
-      }
+        length: apiKey.length,
+      },
     });
-
   } catch (error) {
     console.error('❌ Onfleet API test failed:', error);
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      },
+      { status: 500 }
+    );
   }
 }

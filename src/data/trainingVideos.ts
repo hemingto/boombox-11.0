@@ -4,21 +4,23 @@
  * @refactor Extracted video data into centralized constants file
  */
 
+export type VideoCategory = 'Packing' | 'Transportation' | 'Onfleet';
+
 export interface TrainingVideo {
   title: string;
   link: string;
-  category: 'Packing' | 'Transportation';
+  category: VideoCategory;
 }
 
 export const TRAINING_VIDEOS: TrainingVideo[] = [
   {
     title: 'How to Load a Boombox',
-    link: 'https://www.youtube.com/watch?v=ydIu9mavAKA&t=79s',
+    link: 'https://www.youtube.com/watch?v=ydIu9mavAKA',
     category: 'Packing',
   },
   {
     title: 'How to Connect and Disconnect a U-Box Trailer',
-    link: 'https://www.youtube.com/watch?v=0-KsDh2yrJU&t=47s',
+    link: 'https://www.youtube.com/watch?v=0-KsDh2yrJU',
     category: 'Transportation',
   },
   {
@@ -27,29 +29,24 @@ export const TRAINING_VIDEOS: TrainingVideo[] = [
     category: 'Packing',
   },
   {
-    title: 'Best Practices for Moving Furniture',
-    link: 'https://www.youtube.com/watch?v=example4',
-    category: 'Packing',
-  },
-  {
-    title: 'How to Use Moving Blankets Effectively',
-    link: 'https://www.youtube.com/watch?v=example5',
-    category: 'Packing',
-  },
-  {
     title: 'Backing Up a Trailer',
     link: 'https://www.youtube.com/watch?v=9YkatTz_Qnw',
-    category: 'Packing',
+    category: 'Transportation',
   },
   {
     title: 'Best Practices Driving a Trailer',
     link: 'https://www.youtube.com/watch?v=_7pXQSuV_BE',
     category: 'Transportation',
   },
+  {
+    title: 'Getting Started With The Onfleet Driver App',
+    link: 'https://www.youtube.com/watch?v=zeqNJ3GC3g0',
+    category: 'Onfleet',
+  },
 ];
 
 export interface VideoFilterOption {
-  value: 'all' | 'Packing' | 'Transportation';
+  value: 'all' | VideoCategory;
   label: string;
 }
 
@@ -57,5 +54,5 @@ export const VIDEO_FILTER_OPTIONS: VideoFilterOption[] = [
   { value: 'all', label: 'All' },
   { value: 'Packing', label: 'Packing' },
   { value: 'Transportation', label: 'Transportation' },
+  { value: 'Onfleet', label: 'Onfleet' },
 ];
-

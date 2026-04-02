@@ -54,7 +54,7 @@ export const guidePages: Record<string, GuidePage> = {
       {
         type: 'paragraph',
         content:
-          'Your first Boombox delivery is designed to be simple and stress-free. A delivery driver brings a mobile storage unit directly to your location, you pack it on your schedule, and we transport it to our secure storage facility. This guide walks you through every step of the process so you know exactly what to expect.',
+          'Your first Boombox delivery is designed to be simple and stress-free. A driver brings a mobile storage unit directly to your location, you pack it on your schedule, and we transport it to our secure storage facility. This guide walks you through every step of the process so you know exactly what to expect.',
       },
       {
         type: 'heading',
@@ -64,7 +64,7 @@ export const guidePages: Record<string, GuidePage> = {
       {
         type: 'paragraph',
         content:
-          'When you book your delivery appointment, you can select a 1-hour delivery window that works best for you. With real-time tracking, you will always know exactly when your Boombox is set to arrive within that window. We can typically deliver a container with as little as 1 day of notice, so you have plenty of flexibility.',
+          'When you book your initial pickup appointment, you can select a 1-hour window that works best for you. With real-time tracking, you will always know exactly when your Boombox is set to arrive within that window. We can typically deliver a container with as little as 2 day of notice, so you have plenty of flexibility.',
       },
       {
         type: 'heading',
@@ -74,7 +74,7 @@ export const guidePages: Record<string, GuidePage> = {
       {
         type: 'paragraph',
         content:
-          'Once the Boombox delivery driver arrives at your pickup address, they will contact you and your free loading time begins. The driver will position the container at your location and make it accessible for loading. Each container rests about 6 inches off the ground to keep your belongings safe and dry.',
+          'Once the Boombox driver arrives at your address, they will contact you and your free loading time begins. The driver will position the container at your location and make it accessible for loading. Each container rests about 6 inches off the ground to keep your belongings safe and dry.',
       },
       {
         type: 'heading',
@@ -89,7 +89,7 @@ export const guidePages: Record<string, GuidePage> = {
       {
         type: 'callout',
         content:
-          'Tip: Go through our pre-delivery checklist before your appointment to make sure you are prepared and ready to go when the driver arrives. Having your items staged near the loading area will help you stay within the free loading window.',
+          'Tip: Go through our pre-appointment checklist before your appointment to make sure you are prepared and ready to go when the driver arrives. Having your items staged near the loading area will help you stay within the free loading window.',
       },
       {
         type: 'heading',
@@ -120,7 +120,7 @@ export const guidePages: Record<string, GuidePage> = {
       {
         type: 'paragraph',
         content:
-          'If you need more than one container, we will send a maximum of two Boombox containers at the same time to ensure there is enough space at your pickup address. Any remaining containers will be staggered about an hour after the first two have been delivered.',
+          'If you need more than one container, we will send a maximum of two Boombox containers at the same time to ensure there is enough space at your address. Any remaining containers will be staggered about an hour after the first two have been delivered.',
       },
       {
         type: 'heading',
@@ -130,7 +130,7 @@ export const guidePages: Record<string, GuidePage> = {
       {
         type: 'paragraph',
         content:
-          'You will not be charged until the day of your delivery. When you book your reservation, we ask for credit card information to hold your spot and charge a reversible $10 hold to verify the card. On the day of your initial pickup, you will be charged for your first month of storage along with any optional add-ons you selected. After that, your storage bill recurs every 30 days.',
+          'You will not be charged until the day of your delivery. When you book your reservation, we ask for credit card information to hold your spot and charge a reversible $10 hold to verify the card. On the day of your initial appointment, you will be charged for your first month of storage along with any optional add-ons you selected. After that, your storage bill recurs every 30 days.',
       },
       {
         type: 'heading',

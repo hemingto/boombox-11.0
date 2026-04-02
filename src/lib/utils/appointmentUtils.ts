@@ -86,24 +86,27 @@ export interface AdditionalStorageAppointmentData {
 }
 
 /**
- * Generate a token for driver reconfirmation (same format as driver-assign route)
- * @source boombox-10.0/src/app/api/appointments/[appointmentId]/edit/route.ts (line 60)
+ * Generate a secure short token for driver reconfirmation, stored in ShortToken table
  */
-export function generateDriverReconfirmToken(
+export async function generateDriverReconfirmToken(
   driverId: number,
   appointmentId: number,
   unitNumber: number
-): string {
-  const payload: DriverReconfirmToken = {
-    driverId,
-    appointmentId,
-    unitNumber,
-    action: 'reconfirm',
-    timestamp: Date.now(),
-  };
-
-  // Use base64 encoding for the token (same as driver-assign route)
-  return Buffer.from(JSON.stringify(payload)).toString('base64');
+): Promise<string> {
+  const { createShortToken, expiresIn, DURATIONS } = await import(
+    '@/lib/services/shortTokenService'
+  );
+  return createShortToken(
+    'driver_reconfirm',
+    {
+      driverId,
+      appointmentId,
+      unitNumber,
+      action: 'reconfirm',
+      timestamp: Date.now(),
+    },
+    expiresIn(DURATIONS.HOURS_2)
+  );
 }
 
 /**
@@ -621,28 +624,24 @@ export async function getDriverAppointments(driverId: number) {
 }
 
 /**
- * Verify JWT tracking token and extract appointment ID
- * @source boombox-10.0/src/app/api/tracking/[token]/route.ts (JWT verification logic)
+ * Verify tracking token and extract appointment ID via ShortToken DB lookup.
  */
-export function verifyTrackingToken(token: string): {
+export async function verifyTrackingToken(token: string): Promise<{
   valid: boolean;
   appointmentId?: number;
   error?: string;
-} {
+}> {
   try {
-    const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || 'fallback-secret'
-    ) as any;
-
-    if (!decoded.appointmentId) {
+    const { resolveShortToken } = await import(
+      '@/lib/services/shortTokenService'
+    );
+    const payload = await resolveShortToken(token, 'appt_tracking');
+    const appointmentId = payload.appointmentId as number | undefined;
+    if (!appointmentId) {
       return { valid: false, error: 'Invalid token - no appointment ID' };
     }
-
-    return { valid: true, appointmentId: decoded.appointmentId };
-  } catch (error) {
-    console.error('JWT verification failed:', error);
+    return { valid: true, appointmentId };
+  } catch {
     return { valid: false, error: 'Invalid or expired token' };
   }
 }

@@ -51,9 +51,9 @@ export default function PackingSupplyOfferPage() {
   const [tokenData, setTokenData] = useState<OfferTokenData | null>(null);
   const [routeOffer, setRouteOffer] = useState<RouteOffer | null>(null);
   const [actionComplete, setActionComplete] = useState(false);
-  const [actionResult, setActionResult] = useState<'accepted' | 'declined' | null>(
-    null
-  );
+  const [actionResult, setActionResult] = useState<
+    'accepted' | 'declined' | null
+  >(null);
   const [acceptInProgress, setAcceptInProgress] = useState(false);
   const [declineInProgress, setDeclineInProgress] = useState(false);
   const [offerAlreadyHandled, setOfferAlreadyHandled] = useState(false);
@@ -69,39 +69,31 @@ export default function PackingSupplyOfferPage() {
           return;
         }
 
-        // Decode JWT token
-        let decodedToken: OfferTokenData;
-        try {
-          const tokenParts = token.split('.');
-          if (tokenParts.length !== 3) {
-            throw new Error('Invalid JWT format');
-          }
+        // Resolve token server-side via the GET driver-response endpoint
+        const verifyResponse = await fetch(
+          `/api/onfleet/packing-supplies/driver-response?token=${encodeURIComponent(token)}`
+        );
 
-          const payload = tokenParts[1];
-          const paddedPayload = payload + '='.repeat((4 - (payload.length % 4)) % 4);
-          const decoded = JSON.parse(atob(paddedPayload));
-
-          decodedToken = decoded as OfferTokenData;
-          if (!decodedToken || !decodedToken.routeId || !decodedToken.driverId) {
-            throw new Error('Invalid token structure');
-          }
-        } catch (e) {
-          setError('Invalid offer link format.');
+        if (!verifyResponse.ok) {
+          const errorData = await verifyResponse.json();
+          setError(errorData.error || 'Invalid or expired offer link.');
           return;
         }
 
-        // Check if token has expired
-        const now = Date.now();
-        if (decodedToken.expiresAt && now > decodedToken.expiresAt) {
-          setError('This offer has expired. Please check for new delivery opportunities.');
-          return;
-        }
+        const verifyData = await verifyResponse.json();
+        const decodedToken: OfferTokenData = {
+          routeId: verifyData.route.routeId,
+          driverId: verifyData.driver.id,
+          expiresAt: verifyData.expiresAt,
+          action: 'packing_supply_route_offer',
+          timestamp: Date.now(),
+        };
 
         setTokenData(decodedToken);
 
         // Fetch route details
         const response = await fetch(
-          `/api/onfleet/packing-supplies/route-details/${decodedToken.routeId}?token=${token}`
+          `/api/onfleet/packing-supplies/route-details/${decodedToken.routeId}?token=${encodeURIComponent(token)}`
         );
 
         if (!response.ok) {
@@ -122,7 +114,9 @@ export default function PackingSupplyOfferPage() {
         setRouteOffer(routeData);
       } catch (e: any) {
         console.error('Error loading packing supply offer:', e);
-        setError(e.message || 'An unexpected error occurred while loading the offer.');
+        setError(
+          e.message || 'An unexpected error occurred while loading the offer.'
+        );
       } finally {
         setLoading(false);
       }
@@ -169,16 +163,19 @@ export default function PackingSupplyOfferPage() {
         return;
       }
 
-      const response = await fetch('/api/onfleet/packing-supplies/driver-response', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          token: token,
-          action: action,
-        }),
-      });
+      const response = await fetch(
+        '/api/onfleet/packing-supplies/driver-response',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            token: token,
+            action: action,
+          }),
+        }
+      );
 
       const responseData = await response.json();
 
@@ -242,9 +239,12 @@ export default function PackingSupplyOfferPage() {
               <div className="mb-4 flex justify-center">
                 <CheckCircleIcon className="text-emerald-500 w-16 h-16" />
               </div>
-              <h2 className="text-xl font-bold text-zinc-950 mb-2">Route Accepted!</h2>
+              <h2 className="text-xl font-bold text-zinc-950 mb-2">
+                Route Accepted!
+              </h2>
               <p className="text-zinc-950 mb-4">
-                Thank you for accepting this delivery route. You&apos;ll receive the delivery details shortly.
+                Thank you for accepting this delivery route. You&apos;ll receive
+                the delivery details shortly.
               </p>
             </>
           ) : (
@@ -252,9 +252,12 @@ export default function PackingSupplyOfferPage() {
               <div className="mb-4 flex justify-center">
                 <XCircleIcon className="text-red-500 w-16 h-16" />
               </div>
-              <h2 className="text-xl font-bold text-zinc-950 mb-2">Route Declined</h2>
+              <h2 className="text-xl font-bold text-zinc-950 mb-2">
+                Route Declined
+              </h2>
               <p className="text-zinc-950 mb-4">
-                You have declined this delivery route. We&apos;ll notify you of future opportunities.
+                You have declined this delivery route. We&apos;ll notify you of
+                future opportunities.
               </p>
             </>
           )}
@@ -276,7 +279,9 @@ export default function PackingSupplyOfferPage() {
           <div className="mb-4 flex justify-center">
             <ExclamationTriangleIcon className="text-amber-500 w-16 h-16" />
           </div>
-          <h2 className="text-xl font-bold text-zinc-950 mb-2">Route Not Found</h2>
+          <h2 className="text-xl font-bold text-zinc-950 mb-2">
+            Route Not Found
+          </h2>
           <p className="text-zinc-950 mb-4">
             We couldn&apos;t find details for this delivery route.
           </p>
@@ -303,8 +308,12 @@ export default function PackingSupplyOfferPage() {
             <TruckIcon className="w-6 h-6 text-white" />
           </div>
           <div className="flex-1">
-            <h1 className="text-xl font-bold text-white">Packing Supply Delivery</h1>
-            <p className="text-sm text-white">Please accept or decline this route</p>
+            <h1 className="text-xl font-bold text-white">
+              Packing Supply Delivery
+            </h1>
+            <p className="text-sm text-white">
+              Please accept or decline this route
+            </p>
           </div>
           {timeRemaining && (
             <div className="text-right">
@@ -317,7 +326,8 @@ export default function PackingSupplyOfferPage() {
         {offerAlreadyHandled && (
           <div className="mt-4 p-3 border border-amber-500 bg-amber-50 rounded-md">
             <p className="text-sm text-amber-700">
-              This route has already been handled. Details are shown for your reference.
+              This route has already been handled. Details are shown for your
+              reference.
             </p>
           </div>
         )}
@@ -387,9 +397,13 @@ export default function PackingSupplyOfferPage() {
                       <span className="w-6 h-6 bg-zinc-900 text-white text-xs rounded-full flex items-center justify-center font-semibold">
                         {index + 1}
                       </span>
-                      <p className="font-semibold text-zinc-900">{order.contactName}</p>
+                      <p className="font-semibold text-zinc-900">
+                        {order.contactName}
+                      </p>
                     </div>
-                    <p className="text-sm text-gray-600 ml-8">{order.deliveryAddress}</p>
+                    <p className="text-sm text-gray-600 ml-8">
+                      {order.deliveryAddress}
+                    </p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold text-zinc-900">
@@ -420,8 +434,8 @@ export default function PackingSupplyOfferPage() {
 
           <div className="mt-4 p-3 border border-slate-100 bg-white rounded-md">
             <p className="text-sm text-zinc-500">
-              This route offer expires 20 minutes after being sent. Payment will be
-              processed after all deliveries are completed.
+              This route offer expires 20 minutes after being sent. Payment will
+              be processed after all deliveries are completed.
             </p>
           </div>
         </div>
@@ -429,4 +443,3 @@ export default function PackingSupplyOfferPage() {
     </div>
   );
 }
-

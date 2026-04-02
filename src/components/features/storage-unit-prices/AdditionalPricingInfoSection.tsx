@@ -155,7 +155,7 @@ export function AdditionalPricingInfoSection(): React.ReactElement {
       title: '$75 flat rate',
       subtitle: 'Storage Unit Access',
       description:
-        "Need something back? We'll deliver your boombox to where you need us.",
+        "Need something back? We'll deliver your boombox to where you need it",
       images: [
         '/storage-unit-prices/storage-access/storage-access-a.png',
         '/storage-unit-prices/storage-access/storage-access-b.png',
@@ -171,7 +171,7 @@ export function AdditionalPricingInfoSection(): React.ReactElement {
       title: 'Boxes',
       subtitle: 'Packing Supplies',
       description:
-        'Need packing supplies? Order boxes, tape, and more from our online store.',
+        'Order boxes, tape, and more from our online store. Next day delivery available',
       images: [
         '/storage-unit-prices/packing-supplies/packing-supplies-a.png',
         '/storage-unit-prices/packing-supplies/packing-supplies-b.png',

@@ -31,6 +31,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { driverOfferTemplate } from '@/lib/messaging/templates/sms/packing-supply';
+// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import {
   calculateRoutePayoutEstimate,
   calculateEstimatedDuration,
@@ -42,7 +43,7 @@ import {
   DriverOfferGetRequestSchema,
 } from '@/lib/validations/api.validations';
 import { ApiResponse } from '@/types/api.types';
-import jwt from 'jsonwebtoken';
+import { createShortToken } from '@/lib/services/shortTokenService';
 
 const OFFER_TIMEOUT_MINUTES = 20;
 
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
     // Get candidate drivers with comprehensive filtering
     // Exclude drivers who have already been offered this route
     const alreadyOfferedIds = route.offeredDriverIds || [];
-    
+
     const candidateDrivers = await prisma.driver.findMany({
       where: {
         id: { notIn: alreadyOfferedIds }, // Exclude drivers already offered to
@@ -309,10 +310,10 @@ export async function POST(request: NextRequest) {
       expiresAt: Date.now() + OFFER_TIMEOUT_MINUTES * 60 * 1000,
     };
 
-    const offerToken = jwt.sign(
+    const offerToken = await createShortToken(
+      'ps_route_offer',
       tokenPayload,
-      process.env.JWT_SECRET || 'fallback-secret',
-      { expiresIn: `${OFFER_TIMEOUT_MINUTES}m` }
+      new Date(Date.now() + OFFER_TIMEOUT_MINUTES * 60 * 1000)
     );
 
     // Create offer URLs

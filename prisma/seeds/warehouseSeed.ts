@@ -5,12 +5,12 @@ const prisma = new PrismaClient();
 const warehouses = [
   {
     name: 'South San Francisco',
-    address: '105 Associated Road',
+    address: '100 E Grand Ave. Unit 2',
     city: 'South San Francisco',
     state: 'CA',
     zipCode: '94080',
-    latitude: 37.6547,
-    longitude: -122.4077,
+    latitude: 37.6553,
+    longitude: -122.4061,
     hoursOpen: '08:30',
     hoursClose: '16:30',
     isActive: true,

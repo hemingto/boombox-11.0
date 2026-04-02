@@ -22,14 +22,15 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
-import { 
+import {
   VerifyMoverChangeTokenRequestSchema,
-  VerifyMoverChangeTokenResponseSchema 
+  VerifyMoverChangeTokenResponseSchema,
 } from '@/lib/validations/api.validations';
+// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import {
   decodeMoverChangeToken,
   validateMoverChangeTokenData,
-  checkMoverChangeRequestStatus
+  checkMoverChangeRequestStatus,
 } from '@/lib/utils/moverChangeUtils';
 
 export async function GET(request: NextRequest) {
@@ -38,7 +39,9 @@ export async function GET(request: NextRequest) {
     const token = searchParams.get('token');
 
     // Validate request parameters
-    const parseResult = VerifyMoverChangeTokenRequestSchema.safeParse({ token });
+    const parseResult = VerifyMoverChangeTokenRequestSchema.safeParse({
+      token,
+    });
     if (!parseResult.success) {
       return NextResponse.json(
         { error: 'Token is required', details: parseResult.error.format() },
@@ -47,9 +50,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Decode and validate token
-    const tokenData = decodeMoverChangeToken(parseResult.data.token);
-    const { appointmentId, suggestedMovingPartnerId, originalMovingPartnerId, timestamp } = 
-      validateMoverChangeTokenData(tokenData);
+    const tokenData = await decodeMoverChangeToken(parseResult.data.token);
+    const {
+      appointmentId,
+      suggestedMovingPartnerId,
+      originalMovingPartnerId,
+      timestamp,
+    } = validateMoverChangeTokenData(tokenData);
 
     // Get appointment details with related data
     const appointment = await prisma.appointment.findUnique({
@@ -59,19 +66,22 @@ export async function GET(request: NextRequest) {
           select: {
             firstName: true,
             lastName: true,
-            phoneNumber: true
-          }
+            phoneNumber: true,
+          },
         },
         requestedStorageUnits: {
           include: {
-            storageUnit: true
-          }
-        }
-      }
+            storageUnit: true,
+          },
+        },
+      },
     });
 
     if (!appointment) {
-      return NextResponse.json({ error: 'Appointment not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Appointment not found' },
+        { status: 404 }
+      );
     }
 
     // Get original mover details
@@ -80,8 +90,8 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         name: true,
-        hourlyRate: true
-      }
+        hourlyRate: true,
+      },
     });
 
     // Get suggested mover details with average rating
@@ -89,19 +99,24 @@ export async function GET(request: NextRequest) {
       where: { id: suggestedMovingPartnerId },
       include: {
         feedback: {
-          select: { rating: true }
-        }
-      }
+          select: { rating: true },
+        },
+      },
     });
 
     if (!originalMover || !suggestedMover) {
-      return NextResponse.json({ error: 'Moving partner not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Moving partner not found' },
+        { status: 404 }
+      );
     }
 
     // Calculate average rating
-    const averageRating = suggestedMover.feedback.length > 0 
-      ? suggestedMover.feedback.reduce((sum, f) => sum + f.rating, 0) / suggestedMover.feedback.length 
-      : 0;
+    const averageRating =
+      suggestedMover.feedback.length > 0
+        ? suggestedMover.feedback.reduce((sum, f) => sum + f.rating, 0) /
+          suggestedMover.feedback.length
+        : 0;
 
     // Check if appointment still has the mover change request pending
     checkMoverChangeRequestStatus(appointment);
@@ -121,13 +136,13 @@ export async function GET(request: NextRequest) {
       requestedStorageUnits: appointment.requestedStorageUnits,
       originalMover: {
         name: originalMover.name,
-        hourlyRate: originalMover.hourlyRate || 0
+        hourlyRate: originalMover.hourlyRate || 0,
       },
       suggestedMover: {
         name: suggestedMover.name,
         hourlyRate: suggestedMover.hourlyRate || 0,
-        averageRating
-      }
+        averageRating,
+      },
     };
 
     const response = {
@@ -135,27 +150,24 @@ export async function GET(request: NextRequest) {
       suggestedMovingPartnerId,
       originalMovingPartnerId,
       timestamp,
-      appointment: appointmentData
+      appointment: appointmentData,
     };
 
     // Validate response structure
-    const validatedResponse = VerifyMoverChangeTokenResponseSchema.parse(response);
-    
-    return NextResponse.json(validatedResponse);
+    const validatedResponse =
+      VerifyMoverChangeTokenResponseSchema.parse(response);
 
+    return NextResponse.json(validatedResponse);
   } catch (error) {
     console.error('Error verifying mover change token:', error);
-    
+
     if (error instanceof Error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    
+
     return NextResponse.json(
       { error: 'Failed to verify token' },
       { status: 500 }
     );
   }
-} 
+}
