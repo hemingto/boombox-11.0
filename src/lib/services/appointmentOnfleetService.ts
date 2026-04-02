@@ -153,6 +153,12 @@ export async function buildTaskPayload(
     completeBefore: timeWindows.completeBefore,
     metadata: [
       {
+        name: 'step',
+        type: 'number',
+        value: stepNumber,
+        visibility: ['api'],
+      },
+      {
         name: 'appointmentId',
         type: 'string',
         value: String(appointmentData.id),
