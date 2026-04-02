@@ -2,28 +2,29 @@
  * @fileoverview Service for handling requested storage unit assignment to appointments
  * @source boombox-10.0/src/app/api/admin/tasks/[taskId]/route.ts (requested-unit task display logic)
  * @source boombox-10.0/src/app/api/admin/appointments/[id]/assign-requested-unit/route.ts (assignment processing logic)
- * 
+ *
  * SERVICE FUNCTIONALITY:
  * - Get requested storage unit assignment task details for display
  * - Process requested storage unit assignments with driver verification
  * - Handle trailer photo uploads and OnfleetTask associations
  * - Manage unit indexing for multi-unit requested storage scenarios
  * - Create audit logs for admin actions
- * 
+ *
  * USED BY:
  * - Admin task management interface for requested unit assignments
  * - Storage access appointment workflows
  * - Customer-requested storage unit preparation tasks
- * 
+ *
  * @refactor Extracted from monolithic admin tasks route for better organization
  */
 
 import { prisma } from '@/lib/database/prismaClient';
-import { 
+// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
+import {
   formatTaskDate,
   markRequestedUnitReady,
   updateOnfleetTasksForRequestedUnit,
-  createRequestedUnitAssignmentLog
+  createRequestedUnitAssignmentLog,
 } from '@/lib/utils/adminTaskUtils';
 
 /**
@@ -68,7 +69,11 @@ export class AssignRequestedUnitService {
    * Get requested storage unit assignment task details for display
    * @source boombox-10.0/src/app/api/admin/tasks/[taskId]/route.ts (lines 531-576)
    */
-  async getRequestedUnitAssignmentTask(appointmentId: number, unitIndex: number, storageUnitId: number): Promise<AssignRequestedUnitTask | null> {
+  async getRequestedUnitAssignmentTask(
+    appointmentId: number,
+    unitIndex: number,
+    storageUnitId: number
+  ): Promise<AssignRequestedUnitTask | null> {
     try {
       const appointment = await prisma.appointment.findUnique({
         where: { id: appointmentId },
@@ -77,7 +82,7 @@ export class AssignRequestedUnitService {
           jobCode: true,
           address: true,
           date: true,
-        }
+        },
       });
 
       if (!appointment) {
@@ -85,29 +90,32 @@ export class AssignRequestedUnitService {
       }
 
       // Get all requested storage units for this appointment
-      const requestedStorageUnits = await prisma.requestedAccessStorageUnit.findMany({
-        where: {
-          appointmentId: appointmentId
-        },
-        include: {
-          storageUnit: {
-            select: {
-              id: true,
-              storageUnitNumber: true
-            }
-          }
-        },
-        orderBy: {
-          id: 'asc'
-        }
-      });
+      const requestedStorageUnits =
+        await prisma.requestedAccessStorageUnit.findMany({
+          where: {
+            appointmentId: appointmentId,
+          },
+          include: {
+            storageUnit: {
+              select: {
+                id: true,
+                storageUnitNumber: true,
+              },
+            },
+          },
+          orderBy: {
+            id: 'asc',
+          },
+        });
 
       // Get the specific unit for this task (if available)
-      const specificUnit = requestedStorageUnits.length >= unitIndex 
-        ? requestedStorageUnits[unitIndex - 1] 
-        : null;
+      const specificUnit =
+        requestedStorageUnits.length >= unitIndex
+          ? requestedStorageUnits[unitIndex - 1]
+          : null;
 
-      const unitNumber = specificUnit?.storageUnit?.storageUnitNumber || 'Unknown';
+      const unitNumber =
+        specificUnit?.storageUnit?.storageUnitNumber || 'Unknown';
       const requestedTotalUnits = requestedStorageUnits.length;
       const formattedDate = formatTaskDate(appointment.date);
 
@@ -117,7 +125,8 @@ export class AssignRequestedUnitService {
       return {
         id: taskId,
         title: 'Assign Requested Unit',
-        description: 'Verify job code and driver. Take photo of Boombox trailer on vehicle.',
+        description:
+          'Verify job code and driver. Take photo of Boombox trailer on vehicle.',
         action: 'Assign',
         color: 'indigo',
         details: `<strong>Job Code:</strong> ${appointment.jobCode ?? ''}<br><strong>Job Date:</strong> ${formattedDate}<br><strong>Unit:</strong> ${unitNumber}${requestedTotalUnits > 1 ? ` (${unitIndex} of ${requestedTotalUnits})` : ''}`,
@@ -126,7 +135,7 @@ export class AssignRequestedUnitService {
         appointmentAddress: appointment.address ?? '',
         storageUnitNumber: unitNumber,
         unitIndex: unitIndex,
-        requestedTotalUnits: requestedTotalUnits
+        requestedTotalUnits: requestedTotalUnits,
       };
     } catch (error) {
       console.error('Error getting requested unit assignment task:', error);
@@ -144,24 +153,29 @@ export class AssignRequestedUnitService {
     request: RequestedUnitAssignmentRequest
   ): Promise<RequestedUnitAssignmentResult> {
     try {
-      const { storageUnitId, driverMatches, trailerPhotos, unitIndex } = request;
+      const { storageUnitId, driverMatches, trailerPhotos, unitIndex } =
+        request;
 
       // Validate that the storage unit exists
       const storageUnit = await prisma.storageUnit.findUnique({
         where: { id: storageUnitId },
-        select: { storageUnitNumber: true }
+        select: { storageUnitNumber: true },
       });
 
       if (!storageUnit) {
         return {
           success: false,
           message: '',
-          error: 'Storage unit not found'
+          error: 'Storage unit not found',
         };
       }
 
       // Update the requested storage unit to mark it as ready and store the trailer photos
-      await markRequestedUnitReady(appointmentId, storageUnitId, trailerPhotos || []);
+      await markRequestedUnitReady(
+        appointmentId,
+        storageUnitId,
+        trailerPhotos || []
+      );
 
       // Update OnfleetTask records with storage unit association and driver verification
       const driverId = await updateOnfleetTasksForRequestedUnit(
@@ -183,15 +197,14 @@ export class AssignRequestedUnitService {
 
       return {
         success: true,
-        message: 'Storage unit assigned successfully'
+        message: 'Storage unit assigned successfully',
       };
-
     } catch (error) {
       console.error('Error assigning requested storage unit:', error);
       return {
         success: false,
         message: '',
-        error: 'Failed to assign requested storage unit'
+        error: 'Failed to assign requested storage unit',
       };
     }
   }
@@ -200,18 +213,20 @@ export class AssignRequestedUnitService {
    * Check if requested unit assignment is needed for appointment
    * Used by the task listing service to determine if tasks should be created
    */
-  async isRequestedUnitAssignmentNeeded(appointmentId: number): Promise<boolean> {
+  async isRequestedUnitAssignmentNeeded(
+    appointmentId: number
+  ): Promise<boolean> {
     try {
       const appointment = await prisma.appointment.findUnique({
         where: { id: appointmentId },
         select: {
           requestedStorageUnits: {
-            select: { id: true, storageUnitId: true }
+            select: { id: true, storageUnitId: true },
           },
           onfleetTasks: {
-            select: { storageUnitId: true }
-          }
-        }
+            select: { storageUnitId: true },
+          },
+        },
       });
 
       if (!appointment) return false;
@@ -222,9 +237,10 @@ export class AssignRequestedUnitService {
         .map(task => task.storageUnitId);
 
       // Check if there are any requested units not yet assigned
-      const hasUnassignedRequestedUnits = appointment.requestedStorageUnits.length > 0 &&
-        appointment.requestedStorageUnits.some(unit => 
-          !assignedStorageUnitIds.includes(unit.storageUnitId)
+      const hasUnassignedRequestedUnits =
+        appointment.requestedStorageUnits.length > 0 &&
+        appointment.requestedStorageUnits.some(
+          unit => !assignedStorageUnitIds.includes(unit.storageUnitId)
         );
 
       return hasUnassignedRequestedUnits;
@@ -238,11 +254,11 @@ export class AssignRequestedUnitService {
    * Get all requested units that need assignment for task listing
    * Helper method for AdminTaskListingService
    * Excludes canceled and completed appointments
-   * 
+   *
    * NOTE: This task shows when a requested storage unit has NOT had pickup photos uploaded yet.
    * The pickup photos are uploaded when the "Assign Requested Unit" task is completed.
    * This is separate from the "Prep Units for Delivery" task which checks unitsReady flag.
-   * 
+   *
    * Workflow:
    * 1) "Prep Units for Delivery" task - Admin forklifts unit to staging area (sets unitsReady=true)
    * 2) "Assign Requested Unit" task - Driver arrives, admin verifies driver and uploads trailer photo
@@ -251,27 +267,34 @@ export class AssignRequestedUnitService {
   async getAllRequestedUnitsNeedingAssignment() {
     try {
       const today = new Date();
-      const twoDaysFromNow = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
+      const twoDaysFromNow = new Date(
+        today.getTime() + 2 * 24 * 60 * 60 * 1000
+      );
 
       const appointments = await prisma.appointment.findMany({
         where: {
           appointmentType: {
-            in: ['Storage Unit Access', 'End Storage Plan']
+            in: ['Storage Unit Access', 'End Storage Plan'],
           },
-          date: {
-            gte: today,
-            lt: twoDaysFromNow
-          },
+          OR: [
+            {
+              date: {
+                gte: today,
+                lt: twoDaysFromNow,
+              },
+            },
+            { status: 'In Transit' },
+          ],
           // Must have at least one requested storage unit
           // We filter for empty requestedUnitPickupPhotos in JavaScript below
           // because Prisma's isEmpty doesn't work reliably with PostgreSQL arrays
           requestedStorageUnits: {
-            some: {}
+            some: {},
           },
           // Exclude canceled and completed appointments
           status: {
-            notIn: EXCLUDED_APPOINTMENT_STATUSES
-          }
+            notIn: EXCLUDED_APPOINTMENT_STATUSES,
+          },
         },
         select: {
           id: true,
@@ -286,12 +309,12 @@ export class AssignRequestedUnitService {
               requestedUnitPickupPhotos: true,
               storageUnit: {
                 select: {
-                  storageUnitNumber: true
-                }
-              }
-            }
-          }
-        }
+                  storageUnitNumber: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       // Filter to only include requested units where the assign task hasn't been completed
@@ -306,11 +329,14 @@ export class AssignRequestedUnitService {
           appointmentId: appointment.id,
           jobCode: appointment.jobCode ?? '',
           requestedUnitNumber: unit.storageUnit.storageUnitNumber,
-          unitIndex: index + 1
+          unitIndex: index + 1,
         }));
       });
     } catch (error) {
-      console.error('Error getting all requested units needing assignment:', error);
+      console.error(
+        'Error getting all requested units needing assignment:',
+        error
+      );
       return [];
     }
   }
@@ -327,10 +353,10 @@ export class AssignRequestedUnitService {
         select: {
           onfleetTasks: {
             select: {
-              storageUnitId: true
-            }
-          }
-        }
+              storageUnitId: true,
+            },
+          },
+        },
       });
 
       if (!appointment) return [];
@@ -343,22 +369,22 @@ export class AssignRequestedUnitService {
       // Get all requested storage units
       const requestedUnits = await prisma.requestedAccessStorageUnit.findMany({
         where: {
-          appointmentId: appointmentId
+          appointmentId: appointmentId,
         },
         include: {
           storageUnit: {
             select: {
               id: true,
               storageUnitNumber: true,
-              status: true
-            }
-          }
+              status: true,
+            },
+          },
         },
         orderBy: {
           storageUnit: {
-            storageUnitNumber: 'asc'
-          }
-        }
+            storageUnitNumber: 'asc',
+          },
+        },
       });
 
       // Filter out units that are already assigned to Onfleet tasks

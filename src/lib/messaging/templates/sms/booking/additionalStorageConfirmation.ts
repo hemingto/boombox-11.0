@@ -7,13 +7,10 @@
 import { MessageTemplate } from '@/lib/messaging/types';
 
 export const additionalStorageConfirmationSms: MessageTemplate = {
-  text: `Hi \${firstName}, this is a confirmation that your additional storage appointment is scheduled for \${appointmentDate} at \${appointmentTime}. We look forward to seeing you!`,
-  requiredVariables: [
-    'firstName',
-    'appointmentDate', 
-    'appointmentTime'
-  ],
+  text: `Hi \${firstName}, this is a confirmation that your additional storage appointment is scheduled for \${appointmentDate} at \${appointmentTime}. Prepare for your appointment by reviewing our checklist: https://boombox-11-0.vercel.app/checklist. See you soon!`,
+  requiredVariables: ['firstName', 'appointmentDate', 'appointmentTime'],
   channel: 'sms',
   domain: 'booking',
-  description: 'SMS confirmation sent when customer schedules additional storage appointment'
-}; 
+  description:
+    'SMS confirmation sent when customer schedules additional storage appointment',
+};

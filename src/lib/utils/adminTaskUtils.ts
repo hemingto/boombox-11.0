@@ -690,7 +690,7 @@ export async function validatePackingSupplyOrderForPrep(orderId: number) {
     };
   }
 
-  if (order.status === 'Canceled') {
+  if (order.status === 'Canceled' || order.status === 'Cancelled') {
     return {
       valid: false,
       error: 'Cannot prep canceled order',

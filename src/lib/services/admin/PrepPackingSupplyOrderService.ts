@@ -2,27 +2,28 @@
  * @fileoverview Service for handling packing supply order preparation and delivery workflow
  * @source boombox-10.0/src/app/api/admin/tasks/[taskId]/route.ts (prep-packing-supply task display logic)
  * @source boombox-10.0/src/app/api/admin/packing-supplies/[orderId]/prep/route.ts (prep processing logic)
- * 
+ *
  * SERVICE FUNCTIONALITY:
  * - Get packing supply order preparation task details for display
  * - Process order preparation with status updates and admin tracking
  * - Handle order validation and inventory management workflow
  * - Manage delivery preparation and driver assignment coordination
  * - Create prep audit trails and admin logging
- * 
+ *
  * USED BY:
  * - Admin task management interface for packing supply preparation workflow
  * - Inventory management and order fulfillment systems
  * - Delivery route planning and driver coordination
- * 
+ *
  * @refactor Extracted from monolithic admin tasks route for better organization
  */
 
 import { prisma } from '@/lib/database/prismaClient';
-import { 
+// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
+import {
   formatTaskDate,
   markPackingSupplyOrderAsPrepped,
-  validatePackingSupplyOrderForPrep
+  validatePackingSupplyOrderForPrep,
 } from '@/lib/utils/adminTaskUtils';
 
 // Prep packing supply order task interface
@@ -78,7 +79,9 @@ export class PrepPackingSupplyOrderService {
    * Get packing supply order preparation task details for display
    * @source boombox-10.0/src/app/api/admin/tasks/[taskId]/route.ts (lines 643-696)
    */
-  async getPrepTask(orderId: number): Promise<PrepPackingSupplyOrderTask | null> {
+  async getPrepTask(
+    orderId: number
+  ): Promise<PrepPackingSupplyOrderTask | null> {
     try {
       const packingSupplyOrder = await prisma.packingSupplyOrder.findUnique({
         where: { id: orderId },
@@ -96,9 +99,8 @@ export class PrepPackingSupplyOrderService {
           assignedDriver: {
             select: {
               firstName: true,
-              lastName: true
-              
-            }
+              lastName: true,
+            },
           },
           orderDetails: {
             select: {
@@ -106,12 +108,12 @@ export class PrepPackingSupplyOrderService {
               quantity: true,
               product: {
                 select: {
-                  title: true
-                }
-              }
-            }
-          }
-        }
+                  title: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!packingSupplyOrder) {
@@ -119,12 +121,16 @@ export class PrepPackingSupplyOrderService {
       }
 
       // Only return task if order is not prepped and not canceled
-      if (packingSupplyOrder.isPrepped || packingSupplyOrder.status === 'Canceled') {
+      if (
+        packingSupplyOrder.isPrepped ||
+        packingSupplyOrder.status === 'Canceled' ||
+        packingSupplyOrder.status === 'Cancelled'
+      ) {
         return null;
       }
 
       const formattedDate = formatTaskDate(packingSupplyOrder.deliveryDate);
-      const driverName = packingSupplyOrder.assignedDriver 
+      const driverName = packingSupplyOrder.assignedDriver
         ? `${packingSupplyOrder.assignedDriver.firstName} ${packingSupplyOrder.assignedDriver.lastName}`
         : 'Unassigned driver';
 
@@ -142,7 +148,7 @@ export class PrepPackingSupplyOrderService {
         deliveryAddress: packingSupplyOrder.deliveryAddress,
         driverName: driverName,
         onfleetTaskShortId: packingSupplyOrder.onfleetTaskShortId,
-        packingSupplyOrder: packingSupplyOrder
+        packingSupplyOrder: packingSupplyOrder,
       };
     } catch (error) {
       console.error('Error getting prep packing supply order task:', error);
@@ -168,25 +174,28 @@ export class PrepPackingSupplyOrderService {
         return {
           success: false,
           message: '',
-          error: validation.error || 'Validation failed'
+          error: validation.error || 'Validation failed',
         };
       }
 
       // Execute prep with database transaction
-      const result = await markPackingSupplyOrderAsPrepped(orderId, adminId, isPrepped);
+      const result = await markPackingSupplyOrderAsPrepped(
+        orderId,
+        adminId,
+        isPrepped
+      );
 
       return {
         success: true,
         message: 'Packing supply order marked as prepped successfully',
-        order: result.updatedOrder
+        order: result.updatedOrder,
       };
-
     } catch (error) {
       console.error('Error marking packing supply order as prepped:', error);
       return {
         success: false,
         message: '',
-        error: 'Failed to mark packing supply order as prepped'
+        error: 'Failed to mark packing supply order as prepped',
       };
     }
   }
@@ -199,10 +208,14 @@ export class PrepPackingSupplyOrderService {
     try {
       const order = await prisma.packingSupplyOrder.findUnique({
         where: { id: orderId },
-        select: { isPrepped: true, status: true }
+        select: { isPrepped: true, status: true },
       });
 
-      return order?.isPrepped === false && order?.status !== 'Canceled';
+      return (
+        order?.isPrepped === false &&
+        order?.status !== 'Canceled' &&
+        order?.status !== 'Cancelled'
+      );
     } catch (error) {
       console.error('Error checking prep need:', error);
       return false;
@@ -220,8 +233,8 @@ export class PrepPackingSupplyOrderService {
         where: {
           isPrepped: false,
           status: {
-            not: 'Canceled'
-          }
+            notIn: ['Canceled', 'Cancelled'],
+          },
         },
         select: {
           id: true,
@@ -235,9 +248,8 @@ export class PrepPackingSupplyOrderService {
           assignedDriver: {
             select: {
               firstName: true,
-              lastName: true
-              
-            }
+              lastName: true,
+            },
           },
           orderDetails: {
             select: {
@@ -245,15 +257,15 @@ export class PrepPackingSupplyOrderService {
               quantity: true,
               product: {
                 select: {
-                  title: true
-                }
-              }
-            }
-          }
+                  title: true,
+                },
+              },
+            },
+          },
         },
         orderBy: {
-          deliveryDate: 'asc' // Earliest delivery first for priority
-        }
+          deliveryDate: 'asc', // Earliest delivery first for priority
+        },
       });
     } catch (error) {
       console.error('Error getting unprepped orders:', error);
@@ -268,22 +280,22 @@ export class PrepPackingSupplyOrderService {
   async getPrepHistory(orderId: number) {
     try {
       return await prisma.adminLog.findMany({
-        where: { 
+        where: {
           targetType: 'PackingSupplyOrder',
           targetId: orderId.toString(),
-          action: 'PREP_PACKING_SUPPLY_ORDER'
+          action: 'PREP_PACKING_SUPPLY_ORDER',
         },
         include: {
           admin: {
             select: {
               email: true,
-              name: true
-            }
-          }
+              name: true,
+            },
+          },
         },
         orderBy: {
-          createdAt: 'desc'
-        }
+          createdAt: 'desc',
+        },
       });
     } catch (error) {
       console.error('Error getting prep history:', error);
@@ -306,26 +318,29 @@ export class PrepPackingSupplyOrderService {
                 select: {
                   id: true,
                   title: true,
-                  category: true
-                }
-              }
-            }
+                  category: true,
+                },
+              },
+            },
           },
           assignedDriver: {
             select: {
               firstName: true,
               lastName: true,
               email: true,
-              phoneNumber: true
-            }
-          }
-        }
+              phoneNumber: true,
+            },
+          },
+        },
       });
 
       if (!order) return null;
 
       // Calculate summary statistics
-      const totalItems = order.orderDetails.reduce((sum, detail) => sum + detail.quantity, 0);
+      const totalItems = order.orderDetails.reduce(
+        (sum, detail) => sum + detail.quantity,
+        0
+      );
       const uniqueProducts = order.orderDetails.length;
 
       return {
@@ -333,8 +348,8 @@ export class PrepPackingSupplyOrderService {
         summary: {
           totalItems,
           uniqueProducts,
-          totalPrice: order.totalPrice
-        }
+          totalPrice: order.totalPrice,
+        },
       };
     } catch (error) {
       console.error('Error getting order summary:', error);
