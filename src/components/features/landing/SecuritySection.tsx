@@ -38,7 +38,7 @@ import { StorageUnitIcon } from '@/components/icons/StorageUnitIcon';
 import { LockIcon } from '@/components/icons/LockIcon';
 import { SecurityCameraIcon } from '@/components/icons/SecurityCameraIcon';
 import { WarehouseIcon } from '@/components/icons/WarehouseIcon';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 
 /**
  * Security feature interface

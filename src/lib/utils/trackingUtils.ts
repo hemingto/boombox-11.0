@@ -6,7 +6,7 @@
 
 import { formatDuration } from 'date-fns';
 import { format as formatTz, toZonedTime } from 'date-fns-tz';
-import { TIME_ZONE } from '@/lib/utils';
+import { TIME_ZONE } from '@/lib/utils/dateUtils';
 
 // Types and interfaces
 export interface DecodedTrackingToken {

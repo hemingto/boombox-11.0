@@ -8,8 +8,7 @@ import {
   findCustomerByPhone,
   findPendingMoverChange,
   parseAppointmentDescription,
-} from '@/lib/utils';
-// eslint-disable-next-line no-restricted-imports -- server-only util (next/headers), not re-exported from barrel
+} from '@/lib/utils/formatUtils';
 import { generateMoverChangeToken } from '@/lib/utils/twilioUtils';
 import { MessageService } from '../../messaging/MessageService';
 import { config } from '@/lib/config/environment';

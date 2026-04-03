@@ -26,7 +26,6 @@ import {
   VerifyMoverChangeTokenRequestSchema,
   VerifyMoverChangeTokenResponseSchema,
 } from '@/lib/validations/api.validations';
-// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import {
   decodeMoverChangeToken,
   validateMoverChangeTokenData,

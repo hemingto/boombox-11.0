@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-// eslint-disable-next-line no-restricted-imports -- haulingPartnerUtils uses Cloudinary/prisma (server-only), not re-exported from barrel
 import {
   checkHaulerExists,
   createHauler,

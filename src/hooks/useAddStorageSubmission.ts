@@ -13,7 +13,7 @@ import {
   UseAddStorageSubmissionReturn,
 } from '@/types/addStorage.types';
 import { validateSubmissionPayload } from '@/lib/validations/addStorage.validations';
-import { parseAppointmentTime } from '@/lib/utils';
+import { parseAppointmentTime } from '@/lib/utils/dateUtils';
 import { getStorageTermSubmissionFields } from '@/data/storageTermPricing';
 
 export function useAddStorageSubmission(

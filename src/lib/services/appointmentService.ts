@@ -18,7 +18,7 @@
  */
 
 import { prisma } from '@/lib/database/prismaClient';
-import { generateJobCode } from '@/lib/utils';
+import { generateJobCode } from '@/lib/utils/formatUtils';
 
 export interface CreateUserData {
   firstName: string;

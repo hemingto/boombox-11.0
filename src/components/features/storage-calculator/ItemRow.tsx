@@ -8,7 +8,7 @@
 import Image from 'next/image';
 import { MinusCircleIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/primitives/Button';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 
 interface ItemRowProps {
   /** Item name */

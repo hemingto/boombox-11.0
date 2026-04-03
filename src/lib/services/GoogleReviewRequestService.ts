@@ -2,7 +2,7 @@ import { prisma } from '@/lib/database/prismaClient';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { googleReviewRequestSms } from '@/lib/messaging/templates/sms/customer/googleReviewRequest';
 import { googleReviewRequestEmail } from '@/lib/messaging/templates/email/customer/googleReviewRequest';
-import { normalizePhoneNumberToE164 } from '@/lib/utils';
+import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
 
 interface ReviewRequestResult {
   appointmentsSent: number;

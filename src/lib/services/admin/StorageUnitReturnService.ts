@@ -1,35 +1,30 @@
 /**
- * @fileoverview Service for handling storage unit return processing and inspection
- * @source boombox-10.0/src/app/api/admin/tasks/[taskId]/route.ts (storage-return task display logic)
- * @source boombox-10.0/src/app/api/admin/appointments/[id]/storage-unit-return/route.ts (return processing logic)
+ * @fileoverview Service for handling per-unit storage unit return processing and inspection
  *
  * SERVICE FUNCTIONALITY:
- * - Get storage unit return task details for display
- * - Process storage unit returns with damage inspection
- * - Handle different appointment types (Initial Pickup, Storage Access, End Storage)
- * - Manage storage unit status transitions and usage records
- * - Create damage reports and admin audit logs
+ * - Get per-unit storage unit return task details for display
+ * - Process individual unit returns with damage inspection, padlock tracking, and item verification
+ * - Defer all billing until the last unit for an appointment is checked in
+ * - Handle subscription adjustments and credit notes based on appointment type
+ * - Create padlock invoices aggregated across all units
  *
  * USED BY:
  * - Admin task management interface
  * - Storage unit return processing workflows
  * - Damage inspection and reporting systems
- *
- * @refactor Extracted from monolithic admin tasks route for better organization
  */
 
 import { prisma } from '@/lib/database/prismaClient';
-// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
+
 import {
   formatTaskDate,
-  createStorageUnitDamageReports,
   updateStorageUnitForReturn,
   updateStorageUnitUsageForAccess,
   createStorageReturnLog,
 } from '@/lib/utils/adminTaskUtils';
 import { StripeSubscriptionService } from '@/lib/services/stripe/stripeSubscriptionService';
+import { StripeInvoiceService } from '@/lib/services/stripe/stripeInvoiceService';
 
-// Storage unit return task interface
 export interface StorageUnitReturnTask {
   id: string;
   title: 'Storage Unit Return';
@@ -54,6 +49,7 @@ export interface StorageUnitReturnTask {
   storageUnitNumber: string;
   appointmentId: string;
   storageUnitId?: string;
+  isLastUnit?: boolean;
   appointment: {
     date: string;
     appointmentType: string;
@@ -64,29 +60,37 @@ export interface StorageUnitReturnTask {
   };
 }
 
-// Storage unit return request interface
-export interface StorageUnitReturnRequest {
+export interface PerUnitReturnRequest {
+  storageUnitId: number;
+  isStoringItems: boolean;
   hasDamage: boolean;
   damageDescription?: string | null;
   frontPhotos: string[];
   backPhotos: string[];
-  isStillStoringItems?: boolean;
-  isAllItemsRemoved?: boolean;
-  isUnitEmpty?: boolean;
+  padlockProvided: boolean;
 }
 
-// Return processing result interface
 export interface StorageUnitReturnResult {
   success: boolean;
   message: string;
   appointment?: any;
+  billingTriggered?: boolean;
   error?: string;
+}
+
+interface PerUnitReturnEntry {
+  appointmentId: number;
+  storageUnitId: number;
+  usageId: number;
+  storageUnitNumber: string;
+  jobCode: string;
+  appointmentDate: string;
+  appointmentType: string;
 }
 
 export class StorageUnitReturnService {
   /**
-   * Get storage unit return task details for display
-   * @source boombox-10.0/src/app/api/admin/tasks/[taskId]/route.ts (lines 346-494)
+   * Get storage unit return task details for a specific unit
    */
   async getStorageUnitReturnTask(
     appointmentId: number,
@@ -160,12 +164,10 @@ export class StorageUnitReturnService {
       const customerName =
         `${appointment.user?.firstName || ''} ${appointment.user?.lastName || ''}`.trim();
 
-      // Find storage unit info - complex logic from original
       let storageUnitInfo: { id: number; storageUnitNumber: string } | null =
         null;
 
       if (storageUnitId) {
-        // Try to find specific storage unit
         const requestedUnit = await prisma.requestedAccessStorageUnit.findFirst(
           {
             where: { appointmentId, storageUnitId },
@@ -179,7 +181,6 @@ export class StorageUnitReturnService {
             storageUnitNumber: requestedUnit.storageUnit.storageUnitNumber,
           };
         } else {
-          // Try storage usage records
           const usageRecord = await prisma.storageUnitUsage.findFirst({
             where: { startAppointmentId: appointmentId, storageUnitId },
             include: { storageUnit: true },
@@ -191,7 +192,6 @@ export class StorageUnitReturnService {
               storageUnitNumber: usageRecord.storageUnit.storageUnitNumber,
             };
           } else {
-            // Direct lookup
             const storageUnit = await prisma.storageUnit.findUnique({
               where: { id: storageUnitId },
             });
@@ -204,7 +204,6 @@ export class StorageUnitReturnService {
           }
         }
       } else {
-        // Get first available unit
         if (appointment.storageStartUsages.length > 0) {
           const firstUsage = appointment.storageStartUsages[0];
           if (firstUsage.storageUnit) {
@@ -224,19 +223,22 @@ export class StorageUnitReturnService {
         }
       }
 
-      // Generate task ID in the expected format
       const taskId = storageUnitId
         ? `storage-return-${appointmentId}-${storageUnitId}`
         : `storage-return-${appointmentId}`;
 
-      // Get driver from onfleetTasks if available
       const driver = appointment.onfleetTasks?.[0]?.driver ?? null;
+
+      // Determine if this is the last unprocessed unit
+      const allUsages = await this.resolveUsagesForAppointment(appointmentId);
+      const unprocessedCount = allUsages.filter(u => !u.returnProcessed).length;
+      const isLastUnit = unprocessedCount <= 1;
 
       return {
         id: taskId,
         title: 'Storage Unit Return',
         description:
-          'Check back in unit. Inspect for unit damage. Verify empty or not.',
+          'Check back in unit. Inspect for damage. Check for padlock.',
         action: 'Process Return',
         color: 'purple',
         details: `<strong>Job Code:</strong> ${appointment.jobCode ?? ''}<br><strong>Job Type:</strong> ${appointment.appointmentType ?? ''}${storageUnitInfo ? `<br><strong>Unit Number:</strong> ${storageUnitInfo.storageUnitNumber}` : ''}`,
@@ -255,12 +257,13 @@ export class StorageUnitReturnService {
             }
           : null,
         jobCode: appointment.jobCode ?? '',
-        customerName: customerName,
+        customerName,
         appointmentDate: formattedDate,
         appointmentAddress: appointment.address ?? '',
         storageUnitNumber: storageUnitInfo?.storageUnitNumber || 'Unknown',
         appointmentId: appointmentId.toString(),
         storageUnitId: storageUnitInfo?.id?.toString(),
+        isLastUnit,
         appointment: {
           date: formattedDate,
           appointmentType: appointment.appointmentType ?? '',
@@ -274,37 +277,29 @@ export class StorageUnitReturnService {
   }
 
   /**
-   * Process storage unit return with inspection and status updates
-   * @source boombox-10.0/src/app/api/admin/appointments/[id]/storage-unit-return/route.ts
+   * Process a single unit's return. Saves answers to StorageUnitUsage,
+   * updates StorageUnit status, creates damage report if needed.
+   * When the last unit for the appointment is processed, triggers deferred billing.
    */
-  async processStorageUnitReturn(
+  async processPerUnitReturn(
     appointmentId: number,
     adminId: number,
-    request: StorageUnitReturnRequest
+    request: PerUnitReturnRequest
   ): Promise<StorageUnitReturnResult> {
     try {
       const {
+        storageUnitId,
+        isStoringItems,
         hasDamage,
         damageDescription,
         frontPhotos,
         backPhotos,
-        isStillStoringItems,
-        isAllItemsRemoved,
-        isUnitEmpty,
+        padlockProvided,
       } = request;
 
-      // Get the appointment and its associated storage unit usage
       const appointment = await prisma.appointment.findUnique({
         where: { id: appointmentId },
         include: {
-          storageStartUsages: {
-            include: {
-              storageUnit: true,
-            },
-          },
-          requestedStorageUnits: {
-            select: { storageUnitId: true },
-          },
           user: {
             select: {
               id: true,
@@ -317,249 +312,114 @@ export class StorageUnitReturnService {
       });
 
       if (!appointment) {
-        return {
-          success: false,
-          message: '',
-          error: 'Appointment not found',
-        };
+        return { success: false, message: '', error: 'Appointment not found' };
       }
-
-      // Update the appointment status
-      const updatedAppointment = await prisma.appointment.update({
-        where: { id: appointmentId },
-        data: { status: 'Completed' },
-      });
 
       const appointmentType = appointment.appointmentType ?? '';
 
-      // Handle different appointment types with specific business logic
+      // Find the StorageUnitUsage for this specific unit
+      const usage = await this.findUsageForUnit(
+        appointmentId,
+        storageUnitId,
+        appointment.userId
+      );
+
+      if (!usage) {
+        return {
+          success: false,
+          message: '',
+          error: `No usage record found for unit ${storageUnitId}`,
+        };
+      }
+
+      // 1. Update StorageUnitUsage with return data
+      const usageUpdateData: any = {
+        returnProcessed: true,
+        returnProcessedAt: new Date(),
+        padlockProvided,
+        isStoringItems,
+      };
+
+      // If empty, end the usage
+      if (!isStoringItems) {
+        usageUpdateData.usageEndDate = new Date();
+        usageUpdateData.endAppointmentId = appointmentId;
+      }
+
+      await prisma.storageUnitUsage.update({
+        where: { id: usage.id },
+        data: usageUpdateData,
+      });
+
+      // 2. Update StorageUnit status
+      if (isStoringItems) {
+        await prisma.storageUnit.update({
+          where: { id: storageUnitId },
+          data: { status: 'Occupied' },
+        });
+      } else {
+        await prisma.storageUnit.update({
+          where: { id: storageUnitId },
+          data: { status: 'Pending Cleaning' },
+        });
+      }
+
+      // 3. Update warehouse location via existing helper
       if (
         appointmentType === 'Initial Pickup' ||
         appointmentType === 'Additional Storage'
       ) {
-        if (isUnitEmpty === undefined) {
-          return {
-            success: false,
-            message: '',
-            error: 'Missing required field: isUnitEmpty',
-          };
-        }
+        await updateStorageUnitForReturn(usage, appointmentId, !isStoringItems);
+      } else {
+        await updateStorageUnitUsageForAccess(usage, appointmentId);
+      }
 
-        // Create damage reports if damage is reported
-        if (hasDamage) {
-          await createStorageUnitDamageReports(
-            appointment.storageStartUsages,
+      // 4. Create damage report for this single unit
+      if (hasDamage) {
+        await prisma.storageUnitDamageReport.create({
+          data: {
+            storageUnitId,
             appointmentId,
             adminId,
-            damageDescription,
-            frontPhotos,
-            backPhotos
-          );
-        }
+            damageDescription: damageDescription || '',
+            damagePhotos: [...frontPhotos, ...backPhotos],
+            status: 'Pending',
+          },
+        });
+      }
 
-        // Update storage units based on isUnitEmpty value
-        for (const usage of appointment.storageStartUsages) {
-          await updateStorageUnitForReturn(usage, appointmentId, isUnitEmpty);
-        }
+      // 5. Create admin log entry
+      const statusSuffix = isStoringItems ? 'OCCUPIED' : 'EMPTY';
+      await createStorageReturnLog(
+        adminId,
+        appointmentId,
+        appointmentType,
+        hasDamage,
+        `UNIT_${storageUnitId}_${statusSuffix}${padlockProvided ? '_PADLOCK' : ''}`
+      );
 
-        // Create admin log entry
-        await createStorageReturnLog(
-          adminId,
-          appointmentId,
-          appointmentType,
-          hasDamage,
-          `COMPLETED_${isUnitEmpty ? 'EMPTY' : 'OCCUPIED'}`
+      // 6. Check if all units are now processed
+      const allUsages = await this.resolveUsagesForAppointment(appointmentId);
+      const allProcessed = allUsages.every(u => u.returnProcessed);
+
+      let billingTriggered = false;
+      if (allProcessed) {
+        console.log(
+          `[StorageUnitReturn] All units processed for appointment ${appointmentId}, triggering deferred billing`
         );
-      } else if (appointmentType === 'Storage Unit Access') {
-        if (isStillStoringItems === undefined) {
-          return {
-            success: false,
-            message: '',
-            error: 'Missing required field: isStillStoringItems',
-          };
-        }
-
-        // Resolve actual usages: for access appointments, storageStartUsages
-        // belongs to the original pickup — use requestedStorageUnits to find
-        // the active usages for the units in this appointment.
-        let accessUsages = appointment.storageStartUsages;
-        if (
-          accessUsages.length === 0 &&
-          appointment.requestedStorageUnits.length > 0
-        ) {
-          const unitIds = appointment.requestedStorageUnits.map(
-            r => r.storageUnitId
-          );
-          accessUsages = await prisma.storageUnitUsage.findMany({
-            where: {
-              storageUnitId: { in: unitIds },
-              userId: appointment.userId,
-              usageEndDate: null,
-            },
-            include: { storageUnit: true },
-          });
-        }
-
-        // Update storage unit usage records
-        for (const usage of accessUsages) {
-          await updateStorageUnitUsageForAccess(usage, appointmentId);
-        }
-
-        if (isStillStoringItems) {
-          if (hasDamage) {
-            await createStorageUnitDamageReports(
-              accessUsages,
-              appointmentId,
-              adminId,
-              damageDescription,
-              frontPhotos,
-              backPhotos
-            );
-          }
-
-          await createStorageReturnLog(
-            adminId,
-            appointmentId,
-            'STORAGE_UNIT_ACCESS',
-            hasDamage,
-            'COMPLETED_STILL_STORING'
-          );
-        } else {
-          if (hasDamage) {
-            await createStorageUnitDamageReports(
-              accessUsages,
-              appointmentId,
-              adminId,
-              damageDescription,
-              frontPhotos,
-              backPhotos
-            );
-          }
-
-          for (const usage of accessUsages) {
-            await prisma.storageUnit.update({
-              where: { id: usage.storageUnitId },
-              data: { status: 'Pending Cleaning' },
-            });
-          }
-
-          // Adjust subscription billing for remaining units
-          if (appointment.user.stripeCustomerId) {
-            const adjustResult =
-              await StripeSubscriptionService.adjustSubscriptionsForPartialTermination(
-                appointment.user.id,
-                appointment.user.stripeCustomerId
-              );
-            if (adjustResult.success) {
-              console.log(
-                `[StorageUnitReturn] Subscription adjusted: ${adjustResult.remainingUnits} units remaining`
-              );
-            } else {
-              console.error(
-                '[StorageUnitReturn] Subscription adjustment failed:',
-                adjustResult.error
-              );
-            }
-          }
-
-          await createStorageReturnLog(
-            adminId,
-            appointmentId,
-            'STORAGE_UNIT_ACCESS',
-            hasDamage,
-            'COMPLETED_EMPTIED'
-          );
-        }
-      } else if (appointmentType === 'End Storage Term') {
-        if (isAllItemsRemoved === undefined) {
-          return {
-            success: false,
-            message: '',
-            error: 'Missing required field: isAllItemsRemoved',
-          };
-        }
-
-        // Resolve actual usages: for end-term appointments, storageStartUsages
-        // belongs to the original pickup — use requestedStorageUnits to find
-        // the active usages for the units in this appointment.
-        let endTermUsages = appointment.storageStartUsages;
-        if (
-          endTermUsages.length === 0 &&
-          appointment.requestedStorageUnits.length > 0
-        ) {
-          const unitIds = appointment.requestedStorageUnits.map(
-            r => r.storageUnitId
-          );
-          endTermUsages = await prisma.storageUnitUsage.findMany({
-            where: {
-              storageUnitId: { in: unitIds },
-              userId: appointment.userId,
-              usageEndDate: null,
-            },
-            include: { storageUnit: true },
-          });
-        }
-
-        // Update storage unit usage records
-        for (const usage of endTermUsages) {
-          await updateStorageUnitUsageForAccess(usage, appointmentId);
-        }
-
-        if (isAllItemsRemoved) {
-          if (hasDamage) {
-            await createStorageUnitDamageReports(
-              endTermUsages,
-              appointmentId,
-              adminId,
-              damageDescription,
-              frontPhotos,
-              backPhotos
-            );
-          }
-
-          for (const usage of endTermUsages) {
-            await prisma.storageUnit.update({
-              where: { id: usage.storageUnitId },
-              data: { status: 'Pending Cleaning' },
-            });
-          }
-
-          await createStorageReturnLog(
-            adminId,
-            appointmentId,
-            'END_STORAGE_TERM',
-            hasDamage,
-            hasDamage ? 'COMPLETED_WITH_DAMAGE' : 'COMPLETED_NO_DAMAGE'
-          );
-        } else {
-          if (hasDamage) {
-            await createStorageUnitDamageReports(
-              endTermUsages,
-              appointmentId,
-              adminId,
-              damageDescription,
-              frontPhotos,
-              backPhotos
-            );
-          }
-
-          await createStorageReturnLog(
-            adminId,
-            appointmentId,
-            'END_STORAGE_TERM',
-            hasDamage,
-            'INCOMPLETE_ITEMS_REMAIN'
-          );
-        }
+        await this.processDeferredBilling(appointmentId, allUsages);
+        billingTriggered = true;
       }
 
       return {
         success: true,
-        message: 'Storage unit return processed successfully',
-        appointment: updatedAppointment,
+        message: billingTriggered
+          ? 'Unit processed. All units complete — billing finalized.'
+          : 'Unit processed successfully.',
+        billingTriggered,
       };
     } catch (error) {
-      console.error('Error processing storage unit return:', error);
+      console.error('Error processing per-unit return:', error);
       return {
         success: false,
         message: '',
@@ -569,14 +429,383 @@ export class StorageUnitReturnService {
   }
 
   /**
+   * Deferred billing: runs once when the last unit for an appointment is checked in.
+   * Handles padlock invoicing, subscription adjustments, and credit notes.
+   */
+  private async processDeferredBilling(
+    appointmentId: number,
+    usages: Array<{
+      id: number;
+      storageUnitId: number;
+      padlockProvided: boolean;
+      isStoringItems: boolean | null;
+      returnProcessed: boolean;
+    }>
+  ): Promise<void> {
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            stripeCustomerId: true,
+          },
+        },
+      },
+    });
+
+    if (!appointment || !appointment.user.stripeCustomerId) {
+      console.log(
+        `[DeferredBilling] Skipping — no appointment or no stripeCustomerId for ${appointmentId}`
+      );
+      await prisma.appointment.update({
+        where: { id: appointmentId },
+        data: { status: 'Completed' },
+      });
+      return;
+    }
+
+    const appointmentType = appointment.appointmentType ?? '';
+    const customerId = appointment.user.stripeCustomerId;
+    const userId = appointment.user.id;
+
+    // Step 1: Padlock invoice
+    const padlockCount = usages.filter(u => u.padlockProvided).length;
+    if (padlockCount > 0) {
+      try {
+        await StripeInvoiceService.createPadlockInvoice(
+          customerId,
+          appointmentId,
+          padlockCount
+        );
+        console.log(
+          `[DeferredBilling] Padlock invoice created: ${padlockCount} padlock(s)`
+        );
+      } catch (error) {
+        console.error('[DeferredBilling] Padlock invoice failed:', error);
+      }
+    }
+
+    // Step 2: Subscription/refund adjustments by appointment type
+    const emptyUnitCount = usages.filter(
+      u => u.isStoringItems === false
+    ).length;
+
+    if (
+      appointmentType === 'Initial Pickup' ||
+      appointmentType === 'Additional Storage'
+    ) {
+      await this.handleInitialPickupBilling(
+        appointment,
+        customerId,
+        userId,
+        emptyUnitCount
+      );
+    } else if (appointmentType === 'Storage Unit Access') {
+      await this.handleAccessBilling(customerId, userId);
+    } else if (
+      appointmentType === 'End Storage Term' ||
+      appointmentType === 'End Storage Plan'
+    ) {
+      await this.handleEndTermBilling(appointment, customerId, userId, usages);
+    }
+
+    // Step 3: Mark appointment as completed
+    await prisma.appointment.update({
+      where: { id: appointmentId },
+      data: { status: 'Completed' },
+    });
+
+    console.log(
+      `[DeferredBilling] Appointment ${appointmentId} marked as Completed`
+    );
+  }
+
+  /**
+   * Handle billing for Initial Pickup / Additional Storage.
+   * Issues credit note for empty units and adjusts subscription.
+   */
+  private async handleInitialPickupBilling(
+    appointment: any,
+    customerId: string,
+    userId: number,
+    emptyUnitCount: number
+  ): Promise<void> {
+    // Credit note for empty units
+    if (emptyUnitCount > 0 && appointment.stripeChargeId) {
+      try {
+        // Look up the Stripe invoice via the charge
+        const charge = await (
+          await import('@/lib/integrations/stripeClient')
+        ).stripe.charges.retrieve(appointment.stripeChargeId);
+        const invoiceId =
+          typeof charge.invoice === 'string'
+            ? charge.invoice
+            : charge.invoice?.id;
+
+        if (
+          invoiceId &&
+          appointment.monthlyStorageRate &&
+          appointment.monthlyInsuranceRate
+        ) {
+          await StripeInvoiceService.createCreditNoteForEmptyUnits(
+            invoiceId,
+            emptyUnitCount,
+            appointment.monthlyStorageRate,
+            appointment.monthlyInsuranceRate,
+            appointment.id
+          );
+          console.log(
+            `[DeferredBilling] Credit note created for ${emptyUnitCount} empty unit(s)`
+          );
+        }
+      } catch (error) {
+        console.error('[DeferredBilling] Credit note creation failed:', error);
+      }
+    }
+
+    // Adjust subscription quantity
+    try {
+      const adjustResult =
+        await StripeSubscriptionService.adjustSubscriptionsForPartialTermination(
+          userId,
+          customerId
+        );
+      if (adjustResult.success) {
+        console.log(
+          `[DeferredBilling] Subscription adjusted: ${adjustResult.remainingUnits} units remaining`
+        );
+      } else {
+        console.error(
+          '[DeferredBilling] Subscription adjustment failed:',
+          adjustResult.error
+        );
+      }
+    } catch (error) {
+      console.error('[DeferredBilling] Subscription adjustment error:', error);
+    }
+  }
+
+  /**
+   * Handle billing for Storage Unit Access.
+   * Adjusts subscription based on remaining active usages.
+   */
+  private async handleAccessBilling(
+    customerId: string,
+    userId: number
+  ): Promise<void> {
+    try {
+      const adjustResult =
+        await StripeSubscriptionService.adjustSubscriptionsForPartialTermination(
+          userId,
+          customerId
+        );
+      if (adjustResult.success) {
+        console.log(
+          `[DeferredBilling] Access — subscription adjusted: ${adjustResult.remainingUnits} units remaining`
+        );
+      } else {
+        console.error(
+          '[DeferredBilling] Access — subscription adjustment failed:',
+          adjustResult.error
+        );
+      }
+    } catch (error) {
+      console.error('[DeferredBilling] Access billing error:', error);
+    }
+  }
+
+  /**
+   * Handle billing for End Storage Term.
+   * Cancels subscription if all units empty, otherwise adjusts to remaining count.
+   */
+  private async handleEndTermBilling(
+    appointment: any,
+    customerId: string,
+    userId: number,
+    usages: Array<{ isStoringItems: boolean | null }>
+  ): Promise<void> {
+    const occupiedCount = usages.filter(u => u.isStoringItems === true).length;
+
+    try {
+      if (occupiedCount === 0) {
+        await StripeSubscriptionService.cancelAllUserSubscriptions(customerId);
+        console.log('[DeferredBilling] End term — all subscriptions cancelled');
+
+        // Fetch full appointment for handleEarlyTermination
+        const fullAppointment = await prisma.appointment.findUnique({
+          where: { id: appointment.id },
+          include: {
+            requestedStorageUnits: {
+              select: { storageUnitId: true },
+            },
+            user: {
+              select: { stripeCustomerId: true },
+            },
+          },
+        });
+
+        const firstUsage = await prisma.storageUnitUsage.findFirst({
+          where: {
+            OR: [
+              { startAppointmentId: appointment.id },
+              { endAppointmentId: appointment.id },
+            ],
+          },
+        });
+
+        if (fullAppointment && firstUsage) {
+          await StripeSubscriptionService.handleEarlyTermination(
+            {
+              id: fullAppointment.id,
+              appointmentType: fullAppointment.appointmentType ?? '',
+              monthlyStorageRate: fullAppointment.monthlyStorageRate,
+              monthlyInsuranceRate: fullAppointment.monthlyInsuranceRate,
+              loadingHelpPrice: fullAppointment.loadingHelpPrice,
+              numberOfUnits: fullAppointment.numberOfUnits,
+              insuranceCoverage: fullAppointment.insuranceCoverage,
+              storageTerm: fullAppointment.storageTerm as any,
+              pickupFeeWaived: fullAppointment.pickupFeeWaived ?? false,
+              returnFeeWaived: fullAppointment.returnFeeWaived ?? false,
+              requestedStorageUnits: fullAppointment.requestedStorageUnits,
+              user: {
+                stripeCustomerId:
+                  fullAppointment.user?.stripeCustomerId ?? null,
+              },
+            },
+            {
+              usageStartDate: firstUsage.usageStartDate,
+              usageEndDate: firstUsage.usageEndDate,
+              storageUnitId: firstUsage.storageUnitId,
+              endAppointmentId: firstUsage.endAppointmentId,
+            }
+          );
+        }
+      } else {
+        const adjustResult =
+          await StripeSubscriptionService.adjustSubscriptionsForPartialTermination(
+            userId,
+            customerId
+          );
+        if (adjustResult.success) {
+          console.log(
+            `[DeferredBilling] End term — subscription adjusted: ${adjustResult.remainingUnits} units remaining`
+          );
+        } else {
+          console.error(
+            '[DeferredBilling] End term — subscription adjustment failed:',
+            adjustResult.error
+          );
+        }
+      }
+    } catch (error) {
+      console.error('[DeferredBilling] End term billing error:', error);
+    }
+  }
+
+  /**
+   * Find the StorageUnitUsage record for a specific unit in an appointment.
+   * Handles both direct storageStartUsages and resolved access/end-term usages.
+   */
+  private async findUsageForUnit(
+    appointmentId: number,
+    storageUnitId: number,
+    userId: number | null
+  ): Promise<any | null> {
+    // Try storageStartUsages first (Initial Pickup / Additional Storage)
+    let usage = await prisma.storageUnitUsage.findFirst({
+      where: { startAppointmentId: appointmentId, storageUnitId },
+      include: { storageUnit: true },
+    });
+
+    if (usage) return usage;
+
+    // Fall back to finding active usage for this unit (Access / End Term)
+    if (userId) {
+      usage = await prisma.storageUnitUsage.findFirst({
+        where: {
+          storageUnitId,
+          userId,
+          usageEndDate: null,
+        },
+        include: { storageUnit: true },
+      });
+    }
+
+    return usage;
+  }
+
+  /**
+   * Resolve all StorageUnitUsage records for an appointment,
+   * regardless of appointment type.
+   */
+  private async resolveUsagesForAppointment(appointmentId: number): Promise<
+    Array<{
+      id: number;
+      storageUnitId: number;
+      padlockProvided: boolean;
+      isStoringItems: boolean | null;
+      returnProcessed: boolean;
+    }>
+  > {
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      select: {
+        userId: true,
+        appointmentType: true,
+        storageStartUsages: {
+          select: {
+            id: true,
+            storageUnitId: true,
+            padlockProvided: true,
+            isStoringItems: true,
+            returnProcessed: true,
+          },
+        },
+        requestedStorageUnits: {
+          select: { storageUnitId: true },
+        },
+      },
+    });
+
+    if (!appointment) return [];
+
+    const appointmentType = appointment.appointmentType ?? '';
+
+    if (
+      appointmentType === 'Initial Pickup' ||
+      appointmentType === 'Additional Storage'
+    ) {
+      return appointment.storageStartUsages;
+    }
+
+    // For Access / End Term, resolve from requestedStorageUnits
+    if (appointment.requestedStorageUnits.length > 0) {
+      const unitIds = appointment.requestedStorageUnits.map(
+        r => r.storageUnitId
+      );
+      return prisma.storageUnitUsage.findMany({
+        where: {
+          storageUnitId: { in: unitIds },
+          userId: appointment.userId,
+        },
+        select: {
+          id: true,
+          storageUnitId: true,
+          padlockProvided: true,
+          isStoringItems: true,
+          returnProcessed: true,
+        },
+        orderBy: { usageStartDate: 'desc' },
+        distinct: ['storageUnitId'],
+      });
+    }
+
+    return appointment.storageStartUsages;
+  }
+
+  /**
    * Check if appointment needs storage unit return processing
-   * Used by the task listing service to determine if tasks should be created
-   *
-   * Appointment types that need storage unit return:
-   * - Initial Pickup: Unit returns with customer items, needs check-in
-   * - Additional Storage: Additional units returning with items
-   * - Storage Unit Access: Unit returning after customer access
-   * - End Storage Term/Plan: Unit returning after storage ends
    */
   async isStorageReturnNeeded(appointmentId: number): Promise<boolean> {
     try {
@@ -596,7 +825,6 @@ export class StorageUnitReturnService {
 
       if (!appointment) return false;
 
-      // All appointment types that involve a storage unit returning to warehouse
       const returnTypes = [
         'Initial Pickup',
         'Additional Storage',
@@ -620,16 +848,10 @@ export class StorageUnitReturnService {
   }
 
   /**
-   * Get all storage returns that need processing for task listing
-   * Helper method for AdminTaskListingService
-   *
-   * Returns appointments with status 'Awaiting Admin Check In' for all types:
-   * - Initial Pickup: Driver returned unit with customer items
-   * - Additional Storage: Driver returned additional units with items
-   * - Storage Unit Access: Driver returned unit after customer access
-   * - End Storage Term/Plan: Driver returned unit after storage ended
+   * Get all per-unit storage returns that need processing.
+   * Returns one entry per unprocessed unit (not per appointment).
    */
-  async getAllStorageReturnsNeeded() {
+  async getAllStorageReturnsNeeded(): Promise<PerUnitReturnEntry[]> {
     try {
       const appointments = await prisma.appointment.findMany({
         where: {
@@ -648,11 +870,13 @@ export class StorageUnitReturnService {
           id: true,
           jobCode: true,
           date: true,
+          userId: true,
           appointmentType: true,
-          // For Initial Pickup and Additional Storage
           storageStartUsages: {
             select: {
               id: true,
+              storageUnitId: true,
+              returnProcessed: true,
               storageUnit: {
                 select: {
                   id: true,
@@ -661,22 +885,9 @@ export class StorageUnitReturnService {
               },
             },
           },
-          // For End Storage Term/Plan
-          storageEndUsages: {
-            select: {
-              id: true,
-              storageUnit: {
-                select: {
-                  id: true,
-                  storageUnitNumber: true,
-                },
-              },
-            },
-          },
-          // For Storage Unit Access
           requestedStorageUnits: {
             select: {
-              id: true,
+              storageUnitId: true,
               storageUnit: {
                 select: {
                   id: true,
@@ -691,51 +902,72 @@ export class StorageUnitReturnService {
         },
       });
 
-      return appointments.map(appointment => {
+      const entries: PerUnitReturnEntry[] = [];
+
+      for (const appointment of appointments) {
         const formattedDate = new Date(appointment.date).toLocaleDateString(
           'en-US',
-          {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric',
-          }
+          { weekday: 'short', month: 'short', day: 'numeric' }
         );
-
-        // Get storage units based on appointment type
-        let storageUnits: string[] = [];
         const appointmentType = appointment.appointmentType ?? '';
 
         if (
           appointmentType === 'Initial Pickup' ||
           appointmentType === 'Additional Storage'
         ) {
-          // These types use storageStartUsages
-          storageUnits = appointment.storageStartUsages.map(
-            usage => usage.storageUnit.storageUnitNumber
+          for (const usage of appointment.storageStartUsages) {
+            if (usage.returnProcessed) continue;
+            entries.push({
+              appointmentId: appointment.id,
+              storageUnitId: usage.storageUnit.id,
+              usageId: usage.id,
+              storageUnitNumber: usage.storageUnit.storageUnitNumber,
+              jobCode: appointment.jobCode ?? '',
+              appointmentDate: formattedDate,
+              appointmentType,
+            });
+          }
+        } else {
+          // Access / End Term — resolve active usages from requestedStorageUnits
+          const unitIds = appointment.requestedStorageUnits.map(
+            r => r.storageUnitId
           );
-        } else if (
-          appointmentType === 'End Storage Term' ||
-          appointmentType === 'End Storage Plan'
-        ) {
-          // These types use storageEndUsages
-          storageUnits = appointment.storageEndUsages.map(
-            usage => usage.storageUnit.storageUnitNumber
-          );
-        } else if (appointmentType === 'Storage Unit Access') {
-          // This type uses requestedStorageUnits
-          storageUnits = appointment.requestedStorageUnits.map(
-            req => req.storageUnit.storageUnitNumber
-          );
-        }
 
-        return {
-          appointmentId: appointment.id,
-          jobCode: appointment.jobCode ?? '',
-          appointmentDate: formattedDate,
-          appointmentType: appointmentType,
-          storageUnits,
-        };
-      });
+          if (unitIds.length > 0) {
+            const activeUsages = await prisma.storageUnitUsage.findMany({
+              where: {
+                storageUnitId: { in: unitIds },
+                userId: appointment.userId,
+                returnProcessed: false,
+              },
+              include: {
+                storageUnit: {
+                  select: {
+                    id: true,
+                    storageUnitNumber: true,
+                  },
+                },
+              },
+              orderBy: { usageStartDate: 'desc' },
+              distinct: ['storageUnitId'],
+            });
+
+            for (const usage of activeUsages) {
+              entries.push({
+                appointmentId: appointment.id,
+                storageUnitId: usage.storageUnit.id,
+                usageId: usage.id,
+                storageUnitNumber: usage.storageUnit.storageUnitNumber,
+                jobCode: appointment.jobCode ?? '',
+                appointmentDate: formattedDate,
+                appointmentType,
+              });
+            }
+          }
+        }
+      }
+
+      return entries;
     } catch (error) {
       console.error('Error getting all storage returns needed:', error);
       return [];

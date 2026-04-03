@@ -8,7 +8,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { systemFailureTemplate } from '@/lib/messaging/templates/email/admin';
-// eslint-disable-next-line no-restricted-imports -- isValidDispatchTime/getPSTTime not re-exported from barrel
 import { isValidDispatchTime, getPSTTime } from '@/lib/utils/dateUtils';
 import {
   validateApiRequest,

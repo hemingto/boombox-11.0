@@ -5,6 +5,8 @@
  * @refactor Consolidated appointment utilities from appointment edit route and driver appointments route
  */
 
+import 'server-only';
+
 // Types and interfaces
 export interface AppointmentChanges {
   planChanged: boolean;

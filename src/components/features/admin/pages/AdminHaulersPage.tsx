@@ -12,7 +12,7 @@ import {
   type Column,
 } from '@/components/features/admin/shared';
 import { Button } from '@/components/ui/primitives/Button/Button';
-import { formatPhoneNumberForDisplay } from '@/lib/utils';
+import { formatPhoneNumberForDisplay } from '@/lib/utils/phoneUtils';
 import { Modal } from '@/components/ui/primitives/Modal/Modal';
 
 interface HaulingPartner {

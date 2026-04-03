@@ -31,7 +31,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { driverOfferTemplate } from '@/lib/messaging/templates/sms/packing-supply';
-// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import {
   calculateRoutePayoutEstimate,
   calculateEstimatedDuration,

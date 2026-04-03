@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-// eslint-disable-next-line no-restricted-imports -- haulingPartnerUtils uses Cloudinary (server-only), not re-exported from barrel
 import { uploadHaulerFileToCloudinary } from '@/lib/utils/haulingPartnerUtils';
 
 export async function POST(

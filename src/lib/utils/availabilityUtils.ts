@@ -4,16 +4,18 @@
  * @refactor Extracted and enhanced utility functions for availability calculations
  */
 
-import { 
-  PlanType, 
-  DriverRequirement, 
-  TimeConflict, 
+import 'server-only';
+
+import {
+  PlanType,
+  DriverRequirement,
+  TimeConflict,
   ConflictCheckResult,
   AvailabilityLevel,
   BusinessHoursConfig,
   GeneratedSlot,
   DriverWithAvailability,
-  PartnerWithAvailability
+  PartnerWithAvailability,
 } from '@/types/availability.types';
 import { MovingPartnerAvailability, DriverAvailability } from '@prisma/client';
 import { formatTime24Hour } from '@/lib/utils/dateUtils';
@@ -24,7 +26,7 @@ export const DEFAULT_BUSINESS_HOURS: BusinessHoursConfig = {
   startHour: 9,
   endHour: 18,
   slotDurationMinutes: 60,
-  timezone: 'America/Los_Angeles'
+  timezone: 'America/Los_Angeles',
 };
 
 /**
@@ -39,7 +41,7 @@ export function calculateDriverRequirements(
   if (planType === 'DIY') {
     return {
       driversNeeded: numberOfUnits,
-      reason: 'diy_all_units'
+      reason: 'diy_all_units',
     };
   }
 
@@ -47,14 +49,14 @@ export function calculateDriverRequirements(
   if (!hasMoverAvailable) {
     return {
       driversNeeded: 0,
-      reason: 'none'
+      reason: 'none',
     };
   }
 
   const extraUnits = Math.max(0, numberOfUnits - 1);
   return {
     driversNeeded: extraUnits,
-    reason: 'full_service_extra_units'
+    reason: 'full_service_extra_units',
   };
 }
 
@@ -63,7 +65,15 @@ export function calculateDriverRequirements(
  * @source getDayOfWeekString function
  */
 export function getDayOfWeekString(date: Date): string {
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const days = [
+    'Sunday',
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+  ];
   return days[date.getUTCDay()];
 }
 
@@ -74,14 +84,14 @@ export function getDayOfWeekString(date: Date): string {
 export function formatTimeLocal(hour: number): string {
   const startHour = hour;
   const endHour = hour + 1;
-  
+
   const formatHour = (h: number) => {
     if (h === 0) return '12am';
     if (h < 12) return `${h}am`;
     if (h === 12) return '12pm';
     return `${h - 12}pm`;
   };
-  
+
   return `${formatHour(startHour)}-${formatHour(endHour)}`;
 }
 
@@ -95,16 +105,24 @@ export function generateBusinessHourSlots(
 ): GeneratedSlot[] {
   const slots: GeneratedSlot[] = [];
   const [year, month, day] = dateString.split('-').map(Number);
-  
+
   for (let hour = config.startHour; hour < config.endHour; hour++) {
     // Create local time slot
     const localSlotStart = new Date(year, month - 1, day, hour, 0, 0, 0);
-    const localSlotEnd = new Date(year, month - 1, day, hour + (config.slotDurationMinutes / 60), 0, 0, 0);
-    
+    const localSlotEnd = new Date(
+      year,
+      month - 1,
+      day,
+      hour + config.slotDurationMinutes / 60,
+      0,
+      0,
+      0
+    );
+
     // Convert to UTC for comparison with stored appointment times
     const slotStart = new Date(localSlotStart.getTime());
     const slotEnd = new Date(localSlotEnd.getTime());
-    
+
     // Skip slots that extend beyond business hours
     if (slotEnd.getHours() > config.endHour) {
       continue;
@@ -115,10 +133,10 @@ export function generateBusinessHourSlots(
     startTime.setHours(hour, 0, 0, 0);
     const endTime = new Date();
     endTime.setHours(hour + 1, 0, 0, 0);
-    
+
     const startTimeStr = formatTime24Hour(startTime);
     const endTimeStr = formatTime24Hour(endTime);
-    
+
     slots.push({
       slotStart,
       slotEnd,
@@ -127,7 +145,7 @@ export function generateBusinessHourSlots(
       endTimeStr,
     });
   }
-  
+
   return slots;
 }
 
@@ -153,11 +171,12 @@ export function isResourceAvailableInSlot(
   startTimeStr: string,
   endTimeStr: string
 ): boolean {
-  return availability.some(avail => 
-    avail.dayOfWeek === dayOfWeek &&
-    !avail.isBlocked &&
-    startTimeStr >= avail.startTime &&
-    endTimeStr <= avail.endTime
+  return availability.some(
+    avail =>
+      avail.dayOfWeek === dayOfWeek &&
+      !avail.isBlocked &&
+      startTimeStr >= avail.startTime &&
+      endTimeStr <= avail.endTime
   );
 }
 
@@ -176,19 +195,19 @@ export function createTimeConflict(
     endTime,
     type,
     resourceId,
-    details
+    details,
   };
 }
 
 /**
  * Check for Onfleet task conflicts using centralized job timing
- * 
+ *
  * Uses JOB_TIMING constants for consistent blocking:
  * - 1 hour buffer before
  * - 1 hour service time
  * - 1 hour buffer after
  * = 3 hours total blocked per job
- * 
+ *
  * This checks if a NEW job booked at slotStart would conflict with existing tasks
  */
 export function checkOnfleetTaskConflicts(
@@ -198,43 +217,57 @@ export function checkOnfleetTaskConflicts(
   _bufferHours?: number // Deprecated, kept for backwards compatibility
 ): ConflictCheckResult {
   const conflicts: TimeConflict[] = [];
-  
+
   // Calculate the potential new job's blocked window if booked at slotStart
   const potentialJobBlockedStart = new Date(
     slotStart.getTime() - JOB_TIMING.BUFFER_BEFORE_MINUTES * 60 * 1000
   );
   const potentialJobBlockedEnd = new Date(
-    slotStart.getTime() + 
-    (JOB_TIMING.SERVICE_DURATION_MINUTES + JOB_TIMING.BUFFER_AFTER_MINUTES) * 60 * 1000
+    slotStart.getTime() +
+      (JOB_TIMING.SERVICE_DURATION_MINUTES + JOB_TIMING.BUFFER_AFTER_MINUTES) *
+        60 *
+        1000
   );
-  
+
   for (const task of driverTasks) {
     const taskStart = new Date(task.appointment.time);
-    
+
     // Calculate existing task's blocked window
     const existingBlockedStart = new Date(
       taskStart.getTime() - JOB_TIMING.BUFFER_BEFORE_MINUTES * 60 * 1000
     );
     const existingBlockedEnd = new Date(
-      taskStart.getTime() + 
-      (JOB_TIMING.SERVICE_DURATION_MINUTES + JOB_TIMING.BUFFER_AFTER_MINUTES) * 60 * 1000
+      taskStart.getTime() +
+        (JOB_TIMING.SERVICE_DURATION_MINUTES +
+          JOB_TIMING.BUFFER_AFTER_MINUTES) *
+          60 *
+          1000
     );
 
     // Check if potential new job's blocked window overlaps with existing task
-    if (doWindowsOverlap(potentialJobBlockedStart, potentialJobBlockedEnd, existingBlockedStart, existingBlockedEnd)) {
-      conflicts.push(createTimeConflict(
+    if (
+      doWindowsOverlap(
+        potentialJobBlockedStart,
+        potentialJobBlockedEnd,
         existingBlockedStart,
-        existingBlockedEnd,
-        'onfleet_task',
-        undefined,
-        `Task at ${taskStart.toISOString()} blocks ${JOB_TIMING.TOTAL_BLOCKED_HOURS}h`
-      ));
+        existingBlockedEnd
+      )
+    ) {
+      conflicts.push(
+        createTimeConflict(
+          existingBlockedStart,
+          existingBlockedEnd,
+          'onfleet_task',
+          undefined,
+          `Task at ${taskStart.toISOString()} blocks ${JOB_TIMING.TOTAL_BLOCKED_HOURS}h`
+        )
+      );
     }
   }
-  
+
   return {
     hasConflict: conflicts.length > 0,
-    conflicts
+    conflicts,
   };
 }
 
@@ -248,10 +281,11 @@ export function determineAvailabilityLevel(
   requiredDrivers: number
 ): AvailabilityLevel {
   const moverRatio = requiredMovers > 0 ? availableMovers / requiredMovers : 1;
-  const driverRatio = requiredDrivers > 0 ? availableDrivers / requiredDrivers : 1;
-  
+  const driverRatio =
+    requiredDrivers > 0 ? availableDrivers / requiredDrivers : 1;
+
   const minRatio = Math.min(moverRatio, driverRatio);
-  
+
   if (minRatio >= 3) return 'high';
   if (minRatio >= 1.5) return 'medium';
   return 'low';
@@ -260,32 +294,43 @@ export function determineAvailabilityLevel(
 /**
  * Get distinct days of week for a given month
  */
-export function getDistinctDaysOfWeekInMonth(year: number, month: number): string[] {
+export function getDistinctDaysOfWeekInMonth(
+  year: number,
+  month: number
+): string[] {
   const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
   const distinctDays: string[] = [];
-  
+
   for (let day = 1; day <= daysInMonth; day++) {
-    const dayOfWeek = getDayOfWeekString(new Date(Date.UTC(year, month - 1, day)));
+    const dayOfWeek = getDayOfWeekString(
+      new Date(Date.UTC(year, month - 1, day))
+    );
     if (!distinctDays.includes(dayOfWeek)) {
       distinctDays.push(dayOfWeek);
     }
   }
-  
+
   return distinctDays;
 }
 
 /**
  * Group array by key
  */
-export function groupBy<T, K extends keyof T>(array: T[], key: K): Record<string, T[]> {
-  return array.reduce((groups, item) => {
-    const group = String(item[key]);
-    if (!groups[group]) {
-      groups[group] = [];
-    }
-    groups[group].push(item);
-    return groups;
-  }, {} as Record<string, T[]>);
+export function groupBy<T, K extends keyof T>(
+  array: T[],
+  key: K
+): Record<string, T[]> {
+  return array.reduce(
+    (groups, item) => {
+      const group = String(item[key]);
+      if (!groups[group]) {
+        groups[group] = [];
+      }
+      groups[group].push(item);
+      return groups;
+    },
+    {} as Record<string, T[]>
+  );
 }
 
 /**
@@ -307,15 +352,18 @@ export function generateCacheKey(
 ): string {
   const sortedParams = Object.keys(params)
     .sort()
-    .reduce((result, key) => {
-      result[key] = params[key];
-      return result;
-    }, {} as Record<string, any>);
-  
+    .reduce(
+      (result, key) => {
+        result[key] = params[key];
+        return result;
+      },
+      {} as Record<string, any>
+    );
+
   const paramString = Object.entries(sortedParams)
     .map(([key, value]) => `${key}:${value}`)
     .join('|');
-    
+
   return `availability:${type}:${paramString}`;
 }
 
@@ -339,4 +387,4 @@ export function isValidTimeSlot(timeStr: string): boolean {
 export function timeStringToMinutes(timeStr: string): number {
   const [hours, minutes] = timeStr.split(':').map(Number);
   return hours * 60 + minutes;
-} 
+}

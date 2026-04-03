@@ -24,7 +24,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
-// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import { handleRetryAssignment } from '@/lib/utils/driverAssignmentUtils';
 import {
   validateApiRequest,

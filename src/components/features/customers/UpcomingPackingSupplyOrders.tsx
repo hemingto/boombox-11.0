@@ -23,12 +23,14 @@
 
 import { PackingSupplyDeliveryCard } from './PackingSupplyDeliveryCard';
 import { type PackingSupplyOrderDisplay } from '@/lib/services/customerDataService';
-import { addDateSuffix } from '@/lib/utils';
+import { addDateSuffix } from '@/lib/utils/dateUtils';
 
 export interface UpcomingPackingSupplyOrdersProps {
   userId: string;
   orders: PackingSupplyOrderDisplay[];
-  onOrdersChange: React.Dispatch<React.SetStateAction<PackingSupplyOrderDisplay[]>>;
+  onOrdersChange: React.Dispatch<
+    React.SetStateAction<PackingSupplyOrderDisplay[]>
+  >;
 }
 
 export function UpcomingPackingSupplyOrders({
@@ -37,7 +39,7 @@ export function UpcomingPackingSupplyOrders({
   onOrdersChange,
 }: UpcomingPackingSupplyOrdersProps) {
   const handleCancellation = (orderId: number) => {
-    onOrdersChange((prev) => prev.filter((order) => order.id !== orderId));
+    onOrdersChange(prev => prev.filter(order => order.id !== orderId));
   };
 
   const formatDeliveryTime = () => {
@@ -47,7 +49,7 @@ export function UpcomingPackingSupplyOrders({
 
   return (
     <div className="flex flex-col sm:mb-4 mb-2">
-      {orders.map((order) => (
+      {orders.map(order => (
         <div key={order.id} className="mt-4">
           <PackingSupplyDeliveryCard
             orderId={order.id}

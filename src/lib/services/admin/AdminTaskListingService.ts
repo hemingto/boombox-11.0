@@ -369,8 +369,8 @@ export class AdminTaskListingService {
   }
 
   /**
-   * Get storage returns using StorageUnitReturnService
-   * Handles all appointment types: Initial Pickup, Additional Storage, Storage Unit Access, End Storage Term/Plan
+   * Get per-unit storage return tasks using StorageUnitReturnService.
+   * Creates one task per unprocessed unit (not per appointment).
    */
   private async getStorageReturns() {
     try {
@@ -378,14 +378,15 @@ export class AdminTaskListingService {
         await this.storageUnitReturnService.getAllStorageReturnsNeeded();
 
       return returns.map(returnItem => ({
-        id: `storage-return-${returnItem.appointmentId}`,
+        id: `storage-return-${returnItem.appointmentId}-${returnItem.storageUnitId}`,
         title: 'Storage Unit Return',
-        description: 'Process storage unit return and damage assessment',
-        details: `<strong>Job Code:</strong> ${returnItem.jobCode}<br><strong>Type:</strong> ${returnItem.appointmentType}<br><strong>Return Date:</strong> ${returnItem.appointmentDate}`,
+        description: `Check in unit ${returnItem.storageUnitNumber}`,
+        details: `<strong>Job Code:</strong> ${returnItem.jobCode}<br><strong>Type:</strong> ${returnItem.appointmentType}<br><strong>Unit:</strong> ${returnItem.storageUnitNumber}<br><strong>Return Date:</strong> ${returnItem.appointmentDate}`,
         action: 'Process Return',
-        actionUrl: `/admin/tasks/storage-return-${returnItem.appointmentId}/storage-unit-return`,
+        actionUrl: `/admin/tasks/storage-return/storage-return-${returnItem.appointmentId}-${returnItem.storageUnitId}`,
         color: 'indigo',
         appointmentId: returnItem.appointmentId,
+        storageUnitNumber: returnItem.storageUnitNumber,
       }));
     } catch (error) {
       console.error('Error getting storage returns:', error);

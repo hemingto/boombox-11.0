@@ -47,7 +47,10 @@ import {
   calculateProcessingFee,
   PROCESSING_FEE_LABEL,
 } from '@/data/processingFeeConfig';
-import { formatCurrency, formatCurrencyCompact } from '@/lib/utils';
+import {
+  formatCurrency,
+  formatCurrencyCompact,
+} from '@/lib/utils/currencyUtils';
 import { PICKUP_FEE_PER_UNIT } from '@/data/storageTermPricing';
 
 interface RequestedStorageUnit {

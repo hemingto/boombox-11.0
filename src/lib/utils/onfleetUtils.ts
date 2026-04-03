@@ -6,6 +6,8 @@
  * @refactor Consolidated Onfleet utilities from multiple API routes
  */
 
+import 'server-only';
+
 import { prisma } from '@/lib/database/prismaClient';
 
 // Types and interfaces
@@ -56,7 +58,9 @@ export interface PayoutStatistics {
  */
 export function isValidDispatchTime(): boolean {
   const now = new Date();
-  const pstTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+  const pstTime = new Date(
+    now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })
+  );
   return pstTime.getHours() >= 12;
 }
 
@@ -69,7 +73,7 @@ export async function executeTeamDispatch(
   dispatchId: string
 ): Promise<OnfleetDispatchResult> {
   const teamId = process.env.BOOMBOX_PACKING_SUPPLY_DELIVERY_DRIVERS;
-  
+
   if (!teamId) {
     throw new Error('Team ID not configured');
   }
@@ -88,8 +92,13 @@ export async function executeTeamDispatch(
   });
 
   const validTaskIds = taskIds
-    .filter((task: { id: number; onfleetTaskId: string | null }) => task.onfleetTaskId)
-    .map((task: { id: number; onfleetTaskId: string | null }) => task.onfleetTaskId!);
+    .filter(
+      (task: { id: number; onfleetTaskId: string | null }) => task.onfleetTaskId
+    )
+    .map(
+      (task: { id: number; onfleetTaskId: string | null }) =>
+        task.onfleetTaskId!
+    );
 
   if (validTaskIds.length === 0) {
     throw new Error('No valid Onfleet tasks found for route');
@@ -109,7 +118,10 @@ export async function executeTeamDispatch(
     routeId: `route_${dispatchId}_${Date.now()}`,
     orderIds: route.orders.map((o: any) => o.orderId),
     assignedDriverId: dispatchResult.assignedWorkers?.[0]?.id || null,
-    estimatedServiceTime: route.orders.reduce((sum: number, o: any) => sum + o.estimatedServiceTime, 0),
+    estimatedServiceTime: route.orders.reduce(
+      (sum: number, o: any) => sum + o.estimatedServiceTime,
+      0
+    ),
     totalCapacity: {
       weight: route.totalCapacity.totalWeight,
       volume: route.totalCapacity.totalVolume,
@@ -160,7 +172,7 @@ export async function logDispatchResults(
     warningCount: results.warnings.length,
     errorCount: results.errors.length,
   });
-  
+
   // TODO: Store in database dispatch log table for analytics
 }
 
@@ -173,73 +185,81 @@ export async function getPayoutStatistics(): Promise<PayoutStatistics> {
     prisma.packingSupplyOrder.aggregate({
       where: {
         status: 'Delivered',
-        driverPayoutStatus: 'completed'
+        driverPayoutStatus: 'completed',
       },
       _sum: {
-        driverPayoutAmount: true
+        driverPayoutAmount: true,
       },
       _count: {
-        id: true
-      }
+        id: true,
+      },
     }),
-    
+
     // Last 30 days stats
     prisma.packingSupplyOrder.aggregate({
       where: {
         status: 'Delivered',
         driverPayoutStatus: 'completed',
         actualDeliveryTime: {
-          gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // 30 days ago
-        }
+          gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
+        },
       },
       _sum: {
-        driverPayoutAmount: true
+        driverPayoutAmount: true,
       },
       _count: {
-        id: true
-      }
-    })
+        id: true,
+      },
+    }),
   ]);
 
   const [pendingCount, failedCount] = await Promise.all([
     prisma.packingSupplyOrder.count({
       where: {
         status: 'Delivered',
-        driverPayoutStatus: 'pending'
-      }
+        driverPayoutStatus: 'pending',
+      },
     }),
-    
+
     prisma.packingSupplyOrder.count({
       where: {
         status: 'Delivered',
-        driverPayoutStatus: 'failed'
-      }
-    })
+        driverPayoutStatus: 'failed',
+      },
+    }),
   ]);
 
   return {
     allTime: {
       totalPayouts: totalStats._count.id,
-      totalAmount: parseFloat(totalStats._sum.driverPayoutAmount?.toString() || '0'),
-      averageAmount: totalStats._count.id > 0 
-        ? parseFloat(totalStats._sum.driverPayoutAmount?.toString() || '0') / totalStats._count.id
-        : 0
+      totalAmount: parseFloat(
+        totalStats._sum.driverPayoutAmount?.toString() || '0'
+      ),
+      averageAmount:
+        totalStats._count.id > 0
+          ? parseFloat(totalStats._sum.driverPayoutAmount?.toString() || '0') /
+            totalStats._count.id
+          : 0,
     },
     last30Days: {
       totalPayouts: recentStats._count.id,
-      totalAmount: parseFloat(recentStats._sum.driverPayoutAmount?.toString() || '0'),
-      averageAmount: recentStats._count.id > 0 
-        ? parseFloat(recentStats._sum.driverPayoutAmount?.toString() || '0') / recentStats._count.id
-        : 0
+      totalAmount: parseFloat(
+        recentStats._sum.driverPayoutAmount?.toString() || '0'
+      ),
+      averageAmount:
+        recentStats._count.id > 0
+          ? parseFloat(recentStats._sum.driverPayoutAmount?.toString() || '0') /
+            recentStats._count.id
+          : 0,
     },
     pending: {
       count: pendingCount,
-      needsAttention: pendingCount > 0
+      needsAttention: pendingCount > 0,
     },
     failed: {
       count: failedCount,
-      needsAttention: failedCount > 0
-    }
+      needsAttention: failedCount > 0,
+    },
   };
 }
 
@@ -266,7 +286,10 @@ export async function getRecentDispatchHistory(limit: number = 10) {
 /**
  * Get dispatch details by date
  */
-export async function getDispatchDetailsByDate(date: string, limit: number = 10) {
+export async function getDispatchDetailsByDate(
+  date: string,
+  limit: number = 10
+) {
   return await prisma.packingSupplyOrder.findMany({
     where: {
       deliveryDate: {
@@ -292,4 +315,4 @@ export const ONFLEET_DISPATCH_CONSTANTS = {
   PST_DISPATCH_HOUR: 12,
   DEFAULT_DISPATCH_MODE: 'load',
   ROUTE_PREFIX: 'route_',
-} as const; 
+} as const;

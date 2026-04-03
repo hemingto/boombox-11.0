@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { AccordionContainer } from '@/components/ui/primitives/Accordion/AccordionContainer';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 import type { CategoryFaq } from '@/data/categoryPages';
 
 export interface CategoryFaqSectionProps {

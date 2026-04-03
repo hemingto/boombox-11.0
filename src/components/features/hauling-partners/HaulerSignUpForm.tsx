@@ -13,8 +13,8 @@ import {
   isValidEmail,
   normalizeWebsiteURL,
   isValidURL,
-  convertEmployeeCountToNumber,
-} from '@/lib/utils';
+} from '@/lib/utils/validationUtils';
+import { convertEmployeeCountToNumber } from '@/lib/utils/movingPartnerClientUtils';
 import Link from 'next/link';
 
 const EMPLOYEE_COUNT_OPTIONS: SelectOption[] = [

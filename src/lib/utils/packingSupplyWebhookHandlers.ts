@@ -4,6 +4,8 @@
  * @refactor Extracted packing supply webhook handlers into dedicated utility module
  */
 
+import 'server-only';
+
 import { prisma } from '@/lib/database/prismaClient';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { formatCurrency } from './currencyUtils';

@@ -5,6 +5,8 @@
  * @refactor Consolidated driver notification and admin notification utilities
  */
 
+import 'server-only';
+
 import { prisma } from '@/lib/database/prismaClient';
 
 // Types for driver notification functionality

@@ -20,7 +20,7 @@ import { ItemList } from './ItemList';
 import { CustomItemModal } from './CustomItemModal';
 import { CalculatorResults } from './CalculatorResults';
 import { MaxUnitsExceeded } from './MaxUnitsExceeded';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 
 /** Spinner component for loading state */
 function Spinner({ className }: { className?: string }) {

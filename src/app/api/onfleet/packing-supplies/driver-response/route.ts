@@ -25,7 +25,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
 import { assignRoutePlanToWorker } from '@/lib/services/onfleet-route-plan';
 import { DriverOfferService } from '@/lib/services/DriverOfferService';
-// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import {
   findAndNotifyNextDriverForRoute,
   verifyDriverOfferToken,

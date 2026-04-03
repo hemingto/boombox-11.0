@@ -15,7 +15,7 @@
 
 import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { formatTime } from '@/lib/utils';
+import { formatTime } from '@/lib/utils/dateUtils';
 import { prisma } from '@/lib/database/prismaClient';
 import { deleteOnfleetTask } from '@/lib/integrations/onfleetClient';
 import { MessageService } from '@/lib/messaging/MessageService';
@@ -26,7 +26,6 @@ import {
 } from '@/lib/validations/api.validations';
 import { NotificationService } from '@/lib/services/NotificationService';
 import { TimeSlotBookingService } from '@/lib/services/TimeSlotBookingService';
-// eslint-disable-next-line no-restricted-imports -- server-side only; not safe to re-export from central index
 import { deleteDriverTimeSlotBooking } from '@/lib/utils/driverAssignmentUtils';
 
 // Cancellation fee configuration

@@ -15,7 +15,6 @@ import {
 
 import {
   generateCacheKey,
-  getDayOfWeekString,
   getDistinctDaysOfWeekInMonth,
   calculateDriverRequirements,
   generateBusinessHourSlots,
@@ -24,7 +23,8 @@ import {
   checkOnfleetTaskConflicts,
   determineAvailabilityLevel,
   isDateInPast,
-} from '@/lib/utils';
+} from '@/lib/utils/availabilityUtils';
+import { getDayOfWeekString } from '@/lib/utils/movingPartnerClientUtils';
 
 import {
   getResourceAvailabilityForDays,

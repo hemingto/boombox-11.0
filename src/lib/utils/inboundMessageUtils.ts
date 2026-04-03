@@ -4,17 +4,27 @@
  * @refactor Extracted inline database queries to centralized utilities
  */
 
+import 'server-only';
+
 import { prisma } from '@/lib/database/prismaClient';
-import type { User, Driver, OnfleetTask, PackingSupplyRoute, Appointment } from '@prisma/client';
+import type {
+  User,
+  Driver,
+  OnfleetTask,
+  PackingSupplyRoute,
+  Appointment,
+} from '@prisma/client';
 
 /**
  * Find customer by phone number
  * @param phoneNumber - Customer phone number
  * @returns Promise<User | null>
  */
-export async function findCustomerByPhone(phoneNumber: string): Promise<User | null> {
+export async function findCustomerByPhone(
+  phoneNumber: string
+): Promise<User | null> {
   return await prisma.user.findUnique({
-    where: { phoneNumber }
+    where: { phoneNumber },
   });
 }
 
@@ -24,64 +34,75 @@ export async function findCustomerByPhone(phoneNumber: string): Promise<User | n
  * @param phoneNumber - Driver phone number (e.g., +16508709543 from Twilio)
  * @returns Promise<Driver | null>
  */
-export async function findDriverByPhone(phoneNumber: string): Promise<Driver | null> {
+export async function findDriverByPhone(
+  phoneNumber: string
+): Promise<Driver | null> {
   console.log('--- findDriverByPhone DEBUG ---');
   console.log('Input phone number:', phoneNumber);
-  
+
   // First try exact match
   let driver = await prisma.driver.findUnique({
-    where: { phoneNumber }
+    where: { phoneNumber },
   });
-  
+
   if (driver) {
     console.log('DEBUG: Found driver with exact match. Driver ID:', driver.id);
     return driver;
   }
-  
+
   console.log('DEBUG: No exact match found, trying normalized formats...');
-  
+
   // Try without the +1 prefix (in case stored as 10 digits)
   const digits = phoneNumber.replace(/\D/g, '');
-  const last10Digits = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
-  
+  const last10Digits =
+    digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+
   console.log('DEBUG: Extracted digits:', digits);
   console.log('DEBUG: Last 10 digits:', last10Digits);
-  
+
   // Try finding with just the 10 digits
   driver = await prisma.driver.findUnique({
-    where: { phoneNumber: last10Digits }
+    where: { phoneNumber: last10Digits },
   });
-  
+
   if (driver) {
-    console.log('DEBUG: Found driver with 10-digit format. Driver ID:', driver.id);
+    console.log(
+      'DEBUG: Found driver with 10-digit format. Driver ID:',
+      driver.id
+    );
     return driver;
   }
-  
+
   // Try with +1 prefix if input didn't have it
   if (!phoneNumber.startsWith('+1') && last10Digits.length === 10) {
     driver = await prisma.driver.findUnique({
-      where: { phoneNumber: `+1${last10Digits}` }
+      where: { phoneNumber: `+1${last10Digits}` },
     });
-    
+
     if (driver) {
       console.log('DEBUG: Found driver with +1 prefix. Driver ID:', driver.id);
       return driver;
     }
   }
-  
+
   // Log all drivers for debugging (limit to first few)
-  console.log('DEBUG: No driver found. Checking database for similar phones...');
+  console.log(
+    'DEBUG: No driver found. Checking database for similar phones...'
+  );
   const similarDrivers = await prisma.driver.findMany({
     where: {
       phoneNumber: {
-        contains: last10Digits.slice(-7) // Last 7 digits
-      }
+        contains: last10Digits.slice(-7), // Last 7 digits
+      },
     },
     select: { id: true, phoneNumber: true, firstName: true, lastName: true },
-    take: 5
+    take: 5,
   });
-  console.log('DEBUG: Drivers with similar phone numbers:', JSON.stringify(similarDrivers, null, 2));
-  
+  console.log(
+    'DEBUG: Drivers with similar phone numbers:',
+    JSON.stringify(similarDrivers, null, 2)
+  );
+
   return null;
 }
 
@@ -90,17 +111,19 @@ export async function findDriverByPhone(phoneNumber: string): Promise<Driver | n
  * @param userId - Customer user ID
  * @returns Promise<Appointment | null>
  */
-export async function findPendingMoverChange(userId: string): Promise<Appointment | null> {
+export async function findPendingMoverChange(
+  userId: string
+): Promise<Appointment | null> {
   return await prisma.appointment.findFirst({
     where: {
       userId: parseInt(userId, 10),
       description: {
-        contains: '"moverChangeRequest"'
-      }
+        contains: '"moverChangeRequest"',
+      },
     },
     orderBy: {
-      date: 'desc'
-    }
+      date: 'desc',
+    },
   });
 }
 
@@ -109,20 +132,22 @@ export async function findPendingMoverChange(userId: string): Promise<Appointmen
  * @param driverId - Driver ID (optional, will search for any recent offer if not provided)
  * @returns Promise<PackingSupplyRoute | null>
  */
-export async function findRecentPackingSupplyRoute(driverId?: string): Promise<PackingSupplyRoute | null> {
+export async function findRecentPackingSupplyRoute(
+  driverId?: string
+): Promise<PackingSupplyRoute | null> {
   return await prisma.packingSupplyRoute.findFirst({
     where: {
       driverOfferSentAt: {
-        gte: new Date(Date.now() - 30 * 60 * 1000) // Last 30 minutes
+        gte: new Date(Date.now() - 30 * 60 * 1000), // Last 30 minutes
       },
       driverOfferStatus: 'sent',
       driverOfferExpiresAt: {
-        gt: new Date() // Not expired
-      }
+        gt: new Date(), // Not expired
+      },
     },
     orderBy: {
-      driverOfferSentAt: 'desc'
-    }
+      driverOfferSentAt: 'desc',
+    },
   });
 }
 
@@ -137,28 +162,31 @@ export async function findLatestDriverTask(
   console.log('--- findLatestDriverTask DEBUG ---');
   console.log('Looking for tasks with lastNotifiedDriverId:', driverId);
   console.log('Type of driverId:', typeof driverId);
-  
+
   const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-  console.log('DEBUG: Time window - tasks sent after:', twoHoursAgo.toISOString());
-  
+  console.log(
+    'DEBUG: Time window - tasks sent after:',
+    twoHoursAgo.toISOString()
+  );
+
   const task = await prisma.onfleetTask.findFirst({
     where: {
       lastNotifiedDriverId: driverId,
       driverNotificationStatus: {
-        in: ['sent', 'pending_reconfirmation']
+        in: ['sent', 'pending_reconfirmation'],
       },
       driverNotificationSentAt: {
-        gte: twoHoursAgo
-      }
+        gte: twoHoursAgo,
+      },
     },
     orderBy: {
-      driverNotificationSentAt: 'desc'
+      driverNotificationSentAt: 'desc',
     },
     include: {
-      appointment: true
-    }
+      appointment: true,
+    },
   });
-  
+
   if (task) {
     console.log('DEBUG: Task found:', {
       id: task.id,
@@ -166,14 +194,14 @@ export async function findLatestDriverTask(
       appointmentId: task.appointmentId,
       lastNotifiedDriverId: task.lastNotifiedDriverId,
       driverNotificationStatus: task.driverNotificationStatus,
-      driverNotificationSentAt: task.driverNotificationSentAt
+      driverNotificationSentAt: task.driverNotificationSentAt,
     });
   } else {
     console.log('DEBUG: No task found. Checking all tasks for this driver...');
     // Debug query to see what tasks exist for this driver
     const allDriverTasks = await prisma.onfleetTask.findMany({
       where: {
-        lastNotifiedDriverId: driverId
+        lastNotifiedDriverId: driverId,
       },
       select: {
         id: true,
@@ -181,22 +209,25 @@ export async function findLatestDriverTask(
         appointmentId: true,
         driverNotificationStatus: true,
         driverNotificationSentAt: true,
-        lastNotifiedDriverId: true
+        lastNotifiedDriverId: true,
       },
       take: 5,
       orderBy: {
-        driverNotificationSentAt: 'desc'
-      }
+        driverNotificationSentAt: 'desc',
+      },
     });
-    console.log('DEBUG: All tasks for driver (any status):', JSON.stringify(allDriverTasks, null, 2));
-    
+    console.log(
+      'DEBUG: All tasks for driver (any status):',
+      JSON.stringify(allDriverTasks, null, 2)
+    );
+
     // Also check tasks with 'sent' status but maybe wrong driver
     const recentSentTasks = await prisma.onfleetTask.findMany({
       where: {
         driverNotificationStatus: 'sent',
         driverNotificationSentAt: {
-          gte: twoHoursAgo
-        }
+          gte: twoHoursAgo,
+        },
       },
       select: {
         id: true,
@@ -204,13 +235,16 @@ export async function findLatestDriverTask(
         appointmentId: true,
         driverNotificationStatus: true,
         driverNotificationSentAt: true,
-        lastNotifiedDriverId: true
+        lastNotifiedDriverId: true,
       },
-      take: 5
+      take: 5,
     });
-    console.log('DEBUG: Recent "sent" tasks (any driver):', JSON.stringify(recentSentTasks, null, 2));
+    console.log(
+      'DEBUG: Recent "sent" tasks (any driver):',
+      JSON.stringify(recentSentTasks, null, 2)
+    );
   }
-  
+
   return task;
 }
 
@@ -221,7 +255,7 @@ export async function findLatestDriverTask(
  */
 export function parseAppointmentDescription(description: string | null): any {
   if (!description) return {};
-  
+
   try {
     return JSON.parse(description);
   } catch {
@@ -234,17 +268,20 @@ export function parseAppointmentDescription(description: string | null): any {
  * @param appointmentId - Appointment ID
  * @param driverId - Driver ID to remove
  */
-export async function removeDriverFromAppointment(appointmentId: string, driverId: string): Promise<void> {
+export async function removeDriverFromAppointment(
+  appointmentId: string,
+  driverId: string
+): Promise<void> {
   await prisma.onfleetTask.updateMany({
     where: {
       appointmentId: parseInt(appointmentId, 10),
-      driverId: parseInt(driverId, 10)
+      driverId: parseInt(driverId, 10),
     },
     data: {
       driverId: null,
       driverNotificationStatus: 'cancelled',
       driverAcceptedAt: null,
-      declinedDriverIds: []
-    }
+      declinedDriverIds: [],
+    },
   });
 }

@@ -28,7 +28,8 @@ import {
   createAppointmentWithDriverAssignment,
   processOnfleetAndAssignDriver,
 } from '@/lib/services/appointmentService';
-import { normalizePhoneNumberToE164, formatTime } from '@/lib/utils';
+import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
+import { formatTime } from '@/lib/utils/dateUtils';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { welcomeEmailNewCustomer } from '@/lib/messaging/templates/email/booking';
 import { welcomeSmsNewCustomer } from '@/lib/messaging/templates/sms/booking/welcomeSmsNewCustomer';

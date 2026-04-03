@@ -6,6 +6,8 @@
  * @refactor Extracted utility functions from API routes to centralized utils
  */
 
+import 'server-only';
+
 import { PackingSupplyCartItem } from '@/types/packingSupply.types';
 import { formatCurrency } from './currencyUtils';
 import { prisma } from '@/lib/database/prismaClient';

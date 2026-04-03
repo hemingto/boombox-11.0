@@ -27,12 +27,12 @@ import SendQuoteEmail from '@/components/forms/SendQuoteEmailModal';
 import { InsuranceOption } from '@/types/insurance';
 import { QuoteData } from '@/lib/services/quoteService';
 import { mapStyles } from '@/app/mapstyles';
+import { formatVerboseDate } from '@/lib/utils/dateUtils';
 import {
-  formatVerboseDate,
   getBoomboxPriceByZipCode,
   formatStorageUnitPrice,
   formatInsurancePrice,
-} from '@/lib/utils';
+} from '@/lib/utils/pricingUtils';
 import { useQuote } from '@/hooks/useQuote';
 import { accessStorageUnitPricing } from '@/data/accessStorageUnitPricing';
 import { PROCESSING_FEE_LABEL } from '@/data/processingFeeConfig';

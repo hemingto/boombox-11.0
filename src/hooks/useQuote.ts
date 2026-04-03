@@ -8,7 +8,10 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { InsuranceOption } from '@/types/insurance';
 import { type StorageTerm } from '@/data/storageTermPricing';
-import { calculateQuotePricing, type PricingCalculation } from '@/lib/utils';
+import {
+  calculateQuotePricing,
+  type PricingCalculation,
+} from '@/lib/utils/pricingUtils';
 
 interface UseQuoteParams {
   zipCode: string;

@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 export interface ErrorStateProps {
@@ -13,32 +13,32 @@ export interface ErrorStateProps {
    * Custom icon to display (optional)
    */
   icon?: React.ReactNode;
-  
+
   /**
    * Error title
    */
   title: string;
-  
+
   /**
    * Error message or description
    */
   message: string;
-  
+
   /**
    * Optional action button or element
    */
   action?: React.ReactNode;
-  
+
   /**
    * Additional CSS classes
    */
   className?: string;
-  
+
   /**
    * Size variant
    */
   size?: 'sm' | 'md' | 'lg';
-  
+
   /**
    * Whether to center align the content
    */
@@ -47,7 +47,7 @@ export interface ErrorStateProps {
 
 /**
  * ErrorState component for displaying error feedback
- * 
+ *
  * @example
  * ```tsx
  * // Basic usage
@@ -55,14 +55,14 @@ export interface ErrorStateProps {
  *   title="Something went wrong"
  *   message="We couldn't load your data. Please try again."
  * />
- * 
+ *
  * // With custom action
  * <ErrorState
  *   title="Connection Error"
  *   message="Unable to connect to the server."
  *   action={<Button onClick={onRetry}>Try Again</Button>}
  * />
- * 
+ *
  * // With custom icon and size
  * <ErrorState
  *   icon={<WifiIcon className="w-12 h-12" />}
@@ -107,50 +107,38 @@ const ErrorState: React.FC<ErrorStateProps> = ({
 
   const currentSize = sizeClasses[size];
   const defaultIcon = (
-    <div className={cn(
-      'mx-auto rounded-full bg-status-bg-error flex items-center justify-center',
-      currentSize.iconMargin,
-      currentSize.icon
-    )}>
-      <ExclamationTriangleIcon 
-        className={cn('text-status-error', 'w-1/2 h-1/2')} 
+    <div
+      className={cn(
+        'mx-auto rounded-full bg-status-bg-error flex items-center justify-center',
+        currentSize.iconMargin,
+        currentSize.icon
+      )}
+    >
+      <ExclamationTriangleIcon
+        className={cn('text-status-error', 'w-1/2 h-1/2')}
         aria-hidden="true"
       />
     </div>
   );
 
   return (
-    <div 
-      className={cn(
-        currentSize.spacing,
-        centered && 'text-center',
-        className
-      )}
+    <div
+      className={cn(currentSize.spacing, centered && 'text-center', className)}
       role="alert"
       aria-live="assertive"
     >
       {/* Error Icon */}
-      <div className={cn('flex', centered ? 'justify-center' : 'justify-start')}>
+      <div
+        className={cn('flex', centered ? 'justify-center' : 'justify-start')}
+      >
         {icon || defaultIcon}
       </div>
 
       {/* Error Title */}
-      <h3 
-        className={cn(
-          'text-text-primary',
-          currentSize.title
-        )}
-      >
-        {title}
-      </h3>
+      <h3 className={cn('text-text-primary', currentSize.title)}>{title}</h3>
 
       {/* Error Message */}
-      <p 
-        className={cn(
-          'text-text-secondary',
-          currentSize.message
-        )}
-      >
+      <p className={cn('text-text-secondary', currentSize.message)}>
         {message}
       </p>
 

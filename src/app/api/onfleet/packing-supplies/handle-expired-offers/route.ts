@@ -23,7 +23,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
-// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import { findAndNotifyNextDriverForRoute } from '@/lib/utils/driverNotificationUtils';
 import {
   HandleExpiredOffersRequestSchema,

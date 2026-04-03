@@ -11,7 +11,7 @@ import {
   formatAppointmentDateForSms,
   formatTimeMinusOneHour,
   type AppointmentChanges,
-} from '@/lib/utils';
+} from '@/lib/utils/appointmentUtils';
 import { NotificationService } from './NotificationService';
 
 // Import templates (will be created in Phase 3)

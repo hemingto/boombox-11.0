@@ -5,6 +5,8 @@
  * @refactor Extracted mover change business logic into reusable utilities
  */
 
+import 'server-only';
+
 import { prisma } from '@/lib/database/prismaClient';
 import { getOnfleetClient } from '@/lib/integrations/onfleetClient';
 import { formatTime24Hour } from './dateUtils';

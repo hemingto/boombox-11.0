@@ -34,7 +34,6 @@ import {
   storageServiceArrivalTemplate,
 } from '@/lib/messaging/templates/sms/booking';
 import { driverPayoutNotificationTemplate } from '@/lib/messaging/templates/sms/payment';
-// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import {
   WebhookTaskDetails,
   WebhookWorkerData,

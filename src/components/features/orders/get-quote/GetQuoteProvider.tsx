@@ -28,7 +28,7 @@ import type {
   InsuranceOption,
   StripeErrors,
 } from '@/types/getQuote.types';
-import { getStorageUnitText } from '@/lib/utils';
+import { getStorageUnitText } from '@/lib/utils/pricingUtils';
 import {
   getQuoteStep1Schema,
   getQuoteStep2Schema,

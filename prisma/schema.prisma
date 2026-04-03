@@ -193,6 +193,10 @@ model StorageUnitUsage {
   description        String?
   padlockCombo       String?
   warehouseId        Int?
+  returnProcessed    Boolean      @default(false)
+  returnProcessedAt  DateTime?
+  padlockProvided    Boolean      @default(false)
+  isStoringItems     Boolean?
   endAppointment     Appointment? @relation("StorageEnd", fields: [endAppointmentId], references: [id])
   startAppointment   Appointment? @relation("StorageStart", fields: [startAppointmentId], references: [id])
   storageUnit        StorageUnit  @relation(fields: [storageUnitId], references: [id])

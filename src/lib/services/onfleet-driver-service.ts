@@ -5,7 +5,6 @@
  */
 
 import { prisma } from '@/lib/database/prismaClient';
-// eslint-disable-next-line no-restricted-imports -- driverUtils uses Cloudinary (server-only), not re-exported from barrel
 import {
   formatPhoneForOnfleet,
   mapVehicleTypeToOnfleet,

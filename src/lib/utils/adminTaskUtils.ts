@@ -13,6 +13,8 @@
  * @refactor Extracted from monolithic admin tasks route for better organization
  */
 
+import 'server-only';
+
 import { prisma } from '@/lib/database/prismaClient';
 
 let _defaultWarehouseId: number | null = null;

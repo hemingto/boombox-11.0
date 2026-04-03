@@ -29,7 +29,8 @@ import { MinusCircleIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
 import { type ProductCardProps } from '@/types/product.types';
 import { Modal } from '../Modal/Modal';
 import { Button } from '../Button/Button';
-import { formatCurrency, cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
+import { formatCurrency } from '@/lib/utils/currencyUtils';
 
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,

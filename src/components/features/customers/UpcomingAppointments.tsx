@@ -23,7 +23,7 @@
 
 import { AppointmentCard } from './AppointmentCard';
 import { type CustomerAppointmentDisplay } from '@/lib/services/customerDataService';
-import { addDateSuffix } from '@/lib/utils';
+import { addDateSuffix } from '@/lib/utils/dateUtils';
 
 export interface UpcomingAppointmentsProps {
   userId: string;

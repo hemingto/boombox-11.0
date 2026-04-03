@@ -42,7 +42,7 @@ import { Input } from '@/components/ui/primitives/Input/Input';
 import { mapStyles } from '@/app/mapstyles';
 import { zipCodePrices } from '@/data/zipcodeprices';
 import { bayAreaCoordinates } from '@/data/bayareaserviceareacoordinates';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 
 const containerStyle = {
   width: '100%',

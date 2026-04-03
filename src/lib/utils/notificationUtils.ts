@@ -4,6 +4,8 @@
  * @refactor Extracted notification creation, querying, and grouping logic into reusable utilities
  */
 
+import 'server-only';
+
 import { prisma } from '@/lib/database/prismaClient';
 import { UserType, NotificationType } from '@prisma/client';
 
@@ -61,8 +63,8 @@ export function buildNotificationWhereClause(filters: NotificationFilters) {
     recipientId: filters.recipientId,
     recipientType: filters.recipientType,
     status: {
-      not: 'ARCHIVED' // Don't show archived notifications
-    }
+      not: 'ARCHIVED', // Don't show archived notifications
+    },
   };
 
   if (filters.status) {
@@ -75,7 +77,9 @@ export function buildNotificationWhereClause(filters: NotificationFilters) {
 /**
  * Get notifications with pagination and filtering
  */
-export async function getNotifications(filters: NotificationFilters): Promise<NotificationResult> {
+export async function getNotifications(
+  filters: NotificationFilters
+): Promise<NotificationResult> {
   const page = filters.page || 1;
   const limit = filters.limit || 5;
   const skip = (page - 1) * limit;
@@ -86,7 +90,7 @@ export async function getNotifications(filters: NotificationFilters): Promise<No
   const notifications = await prisma.notification.findMany({
     where: whereClause,
     orderBy: {
-      createdAt: 'desc'
+      createdAt: 'desc',
     },
     skip,
     take: limit,
@@ -96,22 +100,22 @@ export async function getNotifications(filters: NotificationFilters): Promise<No
           id: true,
           appointmentType: true,
           date: true,
-          address: true
-        }
+          address: true,
+        },
       },
       packingSupplyOrder: {
         select: {
           id: true,
           deliveryAddress: true,
-          deliveryDate: true
-        }
-      }
-    }
+          deliveryDate: true,
+        },
+      },
+    },
   });
 
   // Get total count for pagination
   const totalCount = await prisma.notification.count({
-    where: whereClause
+    where: whereClause,
   });
 
   // Get unread count
@@ -119,8 +123,8 @@ export async function getNotifications(filters: NotificationFilters): Promise<No
     where: {
       recipientId: filters.recipientId,
       recipientType: filters.recipientType,
-      status: 'UNREAD'
-    }
+      status: 'UNREAD',
+    },
   });
 
   return {
@@ -130,9 +134,9 @@ export async function getNotifications(filters: NotificationFilters): Promise<No
       limit,
       total: totalCount,
       totalPages: Math.ceil(totalCount / limit),
-      hasMore: totalCount > page * limit
+      hasMore: totalCount > page * limit,
     },
-    unreadCount: Math.min(unreadCount, 25) // Cap at 25 as requested
+    unreadCount: Math.min(unreadCount, 25), // Cap at 25 as requested
   };
 }
 
@@ -149,8 +153,8 @@ export async function createNotification(data: CreateNotificationData) {
         recipientId: data.recipientId,
         recipientType: data.recipientType,
         groupKey: data.groupKey,
-        status: 'UNREAD'
-      }
+        status: 'UNREAD',
+      },
     });
 
     if (existingNotification) {
@@ -160,8 +164,8 @@ export async function createNotification(data: CreateNotificationData) {
         data: {
           groupCount: { increment: 1 },
           message: data.message, // Update with latest message
-          createdAt: new Date() // Update timestamp
-        }
+          createdAt: new Date(), // Update timestamp
+        },
       });
     } else {
       // Create new grouped notification
@@ -179,8 +183,8 @@ export async function createNotification(data: CreateNotificationData) {
           driverId: data.driverId,
           movingPartnerId: data.movingPartnerId,
           groupKey: data.groupKey,
-          groupCount: 1
-        }
+          groupCount: 1,
+        },
       });
     }
   } else {
@@ -197,8 +201,8 @@ export async function createNotification(data: CreateNotificationData) {
         routeId: data.routeId,
         taskId: data.taskId,
         driverId: data.driverId,
-        movingPartnerId: data.movingPartnerId
-      }
+        movingPartnerId: data.movingPartnerId,
+      },
     });
   }
 
@@ -228,14 +232,16 @@ export function parseNotificationParams(searchParams: URLSearchParams) {
     recipientType: recipientType.toUpperCase() as UserType,
     page,
     limit,
-    status
+    status,
   };
 }
 
 /**
  * Validate required fields for notification creation
  */
-export function validateCreateNotificationData(data: any): CreateNotificationData {
+export function validateCreateNotificationData(
+  data: any
+): CreateNotificationData {
   const {
     recipientId,
     recipientType,
@@ -248,11 +254,13 @@ export function validateCreateNotificationData(data: any): CreateNotificationDat
     taskId,
     driverId,
     movingPartnerId,
-    groupKey
+    groupKey,
   } = data;
 
   if (!recipientId || !recipientType || !type || !title || !message) {
-    throw new Error('Missing required fields: recipientId, recipientType, type, title, message');
+    throw new Error(
+      'Missing required fields: recipientId, recipientType, type, title, message'
+    );
   }
 
   return {
@@ -267,6 +275,6 @@ export function validateCreateNotificationData(data: any): CreateNotificationDat
     taskId: taskId?.toString(),
     driverId,
     movingPartnerId,
-    groupKey
+    groupKey,
   };
 }

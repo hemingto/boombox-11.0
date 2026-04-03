@@ -28,9 +28,8 @@ import {
   createAdditionalStorageAppointment,
   processOnfleetAndAssignDriver,
   type AdditionalStorageAppointmentData,
-  formatDateForDisplay,
-  formatTime,
-} from '@/lib/utils';
+} from '@/lib/utils/appointmentUtils';
+import { formatDateForDisplay, formatTime } from '@/lib/utils/dateUtils';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { additionalStorageConfirmationSms } from '@/lib/messaging/templates/sms/booking';
 import { prisma } from '@/lib/database/prismaClient';

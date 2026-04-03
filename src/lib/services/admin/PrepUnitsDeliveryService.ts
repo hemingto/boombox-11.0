@@ -2,30 +2,29 @@
  * @fileoverview Service for handling storage unit preparation for customer delivery/access appointments
  * @source boombox-10.0/src/app/api/admin/tasks/[taskId]/route.ts (prep-delivery task display logic)
  * @source boombox-10.0/src/app/api/admin/tasks/[taskId]/prep-units-delivery/route.ts (unit prep processing logic)
- * 
+ *
  * SERVICE FUNCTIONALITY:
  * - Get unit delivery preparation task details for display
  * - Process unit preparation by marking storage units as ready for delivery
  * - Handle validation of unit numbers and appointment types
  * - Manage staging area preparation and physical unit organization
  * - Create prep audit trails and admin logging
- * 
+ *
  * USED BY:
  * - Admin task management interface for unit delivery preparation workflow
  * - Storage unit access appointment coordination
  * - Warehouse operations and unit staging management
  * - Customer service delivery scheduling
- * 
+ *
  * @refactor Extracted from monolithic admin tasks route for better organization
  */
 
 import { prisma } from '@/lib/database/prismaClient';
-// eslint-disable-next-line no-restricted-imports -- adminTaskUtils uses prisma (server-only), not re-exported from barrel
-import { 
+import {
   formatTaskDate,
   formatTaskTime,
   validateAppointmentForUnitsDelivery,
-  markUnitsReadyForDelivery
+  markUnitsReadyForDelivery,
 } from '@/lib/utils/adminTaskUtils';
 
 /**
@@ -75,7 +74,9 @@ export class PrepUnitsDeliveryService {
    * Get unit delivery preparation task details for display
    * @source boombox-10.0/src/app/api/admin/tasks/[taskId]/route.ts (lines 315-344)
    */
-  async getPrepDeliveryTask(appointmentId: number): Promise<PrepUnitsDeliveryTask | null> {
+  async getPrepDeliveryTask(
+    appointmentId: number
+  ): Promise<PrepUnitsDeliveryTask | null> {
     try {
       const appointment = await prisma.appointment.findUnique({
         where: { id: appointmentId },
@@ -89,9 +90,8 @@ export class PrepUnitsDeliveryService {
           user: {
             select: {
               firstName: true,
-              lastName: true
-              
-            }
+              lastName: true,
+            },
           },
           requestedStorageUnits: {
             select: {
@@ -101,12 +101,12 @@ export class PrepUnitsDeliveryService {
               storageUnit: {
                 select: {
                   id: true,
-                  storageUnitNumber: true
-                }
-              }
-            }
-          }
-        }
+                  storageUnitNumber: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!appointment) {
@@ -114,20 +114,29 @@ export class PrepUnitsDeliveryService {
       }
 
       // Only return task for appointments that need unit delivery prep
-      if (!['Storage Unit Access', 'End Storage Plan'].includes(appointment.appointmentType)) {
+      if (
+        !['Storage Unit Access', 'End Storage Plan'].includes(
+          appointment.appointmentType
+        )
+      ) {
         return null;
       }
 
       // Only return if there are units that need preparation (unitsReady: false)
-      const unreadyUnits = appointment.requestedStorageUnits.filter(unit => !unit.unitsReady);
+      const unreadyUnits = appointment.requestedStorageUnits.filter(
+        unit => !unit.unitsReady
+      );
       if (unreadyUnits.length === 0) {
         return null;
       }
 
       const formattedDate = formatTaskDate(appointment.date);
       const formattedTime = formatTaskTime(appointment.time);
-      const customerName = `${appointment.user?.firstName || ''} ${appointment.user?.lastName || ''}`.trim();
-      const unitNumbers = appointment.requestedStorageUnits.map(unit => unit.storageUnit.storageUnitNumber).join(', ');
+      const customerName =
+        `${appointment.user?.firstName || ''} ${appointment.user?.lastName || ''}`.trim();
+      const unitNumbers = appointment.requestedStorageUnits
+        .map(unit => unit.storageUnit.storageUnitNumber)
+        .join(', ');
 
       // Generate task ID in the expected format
       const taskId = `prep-delivery-${appointmentId}`;
@@ -143,7 +152,7 @@ export class PrepUnitsDeliveryService {
         customerName: customerName,
         appointmentDate: formattedDate,
         appointmentAddress: appointment.address ?? '',
-        requestedStorageUnits: appointment.requestedStorageUnits
+        requestedStorageUnits: appointment.requestedStorageUnits,
       };
     } catch (error) {
       console.error('Error getting prep units delivery task:', error);
@@ -167,35 +176,42 @@ export class PrepUnitsDeliveryService {
         return {
           success: false,
           message: '',
-          error: 'Unit numbers are required'
+          error: 'Unit numbers are required',
         };
       }
 
       // Validate appointment for unit delivery preparation
-      const validation = await validateAppointmentForUnitsDelivery(appointmentId);
+      const validation =
+        await validateAppointmentForUnitsDelivery(appointmentId);
       if (!validation.valid) {
         return {
           success: false,
           message: '',
-          error: validation.error || 'Validation failed'
+          error: validation.error || 'Validation failed',
         };
       }
 
       // Execute unit preparation with database transaction
-      const result = await markUnitsReadyForDelivery(appointmentId, unitNumbers, adminId);
+      const result = await markUnitsReadyForDelivery(
+        appointmentId,
+        unitNumbers,
+        adminId
+      );
 
       return {
         success: true,
         message: 'Storage units prepared for delivery successfully',
-        updatedUnits: result.updatedUnits
+        updatedUnits: result.updatedUnits,
       };
-
     } catch (error) {
       console.error('Error preparing units for delivery:', error);
       return {
         success: false,
         message: '',
-        error: error instanceof Error ? error.message : 'Failed to prepare units for delivery'
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to prepare units for delivery',
       };
     }
   }
@@ -213,25 +229,34 @@ export class PrepUnitsDeliveryService {
           date: true,
           status: true,
           requestedStorageUnits: {
-            select: { unitsReady: true }
-          }
-        }
+            select: { unitsReady: true },
+          },
+        },
       });
 
       if (!appointment) return false;
 
       // Must be Storage Unit Access or End Storage Plan appointment
-      if (!['Storage Unit Access', 'End Storage Plan'].includes(appointment.appointmentType)) {
+      if (
+        !['Storage Unit Access', 'End Storage Plan'].includes(
+          appointment.appointmentType
+        )
+      ) {
         return false;
       }
 
       // Must be within next 2 days OR appointment is already In Transit
       const today = new Date();
-      const twoDaysFromNow = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
+      const twoDaysFromNow = new Date(
+        today.getTime() + 2 * 24 * 60 * 60 * 1000
+      );
       const appointmentDate = new Date(appointment.date);
       const isInTransit = appointment.status === 'In Transit';
-      
-      if (!isInTransit && (appointmentDate < today || appointmentDate > twoDaysFromNow)) {
+
+      if (
+        !isInTransit &&
+        (appointmentDate < today || appointmentDate > twoDaysFromNow)
+      ) {
         return false;
       }
 
@@ -252,30 +277,32 @@ export class PrepUnitsDeliveryService {
   async getAllAppointmentsNeedingPrep() {
     try {
       const today = new Date();
-      const twoDaysFromNow = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
+      const twoDaysFromNow = new Date(
+        today.getTime() + 2 * 24 * 60 * 60 * 1000
+      );
 
       return await prisma.appointment.findMany({
         where: {
           appointmentType: {
-            in: ['Storage Unit Access', 'End Storage Plan']
+            in: ['Storage Unit Access', 'End Storage Plan'],
           },
           OR: [
             {
               date: {
                 gte: today,
-                lt: twoDaysFromNow
-              }
+                lt: twoDaysFromNow,
+              },
             },
-            { status: 'In Transit' }
+            { status: 'In Transit' },
           ],
           requestedStorageUnits: {
             some: {
-              unitsReady: false
-            }
+              unitsReady: false,
+            },
           },
           status: {
-            notIn: EXCLUDED_APPOINTMENT_STATUSES
-          }
+            notIn: EXCLUDED_APPOINTMENT_STATUSES,
+          },
         },
         select: {
           id: true,
@@ -287,23 +314,22 @@ export class PrepUnitsDeliveryService {
           user: {
             select: {
               firstName: true,
-              lastName: true
-              
-            }
+              lastName: true,
+            },
           },
           requestedStorageUnits: {
             include: {
               storageUnit: {
                 select: {
-                  storageUnitNumber: true
-                }
-              }
-            }
-          }
+                  storageUnitNumber: true,
+                },
+              },
+            },
+          },
         },
         orderBy: {
-          date: 'asc' // Earliest appointments first for priority
-        }
+          date: 'asc', // Earliest appointments first for priority
+        },
       });
     } catch (error) {
       console.error('Error getting appointments needing prep:', error);
@@ -318,22 +344,22 @@ export class PrepUnitsDeliveryService {
   async getPrepHistory(appointmentId: number) {
     try {
       return await prisma.adminLog.findMany({
-        where: { 
+        where: {
           targetType: 'Appointment',
           targetId: appointmentId.toString(),
-          action: 'Prepared units for delivery'
+          action: 'Prepared units for delivery',
         },
         include: {
           admin: {
             select: {
               email: true,
-              name: true
-            }
-          }
+              name: true,
+            },
+          },
         },
         orderBy: {
-          createdAt: 'desc'
-        }
+          createdAt: 'desc',
+        },
       });
     } catch (error) {
       console.error('Error getting prep history:', error);
@@ -361,19 +387,23 @@ export class PrepUnitsDeliveryService {
               storageUnit: {
                 select: {
                   storageUnitNumber: true,
-                  status: true
-                }
-              }
-            }
-          }
-        }
+                  status: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!appointment) return null;
 
       const totalUnits = appointment.requestedStorageUnits.length;
-      const readyUnits = appointment.requestedStorageUnits.filter(unit => unit.unitsReady).length;
-      const unreadyUnits = appointment.requestedStorageUnits.filter(unit => !unit.unitsReady);
+      const readyUnits = appointment.requestedStorageUnits.filter(
+        unit => unit.unitsReady
+      ).length;
+      const unreadyUnits = appointment.requestedStorageUnits.filter(
+        unit => !unit.unitsReady
+      );
 
       return {
         appointment: appointment,
@@ -381,9 +411,11 @@ export class PrepUnitsDeliveryService {
           totalUnits,
           readyUnits,
           unreadyUnits: totalUnits - readyUnits,
-          allReady: readyUnits === totalUnits
+          allReady: readyUnits === totalUnits,
         },
-        unreadyUnitNumbers: unreadyUnits.map(unit => unit.storageUnit.storageUnitNumber)
+        unreadyUnitNumbers: unreadyUnits.map(
+          unit => unit.storageUnit.storageUnitNumber
+        ),
       };
     } catch (error) {
       console.error('Error getting unit readiness status:', error);
@@ -403,48 +435,50 @@ export class PrepUnitsDeliveryService {
       const appointments = await prisma.appointment.findMany({
         where: {
           appointmentType: {
-            in: ['Storage Unit Access', 'End Storage Plan']
+            in: ['Storage Unit Access', 'End Storage Plan'],
           },
           date: {
             gte: today,
-            lt: futureDate
-          }
+            lt: futureDate,
+          },
         },
         include: {
           user: {
             select: {
               firstName: true,
               lastName: true,
-              email: true
-            }
+              email: true,
+            },
           },
           requestedStorageUnits: {
             include: {
               storageUnit: {
                 select: {
                   storageUnitNumber: true,
-                  status: true
-                }
-              }
-            }
-          }
+                  status: true,
+                },
+              },
+            },
+          },
         },
         orderBy: {
-          date: 'asc'
-        }
+          date: 'asc',
+        },
       });
 
       return appointments.map(appointment => {
-        const readyUnits = appointment.requestedStorageUnits.filter(unit => unit.unitsReady).length;
+        const readyUnits = appointment.requestedStorageUnits.filter(
+          unit => unit.unitsReady
+        ).length;
         const totalUnits = appointment.requestedStorageUnits.length;
-        
+
         return {
           ...appointment,
           prepStatus: {
             ready: readyUnits,
             total: totalUnits,
-            needsPrep: readyUnits < totalUnits
-          }
+            needsPrep: readyUnits < totalUnits,
+          },
         };
       });
     } catch (error) {

@@ -25,9 +25,7 @@ import { NextRequest } from 'next/server';
 // Import refactored webhook services
 import { PackingSupplyWebhookService } from '@/lib/services/webhooks/PackingSupplyWebhookService';
 import { StorageUnitWebhookService } from '@/lib/services/webhooks/StorageUnitWebhookService';
-// eslint-disable-next-line no-restricted-imports -- onfleetWebhookUtils uses prisma/crypto/jwt (server-only), not re-exported from barrel
 import { getMetadataValue } from '@/lib/utils/onfleetWebhookUtils';
-// eslint-disable-next-line no-restricted-imports -- onfleetSignatureValidation uses crypto (server-only), not re-exported from barrel
 import { validateOnfleetSignature } from '@/lib/utils/onfleetSignatureValidation';
 import { prisma } from '@/lib/database/prismaClient';
 import { OnfleetWebhookPayloadSchema } from '@/lib/validations/api.validations';

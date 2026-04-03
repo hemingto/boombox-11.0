@@ -12,8 +12,8 @@ import {
   generateDriverReconfirmToken,
   generateDriverWebViewUrl,
   formatTimeMinusOneHour,
-} from '@/lib/utils';
-import { formatVerboseDate } from '@/lib/utils';
+} from '@/lib/utils/appointmentUtils';
+import { formatVerboseDate } from '@/lib/utils/dateUtils';
 
 /**
  * Driver info for reconfirmation

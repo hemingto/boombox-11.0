@@ -26,7 +26,7 @@
 import { CheckCircleIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { useState } from 'react';
-import { formatDateForDisplay } from '@/lib/utils';
+import { formatDateForDisplay } from '@/lib/utils/dateUtils';
 
 interface OrderConfirmationProps {
   email: string;

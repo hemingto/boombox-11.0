@@ -25,9 +25,7 @@ import {
 } from '@/lib/validations/api.validations';
 import { z } from 'zod';
 import { calculateDriverPayment } from '@/lib/services/payment-calculator';
-// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import { formatRouteMetrics } from '@/lib/utils/driverNotificationUtils';
-// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import { generateDriverToken } from '@/lib/utils/driverAssignmentUtils';
 import { createShortToken } from '@/lib/services/shortTokenService';
 

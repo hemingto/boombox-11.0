@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/primitives/Button';
 import { FilterDropdown } from '@/components/ui/primitives/FilterDropdown';
 import { CATEGORY_OPTIONS } from '@/data/storageCalculatorItems';
 import { ViewMode } from '@/hooks/useStorageCalculator';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 
 interface CalculatorHeaderProps {
   /** Total number of items selected */

@@ -19,7 +19,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CustomerAppointmentDisplay } from '@/lib/services/customerDataService';
-import { addDateSuffix } from '@/lib/utils';
+import { addDateSuffix } from '@/lib/utils/dateUtils';
 import { InfoCard } from '@/components/ui/primitives/InfoCard';
 import { ClipboardIcon } from '@/components/icons/ClipboardIcon';
 import { PackingSuppliesIcon } from '@/components/icons/PackingSuppliesIcon';

@@ -4,6 +4,8 @@
  * @refactor Consolidated repeated appointment and order queries from webhook handlers
  */
 
+import 'server-only';
+
 import { prisma } from '@/lib/database/prismaClient';
 import type {
   Appointment,

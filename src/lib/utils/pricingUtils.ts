@@ -232,3 +232,23 @@ export function formatStorageUnitPrice(
     strikethroughPrice: `$${originalPrice}`,
   };
 }
+
+/**
+ * Get storage unit text description based on count.
+ * Maps number of units to approximate home size.
+ */
+export function getStorageUnitText(count: number): string {
+  switch (count) {
+    case 1:
+      return 'studio apartment';
+    case 2:
+      return '1 bedroom apt';
+    case 3:
+      return '2 bedroom apt';
+    case 4:
+    case 5:
+      return 'full house';
+    default:
+      return 'studio apartment';
+  }
+}

@@ -4,6 +4,8 @@
  * @refactor Extracted complex cancellation logic into reusable utilities
  */
 
+import 'server-only';
+
 import { prisma } from '@/lib/database/prismaClient';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { formatTime, formatTime24Hour } from './dateUtils';

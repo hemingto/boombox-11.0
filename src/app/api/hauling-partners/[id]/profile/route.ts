@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
-import { normalizePhoneNumberToE164 } from '@/lib/utils';
+import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
 
 export async function GET(
   request: NextRequest,

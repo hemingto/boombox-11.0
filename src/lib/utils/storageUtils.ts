@@ -7,6 +7,8 @@
  * @refactor Extracted storage unit calculations and operations into reusable utilities
  */
 
+import 'server-only';
+
 import { prisma } from '@/lib/database/prismaClient';
 
 /**
@@ -19,10 +21,10 @@ export async function calculateAvailableStorageUnits(): Promise<number> {
     const emptyUnitsCount = await prisma.storageUnit.count({
       where: { status: 'Empty' },
     });
-    
+
     // Get appointments that will require storage units
     // IMPORTANT: Count ALL 'Scheduled' appointments regardless of date because:
-    // - If an appointment is still 'Scheduled' (not 'Completed' or 'Canceled'), 
+    // - If an appointment is still 'Scheduled' (not 'Completed' or 'Canceled'),
     //   the units are still reserved even if the date has passed
     // - This prevents double-booking units for appointments that are delayed/rescheduled
     const upcomingReservations = await prisma.appointment.aggregate({
@@ -32,8 +34,8 @@ export async function calculateAvailableStorageUnits(): Promise<number> {
       where: {
         status: 'Scheduled', // All scheduled appointments reserve units
         OR: [
-          { appointmentType: 'Initial Pickup' }, 
-          { appointmentType: 'Additional Storage' }
+          { appointmentType: 'Initial Pickup' },
+          { appointmentType: 'Additional Storage' },
         ],
         numberOfUnits: {
           gt: 0, // Only count if numberOfUnits is positive and not null
@@ -42,7 +44,7 @@ export async function calculateAvailableStorageUnits(): Promise<number> {
     });
 
     const reservedUnitsCount = upcomingReservations._sum.numberOfUnits || 0;
-    
+
     // Available units = (empty units) - (units reserved for scheduled appointments)
     // Ensure the count is not negative
     const availableCount = Math.max(0, emptyUnitsCount - reservedUnitsCount);
@@ -114,7 +116,9 @@ export interface StorageUnitQueryParams {
  * Get storage units with related data
  * @source boombox-10.0/src/app/api/admin/storage-units/route.ts (lines 33-68)
  */
-export async function getStorageUnitsWithRelations(params: StorageUnitQueryParams): Promise<StorageUnitWithRelations[]> {
+export async function getStorageUnitsWithRelations(
+  params: StorageUnitQueryParams
+): Promise<StorageUnitWithRelations[]> {
   const { status, sortBy = 'storageUnitNumber', sortOrder = 'asc' } = params;
 
   // Build where clause
@@ -132,9 +136,9 @@ export async function getStorageUnitsWithRelations(params: StorageUnitQueryParam
               firstName: true,
               lastName: true,
               email: true,
-            }
-          }
-        }
+            },
+          },
+        },
       },
       accessRequests: {
         include: {
@@ -146,16 +150,16 @@ export async function getStorageUnitsWithRelations(params: StorageUnitQueryParam
                   firstName: true,
                   lastName: true,
                   email: true,
-                }
-              }
-            }
-          }
-        }
-      }
+                },
+              },
+            },
+          },
+        },
+      },
     },
     orderBy: {
-      [sortBy]: sortOrder
-    }
+      [sortBy]: sortOrder,
+    },
   });
 
   return storageUnits as StorageUnitWithRelations[];
@@ -178,13 +182,13 @@ export interface StorageUnitUpdateRequest {
  * @source boombox-10.0/src/app/api/admin/storage-units/route.ts (lines 108-140)
  */
 export async function updateWarehouseInfo(
-  usageId: number, 
-  warehouseLocation?: string, 
+  usageId: number,
+  warehouseLocation?: string,
   warehouseName?: string
 ) {
   const currentUsage = await prisma.storageUnitUsage.findUnique({
     where: { id: usageId },
-    include: { storageUnit: true }
+    include: { storageUnit: true },
   });
 
   if (!currentUsage) {
@@ -195,8 +199,8 @@ export async function updateWarehouseInfo(
     where: { id: usageId },
     data: {
       ...(warehouseLocation !== undefined && { warehouseLocation }),
-      ...(warehouseName !== undefined && { warehouseName })
-    }
+      ...(warehouseName !== undefined && { warehouseName }),
+    },
   });
 
   return { updatedUsage, currentUsage };
@@ -209,7 +213,7 @@ export async function updateWarehouseInfo(
 export async function updateStorageUnitStatus(id: number, status: string) {
   const updatedUnit = await prisma.storageUnit.update({
     where: { id },
-    data: { status }
+    data: { status },
   });
 
   return updatedUnit;
@@ -229,8 +233,8 @@ export async function createStorageUnitAdminLog(
       adminId,
       action,
       targetType: 'STORAGE_UNIT',
-      targetId
-    }
+      targetId,
+    },
   });
 }
 
@@ -259,10 +263,12 @@ export interface BatchUploadResults {
  * Process a single storage unit record from CSV
  * @source boombox-10.0/src/app/api/admin/storage-units/batch-upload/route.ts (lines 72-105)
  */
-export async function processStorageUnitRecord(record: StorageUnitCSVRecord): Promise<string> {
+export async function processStorageUnitRecord(
+  record: StorageUnitCSVRecord
+): Promise<string> {
   // Check if storage unit number already exists
   const existingUnit = await prisma.storageUnit.findUnique({
-    where: { storageUnitNumber: record.storageUnitNumber }
+    where: { storageUnitNumber: record.storageUnitNumber },
   });
 
   if (existingUnit) {
@@ -285,7 +291,9 @@ export async function processStorageUnitRecord(record: StorageUnitCSVRecord): Pr
  * Process batch upload of storage units
  * @source boombox-10.0/src/app/api/admin/storage-units/batch-upload/route.ts (lines 66-105)
  */
-export async function processBatchUpload(records: StorageUnitCSVRecord[]): Promise<BatchUploadResults> {
+export async function processBatchUpload(
+  records: StorageUnitCSVRecord[]
+): Promise<BatchUploadResults> {
   const results: BatchUploadResults = {
     success: [],
     errors: [],
@@ -298,8 +306,11 @@ export async function processBatchUpload(records: StorageUnitCSVRecord[]): Promi
       results.success.push(unitNumber);
     } catch (error) {
       console.error('Error processing record:', record, error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      results.errors.push(`Error processing unit ${record.storageUnitNumber || 'unknown'}: ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      results.errors.push(
+        `Error processing unit ${record.storageUnitNumber || 'unknown'}: ${errorMessage}`
+      );
     }
   }
 
@@ -324,7 +335,7 @@ export interface PhotoUploadResult {
 export async function verifyStorageUnitUsage(usageId: number) {
   const storageUnitUsage = await prisma.storageUnitUsage.findUnique({
     where: { id: usageId },
-    include: { storageUnit: true }
+    include: { storageUnit: true },
   });
 
   if (!storageUnitUsage) {
@@ -338,7 +349,10 @@ export async function verifyStorageUnitUsage(usageId: number) {
  * Generate unique filename for storage unit photo
  * @source boombox-10.0/src/app/api/storage-unit/[id]/upload-photos/route.ts (lines 43-45)
  */
-export function generateStorageUnitPhotoFilename(storageUnitNumber: string, originalFilename: string): string {
+export function generateStorageUnitPhotoFilename(
+  storageUnitNumber: string,
+  originalFilename: string
+): string {
   const timestamp = Date.now();
   return `storage-unit-${storageUnitNumber}-${timestamp}-${originalFilename}`;
 }
@@ -347,14 +361,17 @@ export function generateStorageUnitPhotoFilename(storageUnitNumber: string, orig
  * Update storage unit usage with new photo URLs
  * @source boombox-10.0/src/app/api/storage-unit/[id]/upload-photos/route.ts (lines 82-90)
  */
-export async function addPhotosToStorageUnitUsage(usageId: number, photoUrls: string[]) {
+export async function addPhotosToStorageUnitUsage(
+  usageId: number,
+  photoUrls: string[]
+) {
   return await prisma.storageUnitUsage.update({
     where: { id: usageId },
     data: {
       uploadedImages: {
-        push: photoUrls
-      }
-    }
+        push: photoUrls,
+      },
+    },
   });
 }
 
@@ -380,4 +397,4 @@ export function getStorageUnitText(count: number): string {
     default:
       return 'studio apartment';
   }
-} 
+}

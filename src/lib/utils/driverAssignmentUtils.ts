@@ -4,6 +4,8 @@
  * @refactor Extracted driver assignment logic into reusable utility functions
  */
 
+import 'server-only';
+
 import { prisma } from '@/lib/database/prismaClient';
 import { getOnfleetClient } from '@/lib/integrations/onfleetClient';
 import { MessageService } from '@/lib/messaging/MessageService';
@@ -18,12 +20,8 @@ import {
   calculateMovingPartnerPayment,
   getShortAddress,
 } from '@/lib/services/payment-calculator';
-import {
-  formatTime,
-  formatDate,
-  TIME_ZONE,
-  normalizePhoneNumberToE164,
-} from '@/lib/utils';
+import { formatTime, formatDate, TIME_ZONE } from '@/lib/utils/dateUtils';
+import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
 import { toZonedTime } from 'date-fns-tz';
 import { NotificationService } from '@/lib/services/NotificationService';
 import {

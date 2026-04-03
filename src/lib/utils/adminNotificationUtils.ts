@@ -4,6 +4,8 @@
  * @refactor Extracted utility functions for urgency calculation, address formatting, and template variables
  */
 
+import 'server-only';
+
 import { prisma } from '@/lib/database/prismaClient';
 
 /**
@@ -15,43 +17,52 @@ export async function getAdminEmails(): Promise<string[]> {
     const admins = await prisma.admin.findMany({
       where: {
         role: {
-          in: ['ADMIN', 'SUPERADMIN']
-        }
+          in: ['ADMIN', 'SUPERADMIN'],
+        },
       },
       select: {
-        email: true
-      }
+        email: true,
+      },
     });
 
     const adminEmails = admins.map(admin => admin.email);
-    
+
     // Fallback to environment variables if no admins found in database
     if (adminEmails.length === 0) {
-      console.warn('No admin emails found in database, falling back to environment variables');
-      return process.env.ADMIN_EMAILS?.split(',') || [
-        'chemington@boomboxstorage.com',
-        'help@boomboxstorage.com'
-      ];
+      console.warn(
+        'No admin emails found in database, falling back to environment variables'
+      );
+      return (
+        process.env.ADMIN_EMAILS?.split(',') || [
+          'chemington@boomboxstorage.com',
+          'help@boomboxstorage.com',
+        ]
+      );
     }
 
     return adminEmails;
   } catch (error) {
     console.error('Error fetching admin emails from database:', error);
     // Fallback to environment variables on error
-    return process.env.ADMIN_EMAILS?.split(',') || [
-      'chemington@boomboxstorage.com',
-      'help@boomboxstorage.com'
-    ];
+    return (
+      process.env.ADMIN_EMAILS?.split(',') || [
+        'chemington@boomboxstorage.com',
+        'help@boomboxstorage.com',
+      ]
+    );
   }
 }
 
 /**
  * Determine urgency level based on delivery date
  */
-export function getUrgencyLevel(deliveryDate: Date): 'critical' | 'high' | 'medium' {
+export function getUrgencyLevel(
+  deliveryDate: Date
+): 'critical' | 'high' | 'medium' {
   const now = new Date();
-  const hoursUntilDelivery = (deliveryDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-  
+  const hoursUntilDelivery =
+    (deliveryDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
   if (hoursUntilDelivery <= 4) return 'critical';
   if (hoursUntilDelivery <= 12) return 'high';
   return 'medium';
@@ -67,7 +78,10 @@ export function getUrgencyColors(urgencyLevel: string) {
     medium: { bg: '#ede9fe', border: '#7c3aed', text: '#553c9a' },
   };
 
-  return urgencyColors[urgencyLevel as keyof typeof urgencyColors] || urgencyColors.medium;
+  return (
+    urgencyColors[urgencyLevel as keyof typeof urgencyColors] ||
+    urgencyColors.medium
+  );
 }
 
 /**
@@ -77,9 +91,9 @@ export function getUrgencyEmoji(urgencyLevel: string): string {
   const emojiMap = {
     critical: '🚨',
     high: '⚠️',
-    medium: '📋'
+    medium: '📋',
   };
-  
+
   return emojiMap[urgencyLevel as keyof typeof emojiMap] || '📋';
 }
 
@@ -89,11 +103,11 @@ export function getUrgencyEmoji(urgencyLevel: string): string {
 export function getShortAddress(fullAddress: string): string {
   const parts = fullAddress.split(',');
   const streetAddress = parts[0]?.trim() || '';
-  
+
   if (streetAddress.length > 25) {
     return streetAddress.substring(0, 22) + '...';
   }
-  
+
   return streetAddress;
 }
 
@@ -105,14 +119,18 @@ export function generateOrdersSection(routeDetails: any): string {
     return '';
   }
 
-  const ordersTable = routeDetails.orders.map((order: any) => `
+  const ordersTable = routeDetails.orders
+    .map(
+      (order: any) => `
     <tr style="border-bottom: 1px solid #f3f4f6;">
       <td style="padding: 8px 4px; font-size: 14px;">#${order.id}</td>
       <td style="padding: 8px 4px; font-size: 14px;">${order.contactName}</td>
       <td style="padding: 8px 4px; font-size: 14px;">${getShortAddress(order.deliveryAddress)}</td>
       <td style="padding: 8px 4px; font-size: 14px; text-align: right;">$${order.totalPrice.toFixed(0)}</td>
     </tr>
-  `).join('');
+  `
+    )
+    .join('');
 
   return `
     <div style="margin: 20px 0;">
@@ -160,7 +178,7 @@ export function generateAdditionalInfoSection(additionalInfo?: string): string {
   if (!additionalInfo) {
     return '';
   }
-  
+
   return `
     <p style="margin: 8px 0 0 0; color: #9ca3af; font-size: 11px; text-align: center;">
       Additional: ${additionalInfo}

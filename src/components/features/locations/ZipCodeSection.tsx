@@ -46,7 +46,7 @@ import {
   useResponsiveGridPagination,
   DEFAULT_ZIPCODE_GRID_BREAKPOINTS,
 } from '@/hooks/useResponsiveGridPagination';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 
 export interface ZipCodeSectionProps {
   /**

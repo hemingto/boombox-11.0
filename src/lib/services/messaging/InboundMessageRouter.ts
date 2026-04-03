@@ -5,12 +5,12 @@
  */
 
 import { NextResponse } from 'next/server';
+import { findCustomerByPhone } from '@/lib/utils/formatUtils';
+import { findDriverByPhone } from '@/lib/utils/inboundMessageUtils';
 import {
-  findCustomerByPhone,
-  findDriverByPhone,
   classifyMessageIntent,
   type MessageIntent,
-} from '@/lib/utils';
+} from '@/lib/utils/messageClassificationUtils';
 import { MoverChangeHandler } from './MoverChangeHandler';
 import { DriverResponseHandler } from './DriverResponseHandler';
 import { MessageService } from '../../messaging/MessageService';
@@ -57,7 +57,7 @@ export class InboundMessageRouter {
       console.log('--- InboundMessageRouter.routeMessage DEBUG ---');
       console.log('Phone number received:', phoneNumber);
       console.log('Message text received:', messageText);
-      
+
       // Classify message intent
       const intent: MessageIntent = classifyMessageIntent(messageText);
       console.log('DEBUG: Classified intent:', intent);
@@ -74,13 +74,21 @@ export class InboundMessageRouter {
       // Find driver by phone number for driver responses
       console.log('DEBUG: Looking up driver by phone:', phoneNumber);
       const driver = await findDriverByPhone(phoneNumber);
-      console.log('DEBUG: Driver lookup result:', driver ? `Found driver ID: ${driver.id}, name: ${driver.firstName} ${driver.lastName}` : 'NO DRIVER FOUND');
+      console.log(
+        'DEBUG: Driver lookup result:',
+        driver
+          ? `Found driver ID: ${driver.id}, name: ${driver.firstName} ${driver.lastName}`
+          : 'NO DRIVER FOUND'
+      );
 
       if (!driver) {
         // Check if this is a customer
         console.log('DEBUG: No driver found, checking for customer...');
         const customer = await findCustomerByPhone(phoneNumber);
-        console.log('DEBUG: Customer lookup result:', customer ? `Found customer ID: ${customer.id}` : 'NO CUSTOMER FOUND');
+        console.log(
+          'DEBUG: Customer lookup result:',
+          customer ? `Found customer ID: ${customer.id}` : 'NO CUSTOMER FOUND'
+        );
 
         if (customer) {
           // Customer message but not mover change - send general support
@@ -89,14 +97,20 @@ export class InboundMessageRouter {
         }
 
         // Neither driver nor customer found
-        console.log('DEBUG: Neither driver nor customer found for phone:', phoneNumber);
+        console.log(
+          'DEBUG: Neither driver nor customer found for phone:',
+          phoneNumber
+        );
         await MessageService.sendSms(phoneNumber, customerNotFoundTemplate, {});
         return { success: false, error: 'User not found' };
       }
 
       // Handle driver responses (packing supply or regular tasks)
       if (intent === 'positive' || intent === 'negative') {
-        console.log('DEBUG: Routing to DriverResponseHandler.handleResponse with intent:', intent);
+        console.log(
+          'DEBUG: Routing to DriverResponseHandler.handleResponse with intent:',
+          intent
+        );
         return await this.driverResponseHandler.handleResponse(
           driver,
           phoneNumber,
@@ -107,7 +121,9 @@ export class InboundMessageRouter {
 
       // Handle ambiguous driver responses
       if (intent === 'ambiguous') {
-        console.log('DEBUG: Routing to DriverResponseHandler.handleAmbiguousResponse');
+        console.log(
+          'DEBUG: Routing to DriverResponseHandler.handleAmbiguousResponse'
+        );
         return await this.driverResponseHandler.handleAmbiguousResponse(
           driver,
           phoneNumber,

@@ -1,5 +1,7 @@
+import 'server-only';
+
 import { prisma } from '@/lib/database/prismaClient';
-import { normalizePhoneNumberToE164 } from '@/lib/utils';
+import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
 import cloudinary from '@/lib/integrations/cloudinaryClient';
 import { v4 as uuidv4 } from 'uuid';
 import { Readable } from 'stream';

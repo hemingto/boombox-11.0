@@ -4,6 +4,8 @@
  * @refactor Extracted inline Twilio validation logic to centralized utilities
  */
 
+import 'server-only';
+
 import { NextRequest } from 'next/server';
 import { headers } from 'next/headers';
 import crypto from 'crypto';

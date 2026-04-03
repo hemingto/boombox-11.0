@@ -24,7 +24,6 @@
 
 import { NextResponse, after } from 'next/server';
 import { revalidatePath } from 'next/cache';
-// eslint-disable-next-line no-restricted-imports -- appointmentUtils uses prisma/Onfleet (server-only), not re-exported from barrel
 import {
   createStorageAccessAppointment,
   processOnfleetAndAssignDriver,
@@ -32,7 +31,7 @@ import {
 } from '@/lib/utils/appointmentUtils';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { accessStorageConfirmationSms } from '@/lib/messaging/templates/sms/booking';
-import { formatDateForDisplay, formatTime } from '@/lib/utils';
+import { formatDateForDisplay, formatTime } from '@/lib/utils/dateUtils';
 import { prisma } from '@/lib/database/prismaClient';
 import { NotificationService } from '@/lib/services/NotificationService';
 import { haulJobService } from '@/lib/services/HaulJobService';

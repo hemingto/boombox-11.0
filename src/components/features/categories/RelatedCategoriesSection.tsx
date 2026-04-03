@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Card } from '@/components/ui';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 
 export interface RelatedCategory {
   slug: string;

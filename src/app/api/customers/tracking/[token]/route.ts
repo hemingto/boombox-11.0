@@ -49,7 +49,6 @@
  */
 
 import { NextResponse, NextRequest } from 'next/server';
-// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import {
   verifyTrackingToken,
   getAppointmentForTracking,

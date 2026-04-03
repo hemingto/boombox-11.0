@@ -10,7 +10,8 @@ import React, { useState, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/20/solid';
-import { cn, paginateItems } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
+import { paginateItems } from '@/lib/utils/sortingUtils';
 
 interface BlogPostItem {
   category: string;

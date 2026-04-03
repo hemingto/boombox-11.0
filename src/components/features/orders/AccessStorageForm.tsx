@@ -42,7 +42,7 @@ import {
 } from '@/types/accessStorage.types';
 import AccessStorageStep1 from './AccessStorageStep1';
 import AccessStorageConfirmAppointment from './AccessStorageConfirmAppointment';
-import { parseAppointmentTime } from '@/lib/utils';
+import { parseAppointmentTime } from '@/lib/utils/dateUtils';
 
 // ===== MAIN FORM COMPONENT =====
 

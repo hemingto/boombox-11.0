@@ -23,7 +23,6 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
 import { getOnfleetClient } from '@/lib/integrations/onfleetClient';
-// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import {
   buildOnfleetWorkerPayload,
   formatPhoneForOnfleet,

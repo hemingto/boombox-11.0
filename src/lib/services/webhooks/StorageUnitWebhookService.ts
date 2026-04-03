@@ -4,13 +4,11 @@
  * @refactor Extracted storage unit webhook processing into dedicated service with step handlers
  */
 
-// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import {
   updateTaskCompletionPhoto,
   getMetadataValue,
   extractAllDeliveryPhotoUrls,
 } from '@/lib/utils/onfleetWebhookUtils';
-// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import {
   findOnfleetTaskByShortId,
   updateOnfleetTaskWebhookTime,

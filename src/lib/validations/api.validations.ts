@@ -2278,13 +2278,13 @@ export const StorageUnitReturnParamsSchema = z.object({
 });
 
 export const StorageUnitReturnRequestSchema = z.object({
+  storageUnitId: z.number(),
+  isStoringItems: z.boolean(),
   hasDamage: z.boolean(),
   damageDescription: z.string().nullable().optional(),
   frontPhotos: z.array(z.string()),
   backPhotos: z.array(z.string()),
-  isStillStoringItems: z.boolean().optional(),
-  isAllItemsRemoved: z.boolean().optional(),
-  isUnitEmpty: z.boolean().optional(),
+  padlockProvided: z.boolean(),
 });
 
 export const StorageUnitReturnResponseSchema = z.object({
@@ -2302,6 +2302,12 @@ export const StorageUnitReturnResponseSchema = z.object({
       imageSrc: z.string().nullable(),
     })
     .nullable(),
+  driver: z
+    .object({
+      firstName: z.string(),
+      lastName: z.string(),
+    })
+    .nullable(),
   jobCode: z.string(),
   customerName: z.string(),
   appointmentDate: z.string(),
@@ -2309,6 +2315,7 @@ export const StorageUnitReturnResponseSchema = z.object({
   storageUnitNumber: z.string(),
   appointmentId: z.string(),
   storageUnitId: z.string().optional(),
+  isLastUnit: z.boolean().optional(),
   appointment: z.object({
     date: z.string(),
     appointmentType: z.string(),

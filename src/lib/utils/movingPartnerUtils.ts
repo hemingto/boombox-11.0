@@ -4,11 +4,13 @@
  * @source boombox-10.0/src/app/api/moving-partners/route.ts (database operations)
  * @source boombox-10.0/src/app/api/cron/process-expired-mover-changes/route.ts (assignMovingPartnerDriver)
  * @refactor Extracted utility functions for moving partner operations
- * 
+ *
  * ⚠️ WARNING: This file contains SERVER-ONLY utilities that use Node.js modules.
  * DO NOT import this file in client components (components with 'use client').
  * For client-safe utilities, use movingPartnerClientUtils.ts instead.
  */
+
+import 'server-only';
 
 import { prisma } from '@/lib/database/prismaClient';
 import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
@@ -16,26 +18,37 @@ import { formatTime24Hour } from '@/lib/utils/dateUtils';
 import cloudinary from '@/lib/integrations/cloudinaryClient';
 import { v4 as uuidv4 } from 'uuid';
 import { Readable } from 'stream';
-import { parseTimeToMinutes, getDayOfWeekString } from './movingPartnerClientUtils';
+import {
+  parseTimeToMinutes,
+  getDayOfWeekString,
+} from './movingPartnerClientUtils';
 
 /**
  * Helper function to create default availability for all days of the week
  * @source boombox-10.0/src/app/api/movers/route.ts (createDefaultMoverAvailability)
  */
-export async function createDefaultMoverAvailability(moverId: number): Promise<void> {
+export async function createDefaultMoverAvailability(
+  moverId: number
+): Promise<void> {
   const daysOfWeek = [
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
   ];
-  
+
   // Default time: 9am to 5pm
   const defaultStartTime = '09:00';
   const defaultEndTime = '17:00';
-  
+
   // Get current timestamp
   const now = new Date();
-  
+
   // Create availability records for each day with isBlocked set to true
-  const availabilityPromises = daysOfWeek.map(day => 
+  const availabilityPromises = daysOfWeek.map(day =>
     prisma.movingPartnerAvailability.create({
       data: {
         movingPartnerId: moverId,
@@ -45,11 +58,11 @@ export async function createDefaultMoverAvailability(moverId: number): Promise<v
         maxCapacity: 1,
         isBlocked: true, // Set isBlocked to true
         createdAt: now,
-        updatedAt: now
-      }
+        updatedAt: now,
+      },
     })
   );
-  
+
   // Execute all creation operations
   await Promise.all(availabilityPromises);
 }
@@ -59,14 +72,11 @@ export async function createDefaultMoverAvailability(moverId: number): Promise<v
  */
 export async function checkMoverExists(email: string, phoneNumber: string) {
   const formattedPhone = normalizePhoneNumberToE164(phoneNumber);
-  
+
   return await prisma.movingPartner.findFirst({
     where: {
-      OR: [
-        { email: email },
-        { phoneNumber: formattedPhone }
-      ]
-    }
+      OR: [{ email: email }, { phoneNumber: formattedPhone }],
+    },
   });
 }
 
@@ -81,7 +91,7 @@ export async function createMover(data: {
   employeeCount: number;
 }) {
   const formattedPhone = normalizePhoneNumberToE164(data.phoneNumber);
-  
+
   return await prisma.movingPartner.create({
     data: {
       name: data.companyName,
@@ -90,7 +100,7 @@ export async function createMover(data: {
       website: data.website,
       numberOfEmployees: data.employeeCount.toString(),
       isApproved: false, // Default to false for admin review
-    }
+    },
   });
 }
 
@@ -112,11 +122,11 @@ export async function findAvailableMovingPartners(
   const slotStartTimeStr = timeString; // e.g., "10:00"
   const slotStartMinutes = parseTimeToMinutes(slotStartTimeStr);
   const slotEndMinutes = slotStartMinutes + 60; // Assuming 1hr slots for booking check window
-  
+
   // Calculate exact start/end Date objects for booking overlap checks
   const [reqHour, reqMinute] = slotStartTimeStr.split(':').map(Number);
   const slotStartDateTime = new Date(selectedDate);
-  slotStartDateTime.setUTCHours(reqHour, reqMinute, 0, 0); 
+  slotStartDateTime.setUTCHours(reqHour, reqMinute, 0, 0);
   const slotEndDateTime = new Date(slotStartDateTime);
   slotEndDateTime.setUTCMinutes(slotStartDateTime.getUTCMinutes() + 60); // Add 1 hour for end window
 
@@ -129,16 +139,18 @@ export async function findAvailableMovingPartners(
           dayOfWeek,
           isBlocked: false,
           startTime: { lte: slotStartTimeStr },
-          endTime: { gte: slotStartTimeStr } // Partner must end work at or after the slot starts
-        }
-      }
+          endTime: { gte: slotStartTimeStr }, // Partner must end work at or after the slot starts
+        },
+      },
     },
     include: {
-      availability: true // Include all availability for capacity check
-    }
+      availability: true, // Include all availability for capacity check
+    },
   });
 
-  console.log(`[MovingPartnerUtils] Found ${potentiallyAvailablePartners.length} partners with general availability for ${dayOfWeek} at ${slotStartTimeStr}.`);
+  console.log(
+    `[MovingPartnerUtils] Found ${potentiallyAvailablePartners.length} partners with general availability for ${dayOfWeek} at ${slotStartTimeStr}.`
+  );
 
   // 2. Capacity Check (In-code filtering)
   const availablePartnersWithCapacity = [];
@@ -146,10 +158,11 @@ export async function findAvailableMovingPartners(
     let partnerHasCapacity = false;
     // Find the specific availability records for this partner that cover the requested slot time
     const relevantAvailabilities = partner.availability.filter(
-      avail => avail.dayOfWeek === dayOfWeek && 
-               !avail.isBlocked &&
-               parseTimeToMinutes(avail.startTime) <= slotStartMinutes &&
-               parseTimeToMinutes(avail.endTime) >= slotStartMinutes // Corrected check based on previous step
+      avail =>
+        avail.dayOfWeek === dayOfWeek &&
+        !avail.isBlocked &&
+        parseTimeToMinutes(avail.startTime) <= slotStartMinutes &&
+        parseTimeToMinutes(avail.endTime) >= slotStartMinutes // Corrected check based on previous step
     );
 
     if (relevantAvailabilities.length === 0) continue; // Skip if no relevant general availability found
@@ -159,13 +172,15 @@ export async function findAvailableMovingPartners(
         movingPartnerAvailabilityId: avail.id,
         // Check for overlap
         bookingDate: { lt: slotEndDateTime },
-        endDate: { gt: slotStartDateTime }
+        endDate: { gt: slotStartDateTime },
       };
       if (excludeAppointmentId !== undefined) {
         bookingWhereClause.appointmentId = { not: excludeAppointmentId };
       }
 
-      const bookingCount = await prisma.timeSlotBooking.count({ where: bookingWhereClause });
+      const bookingCount = await prisma.timeSlotBooking.count({
+        where: bookingWhereClause,
+      });
 
       if (bookingCount < avail.maxCapacity) {
         partnerHasCapacity = true;
@@ -179,7 +194,9 @@ export async function findAvailableMovingPartners(
     }
   }
 
-  console.log(`[MovingPartnerUtils] Found ${availablePartnersWithCapacity.length} partners with capacity.`);
+  console.log(
+    `[MovingPartnerUtils] Found ${availablePartnersWithCapacity.length} partners with capacity.`
+  );
   return availablePartnersWithCapacity;
 }
 
@@ -200,21 +217,28 @@ export interface FileUploadResult {
   publicId: string;
 }
 
-export async function uploadFileToCloudinary(options: FileUploadOptions): Promise<FileUploadResult> {
+export async function uploadFileToCloudinary(
+  options: FileUploadOptions
+): Promise<FileUploadResult> {
   const { file, folder, fileNamePrefix, entityId, allowedTypes } = options;
-  
+
   // Validate file type if allowed types are specified
-  if (allowedTypes && !allowedTypes.some(type => file.type.startsWith(type) || file.type === type)) {
-    throw new Error(`Invalid file type. Allowed types: ${allowedTypes.join(', ')}`);
+  if (
+    allowedTypes &&
+    !allowedTypes.some(type => file.type.startsWith(type) || file.type === type)
+  ) {
+    throw new Error(
+      `Invalid file type. Allowed types: ${allowedTypes.join(', ')}`
+    );
   }
-  
+
   // Convert the file to a buffer
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
-  
+
   // Create a unique filename
   const fileName = `${fileNamePrefix}_${entityId}_${uuidv4()}`;
-  
+
   // Upload to Cloudinary
   const uploadPromise = new Promise<any>((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
@@ -232,18 +256,18 @@ export async function uploadFileToCloudinary(options: FileUploadOptions): Promis
         }
       }
     );
-    
+
     // Convert buffer to stream and pipe to uploadStream
     const bufferStream = new Readable();
     bufferStream.push(buffer);
     bufferStream.push(null);
     bufferStream.pipe(uploadStream);
   });
-  
+
   const uploadResult = await uploadPromise;
   return {
     fileUrl: uploadResult.secure_url,
-    publicId: `${folder}/${fileName}`
+    publicId: `${folder}/${fileName}`,
   };
 }
 
@@ -251,18 +275,21 @@ export async function uploadFileToCloudinary(options: FileUploadOptions): Promis
  * Delete an old file from Cloudinary by extracting public ID from URL
  * @source boombox-10.0/src/app/api/movers/[moverId]/upload-*
  */
-export async function deleteOldCloudinaryFile(fileUrl: string, folder: string): Promise<void> {
+export async function deleteOldCloudinaryFile(
+  fileUrl: string,
+  folder: string
+): Promise<void> {
   if (!fileUrl) return;
-  
+
   try {
     // Extract the public ID from the Cloudinary URL
     const urlParts = fileUrl.split('/');
     const fileNameWithExtension = urlParts[urlParts.length - 1];
     const publicId = fileNameWithExtension.split('.')[0]; // Remove extension
     const fullPublicId = `${folder}/${publicId}`;
-    
+
     // Delete from Cloudinary
-    await new Promise<void>((resolve) => {
+    await new Promise<void>(resolve => {
       cloudinary.uploader.destroy(fullPublicId, (error, result) => {
         if (error) {
           console.error('Error deleting old file:', error);
@@ -319,20 +346,20 @@ export async function getMovingPartnerJobs(movingPartnerId: number) {
       },
       onfleetTasks: {
         where: {
-          driverId: { not: null }
+          driverId: { not: null },
         },
         include: {
           driver: {
             select: {
               firstName: true,
               lastName: true,
-            }
-          }
+            },
+          },
         },
         orderBy: {
-          unitNumber: 'asc'
+          unitNumber: 'asc',
         },
-        take: 1
+        take: 1,
       },
       requestedStorageUnits: {
         select: {
@@ -352,10 +379,11 @@ export async function getMovingPartnerJobs(movingPartnerId: number) {
   // Transform the data to match the expected format
   return appointments.map((appointment: any) => {
     // Get primary driver from first OnfleetTask
-    const primaryDriver = appointment.onfleetTasks.length > 0 
-      ? appointment.onfleetTasks[0].driver 
-      : null;
-      
+    const primaryDriver =
+      appointment.onfleetTasks.length > 0
+        ? appointment.onfleetTasks[0].driver
+        : null;
+
     return {
       id: appointment.id,
       appointmentType: appointment.appointmentType,
@@ -371,10 +399,12 @@ export async function getMovingPartnerJobs(movingPartnerId: number) {
       feedback: appointment.feedback,
       user: appointment.user,
       driver: primaryDriver,
-      requestedStorageUnits: appointment.requestedStorageUnits.map((unit: any) => ({
-        unitType: unit.storageUnit.storageUnitNumber,
-        quantity: 1, // Since each record represents one unit
-      })),
+      requestedStorageUnits: appointment.requestedStorageUnits.map(
+        (unit: any) => ({
+          unitType: unit.storageUnit.storageUnitNumber,
+          quantity: 1, // Since each record represents one unit
+        })
+      ),
       status: appointment.status,
       totalCost: appointment.quotedPrice,
       notes: appointment.description,
@@ -387,40 +417,48 @@ export async function getMovingPartnerJobs(movingPartnerId: number) {
  * @source boombox-10.0/src/app/api/cron/process-expired-mover-changes/route.ts (lines 7-46)
  * @refactor Extracted inline function for assigning moving partner drivers
  */
-export async function assignMovingPartnerDriver(appointment: any, movingPartnerId: number) {
+export async function assignMovingPartnerDriver(
+  appointment: any,
+  movingPartnerId: number
+) {
   // Get available drivers for this moving partner
   const movingPartnerDrivers = await prisma.movingPartnerDriver.findMany({
-    where: { 
+    where: {
       movingPartnerId,
-      isActive: true 
+      isActive: true,
     },
     include: {
       driver: {
         include: {
-          availability: true
-        }
-      }
-    }
+          availability: true,
+        },
+      },
+    },
   });
 
   const appointmentDate = new Date(appointment.date);
   const appointmentTime = new Date(appointment.time);
-  const dayOfWeek = appointmentDate.toLocaleDateString("en-US", { weekday: "long" });
+  const dayOfWeek = appointmentDate.toLocaleDateString('en-US', {
+    weekday: 'long',
+  });
   const formattedTime = formatTime24Hour(appointmentTime);
 
   // Find available driver from this moving partner
   const availableDriver = movingPartnerDrivers.find(mpd => {
     const driver = mpd.driver;
-    return driver.isApproved && 
-           driver.applicationComplete && 
-           driver.status === 'Active' &&
-           driver.onfleetWorkerId &&
-           driver.availability.some(avail => 
-             avail.dayOfWeek === dayOfWeek &&
-             avail.startTime <= formattedTime &&
-             avail.endTime >= formattedTime &&
-             !avail.isBlocked
-           );
+    return (
+      driver.isApproved &&
+      driver.applicationComplete &&
+      driver.status === 'Active' &&
+      driver.onfleetWorkerId &&
+      driver.availability.some(
+        avail =>
+          avail.dayOfWeek === dayOfWeek &&
+          avail.startTime <= formattedTime &&
+          avail.endTime >= formattedTime &&
+          !avail.isBlocked
+      )
+    );
   });
 
   return availableDriver?.driver || null;

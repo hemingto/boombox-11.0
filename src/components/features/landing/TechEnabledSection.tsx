@@ -50,7 +50,7 @@ import {
   type AccordionData,
 } from '@/components/ui/primitives/Accordion/AccordionContainer';
 import { IPhoneFrame } from '@/components/ui/primitives/IPhoneFrame';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 
 const STATIC_IMAGE_DISPLAY_MS = 5000;
 

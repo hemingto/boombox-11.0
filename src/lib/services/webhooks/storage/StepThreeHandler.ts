@@ -4,10 +4,9 @@
  * @refactor Extracted step 3 specific logic for warehouse arrival and payout processing
  */
 
-// eslint-disable-next-line no-restricted-imports -- webhookQueries uses prisma (server-only), not re-exported from barrel
 import {
   findAppointmentByOnfleetTask,
-  updateAppointmentStatus
+  updateAppointmentStatus,
 } from '@/lib/utils/webhookQueries';
 import { AppointmentPayoutService } from '@/lib/services/payments/AppointmentPayoutService';
 import type { OnfleetWebhookPayload } from '@/lib/validations/api.validations';
@@ -19,9 +18,11 @@ export class StepThreeHandler {
    * Handle taskCompleted event for Step 3 (Warehouse Arrival)
    * Updates appointment status and processes driver payout
    */
-  static async handleTaskCompleted(webhookData: OnfleetWebhookPayload): Promise<void> {
+  static async handleTaskCompleted(
+    webhookData: OnfleetWebhookPayload
+  ): Promise<void> {
     console.log('=== [StepThreeHandler] handleTaskCompleted START ===');
-    
+
     const { data } = webhookData;
     const taskDetails = data?.task;
 
@@ -42,19 +43,27 @@ export class StepThreeHandler {
     );
 
     if (!appointment) {
-      console.log(`[StepThreeHandler] WARNING: No appointment found for task: ${taskDetails.shortId}`);
+      console.log(
+        `[StepThreeHandler] WARNING: No appointment found for task: ${taskDetails.shortId}`
+      );
       return;
     }
 
-    console.log(`[StepThreeHandler] Appointment found: ${appointment.id}, status: ${appointment.status}`);
+    console.log(
+      `[StepThreeHandler] Appointment found: ${appointment.id}, status: ${appointment.status}`
+    );
 
     if (this.CANCELED_STATUSES.includes(appointment.status)) {
-      console.log(`[StepThreeHandler] SKIPPING: Appointment ${appointment.id} is ${appointment.status} — no status update or payout`);
+      console.log(
+        `[StepThreeHandler] SKIPPING: Appointment ${appointment.id} is ${appointment.status} — no status update or payout`
+      );
       return;
     }
 
     // Update appointment status to awaiting admin check-in
-    console.log(`[StepThreeHandler] Updating appointment ${appointment.id} status to "Awaiting Admin Check In"`);
+    console.log(
+      `[StepThreeHandler] Updating appointment ${appointment.id} status to "Awaiting Admin Check In"`
+    );
     await updateAppointmentStatus(appointment.id, 'Awaiting Admin Check In');
     console.log('[StepThreeHandler] Appointment status updated successfully');
 
@@ -70,19 +79,30 @@ export class StepThreeHandler {
    * Uses AppointmentPayoutService which handles Stripe transfer and SMS notification
    */
   private static async processJobPayout(appointment: any): Promise<void> {
-    console.log(`[StepThreeHandler:Payout] Starting payout processing for appointment: ${appointment.id}`);
-    
+    console.log(
+      `[StepThreeHandler:Payout] Starting payout processing for appointment: ${appointment.id}`
+    );
+
     try {
-      const payoutResult = await AppointmentPayoutService.processAppointmentPayout(appointment.id);
-      
+      const payoutResult =
+        await AppointmentPayoutService.processAppointmentPayout(appointment.id);
+
       if (payoutResult.success) {
-        console.log(`[StepThreeHandler:Payout] SUCCESS: Payout completed for appointment ${appointment.id}: $${payoutResult.amount} (Transfer ID: ${payoutResult.transferId})`);
+        console.log(
+          `[StepThreeHandler:Payout] SUCCESS: Payout completed for appointment ${appointment.id}: $${payoutResult.amount} (Transfer ID: ${payoutResult.transferId})`
+        );
       } else {
-        console.error(`[StepThreeHandler:Payout] FAILED: Payout failed for appointment ${appointment.id}:`, payoutResult.error);
+        console.error(
+          `[StepThreeHandler:Payout] FAILED: Payout failed for appointment ${appointment.id}:`,
+          payoutResult.error
+        );
       }
     } catch (payoutError) {
-      console.error(`[StepThreeHandler:Payout] ERROR: Exception processing payout for appointment ${appointment.id}:`, payoutError);
+      console.error(
+        `[StepThreeHandler:Payout] ERROR: Exception processing payout for appointment ${appointment.id}:`,
+        payoutError
+      );
       // Don't fail the entire webhook if payout fails
     }
   }
-} 
+}

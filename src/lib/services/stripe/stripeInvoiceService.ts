@@ -22,9 +22,13 @@ import {
   PROCESSING_FEE_LABEL,
   calculateProcessingFee,
 } from '@/data/processingFeeConfig';
+import {
+  PADLOCK_PRICE_CENTS,
+  PADLOCK_DESCRIPTION,
+} from '@/data/padlockPricing';
 import { BillingCalculator } from '../billing/BillingCalculator';
 import { DIY_FREE_SERVICE_MINUTES } from '@/data/storageTermPricing';
-import { findActiveStorageUsage } from '@/lib/utils';
+import { findActiveStorageUsage } from '@/lib/utils/webhookQueries';
 
 // Import types from existing system (matches Prisma schema nullability)
 interface AppointmentWithRelations {
@@ -570,5 +574,92 @@ export class StripeInvoiceService {
   ): number {
     const perMinuteRate = hourlyRate / 60;
     return perMinuteRate * Math.max(60, Math.round(serviceTimeMinutes));
+  }
+
+  /**
+   * Create a credit note against the original appointment invoice for units
+   * that were returned empty. Refunds the per-unit monthly storage + insurance
+   * plus the proportional processing fee.
+   */
+  static async createCreditNoteForEmptyUnits(
+    invoiceId: string,
+    emptyUnitCount: number,
+    monthlyStorageRate: number,
+    monthlyInsuranceRate: number,
+    appointmentId: number
+  ): Promise<Stripe.CreditNote> {
+    const perUnitRefund = monthlyStorageRate + monthlyInsuranceRate;
+    const subtotalRefund = perUnitRefund * emptyUnitCount;
+    const processingFeeRefund = calculateProcessingFee(subtotalRefund);
+    const totalRefundCents = Math.round(
+      (subtotalRefund + processingFeeRefund) * 100
+    );
+
+    const creditNote = await stripe.creditNotes.create({
+      invoice: invoiceId,
+      lines: [
+        {
+          type: 'custom_line_item',
+          description: `Storage refund — ${emptyUnitCount} empty unit${emptyUnitCount > 1 ? 's' : ''} (storage + insurance)`,
+          unit_amount: Math.round(perUnitRefund * 100),
+          quantity: emptyUnitCount,
+        },
+        {
+          type: 'custom_line_item',
+          description: PROCESSING_FEE_LABEL,
+          unit_amount: Math.round(processingFeeRefund * 100),
+          quantity: 1,
+        },
+      ],
+      reason: 'order_change',
+      metadata: {
+        appointmentId: appointmentId.toString(),
+        reason: 'empty_unit_refund',
+        emptyUnitCount: emptyUnitCount.toString(),
+      },
+    });
+
+    console.log(
+      `[StripeInvoiceService] Credit note created: ${creditNote.id}, total refund: ${totalRefundCents} cents for ${emptyUnitCount} empty unit(s)`
+    );
+
+    return creditNote;
+  }
+
+  /**
+   * Create and pay a one-time invoice for padlock purchases.
+   * Aggregates all padlocks for an appointment into a single invoice.
+   */
+  static async createPadlockInvoice(
+    customerId: string,
+    appointmentId: number,
+    padlockCount: number
+  ): Promise<Stripe.Invoice> {
+    const invoice = await stripe.invoices.create({
+      customer: customerId,
+      auto_advance: true,
+      collection_method: 'charge_automatically',
+      description: 'Padlock Purchase',
+      custom_fields: [
+        { name: 'Appointment ID', value: appointmentId.toString() },
+      ],
+    });
+
+    await this.createInvoiceItems(invoice.id!, [
+      {
+        customer: customerId,
+        amount: PADLOCK_PRICE_CENTS * padlockCount,
+        currency: 'usd',
+        description: `${PADLOCK_DESCRIPTION} x ${padlockCount}`,
+      },
+    ]);
+
+    await this.finalizeAndPayInvoice(invoice.id!);
+
+    console.log(
+      `[StripeInvoiceService] Padlock invoice created: ${invoice.id}, ${padlockCount} padlock(s) for appointment ${appointmentId}`
+    );
+
+    return invoice;
   }
 }

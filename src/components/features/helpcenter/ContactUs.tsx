@@ -34,7 +34,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { PhoneIcon, EnvelopeIcon } from '@heroicons/react/20/solid';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 
 export interface ContactUsProps {
   /**

@@ -12,7 +12,10 @@
 
 import { useEffect, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
-import { isSessionExpiringSoon, SESSION_MAX_AGE } from '@/lib/utils';
+import {
+  isSessionExpiringSoon,
+  SESSION_MAX_AGE,
+} from '@/lib/utils/sessionUtils';
 
 /**
  * Hook to monitor session expiration and auto-redirect to login.

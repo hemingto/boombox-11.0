@@ -1,30 +1,30 @@
 /**
  * @fileoverview Storage unit selection logic
  * @source Extracted from boombox-10.0/src/app/components/getquote/quotebuilder.tsx
- * 
+ *
  * Custom hook for managing storage unit count selection with text descriptions.
  * Handles increment/decrement with min/max bounds (1-5 units).
  */
 
 import { useState, useCallback } from 'react';
-import { getStorageUnitText } from '@/lib/utils/storageUtils';
+import { getStorageUnitText } from '@/lib/utils/pricingUtils';
 
 /**
  * Custom hook for storage unit selection
- * 
+ *
  * @param initialCount - Initial storage unit count (default: 1)
  * @returns Storage unit state and actions
- * 
+ *
  * @example
  * ```tsx
- * const { count, text, increment, decrement, canIncrement, canDecrement } = 
+ * const { count, text, increment, decrement, canIncrement, canDecrement } =
  *   useStorageUnitSelection(1);
  * ```
  */
 export function useStorageUnitSelection(initialCount: number = 1) {
   const [count, setCount] = useState(initialCount);
   const [text, setText] = useState(getStorageUnitText(initialCount));
-  
+
   /**
    * Increment storage unit count (max 5)
    */
@@ -35,7 +35,7 @@ export function useStorageUnitSelection(initialCount: number = 1) {
       setText(getStorageUnitText(newCount));
     }
   }, [count]);
-  
+
   /**
    * Decrement storage unit count (min 1)
    */
@@ -46,7 +46,7 @@ export function useStorageUnitSelection(initialCount: number = 1) {
       setText(getStorageUnitText(newCount));
     }
   }, [count]);
-  
+
   /**
    * Set specific count (validated to be between 1-5)
    */
@@ -56,7 +56,7 @@ export function useStorageUnitSelection(initialCount: number = 1) {
       setText(getStorageUnitText(newCount));
     }
   }, []);
-  
+
   return {
     count,
     text,
@@ -67,4 +67,3 @@ export function useStorageUnitSelection(initialCount: number = 1) {
     canDecrement: count > 1,
   };
 }
-

@@ -22,8 +22,7 @@
 
 import { NextResponse } from 'next/server';
 import { stripe } from '@/lib/integrations/stripeClient';
-import { formatCurrency } from '@/lib/utils';
-// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
+import { formatCurrency } from '@/lib/utils/currencyUtils';
 import { getStripeCustomerId } from '@/lib/utils/stripeUtils';
 import type { Stripe } from 'stripe';
 

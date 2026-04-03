@@ -4,6 +4,8 @@
  * @refactor Extracted admin invitation logic into reusable utility functions
  */
 
+import 'server-only';
+
 import { prisma } from '@/lib/database/prismaClient';
 import crypto from 'crypto';
 import { AdminRole } from '@prisma/client';

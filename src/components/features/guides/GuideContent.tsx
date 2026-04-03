@@ -8,7 +8,7 @@
  */
 
 import Image from 'next/image';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 import type { GuideContentBlock } from '@/data/guidePages';
 
 interface GuideContentProps {

@@ -20,7 +20,6 @@
  */
 
 import { prisma } from '@/lib/database/prismaClient';
-// eslint-disable-next-line no-restricted-imports -- adminTaskUtils uses prisma (server-only), not re-exported from barrel
 import {
   validateStorageUnitUsageForLocationUpdate,
   updateStorageUnitWarehouseLocation,

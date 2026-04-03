@@ -4,10 +4,9 @@
  * @refactor Extracted step 4 specific logic for final completion
  */
 
-// eslint-disable-next-line no-restricted-imports -- webhookQueries uses prisma (server-only), not re-exported from barrel
 import {
   findAppointmentByOnfleetTask,
-  updateAppointmentStatus
+  updateAppointmentStatus,
 } from '@/lib/utils/webhookQueries';
 import type { OnfleetWebhookPayload } from '@/lib/validations/api.validations';
 
@@ -18,9 +17,11 @@ export class StepFourHandler {
    * Handle taskCompleted event for Step 4 (Final Completion)
    * Updates appointment status to "Complete"
    */
-  static async handleTaskCompleted(webhookData: OnfleetWebhookPayload): Promise<void> {
+  static async handleTaskCompleted(
+    webhookData: OnfleetWebhookPayload
+  ): Promise<void> {
     console.log('=== [StepFourHandler] handleTaskCompleted START ===');
-    
+
     const { data } = webhookData;
     const taskDetails = data?.task;
 
@@ -41,22 +42,32 @@ export class StepFourHandler {
     );
 
     if (!appointment) {
-      console.log(`[StepFourHandler] WARNING: No appointment found for task: ${taskDetails.shortId}`);
+      console.log(
+        `[StepFourHandler] WARNING: No appointment found for task: ${taskDetails.shortId}`
+      );
       return;
     }
 
-    console.log(`[StepFourHandler] Appointment found: ${appointment.id}, status: ${appointment.status}`);
+    console.log(
+      `[StepFourHandler] Appointment found: ${appointment.id}, status: ${appointment.status}`
+    );
 
     if (this.CANCELED_STATUSES.includes(appointment.status)) {
-      console.log(`[StepFourHandler] SKIPPING: Appointment ${appointment.id} is ${appointment.status}`);
+      console.log(
+        `[StepFourHandler] SKIPPING: Appointment ${appointment.id} is ${appointment.status}`
+      );
       return;
     }
 
     // Update appointment status to complete
-    console.log(`[StepFourHandler] Updating appointment ${appointment.id} status to "Complete"`);
+    console.log(
+      `[StepFourHandler] Updating appointment ${appointment.id} status to "Complete"`
+    );
     await updateAppointmentStatus(appointment.id, 'Complete');
-    
-    console.log(`[StepFourHandler] SUCCESS: Appointment ${appointment.id} status updated to Complete`);
+
+    console.log(
+      `[StepFourHandler] SUCCESS: Appointment ${appointment.id} status updated to Complete`
+    );
     console.log('=== [StepFourHandler] handleTaskCompleted COMPLETE ===');
   }
-} 
+}

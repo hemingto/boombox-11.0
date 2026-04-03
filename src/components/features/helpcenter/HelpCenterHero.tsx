@@ -30,7 +30,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { HelpIcon } from '@/components/icons';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 
 export interface HelpCenterHeroProps {
   /**

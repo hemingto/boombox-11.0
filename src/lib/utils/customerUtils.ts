@@ -6,6 +6,8 @@
  * @refactor Extracted utility functions for customer operations
  */
 
+import 'server-only';
+
 import { prisma } from '@/lib/database/prismaClient';
 import { stripe } from '@/lib/integrations/stripeClient';
 import Stripe from 'stripe';
@@ -14,7 +16,10 @@ import Stripe from 'stripe';
  * Get upcoming appointments for movers or drivers
  * @source boombox-10.0/src/app/api/appointments/upcoming/route.ts
  */
-export async function getUpcomingAppointments(userType: 'mover' | 'driver', userId: number) {
+export async function getUpcomingAppointments(
+  userType: 'mover' | 'driver',
+  userId: number
+) {
   // Get current date and time
   const now = new Date();
 
@@ -91,9 +96,10 @@ export async function getUpcomingAppointments(userType: 'mover' | 'driver', user
   // Transform the data to match the expected format
   return appointments.map((appointment: any) => {
     // Get driver from the first OnfleetTask
-    const primaryDriver = appointment.onfleetTasks.length > 0 
-      ? appointment.onfleetTasks[0].driver 
-      : null;
+    const primaryDriver =
+      appointment.onfleetTasks.length > 0
+        ? appointment.onfleetTasks[0].driver
+        : null;
 
     return {
       id: appointment.id,
@@ -106,27 +112,37 @@ export async function getUpcomingAppointments(userType: 'mover' | 'driver', user
       planType: appointment.planType || '',
       insuranceCoverage: appointment.insuranceCoverage || undefined,
       description: appointment.description || undefined,
-      additionalInformation: appointment.additionalInfo ? {
-        itemsOver100lbs: appointment.additionalInfo.itemsOver100lbs,
-        moveDescription: appointment.additionalInfo.moveDescription || undefined,
-        conditionsDescription: appointment.additionalInfo.conditionsDescription || undefined,
-      } : undefined,
-      requestedStorageUnits: appointment.requestedStorageUnits.map((unit: any) => ({
-        storageUnitId: unit.storageUnitId,
-        storageUnit: {
-          storageUnitNumber: unit.storageUnit.storageUnitNumber,
-        },
-      })),
-      user: appointment.user ? {
-        firstName: appointment.user.firstName,
-        lastName: appointment.user.lastName,
-      } : undefined,
-      driver: primaryDriver ? {
-        firstName: primaryDriver.firstName,
-        lastName: primaryDriver.lastName,
-        phoneNumber: primaryDriver.phoneNumber || undefined,
-        profilePicture: primaryDriver.profilePicture || undefined,
-      } : undefined,
+      additionalInformation: appointment.additionalInfo
+        ? {
+            itemsOver100lbs: appointment.additionalInfo.itemsOver100lbs,
+            moveDescription:
+              appointment.additionalInfo.moveDescription || undefined,
+            conditionsDescription:
+              appointment.additionalInfo.conditionsDescription || undefined,
+          }
+        : undefined,
+      requestedStorageUnits: appointment.requestedStorageUnits.map(
+        (unit: any) => ({
+          storageUnitId: unit.storageUnitId,
+          storageUnit: {
+            storageUnitNumber: unit.storageUnit.storageUnitNumber,
+          },
+        })
+      ),
+      user: appointment.user
+        ? {
+            firstName: appointment.user.firstName,
+            lastName: appointment.user.lastName,
+          }
+        : undefined,
+      driver: primaryDriver
+        ? {
+            firstName: primaryDriver.firstName,
+            lastName: primaryDriver.lastName,
+            phoneNumber: primaryDriver.phoneNumber || undefined,
+            profilePicture: primaryDriver.profilePicture || undefined,
+          }
+        : undefined,
     };
   });
 }
@@ -145,7 +161,7 @@ export async function getUserProfileWithPaymentMethods(userId: number) {
       email: true,
       phoneNumber: true,
       stripeCustomerId: true,
-    }
+    },
   });
 
   if (!user) {
@@ -174,9 +190,10 @@ export async function getUserProfileWithPaymentMethods(userId: number) {
 
       // Get the customer to check for default payment method
       const customer = await stripe.customers.retrieve(user.stripeCustomerId);
-      const defaultPaymentMethodId = typeof customer !== 'string' && 'invoice_settings' in customer 
-        ? customer.invoice_settings.default_payment_method 
-        : null;
+      const defaultPaymentMethodId =
+        typeof customer !== 'string' && 'invoice_settings' in customer
+          ? customer.invoice_settings.default_payment_method
+          : null;
 
       savedCards = paymentMethods.data.map(pm => ({
         id: pm.id,
@@ -229,7 +246,7 @@ export async function getUserContactInfo(userId: number) {
   });
 
   // Map the storage units to include storage unit numbers and padlock combos
-  const storageUnitDetails = storageUnits.map((usage) => ({
+  const storageUnitDetails = storageUnits.map(usage => ({
     storageUnitNumber: usage.storageUnit?.storageUnitNumber || 'Unknown',
     padlockCombo: usage.padlockCombo || 'N/A',
   }));
@@ -262,7 +279,9 @@ export async function updateUserContactInfo(userId: number, updates: any) {
     });
 
     if (existingUser && existingUser.id !== userId) {
-      throw new Error('This phone number is already in use. Please use a different phone number.');
+      throw new Error(
+        'This phone number is already in use. Please use a different phone number.'
+      );
     }
 
     const currentUser = await prisma.user.findUnique({
@@ -343,14 +362,16 @@ export interface CustomerAppointmentDisplay {
  * @param userId User ID as string or number
  * @returns Array of appointments formatted for display
  */
-export async function getActiveCustomerAppointments(userId: string | number): Promise<CustomerAppointmentDisplay[]> {
+export async function getActiveCustomerAppointments(
+  userId: string | number
+): Promise<CustomerAppointmentDisplay[]> {
   try {
     const appointments = await prisma.appointment.findMany({
       where: {
         userId: typeof userId === 'string' ? parseInt(userId) : userId,
         status: {
-          notIn: ['Completed', 'Canceled', 'Awaiting Admin Check In']
-        }
+          notIn: ['Completed', 'Canceled', 'Awaiting Admin Check In'],
+        },
       },
       select: {
         id: true,
@@ -366,18 +387,18 @@ export async function getActiveCustomerAppointments(userId: string | number): Pr
         monthlyInsuranceRate: true,
         insuranceCoverage: true,
         trackingUrl: true,
-        movingPartner: { 
-          select: { 
-            id: true, 
-            name: true 
-          } 
+        movingPartner: {
+          select: {
+            id: true,
+            name: true,
+          },
         },
         additionalInfo: true,
-        thirdPartyMovingPartner: { 
-          select: { 
-            id: true, 
-            title: true 
-          } 
+        thirdPartyMovingPartner: {
+          select: {
+            id: true,
+            title: true,
+          },
         },
         requestedStorageUnits: {
           select: {
@@ -385,15 +406,15 @@ export async function getActiveCustomerAppointments(userId: string | number): Pr
             storageUnit: {
               select: {
                 id: true,
-                storageUnitNumber: true
-              }
-            }
-          }
-        }
+                storageUnitNumber: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
-        date: 'asc'
-      }
+        date: 'asc',
+      },
     });
 
     return appointments.map(appointment => ({
@@ -415,7 +436,7 @@ export async function getActiveCustomerAppointments(userId: string | number): Pr
       thirdPartyTitle: appointment.thirdPartyMovingPartner?.title || null,
       requestedStorageUnits: appointment.requestedStorageUnits.map(req => ({
         id: req.id,
-        storageUnitNumber: req.storageUnit.storageUnitNumber
+        storageUnitNumber: req.storageUnit.storageUnitNumber,
       })),
     }));
   } catch (error) {
@@ -430,10 +451,12 @@ export async function getActiveCustomerAppointments(userId: string | number): Pr
  * @param userId User ID as string or number
  * @returns Boolean indicating if user has active storage units
  */
-export async function hasActiveStorageUnits(userId: string | number): Promise<boolean> {
+export async function hasActiveStorageUnits(
+  userId: string | number
+): Promise<boolean> {
   try {
     const count = await prisma.storageUnitUsage.count({
-      where: { 
+      where: {
         userId: typeof userId === 'string' ? parseInt(userId) : userId,
         usageEndDate: null,
         startAppointment: {
@@ -478,14 +501,16 @@ export interface PackingSupplyOrderDisplay {
  * @param userId User ID as string or number
  * @returns Array of packing supply orders formatted for display
  */
-export async function getActivePackingSupplyOrders(userId: string | number): Promise<PackingSupplyOrderDisplay[]> {
+export async function getActivePackingSupplyOrders(
+  userId: string | number
+): Promise<PackingSupplyOrderDisplay[]> {
   try {
     const orders = await prisma.packingSupplyOrder.findMany({
       where: {
         userId: typeof userId === 'string' ? parseInt(userId) : userId,
         status: {
-          notIn: ['Delivered', 'Cancelled'] // Exclude delivered and cancelled orders from "active" list
-        }
+          notIn: ['Delivered', 'Cancelled'], // Exclude delivered and cancelled orders from "active" list
+        },
       },
       include: {
         orderDetails: {
@@ -495,15 +520,15 @@ export async function getActivePackingSupplyOrders(userId: string | number): Pro
                 id: true,
                 title: true,
                 description: true,
-                imageSrc: true
-              }
-            }
-          }
-        }
+                imageSrc: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
-        deliveryDate: 'asc'
-      }
+        deliveryDate: 'asc',
+      },
     });
 
     return orders.map(order => ({
@@ -523,8 +548,8 @@ export async function getActivePackingSupplyOrders(userId: string | number): Pro
         productTitle: detail.product.title,
         quantity: detail.quantity,
         price: detail.price,
-        totalPrice: detail.quantity * detail.price
-      }))
+        totalPrice: detail.quantity * detail.price,
+      })),
     }));
   } catch (error) {
     console.error('Error fetching packing supply orders:', error);
@@ -556,10 +581,12 @@ export interface StorageUnitUsageDisplay {
  * @param userId User ID as string or number
  * @returns Array of active storage unit usages formatted for display
  */
-export async function getActiveStorageUnits(userId: string | number): Promise<StorageUnitUsageDisplay[]> {
+export async function getActiveStorageUnits(
+  userId: string | number
+): Promise<StorageUnitUsageDisplay[]> {
   try {
     const storageUnits = await prisma.storageUnitUsage.findMany({
-      where: { 
+      where: {
         userId: typeof userId === 'string' ? parseInt(userId) : userId,
         usageEndDate: null,
         startAppointment: {
@@ -572,16 +599,18 @@ export async function getActiveStorageUnits(userId: string | number): Promise<St
           select: {
             id: true,
             address: true,
-            status: true
-          }
-        }
+            status: true,
+          },
+        },
       },
     });
 
     return storageUnits.map(usage => ({
       id: usage.id,
       usageStartDate: usage.usageStartDate.toISOString(),
-      usageEndDate: usage.usageEndDate ? usage.usageEndDate.toISOString() : null,
+      usageEndDate: usage.usageEndDate
+        ? usage.usageEndDate.toISOString()
+        : null,
       storageUnit: {
         id: usage.storageUnit.id,
         storageUnitNumber: usage.storageUnit.storageUnitNumber,

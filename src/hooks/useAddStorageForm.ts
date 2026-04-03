@@ -28,7 +28,7 @@ import {
   validateFormStep,
   validateCompleteForm,
 } from '@/lib/validations/addStorage.validations';
-import { parseLoadingHelpPrice } from '@/lib/utils';
+import { parseLoadingHelpPrice } from '@/lib/utils/pricingUtils';
 
 interface UseAddStorageFormParams {
   initialStorageUnitCount?: number;

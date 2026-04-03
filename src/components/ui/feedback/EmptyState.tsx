@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 import { DocumentIcon } from '@heroicons/react/24/outline';
 
 export interface EmptyStateProps {
@@ -13,32 +13,32 @@ export interface EmptyStateProps {
    * Custom icon to display (optional)
    */
   icon?: React.ReactNode;
-  
+
   /**
    * Empty state title
    */
   title: string;
-  
+
   /**
    * Empty state message or description
    */
   message: string;
-  
+
   /**
    * Optional action button or element
    */
   action?: React.ReactNode;
-  
+
   /**
    * Additional CSS classes
    */
   className?: string;
-  
+
   /**
    * Size variant
    */
   size?: 'sm' | 'md' | 'lg';
-  
+
   /**
    * Whether to center align the content
    */
@@ -47,7 +47,7 @@ export interface EmptyStateProps {
 
 /**
  * EmptyState component for displaying empty data states
- * 
+ *
  * @example
  * ```tsx
  * // Basic usage
@@ -55,14 +55,14 @@ export interface EmptyStateProps {
  *   title="No data available"
  *   message="There's nothing to show here yet."
  * />
- * 
+ *
  * // With custom action
  * <EmptyState
  *   title="No appointments found"
  *   message="You don't have any appointments scheduled."
  *   action={<Button onClick={onCreateAppointment}>Schedule Appointment</Button>}
  * />
- * 
+ *
  * // With custom icon and size
  * <EmptyState
  *   icon={<CalendarIcon className="w-12 h-12" />}
@@ -107,50 +107,38 @@ const EmptyState: React.FC<EmptyStateProps> = ({
 
   const currentSize = sizeClasses[size];
   const defaultIcon = (
-    <div className={cn(
-      'mx-auto rounded-full bg-surface-tertiary flex items-center justify-center',
-      currentSize.iconMargin,
-      currentSize.icon
-    )}>
-      <DocumentIcon 
-        className={cn('text-text-tertiary', 'w-1/2 h-1/2')} 
+    <div
+      className={cn(
+        'mx-auto rounded-full bg-surface-tertiary flex items-center justify-center',
+        currentSize.iconMargin,
+        currentSize.icon
+      )}
+    >
+      <DocumentIcon
+        className={cn('text-text-tertiary', 'w-1/2 h-1/2')}
         aria-hidden="true"
       />
     </div>
   );
 
   return (
-    <div 
-      className={cn(
-        currentSize.spacing,
-        centered && 'text-center',
-        className
-      )}
+    <div
+      className={cn(currentSize.spacing, centered && 'text-center', className)}
       role="status"
       aria-live="polite"
     >
       {/* Empty Icon */}
-      <div className={cn('flex', centered ? 'justify-center' : 'justify-start')}>
+      <div
+        className={cn('flex', centered ? 'justify-center' : 'justify-start')}
+      >
         {icon || defaultIcon}
       </div>
 
       {/* Empty Title */}
-      <h3 
-        className={cn(
-          'text-text-primary',
-          currentSize.title
-        )}
-      >
-        {title}
-      </h3>
+      <h3 className={cn('text-text-primary', currentSize.title)}>{title}</h3>
 
       {/* Empty Message */}
-      <p 
-        className={cn(
-          'text-text-secondary',
-          currentSize.message
-        )}
-      >
+      <p className={cn('text-text-secondary', currentSize.message)}>
         {message}
       </p>
 

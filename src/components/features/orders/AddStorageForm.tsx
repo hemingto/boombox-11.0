@@ -43,7 +43,7 @@ import AddStorageConfirmAppointment from '@/components/features/orders/AddStorag
 // Types
 import { AddStorageStep, PlanType } from '@/types/addStorage.types';
 import type { StorageTerm } from '@/data/storageTermPricing';
-import { parseAppointmentTime } from '@/lib/utils';
+import { parseAppointmentTime } from '@/lib/utils/dateUtils';
 
 interface AddStorageFormProps {
   initialStorageUnitCount?: number;

@@ -8,7 +8,7 @@ import { prisma } from '@/lib/database/prismaClient';
 import { stripe } from '@/lib/integrations/stripeClient';
 import { MessageService } from '@/lib/messaging/MessageService';
 import { driverPayoutNotificationTemplate } from '@/lib/messaging/templates/sms/payment';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils/currencyUtils';
 
 export interface PayoutResult {
   success: boolean;

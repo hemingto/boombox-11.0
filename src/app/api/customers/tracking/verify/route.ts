@@ -72,9 +72,7 @@
  */
 
 import { NextResponse } from 'next/server';
-// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import { verifyTrackingToken } from '@/lib/utils/appointmentUtils';
-// eslint-disable-next-line no-restricted-imports -- server-only util, not re-exported from barrel
 import {
   determineStepStatuses,
   getStepTitle,

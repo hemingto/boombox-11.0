@@ -6,6 +6,8 @@
  * @refactor Consolidated driver utilities from multiple API routes including Onfleet team management
  */
 
+import 'server-only';
+
 import { prisma } from '@/lib/database/prismaClient';
 import { v2 as cloudinary } from 'cloudinary';
 import { v4 as uuidv4 } from 'uuid';
@@ -63,21 +65,21 @@ export interface DriverProfileUpdateData {
 // Main utility functions
 export function getDriverTeamIds(services: string[]): string[] {
   const teamIds: string[] = [];
-  
-  if (services.includes("Storage Unit Delivery")) {
+
+  if (services.includes('Storage Unit Delivery')) {
     const boomboxTeamId = process.env.BOOMBOX_DELIVERY_NETWORK_TEAM_ID;
     if (boomboxTeamId) {
       teamIds.push(boomboxTeamId);
     }
   }
-  
-  if (services.includes("Packing Supply Delivery")) {
+
+  if (services.includes('Packing Supply Delivery')) {
     const packingTeamId = process.env.BOOMBOX_PACKING_SUPPLY_DELIVERY_DRIVERS;
     if (packingTeamId) {
       teamIds.push(packingTeamId);
     }
   }
-  
+
   return teamIds;
 }
 
@@ -87,20 +89,26 @@ export function getDriverTeamIds(services: string[]): string[] {
  * @param newTeamIds - Array of team IDs the driver should be in
  * @returns Promise resolving to the updated team IDs
  */
-export async function updateOnfleetTeamMembership(onfleetWorkerId: string, newTeamIds: string[]): Promise<string[]> {
+export async function updateOnfleetTeamMembership(
+  onfleetWorkerId: string,
+  newTeamIds: string[]
+): Promise<string[]> {
   const onfleetApiKey = process.env.ONFLEET_API_KEY;
   if (!onfleetApiKey) {
     throw new Error('Onfleet API key not found');
   }
 
   // Get current worker details to see existing teams
-  const workerResponse = await fetch(`https://onfleet.com/api/v2/workers/${onfleetWorkerId}`, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Basic ${Buffer.from(onfleetApiKey + ':').toString('base64')}`,
-      'Content-Type': 'application/json',
-    },
-  });
+  const workerResponse = await fetch(
+    `https://onfleet.com/api/v2/workers/${onfleetWorkerId}`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Basic ${Buffer.from(onfleetApiKey + ':').toString('base64')}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
 
   if (!workerResponse.ok) {
     throw new Error('Failed to fetch worker from Onfleet');
@@ -110,11 +118,14 @@ export async function updateOnfleetTeamMembership(onfleetWorkerId: string, newTe
   const currentTeamIds = worker.teams || [];
 
   // Find teams to add and remove
-  const teamsToAdd = newTeamIds.filter(teamId => !currentTeamIds.includes(teamId));
-  const teamsToRemove = currentTeamIds.filter((teamId: string) => 
-    !newTeamIds.includes(teamId) && 
-    (teamId === process.env.BOOMBOX_DELIVERY_NETWORK_TEAM_ID || 
-     teamId === process.env.BOOMBOX_PACKING_SUPPLY_DELIVERY_DRIVERS)
+  const teamsToAdd = newTeamIds.filter(
+    teamId => !currentTeamIds.includes(teamId)
+  );
+  const teamsToRemove = currentTeamIds.filter(
+    (teamId: string) =>
+      !newTeamIds.includes(teamId) &&
+      (teamId === process.env.BOOMBOX_DELIVERY_NETWORK_TEAM_ID ||
+        teamId === process.env.BOOMBOX_PACKING_SUPPLY_DELIVERY_DRIVERS)
   );
 
   // Add worker to new teams
@@ -141,18 +152,25 @@ export async function updateOnfleetTeamMembership(onfleetWorkerId: string, newTe
 /**
  * Add a worker to an Onfleet team
  * @param workerId - Onfleet worker ID
- * @param teamId - Onfleet team ID  
+ * @param teamId - Onfleet team ID
  * @param apiKey - Onfleet API key
  */
-async function addWorkerToOnfleetTeam(workerId: string, teamId: string, apiKey: string): Promise<void> {
+async function addWorkerToOnfleetTeam(
+  workerId: string,
+  teamId: string,
+  apiKey: string
+): Promise<void> {
   // Get current team members
-  const teamResponse = await fetch(`https://onfleet.com/api/v2/teams/${teamId}`, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Basic ${Buffer.from(apiKey + ':').toString('base64')}`,
-      'Content-Type': 'application/json',
-    },
-  });
+  const teamResponse = await fetch(
+    `https://onfleet.com/api/v2/teams/${teamId}`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Basic ${Buffer.from(apiKey + ':').toString('base64')}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
 
   if (!teamResponse.ok) {
     console.error(`Failed to fetch team ${teamId}:`, await teamResponse.text());
@@ -161,24 +179,30 @@ async function addWorkerToOnfleetTeam(workerId: string, teamId: string, apiKey: 
 
   const team = await teamResponse.json();
   const currentWorkers = team.workers || [];
-  
+
   // Add the worker to the team if not already present
   if (!currentWorkers.includes(workerId)) {
     const updatedWorkers = [...currentWorkers, workerId];
-    
-    const updateResponse = await fetch(`https://onfleet.com/api/v2/teams/${teamId}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Basic ${Buffer.from(apiKey + ':').toString('base64')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        workers: updatedWorkers
-      }),
-    });
+
+    const updateResponse = await fetch(
+      `https://onfleet.com/api/v2/teams/${teamId}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Basic ${Buffer.from(apiKey + ':').toString('base64')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          workers: updatedWorkers,
+        }),
+      }
+    );
 
     if (!updateResponse.ok) {
-      console.error(`Failed to add worker to team ${teamId}:`, await updateResponse.text());
+      console.error(
+        `Failed to add worker to team ${teamId}:`,
+        await updateResponse.text()
+      );
     }
   }
 }
@@ -189,15 +213,22 @@ async function addWorkerToOnfleetTeam(workerId: string, teamId: string, apiKey: 
  * @param teamId - Onfleet team ID
  * @param apiKey - Onfleet API key
  */
-async function removeWorkerFromOnfleetTeam(workerId: string, teamId: string, apiKey: string): Promise<void> {
+async function removeWorkerFromOnfleetTeam(
+  workerId: string,
+  teamId: string,
+  apiKey: string
+): Promise<void> {
   // Get current team members
-  const teamResponse = await fetch(`https://onfleet.com/api/v2/teams/${teamId}`, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Basic ${Buffer.from(apiKey + ':').toString('base64')}`,
-      'Content-Type': 'application/json',
-    },
-  });
+  const teamResponse = await fetch(
+    `https://onfleet.com/api/v2/teams/${teamId}`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Basic ${Buffer.from(apiKey + ':').toString('base64')}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
 
   if (!teamResponse.ok) {
     console.error(`Failed to fetch team ${teamId}:`, await teamResponse.text());
@@ -206,24 +237,32 @@ async function removeWorkerFromOnfleetTeam(workerId: string, teamId: string, api
 
   const team = await teamResponse.json();
   const currentWorkers = team.workers || [];
-  
+
   // Remove the worker from the team if present
   if (currentWorkers.includes(workerId)) {
-    const updatedWorkers = currentWorkers.filter((worker: string) => worker !== workerId);
-    
-    const updateResponse = await fetch(`https://onfleet.com/api/v2/teams/${teamId}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Basic ${Buffer.from(apiKey + ':').toString('base64')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        workers: updatedWorkers
-      }),
-    });
+    const updatedWorkers = currentWorkers.filter(
+      (worker: string) => worker !== workerId
+    );
+
+    const updateResponse = await fetch(
+      `https://onfleet.com/api/v2/teams/${teamId}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Basic ${Buffer.from(apiKey + ':').toString('base64')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          workers: updatedWorkers,
+        }),
+      }
+    );
 
     if (!updateResponse.ok) {
-      console.error(`Failed to remove worker from team ${teamId}:`, await updateResponse.text());
+      console.error(
+        `Failed to remove worker from team ${teamId}:`,
+        await updateResponse.text()
+      );
     }
   }
 }
@@ -234,20 +273,25 @@ async function removeWorkerFromOnfleetTeam(workerId: string, teamId: string, api
  * @param updateData - Data to update
  * @returns Updated driver data
  */
-export async function processDriverProfileUpdate(driverId: number, updateData: DriverProfileUpdateData) {
+export async function processDriverProfileUpdate(
+  driverId: number,
+  updateData: DriverProfileUpdateData
+) {
   // Check if driver exists
   const existingDriver = await prisma.driver.findUnique({
-    where: { id: driverId }
+    where: { id: driverId },
   });
-  
+
   if (!existingDriver) {
     throw new Error('Driver not found');
   }
-  
+
   // Normalize phone number to E.164 format if it's being updated
   if (updateData.phoneNumber) {
     try {
-      const normalizedPhone = normalizePhoneNumberToE164(updateData.phoneNumber);
+      const normalizedPhone = normalizePhoneNumberToE164(
+        updateData.phoneNumber
+      );
       // If the phone number is being updated, set verifiedPhoneNumber to false
       if (normalizedPhone !== existingDriver.phoneNumber) {
         updateData.verifiedPhoneNumber = false;
@@ -257,20 +301,26 @@ export async function processDriverProfileUpdate(driverId: number, updateData: D
       throw new Error('Invalid phone number format');
     }
   }
-  
+
   // Handle services update and Onfleet team synchronization
   if (updateData.services && existingDriver.onfleetWorkerId) {
     try {
       // Determine new team IDs based on services
       const newTeamIds = getDriverTeamIds(updateData.services);
-      
+
       // Update Onfleet team membership
-      await updateOnfleetTeamMembership(existingDriver.onfleetWorkerId, newTeamIds);
-      
-      // Update the driver's team IDs in the database  
+      await updateOnfleetTeamMembership(
+        existingDriver.onfleetWorkerId,
+        newTeamIds
+      );
+
+      // Update the driver's team IDs in the database
       updateData.onfleetTeamIds = newTeamIds;
-      
-      console.log(`Updated driver ${driverId} team membership. New teams:`, newTeamIds);
+
+      console.log(
+        `Updated driver ${driverId} team membership. New teams:`,
+        newTeamIds
+      );
     } catch (error) {
       console.error('Error updating Onfleet team membership:', error);
       // Continue with the database update even if Onfleet sync fails
@@ -281,27 +331,35 @@ export async function processDriverProfileUpdate(driverId: number, updateData: D
     // Driver doesn't have Onfleet worker ID yet, just update team IDs in database
     updateData.onfleetTeamIds = getDriverTeamIds(updateData.services);
   }
-  
+
   // Update driver in database
   const updatedDriver = await prisma.driver.update({
     where: { id: driverId },
-    data: updateData
+    data: updateData,
   });
-  
+
   return updatedDriver;
 }
 
-export async function createDefaultDriverAvailability(driverId: number): Promise<void> {
+export async function createDefaultDriverAvailability(
+  driverId: number
+): Promise<void> {
   const daysOfWeek = [
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
   ];
-  
+
   // Default time: 9am to 5pm
   const defaultStartTime = '09:00';
   const defaultEndTime = '17:00';
-  
+
   // Create availability records for each day with isBlocked set to true
-  const availabilityPromises = daysOfWeek.map(day => 
+  const availabilityPromises = daysOfWeek.map(day =>
     prisma.driverAvailability.create({
       data: {
         driverId,
@@ -309,11 +367,11 @@ export async function createDefaultDriverAvailability(driverId: number): Promise
         startTime: defaultStartTime,
         endTime: defaultEndTime,
         maxCapacity: 1,
-        isBlocked: true // Set isBlocked to true
-      }
+        isBlocked: true, // Set isBlocked to true
+      },
     })
   );
-  
+
   // Execute all creation operations
   await Promise.all(availabilityPromises);
 }
@@ -321,27 +379,29 @@ export async function createDefaultDriverAvailability(driverId: number): Promise
 export function formatPhoneForOnfleet(phone: string): string {
   // Remove all non-digit characters
   const digitsOnly = phone.replace(/\D/g, '');
-  
+
   // Add + prefix and ensure US country code if needed
   if (digitsOnly.length === 10) {
     return `+1${digitsOnly}`;
   } else if (digitsOnly.length === 11 && digitsOnly.startsWith('1')) {
     return `+${digitsOnly}`;
   }
-  
+
   // If already in international format
   return `+${digitsOnly}`;
 }
 
-export function mapVehicleTypeToOnfleet(vehicleType: string): 'TRUCK' | 'CAR' | 'BICYCLE' | 'MOTORCYCLE' {
+export function mapVehicleTypeToOnfleet(
+  vehicleType: string
+): 'TRUCK' | 'CAR' | 'BICYCLE' | 'MOTORCYCLE' {
   const mapping: Record<string, 'TRUCK' | 'CAR' | 'BICYCLE' | 'MOTORCYCLE'> = {
     'Pickup Truck': 'TRUCK',
-    'SUV': 'CAR',
-    'Van': 'CAR',
-    'Sedan': 'CAR',
-    'Other': 'CAR'
+    SUV: 'CAR',
+    Van: 'CAR',
+    Sedan: 'CAR',
+    Other: 'CAR',
   };
-  
+
   return mapping[vehicleType] || 'CAR';
 }
 
@@ -356,16 +416,16 @@ export function buildOnfleetWorkerPayload(
     displayName: driver.firstName,
     phone: formattedPhone,
     teams: teamIds,
-    capacity: 1
+    capacity: 1,
   };
-  
+
   // Add vehicle information if available
   if (driver.vehicles && driver.vehicles.length > 0) {
     const vehicle = driver.vehicles[0];
     payload.vehicle = {
       type: mapVehicleTypeToOnfleet(vehicle.vehicleType || 'CAR'),
       description: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
-      licensePlate: vehicle.licensePlate || ''
+      licensePlate: vehicle.licensePlate || '',
     };
   }
 
@@ -378,60 +438,63 @@ export async function validateDriverUniqueness(
 ): Promise<{ isUnique: boolean; error?: string }> {
   // Check if driver with this email already exists
   const existingDriverByEmail = await prisma.driver.findUnique({
-    where: { email }
+    where: { email },
   });
-  
+
   if (existingDriverByEmail) {
     return {
       isUnique: false,
-      error: 'A driver with this email already exists'
+      error: 'A driver with this email already exists',
     };
   }
-  
+
   // Check if driver with this phone number already exists (if provided)
   if (phoneNumber) {
     const existingDriverByPhone = await prisma.driver.findUnique({
-      where: { phoneNumber }
+      where: { phoneNumber },
     });
-    
+
     if (existingDriverByPhone) {
       return {
         isUnique: false,
-        error: 'A driver with this phone number already exists'
+        error: 'A driver with this phone number already exists',
       };
     }
   }
-  
+
   return { isUnique: true };
 }
 
 export async function findDriverInvitation(token: string) {
   return await prisma.driverInvitation.findUnique({
     where: { token },
-    include: { 
+    include: {
       movingPartner: {
         select: {
           id: true,
           name: true,
-          onfleetTeamId: true
-        }
-      }
-    }
+          onfleetTeamId: true,
+        },
+      },
+    },
   });
 }
 
-export function validateInvitationStatus(invitation: any): { isValid: boolean; error?: string } {
+export function validateInvitationStatus(invitation: any): {
+  isValid: boolean;
+  error?: string;
+} {
   if (!invitation) {
     return {
       isValid: false,
-      error: 'Invalid or expired invitation'
+      error: 'Invalid or expired invitation',
     };
   }
 
   if (invitation.status !== 'pending') {
     return {
       isValid: false,
-      error: 'This invitation has already been used or expired'
+      error: 'This invitation has already been used or expired',
     };
   }
 
@@ -439,7 +502,7 @@ export function validateInvitationStatus(invitation: any): { isValid: boolean; e
   if (invitation.expiresAt < new Date()) {
     return {
       isValid: false,
-      error: 'Invitation has expired'
+      error: 'Invitation has expired',
     };
   }
 
@@ -447,15 +510,15 @@ export function validateInvitationStatus(invitation: any): { isValid: boolean; e
 }
 
 // Constants
-export const DEFAULT_DRIVER_SERVICES = ["Storage Unit Delivery"];
-export const DEFAULT_MOVING_PARTNER_VEHICLE_TYPE = "Moving Partner Vehicle";
+export const DEFAULT_DRIVER_SERVICES = ['Storage Unit Delivery'];
+export const DEFAULT_MOVING_PARTNER_VEHICLE_TYPE = 'Moving Partner Vehicle';
 export const DEFAULT_DRIVER_CAPACITY = 1;
 
 // Driver status constants
 export const DRIVER_STATUSES = {
   PENDING: 'Pending',
   ACTIVE: 'Active',
-  INACTIVE: 'Inactive'
+  INACTIVE: 'Inactive',
 } as const;
 
 // ===== DRIVER AVAILABILITY MANAGEMENT =====
@@ -464,8 +527,13 @@ export const DRIVER_STATUSES = {
  * Day ordering for sorting availability
  */
 export const DAY_ORDER = {
-  'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4,
-  'Friday': 5, 'Saturday': 6, 'Sunday': 7
+  Monday: 1,
+  Tuesday: 2,
+  Wednesday: 3,
+  Thursday: 4,
+  Friday: 5,
+  Saturday: 6,
+  Sunday: 7,
 } as const;
 
 /**
@@ -475,13 +543,13 @@ export const DAY_ORDER = {
 export async function getDriverAvailability(driverId: number) {
   // Check if driver exists
   const driver = await prisma.driver.findUnique({
-    where: { id: driverId }
+    where: { id: driverId },
   });
-  
+
   if (!driver) {
     throw new Error('Driver not found');
   }
-  
+
   // Get driver's availability
   const availability = await prisma.driverAvailability.findMany({
     where: { driverId },
@@ -493,15 +561,17 @@ export async function getDriverAvailability(driverId: number) {
       isBlocked: true,
       maxCapacity: true,
       createdAt: true,
-      updatedAt: true
-    }
+      updatedAt: true,
+    },
   });
-  
+
   // Sort the results by day of week
-  const sortedAvailability = availability.sort((a, b) => 
-    DAY_ORDER[a.dayOfWeek as keyof typeof DAY_ORDER] - DAY_ORDER[b.dayOfWeek as keyof typeof DAY_ORDER]
+  const sortedAvailability = availability.sort(
+    (a, b) =>
+      DAY_ORDER[a.dayOfWeek as keyof typeof DAY_ORDER] -
+      DAY_ORDER[b.dayOfWeek as keyof typeof DAY_ORDER]
   );
-  
+
   return sortedAvailability;
 }
 
@@ -522,18 +592,18 @@ export async function createOrUpdateDriverAvailability(
   data: DriverAvailabilityUpdateData
 ) {
   const { id, dayOfWeek, startTime, endTime, isBlocked } = data;
-  
+
   // Check if driver exists
   const driver = await prisma.driver.findUnique({
-    where: { id: driverId }
+    where: { id: driverId },
   });
-  
+
   if (!driver) {
     throw new Error('Driver not found');
   }
-  
+
   let availability;
-  
+
   if (id) {
     // Update existing record
     availability = await prisma.driverAvailability.update({
@@ -541,18 +611,18 @@ export async function createOrUpdateDriverAvailability(
       data: {
         startTime,
         endTime,
-        isBlocked: isBlocked || false
-      }
+        isBlocked: isBlocked || false,
+      },
     });
   } else {
     // Check if a record for this day already exists
     const existingAvailability = await prisma.driverAvailability.findFirst({
       where: {
         driverId,
-        dayOfWeek
-      }
+        dayOfWeek,
+      },
     });
-    
+
     if (existingAvailability) {
       // Update the existing record
       availability = await prisma.driverAvailability.update({
@@ -560,8 +630,8 @@ export async function createOrUpdateDriverAvailability(
         data: {
           startTime,
           endTime,
-          isBlocked: isBlocked || false
-        }
+          isBlocked: isBlocked || false,
+        },
       });
     } else {
       // Create new record
@@ -569,15 +639,15 @@ export async function createOrUpdateDriverAvailability(
         data: {
           driverId,
           dayOfWeek,
-          startTime: startTime || "09:00",  // Default if blocked
-          endTime: endTime || "17:00",      // Default if blocked
+          startTime: startTime || '09:00', // Default if blocked
+          endTime: endTime || '17:00', // Default if blocked
           isBlocked: isBlocked || false,
-          maxCapacity: 1 // Default value
-        }
+          maxCapacity: 1, // Default value
+        },
       });
     }
   }
-  
+
   return availability;
 }
 
@@ -591,17 +661,19 @@ export async function getDriverJobs(driverId: number) {
   // Get all OnfleetTasks assigned to this driver
   const driverTasks = await prisma.onfleetTask.findMany({
     where: {
-      driverId: driverId
+      driverId: driverId,
     },
     select: {
-      appointmentId: true
+      appointmentId: true,
     },
-    distinct: ['appointmentId']
+    distinct: ['appointmentId'],
   });
-  
+
   // Extract all appointment IDs this driver is assigned to
-  const appointmentIds = driverTasks.map((task: { appointmentId: number }) => task.appointmentId);
-  
+  const appointmentIds = driverTasks.map(
+    (task: { appointmentId: number }) => task.appointmentId
+  );
+
   // Now fetch those appointments
   const appointments = await prisma.appointment.findMany({
     where: {
@@ -638,16 +710,16 @@ export async function getDriverJobs(driverId: number) {
       },
       onfleetTasks: {
         where: {
-          driverId: driverId
+          driverId: driverId,
         },
         include: {
           driver: {
             select: {
               firstName: true,
               lastName: true,
-            }
-          }
-        }
+            },
+          },
+        },
       },
       requestedStorageUnits: {
         select: {
@@ -667,10 +739,11 @@ export async function getDriverJobs(driverId: number) {
   // Transform the data to match the JobHistory component's expected format
   const formattedAppointments = appointments.map((appointment: any) => {
     // Get the driver info from the first OnfleetTask (they should all have the same driver since we filtered by driverId)
-    const driverInfo = appointment.onfleetTasks.length > 0 
-      ? appointment.onfleetTasks[0].driver
-      : null;
-      
+    const driverInfo =
+      appointment.onfleetTasks.length > 0
+        ? appointment.onfleetTasks[0].driver
+        : null;
+
     return {
       id: appointment.id,
       appointmentType: appointment.appointmentType,
@@ -686,10 +759,12 @@ export async function getDriverJobs(driverId: number) {
       feedback: appointment.feedback,
       user: appointment.user,
       driver: driverInfo, // Use driver info from onfleetTasks
-      requestedStorageUnits: appointment.requestedStorageUnits.map((unit: any) => ({
-        unitType: unit.storageUnit.storageUnitNumber,
-        quantity: 1, // Since each record represents one unit
-      })),
+      requestedStorageUnits: appointment.requestedStorageUnits.map(
+        (unit: any) => ({
+          unitType: unit.storageUnit.storageUnitNumber,
+          quantity: 1, // Since each record represents one unit
+        })
+      ),
       status: appointment.status,
       totalCost: appointment.quotedPrice,
       notes: appointment.description,
@@ -709,12 +784,12 @@ export async function getDriverLicensePhotos(driverId: number) {
   // Fetch the driver's license photos from the database
   const driver = await prisma.driver.findUnique({
     where: {
-      id: driverId
+      id: driverId,
     },
     select: {
       driverLicenseFrontPhoto: true,
-      driverLicenseBackPhoto: true
-    }
+      driverLicenseBackPhoto: true,
+    },
   });
 
   if (!driver) {
@@ -723,7 +798,7 @@ export async function getDriverLicensePhotos(driverId: number) {
 
   return {
     frontPhoto: driver.driverLicenseFrontPhoto,
-    backPhoto: driver.driverLicenseBackPhoto
+    backPhoto: driver.driverLicenseBackPhoto,
   };
 }
 
@@ -738,21 +813,21 @@ export async function getDriverMovingPartnerStatus(driverId: number) {
   const movingPartnerDriver = await prisma.movingPartnerDriver.findFirst({
     where: {
       driverId: driverId,
-      isActive: true
+      isActive: true,
     },
     include: {
       movingPartner: {
         select: {
           id: true,
-          name: true
-        }
-      }
-    }
+          name: true,
+        },
+      },
+    },
   });
 
   return {
     isLinkedToMovingPartner: !!movingPartnerDriver,
-    movingPartner: movingPartnerDriver?.movingPartner || null
+    movingPartner: movingPartnerDriver?.movingPartner || null,
   };
 }
 
@@ -767,15 +842,15 @@ export async function getDriverMovingPartner(driverId: number) {
   const movingPartnerDriver = await prisma.movingPartnerDriver.findFirst({
     where: {
       driverId: driverId,
-      isActive: true
+      isActive: true,
     },
     select: {
-      movingPartnerId: true
-    }
+      movingPartnerId: true,
+    },
   });
 
   return {
-    movingPartnerId: movingPartnerDriver?.movingPartnerId || null
+    movingPartnerId: movingPartnerDriver?.movingPartnerId || null,
   };
 }
 
@@ -793,8 +868,8 @@ export async function getDriverProfilePicture(driverId: number) {
       id: driverId,
     },
     select: {
-      profilePicture: true
-    }
+      profilePicture: true,
+    },
   });
 
   if (!driver) {
@@ -806,7 +881,7 @@ export async function getDriverProfilePicture(driverId: number) {
   }
 
   return {
-    profilePictureUrl: driver.profilePicture
+    profilePictureUrl: driver.profilePicture,
   };
 }
 
@@ -817,17 +892,21 @@ export async function getDriverProfilePicture(driverId: number) {
  * @param photoType - Type of photo to remove ('front' or 'back')
  * @returns Success status
  */
-export async function removeDriverLicensePhoto(driverId: number, photoType: 'front' | 'back') {
+export async function removeDriverLicensePhoto(
+  driverId: number,
+  photoType: 'front' | 'back'
+) {
   // Update the driver record to remove the specified photo
-  const updateData = photoType === 'front' 
-    ? { driverLicenseFrontPhoto: null } 
-    : { driverLicenseBackPhoto: null };
+  const updateData =
+    photoType === 'front'
+      ? { driverLicenseFrontPhoto: null }
+      : { driverLicenseBackPhoto: null };
 
   await prisma.driver.update({
     where: {
-      id: driverId
+      id: driverId,
     },
-    data: updateData
+    data: updateData,
   });
 
   return { success: true };
@@ -853,12 +932,16 @@ export async function removeDriverVehicle(driverId: number) {
   }
 
   // Delete photos from Cloudinary if they exist
-  const photoFields = ['frontVehiclePhoto', 'backVehiclePhoto', 'autoInsurancePhoto'];
+  const photoFields = [
+    'frontVehiclePhoto',
+    'backVehiclePhoto',
+    'autoInsurancePhoto',
+  ];
   const deletePromises = [];
 
   for (const field of photoFields) {
     const photoUrl = vehicle[field as keyof typeof vehicle] as string | null;
-    
+
     if (photoUrl) {
       try {
         // Extract the public ID from the Cloudinary URL
@@ -866,19 +949,28 @@ export async function removeDriverVehicle(driverId: number) {
         const urlParts = photoUrl.split('/');
         const fileNameWithExtension = urlParts[urlParts.length - 1];
         const publicId = fileNameWithExtension.split('.')[0]; // Remove extension
-        const folder = field === 'autoInsurancePhoto' ? 'auto-insurance-photos' : 'vehicle-photos';
+        const folder =
+          field === 'autoInsurancePhoto'
+            ? 'auto-insurance-photos'
+            : 'vehicle-photos';
         const fullPublicId = `${folder}/${publicId}`;
-        
+
         // Add to delete promises
         deletePromises.push(
           new Promise((resolve, reject) => {
             cloudinary.uploader.destroy(fullPublicId, (error, result) => {
               if (error) {
-                console.error(`Error deleting ${field} from Cloudinary:`, error);
+                console.error(
+                  `Error deleting ${field} from Cloudinary:`,
+                  error
+                );
                 // Resolve anyway to continue with other operations
                 resolve(null);
               } else {
-                console.log(`Successfully deleted ${field} from Cloudinary:`, result);
+                console.log(
+                  `Successfully deleted ${field} from Cloudinary:`,
+                  result
+                );
                 resolve(result);
               }
             });
@@ -901,9 +993,9 @@ export async function removeDriverVehicle(driverId: number) {
     },
   });
 
-  return { 
+  return {
     success: true,
-    message: 'Vehicle and associated photos deleted successfully' 
+    message: 'Vehicle and associated photos deleted successfully',
   };
 }
 
@@ -912,7 +1004,8 @@ export async function removeDriverVehicle(driverId: number) {
 // Service to team mapping
 const SERVICE_TEAM_MAP: Record<string, string> = {
   'Storage Unit Delivery': process.env.BOOMBOX_DELIVERY_NETWORK_TEAM_ID || '',
-  'Packing Supply Delivery': process.env.BOOMBOX_PACKING_SUPPLY_DELIVERY_DRIVERS || '',
+  'Packing Supply Delivery':
+    process.env.BOOMBOX_PACKING_SUPPLY_DELIVERY_DRIVERS || '',
 };
 
 // formatPhoneForOnfleet function already exists in this file and is exported
@@ -965,7 +1058,7 @@ async function syncDriverWithOnfleetTeams(driver: any, services: string[]) {
   }
 
   // Only update if teams have changed
-  const teamsChanged = 
+  const teamsChanged =
     currentTeamIds.length !== newTeamIds.length ||
     !currentTeamIds.every((id: string) => newTeamIds.includes(id));
 
@@ -987,7 +1080,9 @@ async function syncDriverWithOnfleetTeams(driver: any, services: string[]) {
 
     if (!updateResponse.ok) {
       const errorData = await updateResponse.json();
-      throw new Error(`Failed to update Onfleet worker teams: ${errorData.message || 'Unknown error'}`);
+      throw new Error(
+        `Failed to update Onfleet worker teams: ${errorData.message || 'Unknown error'}`
+      );
     }
 
     // Update driver's onfleetTeamIds in database
@@ -996,7 +1091,10 @@ async function syncDriverWithOnfleetTeams(driver: any, services: string[]) {
       data: { onfleetTeamIds: newTeamIds },
     });
 
-    console.log(`Successfully updated driver ${driver.id} teams in Onfleet:`, newTeamIds);
+    console.log(
+      `Successfully updated driver ${driver.id} teams in Onfleet:`,
+      newTeamIds
+    );
   }
 }
 
@@ -1008,7 +1106,10 @@ async function syncDriverWithOnfleetTeams(driver: any, services: string[]) {
  * @returns Success status and updated driver data
  * @throws Error if driver not found or linked to moving partner
  */
-export async function updateDriverServices(driverId: number, services: string[]) {
+export async function updateDriverServices(
+  driverId: number,
+  services: string[]
+) {
   // Get driver with moving partner associations
   const driver = await prisma.driver.findUnique({
     where: { id: driverId },
@@ -1027,7 +1128,9 @@ export async function updateDriverServices(driverId: number, services: string[])
   const isLinkedToMovingPartner = driver.movingPartnerAssociations.length > 0;
 
   if (isLinkedToMovingPartner) {
-    throw new Error('Cannot update services for drivers linked to moving partners');
+    throw new Error(
+      'Cannot update services for drivers linked to moving partners'
+    );
   }
 
   // Update driver services in database
@@ -1060,38 +1163,42 @@ export async function updateDriverServices(driverId: number, services: string[])
  * @returns Stripe Connect account status information
  * @throws Error if user not found
  */
-export async function getUserStripeStatus(userId: number, userType: 'driver' | 'mover') {
+export async function getUserStripeStatus(
+  userId: number,
+  userType: 'driver' | 'mover'
+) {
   // Fetch user's Stripe Connect account status based on type
-  const user = userType === 'driver' 
-    ? await prisma.driver.findUnique({
-        where: { id: userId },
-        select: {
-          stripeConnectAccountId: true,
-          stripeConnectOnboardingComplete: true,
-          stripeConnectPayoutsEnabled: true,
-          stripeConnectDetailsSubmitted: true
-        }
-      })
-    : await prisma.movingPartner.findUnique({
-        where: { id: userId },
-        select: {
-          stripeConnectAccountId: true,
-          stripeConnectOnboardingComplete: true,
-          stripeConnectPayoutsEnabled: true,
-          stripeConnectDetailsSubmitted: true
-        }
-      });
-  
+  const user =
+    userType === 'driver'
+      ? await prisma.driver.findUnique({
+          where: { id: userId },
+          select: {
+            stripeConnectAccountId: true,
+            stripeConnectOnboardingComplete: true,
+            stripeConnectPayoutsEnabled: true,
+            stripeConnectDetailsSubmitted: true,
+          },
+        })
+      : await prisma.movingPartner.findUnique({
+          where: { id: userId },
+          select: {
+            stripeConnectAccountId: true,
+            stripeConnectOnboardingComplete: true,
+            stripeConnectPayoutsEnabled: true,
+            stripeConnectDetailsSubmitted: true,
+          },
+        });
+
   if (!user) {
     throw new Error(`${userType} not found`);
   }
-  
+
   return {
     hasStripeAccount: !!user.stripeConnectAccountId,
     stripeConnectAccountId: user.stripeConnectAccountId,
     onboardingComplete: user.stripeConnectOnboardingComplete,
     payoutsEnabled: user.stripeConnectPayoutsEnabled,
-    detailsSubmitted: user.stripeConnectDetailsSubmitted
+    detailsSubmitted: user.stripeConnectDetailsSubmitted,
   };
 }
 
@@ -1105,8 +1212,8 @@ export async function getUserStripeStatus(userId: number, userType: 'driver' | '
  * @throws Error if driver not found or upload fails
  */
 export async function uploadDriverLicensePhoto(
-  driverId: number, 
-  file: File, 
+  driverId: number,
+  file: File,
   photoDescription: 'front' | 'back'
 ) {
   // Check if driver exists
@@ -1126,8 +1233,11 @@ export async function uploadDriverLicensePhoto(
 
   // Create a unique filename and determine folder based on photoDescription
   const fileName = `driverLicense${photoDescription === 'front' ? 'Front' : 'Back'}Photo_${uuidv4()}`;
-  const folder = photoDescription === 'front' ? 'drivers-license-front-photos' : 'drivers-license-back-photos';
-  
+  const folder =
+    photoDescription === 'front'
+      ? 'drivers-license-front-photos'
+      : 'drivers-license-back-photos';
+
   // Upload to Cloudinary
   const uploadPromise = new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
@@ -1153,15 +1263,21 @@ export async function uploadDriverLicensePhoto(
     bufferStream.pipe(uploadStream);
   });
 
-  const uploadResult = await uploadPromise as any;
+  const uploadResult = (await uploadPromise) as any;
   const fileUrl = uploadResult.secure_url;
-  
+
   // Determine which field to update based on photoDescription
-  const fieldToUpdate = photoDescription === 'front' ? 'driverLicenseFrontPhoto' : 'driverLicenseBackPhoto';
-  
+  const fieldToUpdate =
+    photoDescription === 'front'
+      ? 'driverLicenseFrontPhoto'
+      : 'driverLicenseBackPhoto';
+
   // Delete the old license photo from Cloudinary if it exists
-  const oldPhotoUrl = photoDescription === 'front' ? driver.driverLicenseFrontPhoto : driver.driverLicenseBackPhoto;
-  
+  const oldPhotoUrl =
+    photoDescription === 'front'
+      ? driver.driverLicenseFrontPhoto
+      : driver.driverLicenseBackPhoto;
+
   if (oldPhotoUrl) {
     try {
       // Extract the public ID from the Cloudinary URL
@@ -1169,21 +1285,30 @@ export async function uploadDriverLicensePhoto(
       const fileNameWithExtension = urlParts[urlParts.length - 1];
       const publicId = fileNameWithExtension.split('.')[0]; // Remove extension
       const fullPublicId = `${folder}/${publicId}`;
-      
+
       // Delete from Cloudinary
-      await new Promise((resolve) => {
+      await new Promise(resolve => {
         cloudinary.uploader.destroy(fullPublicId, (error, result) => {
           if (error) {
-            console.error(`Error deleting old ${photoDescription} license photo:`, error);
+            console.error(
+              `Error deleting old ${photoDescription} license photo:`,
+              error
+            );
           } else {
-            console.log(`Successfully deleted old ${photoDescription} license photo:`, result);
+            console.log(
+              `Successfully deleted old ${photoDescription} license photo:`,
+              result
+            );
           }
           // Always resolve to continue with the update
           resolve(null);
         });
       });
     } catch (error) {
-      console.error(`Error processing old ${photoDescription} license photo URL:`, error);
+      console.error(
+        `Error processing old ${photoDescription} license photo URL:`,
+        error
+      );
       // Continue with the update even if deletion fails
     }
   }
@@ -1198,10 +1323,10 @@ export async function uploadDriverLicensePhoto(
     },
   });
 
-  return { 
+  return {
     success: true,
     url: fileUrl,
-    message: `Driver's license ${photoDescription} photo uploaded successfully` 
+    message: `Driver's license ${photoDescription} photo uploaded successfully`,
   };
 }
 
@@ -1213,7 +1338,10 @@ export async function uploadDriverLicensePhoto(
  * @returns Success status, URL, and message
  * @throws Error if no vehicle found for driver or upload fails
  */
-export async function uploadVehicleInsurancePhoto(driverId: number, file: File) {
+export async function uploadVehicleInsurancePhoto(
+  driverId: number,
+  file: File
+) {
   // Find the vehicle associated with the driver
   const vehicle = await prisma.vehicle.findFirst({
     where: {
@@ -1232,7 +1360,7 @@ export async function uploadVehicleInsurancePhoto(driverId: number, file: File) 
   // Create a unique filename
   const fileName = `autoInsurancePhoto_${uuidv4()}`;
   const folder = 'auto-insurance-photos';
-  
+
   // Upload to Cloudinary
   const uploadPromise = new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
@@ -1258,9 +1386,9 @@ export async function uploadVehicleInsurancePhoto(driverId: number, file: File) 
     bufferStream.pipe(uploadStream);
   });
 
-  const uploadResult = await uploadPromise as any;
+  const uploadResult = (await uploadPromise) as any;
   const fileUrl = uploadResult.secure_url;
-  
+
   // Delete the old insurance photo from Cloudinary if it exists
   if (vehicle.autoInsurancePhoto) {
     try {
@@ -1269,7 +1397,7 @@ export async function uploadVehicleInsurancePhoto(driverId: number, file: File) 
       const fileNameWithExtension = urlParts[urlParts.length - 1];
       const publicId = fileNameWithExtension.split('.')[0]; // Remove extension
       const fullPublicId = `${folder}/${publicId}`;
-      
+
       // Delete from Cloudinary
       await new Promise((resolve, reject) => {
         cloudinary.uploader.destroy(fullPublicId, (error, result) => {
@@ -1299,10 +1427,11 @@ export async function uploadVehicleInsurancePhoto(driverId: number, file: File) 
     },
   });
 
-  return { 
+  return {
     success: true,
     url: fileUrl,
-    message: 'Insurance document uploaded successfully. Your vehicle will need to be re-approved.' 
+    message:
+      'Insurance document uploaded successfully. Your vehicle will need to be re-approved.',
   };
 }
 
@@ -1333,7 +1462,7 @@ export async function uploadDriverProfilePicture(driverId: number, file: File) {
   // Create a unique filename
   const fileName = `profile_${driverId}_${uuidv4()}`;
   const folder = 'driver-profile-pictures';
-  
+
   // Upload to Cloudinary
   const uploadPromise = new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
@@ -1359,9 +1488,9 @@ export async function uploadDriverProfilePicture(driverId: number, file: File) {
     bufferStream.pipe(uploadStream);
   });
 
-  const uploadResult = await uploadPromise as any;
+  const uploadResult = (await uploadPromise) as any;
   const fileUrl = uploadResult.secure_url;
-  
+
   // Delete the old profile picture from Cloudinary if it exists
   if (driver.profilePicture) {
     try {
@@ -1370,9 +1499,9 @@ export async function uploadDriverProfilePicture(driverId: number, file: File) {
       const fileNameWithExtension = urlParts[urlParts.length - 1];
       const publicId = fileNameWithExtension.split('.')[0]; // Remove extension
       const fullPublicId = `${folder}/${publicId}`;
-      
+
       // Delete from Cloudinary
-      await new Promise((resolve) => {
+      await new Promise(resolve => {
         cloudinary.uploader.destroy(fullPublicId, (error, result) => {
           if (error) {
             console.error('Error deleting old profile picture:', error);
@@ -1399,10 +1528,10 @@ export async function uploadDriverProfilePicture(driverId: number, file: File) {
     },
   });
 
-  return { 
+  return {
     success: true,
     url: fileUrl,
-    message: 'Profile picture uploaded successfully' 
+    message: 'Profile picture uploaded successfully',
   };
 }
 
@@ -1504,7 +1633,7 @@ export async function getDriverBlockedDates(driverId: number) {
   const blockedDates = await prisma.blockedDate.findMany({
     where: {
       userId: driverId,
-      userType: "driver",
+      userType: 'driver',
     },
     orderBy: {
       blockedDate: 'asc',
@@ -1521,11 +1650,14 @@ export async function getDriverBlockedDates(driverId: number) {
  * @param blockedDate - Date string to block
  * @returns Created blocked date record
  */
-export async function createDriverBlockedDate(driverId: number, blockedDate: string) {
+export async function createDriverBlockedDate(
+  driverId: number,
+  blockedDate: string
+) {
   const newBlockedDate = await prisma.blockedDate.create({
     data: {
       userId: driverId,
-      userType: "driver",
+      userType: 'driver',
       blockedDate: new Date(blockedDate),
     },
   });
@@ -1636,4 +1768,4 @@ export async function getAdminDriversList() {
   });
 
   return drivers;
-} 
+}

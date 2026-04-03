@@ -4,6 +4,8 @@
  * @refactor Extracted webhook processing logic into reusable utilities
  */
 
+import 'server-only';
+
 import { prisma } from '@/lib/database/prismaClient';
 import { generateShortId } from '@/lib/services/shortTokenService';
 
@@ -262,6 +264,69 @@ export function buildFeedbackUrl(
   }
 
   return `${baseUrl}/feedback/${feedbackToken}`;
+}
+
+/**
+ * Send step 2 completion SMS with feedback link.
+ * Shared by StepTwoHandler (standard path) and the DIY multi-unit handler.
+ */
+export async function sendStep2CompletionSms(
+  appointment: {
+    id: number;
+    appointmentType: string;
+    user: { phoneNumber: string };
+    movingPartner?: { name: string } | null;
+  },
+  worker: WebhookWorkerData | undefined | null,
+  trackingToken: string
+): Promise<void> {
+  // Lazy imports to avoid circular dependency issues
+  const { MessageService } = await import('@/lib/messaging/MessageService');
+  const {
+    storageLoadingCompletedTemplate,
+    storageTermEndedTemplate,
+    storageAccessCompletedTemplate,
+  } = await import('@/lib/messaging/templates/sms/booking');
+
+  const driverName = getWorkerName(worker);
+  const crewName = appointment.movingPartner?.name || driverName;
+  const feedbackUrl = buildFeedbackUrl(trackingToken);
+
+  let template;
+  if (
+    appointment.appointmentType === 'Initial Pickup' ||
+    appointment.appointmentType === 'Additional Storage'
+  ) {
+    template = storageLoadingCompletedTemplate;
+  } else if (appointment.appointmentType === 'End Storage Term') {
+    template = storageTermEndedTemplate;
+  } else {
+    template = storageAccessCompletedTemplate;
+  }
+
+  try {
+    const smsResult = await MessageService.sendSms(
+      appointment.user.phoneNumber,
+      template,
+      { crewName, feedbackUrl }
+    );
+
+    if (smsResult.success) {
+      console.log(
+        `[sendStep2CompletionSms] SUCCESS: Completion SMS sent for appointment ${appointment.id}`
+      );
+    } else {
+      console.error(
+        `[sendStep2CompletionSms] FAILED: Could not send completion SMS for appointment ${appointment.id}:`,
+        smsResult.error
+      );
+    }
+  } catch (smsError) {
+    console.error(
+      `[sendStep2CompletionSms] ERROR: Exception sending completion SMS for appointment ${appointment.id}:`,
+      smsError
+    );
+  }
 }
 
 // Re-export commonly used utilities from the webhookProcessing module

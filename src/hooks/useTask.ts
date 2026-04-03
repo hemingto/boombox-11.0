@@ -64,7 +64,9 @@ export interface Task {
   appointment?: Appointment;
   feedback?: Feedback;
   storageUnitNumber?: string;
+  storageUnitId?: string;
   appointmentId?: string;
+  isLastUnit?: boolean;
   usageId?: number;
   warehouseId?: number;
 }

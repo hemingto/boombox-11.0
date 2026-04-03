@@ -28,7 +28,7 @@
 
 import React, { useEffect } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/20/solid';
-import { formatDateForInput } from '@/lib/utils';
+import { formatDateForInput } from '@/lib/utils/dateUtils';
 
 export interface DateAvailabilityInfo {
   available: boolean;
