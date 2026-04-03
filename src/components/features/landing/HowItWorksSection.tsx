@@ -41,6 +41,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/20/solid';
 import { cn } from '@/lib/utils/cn';
+import { ProgressiveBlurImage } from '@/components/ui/primitives/ProgressiveBlurImage';
 
 /**
  * Step data interface
@@ -199,8 +200,7 @@ const DEFAULT_STEPS: Step[] = [
   {
     title: 'Step 4',
     subtitle: 'Deliver',
-    description:
-      'We deliver your items to your desired address at your convenience.',
+    description: "Need access? We'll deliver your unit right to your door.",
     image: '/howitworks/step-4.png',
   },
 ];
@@ -369,15 +369,17 @@ export function HowItWorksSection({
                 data-step-card
                 className="bg-surface-tertiary w-[297.6px] sm:w-[372px] h-[569.6px] sm:h-[712px] rounded-3xl flex-none transform transition-transform duration-300 sm:hover:scale-[102%] cursor-pointer hover:z-10 relative overflow-hidden"
               >
-                {/* Background image */}
+                {/* Background image with progressive blur */}
                 {step.image && (
-                  <Image
+                  <ProgressiveBlurImage
                     src={step.image}
-                    alt="" // Empty alt since decorative; main content has semantic meaning
+                    alt=""
                     fill
                     className="object-cover"
                     sizes="(max-width: 640px) 298px, 372px"
-                    priority={index === 0} // Prioritize first image for LCP
+                    priority={index === 0}
+                    crossover={40}
+                    blurPx={4}
                   />
                 )}
 

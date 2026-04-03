@@ -31,6 +31,7 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/20/solid';
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll';
+import { ProgressiveBlurImage } from '@/components/ui/primitives/ProgressiveBlurImage';
 
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];
@@ -80,18 +81,18 @@ function PricingCard({ step }: { step: PricingStep }) {
   return (
     <div className="flex-none">
       <article className="relative bg-surface-tertiary w-[297.6px] sm:w-[372px] h-[569.6px] sm:h-[712px] rounded-3xl transform transition-transform duration-300 sm:hover:scale-[102%] hover:z-10 overflow-hidden">
-        <div className="absolute inset-0 w-full h-full">
-          <Image
-            src={resolvedSrc}
-            alt={step.imageAlt}
-            fill
-            className="object-fill"
-            loading="lazy"
-            quality={85}
-            sizes="(max-width: 640px) 297.6px, 372px"
-            onError={() => setImageError(true)}
-          />
-        </div>
+        <ProgressiveBlurImage
+          src={resolvedSrc}
+          alt={step.imageAlt}
+          fill
+          className="object-fill"
+          loading="lazy"
+          quality={100}
+          sizes="(max-width: 640px) 297.6px, 372px"
+          crossover={40}
+          blurPx={4}
+          onError={() => setImageError(true)}
+        />
 
         <div
           className="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-transparent"

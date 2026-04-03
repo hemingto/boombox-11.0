@@ -27,6 +27,7 @@ import Image from 'next/image';
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/20/solid';
 import { CheckIcon } from '@heroicons/react/20/solid';
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll';
+import { ProgressiveBlurImage } from '@/components/ui/primitives/ProgressiveBlurImage';
 
 interface ItemCard {
   icon: React.ReactNode;
@@ -65,14 +66,14 @@ export function ItemsThatFitSection() {
       icon: <CheckIcon className="w-4 h-4" />,
       subtitle: 'Large Dining Table',
       description:
-        'Your Boombox can fit most 6 seat dining tables. Take the legs off your dining table before loading to ensure it is safely stored.',
+        'A Boombox can fit most 6 seat dining tables. As long as the table top is less than 90" long, it will fit.',
       imageSrc: '/storage-calculator/dining-table.png',
     },
     {
       icon: <CheckIcon className="w-4 h-4" />,
       subtitle: '50 Medium Boxes',
       description:
-        'The Boombox can fit up to 50 medium boxes. Make sure to stack lighter boxes on top of heavier boxes.',
+        'A Boombox can fit up to 50 medium boxes. Make sure to stack lighter boxes on top of heavier boxes.',
       imageSrc: '/storage-calculator/boxes.png',
     },
   ];
@@ -132,8 +133,8 @@ export function ItemsThatFitSection() {
           {items.map((item, index) => (
             <div key={index} role="listitem" className="flex-none">
               <article className="bg-surface-tertiary w-[297.6px] sm:w-[372px] h-[569.6px] sm:h-[712px] rounded-3xl transform transition-transform duration-300 sm:hover:scale-[102%] hover:z-10 relative overflow-hidden">
-                {/* Background image */}
-                <Image
+                {/* Background image with progressive blur */}
+                <ProgressiveBlurImage
                   src={item.imageSrc}
                   alt={item.imageAlt || `${item.subtitle} in Boombox storage`}
                   fill
@@ -141,6 +142,8 @@ export function ItemsThatFitSection() {
                   loading="lazy"
                   quality={80}
                   sizes="(max-width: 640px) 297.6px, 372px"
+                  crossover={40}
+                  blurPx={4}
                 />
 
                 {/* Gradient overlay for text readability */}
