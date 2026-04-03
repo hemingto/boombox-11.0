@@ -41,7 +41,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/20/solid';
 import { cn } from '@/lib/utils/cn';
-import { ProgressiveBlurImage } from '@/components/ui/primitives/ProgressiveBlurImage';
 
 /**
  * Step data interface
@@ -186,8 +185,7 @@ const DEFAULT_STEPS: Step[] = [
   {
     title: 'Step 2',
     subtitle: 'Pack',
-    description:
-      'Pack your belongings safely and securely. Do it yourself or hire a local pro.',
+    description: 'Pack your belongings. Do it yourself or hire a local pro.',
     image: '/howitworks/step-2.png',
   },
   {
@@ -369,35 +367,32 @@ export function HowItWorksSection({
                 data-step-card
                 className="bg-surface-tertiary w-[297.6px] sm:w-[372px] h-[569.6px] sm:h-[712px] rounded-3xl flex-none transform transition-transform duration-300 sm:hover:scale-[102%] cursor-pointer hover:z-10 relative overflow-hidden"
               >
-                {/* Background image with progressive blur */}
+                {/* Background image */}
                 {step.image && (
-                  <ProgressiveBlurImage
+                  <Image
                     src={step.image}
                     alt=""
                     fill
                     className="object-cover"
                     sizes="(max-width: 640px) 298px, 372px"
                     priority={index === 0}
-                    crossover={40}
-                    blurPx={4}
                   />
                 )}
 
                 {/* Optional gradient overlay for better text readability */}
                 <div
-                  className="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-transparent"
+                  className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-transparent"
                   aria-hidden="true"
                 />
 
                 {/* Content overlay */}
                 <div className="relative z-10">
-                  <span className="bg-surface-primary rounded-full py-2.5 px-4 font-semibold inline-block m-4 text-sm font-inter">
-                    {step.title}
-                  </span>
-                  <h2 className="ml-5 mb-2 text-text-inverse drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
-                    {step.subtitle}
-                  </h2>
-                  <p className="mx-5 text-text-inverse drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
+                  <div className="flex items-center gap-3 m-4">
+                    <span className="bg-surface-primary rounded-full py-2.5 px-4 font-semibold text-sm font-inter">
+                      {step.subtitle}
+                    </span>
+                  </div>
+                  <p className="mx-5 text-base sm:text-lg font-medium text-text-inverse">
                     {step.description}
                   </p>
                 </div>

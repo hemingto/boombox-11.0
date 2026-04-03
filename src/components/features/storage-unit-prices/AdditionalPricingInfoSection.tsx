@@ -31,7 +31,6 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/20/solid';
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll';
-import { ProgressiveBlurImage } from '@/components/ui/primitives/ProgressiveBlurImage';
 
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];
@@ -62,6 +61,7 @@ function drawFromShuffleBag(storageKey: string, allImages: string[]): string {
 interface PricingStep {
   title: string;
   subtitle: string;
+  shortSubtitle?: string;
   description: string;
   images: string[];
   shuffleKey: string;
@@ -81,32 +81,39 @@ function PricingCard({ step }: { step: PricingStep }) {
   return (
     <div className="flex-none">
       <article className="relative bg-surface-tertiary w-[297.6px] sm:w-[372px] h-[569.6px] sm:h-[712px] rounded-3xl transform transition-transform duration-300 sm:hover:scale-[102%] hover:z-10 overflow-hidden">
-        <ProgressiveBlurImage
-          src={resolvedSrc}
-          alt={step.imageAlt}
-          fill
-          className="object-fill"
-          loading="lazy"
-          quality={100}
-          sizes="(max-width: 640px) 297.6px, 372px"
-          crossover={40}
-          blurPx={4}
-          onError={() => setImageError(true)}
-        />
+        <div className="absolute inset-0 w-full h-full">
+          <Image
+            src={resolvedSrc}
+            alt={step.imageAlt}
+            fill
+            className="object-fill"
+            loading="lazy"
+            quality={85}
+            sizes="(max-width: 640px) 297.6px, 372px"
+            onError={() => setImageError(true)}
+          />
+        </div>
 
         <div
-          className="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-transparent"
+          className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-transparent"
           aria-hidden="true"
         />
 
-        <div className="relative z-10">
-          <p className="bg-surface-primary rounded-full py-2.5 px-4 font-semibold inline-block m-4 text-sm font-inter text-text-primary">
-            {step.title}
-          </p>
-          <h2 className="ml-5 mb-2 text-text-inverse drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
-            {step.subtitle}
-          </h2>
-          <p className="mx-5 text-text-inverse drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
+        <div className="relative z-10 flex flex-col h-full">
+          <div className="flex items-center justify-between m-4">
+            <p className="bg-zinc-950/60 rounded-full py-2.5 px-4 font-semibold text-sm font-inter text-text-inverse">
+              {step.shortSubtitle && (
+                <span className="md:hidden">{step.shortSubtitle}</span>
+              )}
+              <span className={step.shortSubtitle ? 'hidden md:inline' : ''}>
+                {step.subtitle}
+              </span>
+            </p>
+            <p className="bg-surface-primary rounded-full py-2.5 px-4 font-semibold text-sm font-inter text-text-primary">
+              {step.title}
+            </p>
+          </div>
+          <p className="mx-5 text-base sm:text-lg font-medium text-text-inverse">
             {step.description}
           </p>
         </div>
@@ -126,7 +133,7 @@ export function AdditionalPricingInfoSection(): React.ReactElement {
       title: 'Free',
       subtitle: 'Initial Pickup',
       description:
-        'Your Boombox is delivered right to your door. Free with 6 month storage commitment.',
+        'Your Boombox is delivered right to your door. Free with 6 month commitment.',
       images: [
         '/storage-unit-prices/initial-delivery/initial-delivery-a.png',
         '/storage-unit-prices/initial-delivery/initial-delivery-b.png',
@@ -138,10 +145,10 @@ export function AdditionalPricingInfoSection(): React.ReactElement {
       imageAlt: 'Mobile storage unit being delivered to customer location',
     },
     {
-      title: '$189/hr on avg',
-      subtitle: 'Optional Loading Help',
+      title: '$189/hr avg',
+      subtitle: 'Loading Help',
       description:
-        'We partner with local moving pros to save your back and your wallet.',
+        'Book vetted local movers to load your items safely and efficiently.',
       images: [
         '/storage-unit-prices/loading-help/loading-help-a.png',
         '/storage-unit-prices/loading-help/loading-help-b.png',
@@ -154,7 +161,7 @@ export function AdditionalPricingInfoSection(): React.ReactElement {
     },
     {
       title: '$75 flat rate',
-      subtitle: 'Storage Unit Access',
+      subtitle: 'Storage Access',
       description:
         "Need something back? We'll deliver your boombox to where you need it",
       images: [
@@ -169,10 +176,10 @@ export function AdditionalPricingInfoSection(): React.ReactElement {
         'Storage unit access service - unit being delivered for customer access',
     },
     {
-      title: 'Boxes',
+      title: 'Next day delivery',
       subtitle: 'Packing Supplies',
-      description:
-        'Order boxes, tape, and more from our online store. Next day delivery available',
+      shortSubtitle: 'Supplies',
+      description: 'Order boxes, tape, and more. Free next day delivery',
       images: [
         '/storage-unit-prices/packing-supplies/packing-supplies-a.png',
         '/storage-unit-prices/packing-supplies/packing-supplies-b.png',

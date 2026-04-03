@@ -27,7 +27,6 @@ import Image from 'next/image';
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/20/solid';
 import { CheckIcon } from '@heroicons/react/20/solid';
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll';
-import { ProgressiveBlurImage } from '@/components/ui/primitives/ProgressiveBlurImage';
 
 interface ItemCard {
   icon: React.ReactNode;
@@ -52,28 +51,27 @@ export function ItemsThatFitSection() {
       icon: <CheckIcon className="w-4 h-4" />,
       subtitle: 'King Mattress',
       description:
-        'A Boombox can fit a California King mattress standing up. The height of the container is 90".',
+        'A Boombox can fit a King mattress. The height of the container is 90".',
       imageSrc: '/storage-calculator/king-mattress.png',
     },
     {
       icon: <CheckIcon className="w-4 h-4" />,
       subtitle: '3 Seat Sofa',
       description:
-        'Typical three seat sofas are less than 90" long, which will fit in a Boombox.',
+        'Typical three seat sofas are less than 90" long, which fits in a Boombox.',
       imageSrc: '/storage-calculator/three-seat-couch.png',
     },
     {
       icon: <CheckIcon className="w-4 h-4" />,
       subtitle: 'Large Dining Table',
       description:
-        'A Boombox can fit most 6 seat dining tables. As long as the table top is less than 90" long, it will fit.',
+        'A Boombox can fit most 6 seat dining tables. As long as the table is less than 90" long.',
       imageSrc: '/storage-calculator/dining-table.png',
     },
     {
       icon: <CheckIcon className="w-4 h-4" />,
       subtitle: '50 Medium Boxes',
-      description:
-        'A Boombox can fit up to 50 medium boxes. Make sure to stack lighter boxes on top of heavier boxes.',
+      description: 'A Boombox can fit up to 50 medium boxes.',
       imageSrc: '/storage-calculator/boxes.png',
     },
   ];
@@ -133,8 +131,8 @@ export function ItemsThatFitSection() {
           {items.map((item, index) => (
             <div key={index} role="listitem" className="flex-none">
               <article className="bg-surface-tertiary w-[297.6px] sm:w-[372px] h-[569.6px] sm:h-[712px] rounded-3xl transform transition-transform duration-300 sm:hover:scale-[102%] hover:z-10 relative overflow-hidden">
-                {/* Background image with progressive blur */}
-                <ProgressiveBlurImage
+                {/* Background image */}
+                <Image
                   src={item.imageSrc}
                   alt={item.imageAlt || `${item.subtitle} in Boombox storage`}
                   fill
@@ -142,29 +140,24 @@ export function ItemsThatFitSection() {
                   loading="lazy"
                   quality={80}
                   sizes="(max-width: 640px) 297.6px, 372px"
-                  crossover={40}
-                  blurPx={4}
                 />
 
                 {/* Gradient overlay for text readability */}
                 <div
-                  className="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-transparent"
+                  className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-transparent"
                   aria-hidden="true"
                 />
 
                 {/* Content overlay */}
                 <div className="relative z-10">
-                  {/* Icon badge */}
-                  <div className="bg-surface-primary rounded-full py-2.5 px-2.5 font-semibold inline-block ml-4 mt-4 mb-2 text-sm">
-                    <span className="text-text-primary" aria-hidden="true">
-                      {item.icon}
+                  <div className="flex items-center gap-3 m-4">
+                    <span className="bg-surface-primary rounded-full py-2.5 px-4 font-semibold text-sm font-inter">
+                      {item.subtitle}
                     </span>
                   </div>
-
-                  <h2 className="ml-5 mb-2 text-xl font-semibold text-text-inverse">
-                    {item.subtitle}
-                  </h2>
-                  <p className="mx-5 text-text-inverse">{item.description}</p>
+                  <p className="mx-5 text-base sm:text-lg font-medium text-text-inverse">
+                    {item.description}
+                  </p>
                 </div>
               </article>
             </div>

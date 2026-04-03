@@ -41,6 +41,3 @@ export * from '../error';
 // Content primitives
 export * from './AdditionalInfo';
 export * from './InfoCard';
-
-// Overlay primitives
-export * from './ProgressiveBlurImage';
