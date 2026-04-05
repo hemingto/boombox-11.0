@@ -19,6 +19,10 @@ export interface UseFeedbackFormOptions {
     subtitle?: string;
   }>;
   invoiceTotal: number;
+  storageUnits?: Array<{
+    usageId: number;
+    serialNumber: string;
+  }>;
 }
 
 export interface SubmissionResponse {
@@ -41,8 +45,14 @@ export interface UseFeedbackFormReturn {
   isCustomTip: boolean;
   setIsCustomTip: (isCustom: boolean) => void;
   driverRatings: Record<string, 'thumbs_up' | 'thumbs_down' | null>;
-  setDriverRatings: React.Dispatch<React.SetStateAction<Record<string, 'thumbs_up' | 'thumbs_down' | null>>>;
-  
+  setDriverRatings: React.Dispatch<
+    React.SetStateAction<Record<string, 'thumbs_up' | 'thumbs_down' | null>>
+  >;
+  padlockCombos: Record<number, string>;
+  setPadlockCombos: React.Dispatch<
+    React.SetStateAction<Record<number, string>>
+  >;
+
   // UI state
   ratingError: string | null;
   submitted: boolean;
@@ -50,7 +60,7 @@ export interface UseFeedbackFormReturn {
   submitting: boolean;
   tipPaymentStatus: string | null;
   loading: boolean;
-  
+
   // Actions
   handleSubmit: () => Promise<void>;
   checkExistingFeedback: () => Promise<void>;
@@ -62,7 +72,8 @@ export interface UseFeedbackFormReturn {
 export function useFeedbackForm({
   appointmentId,
   drivers = [],
-  invoiceTotal
+  invoiceTotal,
+  storageUnits = [],
 }: UseFeedbackFormOptions): UseFeedbackFormReturn {
   // Form state
   const [rating, setRating] = useState<number>(0);
@@ -70,7 +81,12 @@ export function useFeedbackForm({
   const [tipPercentage, setTipPercentage] = useState<number>(15);
   const [customTip, setCustomTip] = useState<string>('');
   const [isCustomTip, setIsCustomTip] = useState<boolean>(false);
-  const [driverRatings, setDriverRatings] = useState<Record<string, 'thumbs_up' | 'thumbs_down' | null>>({});
+  const [driverRatings, setDriverRatings] = useState<
+    Record<string, 'thumbs_up' | 'thumbs_down' | null>
+  >({});
+  const [padlockCombos, setPadlockCombos] = useState<Record<number, string>>(
+    {}
+  );
 
   // UI state
   const [ratingError, setRatingError] = useState<string | null>(null);
@@ -85,7 +101,9 @@ export function useFeedbackForm({
    */
   const checkExistingFeedback = useCallback(async () => {
     try {
-      const response = await fetch(`/api/admin/feedback/check?appointmentId=${appointmentId}`);
+      const response = await fetch(
+        `/api/admin/feedback/check?appointmentId=${appointmentId}`
+      );
       if (response.ok) {
         const data = await response.json();
         if (data.exists) {
@@ -124,9 +142,12 @@ export function useFeedbackForm({
   /**
    * Map driver ratings from UI keys to API taskIds
    */
-  const mapDriverRatingsToTaskIds = useCallback((): Record<string, 'thumbs_up' | 'thumbs_down'> => {
+  const mapDriverRatingsToTaskIds = useCallback((): Record<
+    string,
+    'thumbs_up' | 'thumbs_down'
+  > => {
     const taskIdRatings: Record<string, 'thumbs_up' | 'thumbs_down'> = {};
-    
+
     if (drivers) {
       Object.entries(driverRatings).forEach(([driverKey, rating]) => {
         if (rating) {
@@ -140,7 +161,7 @@ export function useFeedbackForm({
         }
       });
     }
-    
+
     return taskIdRatings;
   }, [drivers, driverRatings]);
 
@@ -161,12 +182,19 @@ export function useFeedbackForm({
       const tipAmount = calculateTipAmount();
       const taskIdRatings = mapDriverRatingsToTaskIds();
 
-      const payload = {
+      const nonEmptyCombos = Object.fromEntries(
+        Object.entries(padlockCombos).filter(([, v]) => v.trim() !== '')
+      );
+
+      const payload: Record<string, unknown> = {
         appointmentId: parseInt(appointmentId, 10),
         rating,
         comments: comment,
         tipAmount,
         driverRatings: taskIdRatings,
+        ...(Object.keys(nonEmptyCombos).length > 0 && {
+          padlockCombos: nonEmptyCombos,
+        }),
       };
 
       console.log('Submitting feedback with payload:', payload);
@@ -186,9 +214,14 @@ export function useFeedbackForm({
 
         // Handle tip payment status
         if (payload.tipAmount > 0) {
-          if (data.tipProcessingStatus === 'failed' || data.tipProcessingStatus === 'error') {
+          if (
+            data.tipProcessingStatus === 'failed' ||
+            data.tipProcessingStatus === 'error'
+          ) {
             setTipPaymentStatus('failed');
-            setErrorMessage(`Your feedback was submitted, but the tip payment failed: ${data.tipProcessingError || 'Payment processing error'}`);
+            setErrorMessage(
+              `Your feedback was submitted, but the tip payment failed: ${data.tipProcessingError || 'Payment processing error'}`
+            );
           } else if (data.tipPaymentStatus === 'succeeded') {
             setTipPaymentStatus('succeeded');
           } else if (data.tipPaymentStatus === 'processing') {
@@ -199,14 +232,18 @@ export function useFeedbackForm({
         setSubmitted(true);
       } else {
         console.error('Error response from server:', data);
-        setErrorMessage(`Failed to submit feedback: ${data.tipProcessingError || 'Unknown error'}`);
+        setErrorMessage(
+          `Failed to submit feedback: ${data.tipProcessingError || 'Unknown error'}`
+        );
         if (data.tipProcessingError) {
           console.error('Error details:', data.tipProcessingError);
         }
       }
     } catch (error) {
       console.error('Error submitting feedback:', error);
-      setErrorMessage('An error occurred while submitting your feedback. Please try again.');
+      setErrorMessage(
+        'An error occurred while submitting your feedback. Please try again.'
+      );
     } finally {
       setSubmitting(false);
     }
@@ -214,9 +251,10 @@ export function useFeedbackForm({
     appointmentId,
     rating,
     comment,
+    padlockCombos,
     validateForm,
     calculateTipAmount,
-    mapDriverRatingsToTaskIds
+    mapDriverRatingsToTaskIds,
   ]);
 
   /**
@@ -241,7 +279,9 @@ export function useFeedbackForm({
     setIsCustomTip,
     driverRatings,
     setDriverRatings,
-    
+    padlockCombos,
+    setPadlockCombos,
+
     // UI state
     ratingError,
     submitted,
@@ -249,7 +289,7 @@ export function useFeedbackForm({
     submitting,
     tipPaymentStatus,
     loading,
-    
+
     // Actions
     handleSubmit,
     checkExistingFeedback,

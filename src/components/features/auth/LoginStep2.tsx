@@ -1,22 +1,22 @@
 /**
  * @fileoverview Login step 2 - Account type selection for users with multiple accounts
  * @source boombox-10.0/src/app/components/login/loginstep2.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * Second step of login flow for users who have multiple account types (customer, driver, mover).
  * Displays a list of account options with radio button selection.
  * Shows appropriate icon for each account type (customer, driver, mover).
  * Allows user to select which account they want to log into.
- * 
+ *
  * API ROUTES UPDATED:
  * - N/A (Pure UI component, API calls handled by parent LoginForm)
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Replaced hardcoded colors with semantic tokens (primary, surface-secondary, text colors)
  * - Applied consistent border and background states using design system
  * - Updated hover states to use design system patterns
  * - Improved accessibility with proper ARIA labels and keyboard navigation
- * 
+ *
  * @refactor Maintained original radio card selection pattern, enhanced with design system
  * compliance and improved accessibility standards
  */
@@ -24,8 +24,12 @@
 'use client';
 
 import React from 'react';
-import { UserCircleIcon, UserGroupIcon } from '@heroicons/react/24/outline';
-import { TruckIcon } from '@/components/icons/TruckIcon';
+import {
+  UserCircleIcon,
+  UserGroupIcon,
+  ArrowsRightLeftIcon,
+} from '@heroicons/react/24/outline';
+import { TruckIcon as CustomTruckIcon } from '@/components/icons/TruckIcon';
 
 /**
  * Account type interface
@@ -33,7 +37,7 @@ import { TruckIcon } from '@/components/icons/TruckIcon';
 export interface AccountType {
   id: string;
   name: string;
-  type: 'customer' | 'driver' | 'mover';
+  type: 'customer' | 'driver' | 'mover' | 'hauler';
 }
 
 /**
@@ -44,17 +48,17 @@ export interface LoginStep2Props {
    * List of accounts associated with the contact method
    */
   accounts: AccountType[];
-  
+
   /**
    * Currently selected account ID
    */
   selectedAccountId: string | null;
-  
+
   /**
    * Callback when an account is selected
    */
   onAccountSelect: (accountId: string) => void;
-  
+
   /**
    * Callback when back button is clicked
    */
@@ -63,18 +67,22 @@ export interface LoginStep2Props {
 
 /**
  * Helper function to get the appropriate icon based on account type
- * 
+ *
  * @param type - Account type (customer, driver, mover)
  * @returns JSX element for the icon
  */
-export function getAccountIcon(type: 'customer' | 'driver' | 'mover') {
+export function getAccountIcon(
+  type: 'customer' | 'driver' | 'mover' | 'hauler'
+) {
   switch (type) {
     case 'customer':
       return <UserCircleIcon className="h-10 w-10 text-primary" />;
     case 'driver':
-      return <TruckIcon className="h-10 w-10 text-primary" />;
+      return <CustomTruckIcon className="h-10 w-10 text-primary" />;
     case 'mover':
       return <UserGroupIcon className="h-10 w-10 text-primary" />;
+    case 'hauler':
+      return <ArrowsRightLeftIcon className="h-10 w-10 text-primary" />;
     default:
       return <UserCircleIcon className="h-10 w-10 text-primary" />;
   }
@@ -82,7 +90,7 @@ export function getAccountIcon(type: 'customer' | 'driver' | 'mover') {
 
 /**
  * LoginStep2 - Account selection step for multiple account types
- * 
+ *
  * @example
  * ```tsx
  * <LoginStep2
@@ -107,13 +115,17 @@ export function LoginStep2({
       <div className="text-center">
         <h2 className="mb-8 text-text-primary">Select your account type</h2>
       </div>
-      
+
       {/* Account Selection Cards */}
-      <div className="space-y-2" role="radiogroup" aria-label="Account type selection">
-        {accounts.map((account) => {
+      <div
+        className="space-y-2"
+        role="radiogroup"
+        aria-label="Account type selection"
+      >
+        {accounts.map(account => {
           const accountKey = `${account.id}-${account.type}`;
           const isSelected = selectedAccountId === accountKey;
-          
+
           return (
             <div
               key={accountKey}
@@ -127,7 +139,7 @@ export function LoginStep2({
               aria-checked={isSelected}
               aria-labelledby={`account-${accountKey}-label`}
               tabIndex={0}
-              onKeyDown={(e) => {
+              onKeyDown={e => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
                   onAccountSelect(accountKey);
@@ -140,18 +152,19 @@ export function LoginStep2({
                 <div className="mr-4 flex h-10 w-10 items-center justify-center">
                   {getAccountIcon(account.type)}
                 </div>
-                
+
                 {/* Name and Type */}
                 <div>
-                  <p id={`account-${accountKey}-label`} className="text-text-primary font-medium">
+                  <p
+                    id={`account-${accountKey}-label`}
+                    className="text-text-primary font-medium"
+                  >
                     {account.name}
                   </p>
-                  <p className="text-sm text-text-primary">
-                    {account.type}
-                  </p>
+                  <p className="text-sm text-text-primary">{account.type}</p>
                 </div>
               </div>
-              
+
               {/* Radio Button */}
               <div className="flex items-center justify-center">
                 <input
@@ -159,9 +172,7 @@ export function LoginStep2({
                   checked={isSelected}
                   onChange={() => onAccountSelect(accountKey)}
                   className={`h-5 w-5 ${
-                    isSelected 
-                      ? 'accent-primary' 
-                      : 'accent-text-disabled'
+                    isSelected ? 'accent-primary' : 'accent-text-disabled'
                   }`}
                   aria-label={`Select ${account.type} account for ${account.name}`}
                   tabIndex={-1}
@@ -176,4 +187,3 @@ export function LoginStep2({
 }
 
 export default LoginStep2;
-

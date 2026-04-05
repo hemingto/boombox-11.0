@@ -10,7 +10,7 @@ Thank you for choosing Boombox! We're glad you had a great experience with us.
 
 If you have a moment, we'd really appreciate it if you could leave us a quick Google review. Your feedback helps other customers find us and lets our team know we're doing a great job!
 
-Leave a review here: https://share.google/nwAmICkzEOYGpXuDg
+Leave a review here: https://g.page/r/CQ8HFuckURpmEBM/review
 
 Thank you so much for your support!
 
@@ -22,7 +22,7 @@ The Boombox Team`,
       <p>Thank you for choosing Boombox! We're glad you had a great experience with us.</p>
       <p>If you have a moment, we'd really appreciate it if you could leave us a quick Google review. Your feedback helps other customers find us and lets our team know we're doing a great job!</p>
       <div style="text-align: center; margin: 30px 0;">
-        <a href="https://share.google/nwAmICkzEOYGpXuDg"
+        <a href="https://g.page/r/CQ8HFuckURpmEBM/review"
            style="background-color: #4285F4; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: bold; display: inline-block;">
           Leave a Google Review
         </a>

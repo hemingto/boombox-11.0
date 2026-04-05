@@ -53,6 +53,10 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(
         new URL(`/service-provider/mover/${userId}`, req.url)
       );
+    } else if (accountType === 'hauler') {
+      return NextResponse.redirect(
+        new URL(`/service-provider/hauler/${userId}`, req.url)
+      );
     }
   }
 
@@ -155,6 +159,33 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // Protect hauler routes
+  if (req.nextUrl.pathname.startsWith('/service-provider/hauler')) {
+    if (!token) {
+      const loginUrl = new URL('/login', req.url);
+      loginUrl.searchParams.set('from', req.nextUrl.pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    if ((token.accountType as string)?.toUpperCase() !== 'HAULER') {
+      return NextResponse.redirect(new URL('/login', req.url));
+    }
+
+    try {
+      const urlParts = req.nextUrl.pathname.split('/');
+      const requestedHaulerId = urlParts[3];
+
+      if (requestedHaulerId && token.id !== requestedHaulerId) {
+        return NextResponse.redirect(
+          new URL(`/service-provider/hauler/${token.id}`, req.url)
+        );
+      }
+    } catch (error) {
+      console.error('Error parsing token:', error);
+      return NextResponse.redirect(new URL('/login', req.url));
+    }
+  }
+
   // Protect admin routes
   if (req.nextUrl.pathname.startsWith('/admin')) {
     console.log(
@@ -225,6 +256,7 @@ export const config = {
     '/customer/:path*',
     '/service-provider/driver/:path*',
     '/service-provider/mover/:path*',
+    '/service-provider/hauler/:path*',
     '/admin/:path*',
   ],
 };

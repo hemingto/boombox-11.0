@@ -332,6 +332,7 @@ export class StepTwoHandler {
       serviceEndTime: time.toString(),
       trackingToken: token,
     });
+    appointment.trackingToken = token;
     console.log('[StepTwoHandler:Completed] Appointment updated successfully');
 
     console.log(

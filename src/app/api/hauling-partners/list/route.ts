@@ -10,7 +10,7 @@ const CreateHaulerRequestSchema = z.object({
   companyName: z.string().min(1, 'Company name is required'),
   email: z.string().email('Valid email is required'),
   phoneNumber: z.string().min(1, 'Phone number is required'),
-  website: z.string().url('Valid website URL is required'),
+  website: z.string().url('Valid website URL is required').optional(),
   employeeCount: z.number().int().positive(),
   createDefaultAvailability: z.boolean().optional().default(false),
 });

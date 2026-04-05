@@ -1,23 +1,23 @@
 /**
  * @fileoverview Terms of service popup modal for service providers
  * @source boombox-10.0/src/app/components/mover-account/termsofservicepopup.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * Modal that displays Terms of Service with scroll-to-bottom verification.
  * Users must scroll to the bottom before they can agree to terms.
  * Calls API to record agreement timestamp in database.
- * 
+ *
  * API ROUTES UPDATED:
  * - Old: /api/drivers/[driverId]/agree-to-terms → New: /api/drivers/[id]/agree-to-terms
  * - Old: /api/movers/[moverId]/agree-to-terms → New: /api/moving-partners/[id]/agree-to-terms
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Uses Modal primitive component instead of custom modal
  * - Replaced hardcoded zinc-950 with primary semantic token
  * - Applied bg-primary and hover:bg-primary-hover for buttons
  * - Uses text-text-secondary for helper text
  * - Applied bg-surface-disabled for disabled button state
- * 
+ *
  * @refactor Migrated to use Modal primitive and design system tokens
  */
 
@@ -32,7 +32,7 @@ interface TermsOfServicePopupProps {
   onClose: () => void;
   onAgree: () => void;
   userId: string;
-  userType: 'driver' | 'mover';
+  userType: 'driver' | 'mover' | 'hauler';
 }
 
 export const TermsOfServicePopup = ({
@@ -56,13 +56,16 @@ export const TermsOfServicePopup = ({
 
   const handleAgree = async () => {
     if (isLoading) return; // Prevent double submission
-    
+
     setIsLoading(true);
     try {
       // Update API route based on user type
-      const apiPath = userType === 'driver' 
-        ? `/api/drivers/${userId}/agree-to-terms`
-        : `/api/moving-partners/${userId}/agree-to-terms`;
+      const apiPath =
+        userType === 'driver'
+          ? `/api/drivers/${userId}/agree-to-terms`
+          : userType === 'hauler'
+            ? `/api/hauling-partners/${userId}/agree-to-terms`
+            : `/api/moving-partners/${userId}/agree-to-terms`;
 
       const response = await fetch(apiPath, {
         method: 'POST',
@@ -114,7 +117,10 @@ export const TermsOfServicePopup = ({
             </p>
 
             <h3 className="font-semibold">2. User Responsibilities</h3>
-            <p>As a {userType === 'driver' ? 'driver' : 'moving partner'} on our platform, you agree to:</p>
+            <p>
+              As a {userType === 'driver' ? 'driver' : 'moving partner'} on our
+              platform, you agree to:
+            </p>
             <ul className="list-disc pl-5 space-y-2">
               <li>Maintain valid driver&apos;s license and insurance</li>
               <li>Keep your vehicle in good condition</li>
@@ -127,10 +133,10 @@ export const TermsOfServicePopup = ({
               <div key={index}>
                 <h3 className="font-semibold">{index + 3}. Additional Terms</h3>
                 <p>
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
-                  eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut
-                  enim ad minim veniam, quis nostrud exercitation ullamco laboris
-                  nisi ut aliquip ex ea commodo consequat.
+                  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed
+                  do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+                  Ut enim ad minim veniam, quis nostrud exercitation ullamco
+                  laboris nisi ut aliquip ex ea commodo consequat.
                 </p>
               </div>
             ))}
@@ -150,7 +156,7 @@ export const TermsOfServicePopup = ({
             {isLoading ? 'Saving Response...' : 'I Agree'}
           </Button>
           {/* Grid container for smooth height transition */}
-          <div 
+          <div
             className={`grid transition-[grid-template-rows] duration-300 ease-out ${
               canAgree || isLoading ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
             }`}

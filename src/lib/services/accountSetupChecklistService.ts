@@ -7,10 +7,11 @@
 'use server';
 
 import { prisma } from '@/lib/database/prismaClient';
-import { MovingPartnerStatus } from '@prisma/client';
+import { MovingPartnerStatus, HaulingPartnerStatus } from '@prisma/client';
 import type {
   MoverChecklistStatus,
   DriverChecklistStatus,
+  HaulerChecklistStatus,
   ChecklistStatus,
   ChecklistData,
 } from './accountSetupChecklistUtils';
@@ -19,6 +20,7 @@ import type {
 export type {
   MoverChecklistStatus,
   DriverChecklistStatus,
+  HaulerChecklistStatus,
   ChecklistStatus,
   ChecklistData,
 };
@@ -54,19 +56,20 @@ export async function getDriverChecklistStatus(
 
     // Check if driver has an active moving partner
     const hasMovingPartner = driver.movingPartnerAssociations.some(
-      (assoc) => assoc.isActive
+      assoc => assoc.isActive
     );
 
     // Check if driver has approved vehicle
-    const hasApprovedVehicle = driver.vehicles && driver.vehicles.length > 0
-      ? driver.vehicles.some(v => v.isApproved)
-      : false;
+    const hasApprovedVehicle =
+      driver.vehicles && driver.vehicles.length > 0
+        ? driver.vehicles.some(v => v.isApproved)
+        : false;
 
     // Check if work schedule is set (check if driver has availability records that have been modified)
     const hasWorkSchedule =
       driver.availability && driver.availability.length > 0
         ? driver.availability.some(
-            (record) =>
+            record =>
               new Date(record.createdAt).getTime() !==
               new Date(record.updatedAt).getTime()
           )
@@ -132,21 +135,22 @@ export async function getMoverChecklistStatus(
     const calendarSet =
       mover.availability && mover.availability.length > 0
         ? mover.availability.some(
-            (record) =>
-              record.createdAt && record.updatedAt &&
+            record =>
+              record.createdAt &&
+              record.updatedAt &&
               new Date(record.createdAt).getTime() !==
-              new Date(record.updatedAt).getTime()
+                new Date(record.updatedAt).getTime()
           )
         : false;
 
     // Count approved drivers
     const approvedDriverCount = mover.approvedDrivers.filter(
-      (assoc) => assoc.driver.isApproved
+      assoc => assoc.driver.isApproved
     ).length;
 
     // Count approved vehicles
     const approvedVehicleCount = mover.vehicles.filter(
-      (vehicle) => vehicle.isApproved
+      vehicle => vehicle.isApproved
     ).length;
 
     const checklistStatus: MoverChecklistStatus = {
@@ -166,11 +170,14 @@ export async function getMoverChecklistStatus(
     // - INACTIVE → PENDING: When application completes (application-complete route)
     // - PENDING → APPROVED: When admin approves (admin approve route)
     // - APPROVED → ACTIVE: When approved drivers are added (update-status route)
-    const status: 'PENDING' | 'APPROVED' | 'ACTIVE' = 
-      mover.status === MovingPartnerStatus.ACTIVE ? 'ACTIVE' :
-      mover.status === MovingPartnerStatus.PENDING ? 'PENDING' :
-      mover.isApproved && mover.onfleetTeamId ? 'APPROVED' :
-      'PENDING';
+    const status: 'PENDING' | 'APPROVED' | 'ACTIVE' =
+      mover.status === MovingPartnerStatus.ACTIVE
+        ? 'ACTIVE'
+        : mover.status === MovingPartnerStatus.PENDING
+          ? 'PENDING'
+          : mover.isApproved && mover.onfleetTeamId
+            ? 'APPROVED'
+            : 'PENDING';
 
     return {
       checklistStatus,
@@ -182,5 +189,87 @@ export async function getMoverChecklistStatus(
   } catch (error) {
     console.error('Error fetching mover checklist status:', error);
     throw new Error('Failed to fetch mover checklist status');
+  }
+}
+
+/**
+ * Fetches and calculates checklist status for a hauling partner
+ */
+export async function getHaulerChecklistStatus(
+  haulerId: string
+): Promise<ChecklistData> {
+  try {
+    const hauler = await prisma.haulingPartner.findUnique({
+      where: { id: parseInt(haulerId) },
+      include: {
+        drivers: {
+          where: { isActive: true },
+          include: {
+            driver: {
+              select: {
+                id: true,
+                isApproved: true,
+              },
+            },
+          },
+        },
+        vehicles: true,
+        availability: true,
+      },
+    });
+
+    if (!hauler) {
+      throw new Error('Hauling partner not found');
+    }
+
+    const calendarSet =
+      hauler.availability && hauler.availability.length > 0
+        ? hauler.availability.some(
+            record =>
+              record.createdAt &&
+              record.updatedAt &&
+              new Date(record.createdAt).getTime() !==
+                new Date(record.updatedAt).getTime()
+          )
+        : false;
+
+    const approvedDriverCount = hauler.drivers.filter(
+      assoc => assoc.driver.isApproved
+    ).length;
+
+    const approvedVehicleCount = hauler.vehicles.filter(
+      vehicle => vehicle.isApproved
+    ).length;
+
+    const checklistStatus: HaulerChecklistStatus = {
+      companyDescription: !!hauler.description,
+      companyPicture: !!hauler.imageSrc,
+      routePricing: !!(hauler.priceSsfToStockton || hauler.priceStocktonToSsf),
+      approvedDrivers: approvedDriverCount > 0,
+      approvedVehicles: approvedVehicleCount > 0,
+      calendarSet,
+      bankAccountLinked: !!hauler.stripeConnectAccountId,
+      termsOfServiceReviewed: !!hauler.agreedToTerms,
+    };
+
+    const status: 'PENDING' | 'APPROVED' | 'ACTIVE' =
+      hauler.status === HaulingPartnerStatus.ACTIVE
+        ? 'ACTIVE'
+        : hauler.status === HaulingPartnerStatus.PENDING
+          ? 'PENDING'
+          : hauler.isApproved && hauler.onfleetTeamId
+            ? 'APPROVED'
+            : 'PENDING';
+
+    return {
+      checklistStatus,
+      isApproved: !!hauler.isApproved,
+      status,
+      applicationComplete: !!hauler.applicationComplete,
+      activeMessageShown: !!hauler.activeMessageShown,
+    };
+  } catch (error) {
+    console.error('Error fetching hauler checklist status:', error);
+    throw new Error('Failed to fetch hauler checklist status');
   }
 }

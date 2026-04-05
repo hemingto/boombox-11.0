@@ -30,39 +30,41 @@ import { twilioClient } from '@/lib/messaging/twilioClient';
 const rateLimitMap = new Map<string, number>();
 const RATE_LIMIT_WINDOW = 60 * 1000; // 60 seconds
 
-
-
 export async function POST(req: NextRequest) {
   try {
     const { phoneNumber, email, skipAccountCheck } = await req.json();
-    
+
     // Validate that at least one contact method is provided
     if (!phoneNumber && !email) {
       return NextResponse.json(
-        { message: "Either phone number or email is required" },
+        { message: 'Either phone number or email is required' },
         { status: 400 }
       );
     }
 
     // Format phone number if provided
-    const formattedPhoneNumber = phoneNumber ? normalizePhoneNumberToE164(phoneNumber) : null;
-    
+    const formattedPhoneNumber = phoneNumber
+      ? normalizePhoneNumberToE164(phoneNumber)
+      : null;
+
     // Rate limiting check for phone verification
     if (formattedPhoneNumber) {
       const lastSentTime = rateLimitMap.get(formattedPhoneNumber);
       const currentTime = Date.now();
-      
+
       if (lastSentTime && currentTime - lastSentTime < RATE_LIMIT_WINDOW) {
-        console.log(`Rate limited verification code for ${formattedPhoneNumber}`);
+        console.log(
+          `Rate limited verification code for ${formattedPhoneNumber}`
+        );
         return NextResponse.json(
-          { message: "Please wait before requesting another code" },
+          { message: 'Please wait before requesting another code' },
           { status: 429 }
         );
       }
-      
+
       // Update the last sent time
       rateLimitMap.set(formattedPhoneNumber, currentTime);
-      
+
       // Clean up old entries from the rate limit map
       Array.from(rateLimitMap.entries()).forEach(([phone, time]) => {
         if (currentTime - time > RATE_LIMIT_WINDOW) {
@@ -72,22 +74,24 @@ export async function POST(req: NextRequest) {
     }
 
     // Find accounts across all tables (skip for phone number updates)
-    const accounts = skipAccountCheck ? [] : await findAccounts(formattedPhoneNumber, email);
-    
+    const accounts = skipAccountCheck
+      ? []
+      : await findAccounts(formattedPhoneNumber, email);
+
     // Only require account existence for login flows (when skipAccountCheck is false)
     if (!skipAccountCheck && accounts.length === 0) {
       return NextResponse.json(
-        { message: "No account found with these credentials" },
+        { message: 'No account found with these credentials' },
         { status: 404 }
       );
     }
 
     // Generate a random 4-digit code
     const verificationCode = Math.floor(1000 + Math.random() * 9000).toString();
-    
+
     // Store the verification code in the database
     await storeVerificationCode(formattedPhoneNumber, email, verificationCode);
-    
+
     // Send the verification code via SMS or email
     if (formattedPhoneNumber) {
       await sendSmsVerificationCode(formattedPhoneNumber, verificationCode);
@@ -98,19 +102,18 @@ export async function POST(req: NextRequest) {
     // Return the accounts found (either single or multiple) for login flows
     // For verification flows (skipAccountCheck = true), return simple success
     return NextResponse.json({
-      message: "Verification code sent successfully",
+      message: 'Verification code sent successfully',
       multipleAccounts: accounts.length > 1,
       accounts: accounts.map(account => ({
         id: account.id,
         type: account.type,
-        name: account.name
-      }))
+        name: account.name,
+      })),
     });
-    
   } catch (error) {
-    console.error("Error sending verification code:", error);
+    console.error('Error sending verification code:', error);
     return NextResponse.json(
-      { message: "Failed to send verification code" },
+      { message: 'Failed to send verification code' },
       { status: 500 }
     );
   }
@@ -124,29 +127,29 @@ async function findAccounts(phoneNumber: string | null, email: string | null) {
   if (phoneNumber) {
     const user = await prisma.user.findFirst({
       where: { phoneNumber },
-      select: { id: true, firstName: true, lastName: true }
+      select: { id: true, firstName: true, lastName: true },
     });
-    
+
     if (user) {
       accounts.push({
         id: user.id.toString(),
         type: 'customer',
-        name: `${user.firstName} ${user.lastName}`
+        name: `${user.firstName} ${user.lastName}`,
       });
     }
   }
-  
+
   if (email) {
     const userByEmail = await prisma.user.findFirst({
       where: { email },
-      select: { id: true, firstName: true, lastName: true }
+      select: { id: true, firstName: true, lastName: true },
     });
-    
+
     if (userByEmail) {
       accounts.push({
         id: userByEmail.id.toString(),
         type: 'customer',
-        name: `${userByEmail.firstName} ${userByEmail.lastName}`
+        name: `${userByEmail.firstName} ${userByEmail.lastName}`,
       });
     }
   }
@@ -155,29 +158,29 @@ async function findAccounts(phoneNumber: string | null, email: string | null) {
   if (phoneNumber) {
     const driver = await prisma.driver.findFirst({
       where: { phoneNumber },
-      select: { id: true, firstName: true, lastName: true }
+      select: { id: true, firstName: true, lastName: true },
     });
-    
+
     if (driver) {
       accounts.push({
         id: driver.id.toString(),
         type: 'driver',
-        name: `${driver.firstName} ${driver.lastName}`
+        name: `${driver.firstName} ${driver.lastName}`,
       });
     }
   }
-  
+
   if (email) {
     const driverByEmail = await prisma.driver.findFirst({
       where: { email },
-      select: { id: true, firstName: true, lastName: true }
+      select: { id: true, firstName: true, lastName: true },
     });
-    
+
     if (driverByEmail) {
       accounts.push({
         id: driverByEmail.id.toString(),
         type: 'driver',
-        name: `${driverByEmail.firstName} ${driverByEmail.lastName}`
+        name: `${driverByEmail.firstName} ${driverByEmail.lastName}`,
       });
     }
   }
@@ -186,44 +189,81 @@ async function findAccounts(phoneNumber: string | null, email: string | null) {
   if (phoneNumber) {
     const mover = await prisma.movingPartner.findFirst({
       where: { phoneNumber },
-      select: { id: true, name: true }
+      select: { id: true, name: true },
     });
-    
+
     if (mover) {
       accounts.push({
         id: mover.id.toString(),
         type: 'mover',
-        name: mover.name
+        name: mover.name,
       });
     }
   }
-  
+
   if (email) {
     const moverByEmail = await prisma.movingPartner.findFirst({
       where: { email },
-      select: { id: true, name: true }
+      select: { id: true, name: true },
     });
-    
+
     if (moverByEmail) {
       accounts.push({
         id: moverByEmail.id.toString(),
         type: 'mover',
-        name: moverByEmail.name
+        name: moverByEmail.name,
+      });
+    }
+  }
+
+  // Check hauling partner table
+  if (phoneNumber) {
+    const hauler = await prisma.haulingPartner.findFirst({
+      where: { phoneNumber },
+      select: { id: true, name: true },
+    });
+
+    if (hauler) {
+      accounts.push({
+        id: hauler.id.toString(),
+        type: 'hauler',
+        name: hauler.name,
+      });
+    }
+  }
+
+  if (email) {
+    const haulerByEmail = await prisma.haulingPartner.findFirst({
+      where: { email },
+      select: { id: true, name: true },
+    });
+
+    if (haulerByEmail) {
+      accounts.push({
+        id: haulerByEmail.id.toString(),
+        type: 'hauler',
+        name: haulerByEmail.name,
       });
     }
   }
 
   // Deduplicate accounts by id+type combination
   // This handles cases where same account is found by both phone and email
-  const uniqueAccounts = accounts.filter((account, index, self) =>
-    index === self.findIndex((a) => a.id === account.id && a.type === account.type)
+  const uniqueAccounts = accounts.filter(
+    (account, index, self) =>
+      index ===
+      self.findIndex(a => a.id === account.id && a.type === account.type)
   );
 
   return uniqueAccounts;
 }
 
 // Store verification code in the database
-async function storeVerificationCode(phoneNumber: string | null, email: string | null, code: string) {
+async function storeVerificationCode(
+  phoneNumber: string | null,
+  email: string | null,
+  code: string
+) {
   // Create or update verification code record
   await prisma.verificationCode.upsert({
     where: {
@@ -250,8 +290,8 @@ async function sendSmsVerificationCode(phoneNumber: string, code: string) {
       to: phoneNumber,
     });
   } catch (error) {
-    console.error("Error sending SMS:", error);
-    throw new Error("Failed to send SMS verification code");
+    console.error('Error sending SMS:', error);
+    throw new Error('Failed to send SMS verification code');
   }
 }
 
@@ -260,4 +300,4 @@ async function sendEmailVerificationCode(email: string, code: string) {
   // Implement email sending logic here
   console.log(`Sending email to ${email} with code ${code}`);
   // This would typically use a service like SendGrid, AWS SES, etc.
-} 
+}

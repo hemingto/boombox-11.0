@@ -42,6 +42,12 @@ export default async function FeedbackPage({
             imageSrc: true,
           },
         },
+        storageStartUsages: {
+          select: {
+            id: true,
+            storageUnit: { select: { storageUnitNumber: true } },
+          },
+        },
       },
     });
 
@@ -131,6 +137,18 @@ export default async function FeedbackPage({
     // Format the date
     const formattedDate = format(new Date(appointment.date), 'EEEE, MMM do');
 
+    const showPadlockCombo =
+      (appointment.appointmentType === 'Initial Pickup' ||
+        appointment.appointmentType === 'Additional Storage') &&
+      appointment.storageStartUsages.length > 0;
+
+    const storageUnits = showPadlockCombo
+      ? appointment.storageStartUsages.map(usage => ({
+          usageId: usage.id,
+          serialNumber: usage.storageUnit.storageUnitNumber,
+        }))
+      : undefined;
+
     return (
       <div className="min-h-screen bg-white">
         <FeedbackForm
@@ -138,12 +156,13 @@ export default async function FeedbackPage({
           appointmentType={appointment.appointmentType}
           appointmentDate={formattedDate}
           movingPartnerName={appointment.movingPartner?.name}
-          movingPartnerCloudinaryFile={
+          movingPartnerImageSrc={
             appointment.movingPartner?.imageSrc ?? undefined
           }
           invoiceTotal={appointment.invoiceTotal ?? 0}
           userId={String(appointment.userId)}
           drivers={drivers}
+          storageUnits={storageUnits}
         />
       </div>
     );

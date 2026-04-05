@@ -8,7 +8,8 @@ import type { Metadata } from 'next';
 // Base configuration for Boombox
 const SITE_CONFIG = {
   name: 'Boombox',
-  description: 'Mobile storage and moving services in the San Francisco Bay Area. Get a quote for storage units, packing supplies, and professional moving services.',
+  description:
+    'Mobile storage and moving services in the San Francisco Bay Area. Get a quote for storage units, packing supplies, and professional moving services.',
   url: process.env.NEXT_PUBLIC_SITE_URL || 'https://boombox.com',
   ogImage: '/img/og-image.png',
   twitterHandle: '@boomboxstorage',
@@ -20,7 +21,7 @@ const SITE_CONFIG = {
     'Bay Area moving',
     'packing supplies',
     'temporary storage',
-    'self storage'
+    'self storage',
   ],
 } as const;
 
@@ -56,7 +57,7 @@ export function generateMetadata(config: SEOConfig = {}): Metadata {
     title: fullTitle,
     description,
     keywords: allKeywords.join(', '),
-    
+
     // Robots
     robots: {
       index: !noIndex,
@@ -71,9 +72,11 @@ export function generateMetadata(config: SEOConfig = {}): Metadata {
     },
 
     // Canonical URL
-    alternates: canonicalUrl ? {
-      canonical: canonicalUrl,
-    } : undefined,
+    alternates: canonicalUrl
+      ? {
+          canonical: canonicalUrl,
+        }
+      : undefined,
 
     // OpenGraph
     openGraph: {
@@ -105,10 +108,10 @@ export function generateMetadata(config: SEOConfig = {}): Metadata {
 
     // Additional meta tags
     other: {
-      'theme-color': '#18181b', // zinc-950 brand color
+      'theme-color': '#09090b',
       'mobile-web-app-capable': 'yes',
       'apple-mobile-web-app-capable': 'yes',
-      'apple-mobile-web-app-status-bar-style': 'default',
+      'apple-mobile-web-app-status-bar-style': 'black-translucent',
     },
   };
 }
@@ -122,12 +125,16 @@ export function generateServiceMetadata(service: {
   location?: string;
 }): Metadata {
   const { name, description, location } = service;
-  const locationSuffix = location ? ` in ${location}` : ' in San Francisco Bay Area';
-  
+  const locationSuffix = location
+    ? ` in ${location}`
+    : ' in San Francisco Bay Area';
+
   return generateMetadata({
     title: `${name}${locationSuffix}`,
     description,
-    keywords: [name.toLowerCase(), location?.toLowerCase()].filter((k): k is string => Boolean(k)),
+    keywords: [name.toLowerCase(), location?.toLowerCase()].filter(
+      (k): k is string => Boolean(k)
+    ),
     type: 'service',
     canonical: `/${name.toLowerCase().replace(/\s+/g, '-')}`,
   });
@@ -142,12 +149,17 @@ export function generateLocationMetadata(location: {
   services?: string[];
 }): Metadata {
   const { city, state, services = [] } = location;
-  const serviceList = services.length > 0 ? services.join(', ') : 'storage and moving services';
-  
+  const serviceList =
+    services.length > 0 ? services.join(', ') : 'storage and moving services';
+
   return generateMetadata({
     title: `${serviceList} in ${city}, ${state}`,
     description: `Professional ${serviceList} in ${city}, ${state}. Mobile storage units, packing supplies, and moving services. Get a free quote today.`,
-    keywords: [city.toLowerCase(), state.toLowerCase(), ...services.map(s => s.toLowerCase())],
+    keywords: [
+      city.toLowerCase(),
+      state.toLowerCase(),
+      ...services.map(s => s.toLowerCase()),
+    ],
     canonical: `/${city.toLowerCase().replace(/\s+/g, '-')}-${state.toLowerCase()}`,
   });
 }
@@ -163,7 +175,7 @@ export function generateContentMetadata(content: {
   tags?: string[];
 }): Metadata {
   const { title, excerpt, author, publishedAt, tags = [] } = content;
-  
+
   const metadata = generateMetadata({
     title,
     description: excerpt,
@@ -188,4 +200,4 @@ export function generateContentMetadata(content: {
 /**
  * Site configuration constants for reuse
  */
-export { SITE_CONFIG }; 
+export { SITE_CONFIG };

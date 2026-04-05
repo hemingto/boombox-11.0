@@ -2621,6 +2621,7 @@ export const SubmitFeedbackRequestSchema = z
     driverRatings: z
       .record(z.string(), z.enum(['thumbs_up', 'thumbs_down']))
       .optional(),
+    padlockCombos: z.record(z.string(), z.string().min(1)).optional(),
   })
   .refine(
     data =>

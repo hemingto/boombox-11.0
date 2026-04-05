@@ -13,11 +13,12 @@ import {
 import {
   getDriverChecklistStatus,
   getMoverChecklistStatus,
+  getHaulerChecklistStatus,
 } from '@/lib/services/accountSetupChecklistService';
 
 interface UseAccountSetupChecklistParams {
   userId: string;
-  userType: 'driver' | 'mover';
+  userType: 'driver' | 'mover' | 'hauler';
 }
 
 interface UseAccountSetupChecklistReturn {
@@ -28,11 +29,11 @@ interface UseAccountSetupChecklistReturn {
   hasMovingPartner: boolean;
   applicationComplete: boolean;
   activeMessageShown: boolean;
-  
+
   // Loading and error states
   isLoading: boolean;
   error: string | null;
-  
+
   // Actions
   refetch: () => Promise<void>;
 }
@@ -43,17 +44,18 @@ export function useAccountSetupChecklist(
   const { userId, userType } = params;
 
   // State
-  const [checklistStatus, setChecklistStatus] = useState<ChecklistStatus | null>(
-    null
-  );
+  const [checklistStatus, setChecklistStatus] =
+    useState<ChecklistStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isApproved, setIsApproved] = useState(false);
-  const [status, setStatus] = useState<'PENDING' | 'APPROVED' | 'ACTIVE' | 'INACTIVE'>('PENDING');
+  const [status, setStatus] = useState<
+    'PENDING' | 'APPROVED' | 'ACTIVE' | 'INACTIVE'
+  >('PENDING');
   const [hasMovingPartner, setHasMovingPartner] = useState(false);
   const [applicationComplete, setApplicationComplete] = useState(false);
   const [activeMessageShown, setActiveMessageShown] = useState(false);
-  
+
   // Ref to track if we've already called the API to mark message as shown
   const hasMarkedMessageRef = useRef(false);
 
@@ -73,6 +75,8 @@ export function useAccountSetupChecklist(
 
       if (userType === 'driver') {
         data = await getDriverChecklistStatus(userId);
+      } else if (userType === 'hauler') {
+        data = await getHaulerChecklistStatus(userId);
       } else {
         data = await getMoverChecklistStatus(userId);
       }
@@ -80,11 +84,11 @@ export function useAccountSetupChecklist(
       setChecklistStatus(data.checklistStatus);
       setIsApproved(data.isApproved);
       setApplicationComplete(data.applicationComplete || false);
-      
-      if (userType === 'mover') {
+
+      if (userType === 'mover' || userType === 'hauler') {
         setStatus(data.status || 'PENDING');
       }
-      
+
       if (userType === 'driver') {
         setHasMovingPartner(data.hasMovingPartner || false);
       }
@@ -129,7 +133,9 @@ export function useAccountSetupChecklist(
           const endpoint =
             userType === 'driver'
               ? `/api/drivers/${userId}/application-complete`
-              : `/api/moving-partners/${userId}/application-complete`;
+              : userType === 'hauler'
+                ? `/api/hauling-partners/${userId}/application-complete`
+                : `/api/moving-partners/${userId}/application-complete`;
 
           const response = await fetch(endpoint, {
             method: 'PATCH',
@@ -160,26 +166,44 @@ export function useAccountSetupChecklist(
     };
 
     updateApplicationComplete();
-  }, [checklistStatus, userId, userType, isApproved, applicationComplete, hasMovingPartner]);
+  }, [
+    checklistStatus,
+    userId,
+    userType,
+    isApproved,
+    applicationComplete,
+    hasMovingPartner,
+  ]);
 
-  // Auto-update mover status from APPROVED to ACTIVE
+  // Auto-update mover/hauler status from APPROVED to ACTIVE
   useEffect(() => {
     const updateMoverStatus = async () => {
-      if (userType !== 'mover' || status === 'ACTIVE' || !userId) {
+      if (
+        (userType !== 'mover' && userType !== 'hauler') ||
+        status === 'ACTIVE' ||
+        !userId
+      ) {
         return;
       }
 
+      const profileEndpoint =
+        userType === 'hauler'
+          ? `/api/hauling-partners/${userId}/profile`
+          : `/api/moving-partners/${userId}/profile`;
+
       try {
-        const response = await fetch(`/api/moving-partners/${userId}/profile`);
-        
+        const response = await fetch(profileEndpoint);
+
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          const errorData = await response
+            .json()
+            .catch(() => ({ error: 'Unknown error' }));
           console.error('Failed to fetch mover data:', errorData);
           // Don't throw - just log the error and continue
           // This prevents the checklist from breaking if the profile fetch fails
           return;
         }
-        
+
         const moverData = await response.json();
 
         // Debug logging to understand why auto-update might not trigger
@@ -187,7 +211,7 @@ export function useAccountSetupChecklist(
           isApproved: moverData.isApproved,
           onfleetTeamId: moverData.onfleetTeamId,
           approvedDriversCount: moverData.approvedDrivers?.length ?? 0,
-          currentStatus: status
+          currentStatus: status,
         });
 
         // Check if conditions for ACTIVE status are met
@@ -197,20 +221,26 @@ export function useAccountSetupChecklist(
           moverData.approvedDrivers &&
           moverData.approvedDrivers.length > 0
         ) {
-          // Trigger status update
-          const updateResponse = await fetch(
-            `/api/moving-partners/${userId}/update-status`,
-            {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            }
-          );
+          const updateStatusEndpoint =
+            userType === 'hauler'
+              ? `/api/hauling-partners/${userId}/update-status`
+              : `/api/moving-partners/${userId}/update-status`;
+
+          const updateResponse = await fetch(updateStatusEndpoint, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
 
           if (!updateResponse.ok) {
-            const errorData = await updateResponse.json().catch(() => ({ error: 'Unknown error' }));
-            console.error('Failed to update mover status:', errorData.error || 'Unknown error');
+            const errorData = await updateResponse
+              .json()
+              .catch(() => ({ error: 'Unknown error' }));
+            console.error(
+              'Failed to update mover status:',
+              errorData.error || 'Unknown error'
+            );
             // Don't throw - just log the error and continue
             return;
           }
@@ -227,15 +257,17 @@ export function useAccountSetupChecklist(
       }
     };
 
-    if (userId && userType === 'mover') {
+    if (userId && (userType === 'mover' || userType === 'hauler')) {
       updateMoverStatus();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, userType, status]);
 
   // Reset hasMarkedMessageRef when status/approval changes
   useEffect(() => {
-    if (userType === 'mover' && status !== 'ACTIVE') {
+    if (
+      (userType === 'mover' || userType === 'hauler') &&
+      status !== 'ACTIVE'
+    ) {
       hasMarkedMessageRef.current = false;
     }
     if (userType === 'driver' && !isApproved) {
@@ -246,16 +278,27 @@ export function useAccountSetupChecklist(
   // Mark active message as shown in database AFTER component has rendered
   // This runs after the message is displayed, so the user sees it once
   useEffect(() => {
-    const shouldMarkForMover = userType === 'mover' && status === 'ACTIVE' && !activeMessageShown;
-    const shouldMarkForDriver = userType === 'driver' && isApproved && !activeMessageShown;
-    
-    if ((shouldMarkForMover || shouldMarkForDriver) && !hasMarkedMessageRef.current && userId && !isLoading) {
+    const shouldMarkForMover =
+      (userType === 'mover' || userType === 'hauler') &&
+      status === 'ACTIVE' &&
+      !activeMessageShown;
+    const shouldMarkForDriver =
+      userType === 'driver' && isApproved && !activeMessageShown;
+
+    if (
+      (shouldMarkForMover || shouldMarkForDriver) &&
+      !hasMarkedMessageRef.current &&
+      userId &&
+      !isLoading
+    ) {
       hasMarkedMessageRef.current = true;
-      
+
       const endpoint =
         userType === 'driver'
           ? `/api/drivers/${userId}/mark-active-message-shown`
-          : `/api/moving-partners/${userId}/mark-active-message-shown`;
+          : userType === 'hauler'
+            ? `/api/hauling-partners/${userId}/mark-active-message-shown`
+            : `/api/moving-partners/${userId}/mark-active-message-shown`;
 
       fetch(endpoint, {
         method: 'PATCH',
@@ -268,7 +311,9 @@ export function useAccountSetupChecklist(
             console.error('Failed to mark active message as shown');
             hasMarkedMessageRef.current = false;
           } else {
-            console.log(`✅ Active message marked as shown for ${userType} ${userId}`);
+            console.log(
+              `✅ Active message marked as shown for ${userType} ${userId}`
+            );
           }
         })
         .catch(error => {
@@ -291,13 +336,12 @@ export function useAccountSetupChecklist(
     hasMovingPartner,
     applicationComplete,
     activeMessageShown,
-    
+
     // Loading and error states
     isLoading,
     error,
-    
+
     // Actions
     refetch: fetchChecklistData,
   };
 }
-

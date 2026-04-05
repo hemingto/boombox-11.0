@@ -22,6 +22,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/database/prismaClient';
 import { StripeTipPaymentService } from '@/lib/services/stripe';
 import {
   createOrUpdateAppointmentFeedback,
@@ -37,7 +38,14 @@ export async function POST(req: Request) {
     console.log('Raw request body:', body);
 
     const validatedData = SubmitFeedbackRequestSchema.parse(body);
-    const { appointmentId, rating, comments: comment, tipAmount, driverRatings } = validatedData;
+    const {
+      appointmentId,
+      rating,
+      comments: comment,
+      tipAmount,
+      driverRatings,
+      padlockCombos,
+    } = validatedData;
 
     console.log('API received parsed data:', {
       appointmentId,
@@ -86,6 +94,21 @@ export async function POST(req: Request) {
       }
     }
 
+    // Update padlock combos on StorageUnitUsage records if provided
+    if (padlockCombos && typeof padlockCombos === 'object') {
+      try {
+        for (const [usageId, combo] of Object.entries(padlockCombos)) {
+          await prisma.storageUnitUsage.update({
+            where: { id: Number(usageId) },
+            data: { padlockCombo: combo },
+          });
+        }
+        console.log('Updated padlock combos for storage unit usages');
+      } catch (error) {
+        console.error('Error updating padlock combos:', error);
+      }
+    }
+
     // Process tip payment and distribute to drivers if tip amount is greater than 0
     if (tipAmountNumber > 0) {
       try {
@@ -118,10 +141,16 @@ export async function POST(req: Request) {
 
         // Log transfer results
         if (tipResult.transfers && tipResult.transfers.length > 0) {
-          const completed = tipResult.transfers.filter(t => t.status === 'completed');
-          const skipped = tipResult.transfers.filter(t => t.status === 'skipped');
+          const completed = tipResult.transfers.filter(
+            t => t.status === 'completed'
+          );
+          const skipped = tipResult.transfers.filter(
+            t => t.status === 'skipped'
+          );
           const failed = tipResult.transfers.filter(t => t.status === 'failed');
-          console.log(`Tip transfers: ${completed.length} completed, ${skipped.length} skipped, ${failed.length} failed`);
+          console.log(
+            `Tip transfers: ${completed.length} completed, ${skipped.length} skipped, ${failed.length} failed`
+          );
         }
 
         console.log('Updated feedback with payment info:', feedback);

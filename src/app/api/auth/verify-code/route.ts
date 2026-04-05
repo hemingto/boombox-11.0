@@ -21,24 +21,25 @@
  * @refactor Updated import paths, no logic changes
  */
 
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/database/prismaClient";
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/database/prismaClient';
 import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
-
-
 
 export async function POST(req: Request) {
   try {
-    const { phoneNumber, email, code, accountType, accountId } = await req.json();
-    
+    const { phoneNumber, email, code, accountType, accountId } =
+      await req.json();
+
     if ((!phoneNumber && !email) || !code) {
       return NextResponse.json(
-        { message: "Phone number/email and verification code are required" },
+        { message: 'Phone number/email and verification code are required' },
         { status: 400 }
       );
     }
 
-    const formattedPhoneNumber = phoneNumber ? normalizePhoneNumberToE164(phoneNumber) : null;
+    const formattedPhoneNumber = phoneNumber
+      ? normalizePhoneNumberToE164(phoneNumber)
+      : null;
     const contact = formattedPhoneNumber || email || '';
 
     // Verify the code
@@ -48,21 +49,21 @@ export async function POST(req: Request) {
 
     if (!verificationRecord) {
       return NextResponse.json(
-        { message: "No verification code found for this contact" },
+        { message: 'No verification code found for this contact' },
         { status: 404 }
       );
     }
 
     if (verificationRecord.code !== code) {
       return NextResponse.json(
-        { message: "Invalid verification code" },
+        { message: 'Invalid verification code' },
         { status: 400 }
       );
     }
 
     if (verificationRecord.expiresAt < new Date()) {
       return NextResponse.json(
-        { message: "Verification code has expired" },
+        { message: 'Verification code has expired' },
         { status: 400 }
       );
     }
@@ -71,10 +72,10 @@ export async function POST(req: Request) {
     if (accountId) {
       // Find the account based on the provided ID and type
       const account = await findAccountById(accountId, accountType);
-      
+
       if (!account) {
         return NextResponse.json(
-          { message: "Account not found" },
+          { message: 'Account not found' },
           { status: 404 }
         );
       }
@@ -86,37 +87,40 @@ export async function POST(req: Request) {
           data: { verifiedPhoneNumber: true },
         });
       }
-      
+
       // Create response with JSON data
       const response = NextResponse.json({
         userId: account.id,
         userType: accountType,
-        message: "Verification successful"
+        message: 'Verification successful',
       });
-      
+
       // Set authentication cookie
       response.cookies.set({
         name: 'auth_token',
         value: JSON.stringify({
           userId: account.id,
-          userType: accountType
+          userType: accountType,
         }),
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         maxAge: 60 * 60 * 24 * 7, // 1 week
-        path: '/'
+        path: '/',
       });
 
       return response;
     }
-    
+
     // If no accountId is provided, find all accounts and handle accordingly
     const accounts = await findAccounts(formattedPhoneNumber, email);
-    console.log('[verify-code] Found accounts:', JSON.stringify(accounts, null, 2));
+    console.log(
+      '[verify-code] Found accounts:',
+      JSON.stringify(accounts, null, 2)
+    );
 
     if (accounts.length === 0) {
       return NextResponse.json(
-        { message: "No account found with these credentials" },
+        { message: 'No account found with these credentials' },
         { status: 404 }
       );
     }
@@ -124,42 +128,49 @@ export async function POST(req: Request) {
     // Attempt to find and update the customer account specifically
     const customerAccount = accounts.find(acc => acc.type === 'customer');
     if (customerAccount && phoneNumber) {
-        console.log(`[verify-code] Attempting to update User ${customerAccount.id} verifiedPhoneNumber to true`);
-        try {
-            const updatedUser = await prisma.user.update({
-                where: { id: parseInt(customerAccount.id) },
-                data: { verifiedPhoneNumber: true },
-            });
-            console.log(`[verify-code] User ${customerAccount.id} updated. New verifiedPhoneNumber: ${updatedUser.verifiedPhoneNumber}`);
-        } catch (e: any) {
-            console.error(`[verify-code] Error updating User ${customerAccount.id}:`, e.message);
-        }
+      console.log(
+        `[verify-code] Attempting to update User ${customerAccount.id} verifiedPhoneNumber to true`
+      );
+      try {
+        const updatedUser = await prisma.user.update({
+          where: { id: parseInt(customerAccount.id) },
+          data: { verifiedPhoneNumber: true },
+        });
+        console.log(
+          `[verify-code] User ${customerAccount.id} updated. New verifiedPhoneNumber: ${updatedUser.verifiedPhoneNumber}`
+        );
+      } catch (e: any) {
+        console.error(
+          `[verify-code] Error updating User ${customerAccount.id}:`,
+          e.message
+        );
+      }
     }
-    
+
     if (accounts.length === 1) {
       // Single account found, return it directly
       const account = accounts[0];
-      
+
       // The specific update for customer is now handled above.
       // This block remains for constructing the response.
-      
+
       const response = NextResponse.json({
         userId: account.id,
         userType: account.type,
-        message: "Verification successful"
+        message: 'Verification successful',
       });
-      
+
       // Set authentication cookie
       response.cookies.set({
         name: 'auth_token',
         value: JSON.stringify({
           userId: account.id,
-          userType: account.type
+          userType: account.type,
         }),
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         maxAge: 60 * 60 * 24 * 7, // 1 week
-        path: '/'
+        path: '/',
       });
 
       return response;
@@ -172,16 +183,15 @@ export async function POST(req: Request) {
         accounts: accounts.map(account => ({
           id: account.id,
           type: account.type,
-          name: account.name
+          name: account.name,
         })),
-        message: "Multiple accounts found, please select one"
+        message: 'Multiple accounts found, please select one',
       });
     }
-    
   } catch (error) {
-    console.error("Error verifying code:", error);
+    console.error('Error verifying code:', error);
     return NextResponse.json(
-      { message: "Failed to verify code" },
+      { message: 'Failed to verify code' },
       { status: 500 }
     );
   }
@@ -193,17 +203,22 @@ async function findAccountById(id: string, type: string) {
     case 'customer':
       return await prisma.user.findUnique({
         where: { id: parseInt(id) },
-        select: { id: true }
+        select: { id: true },
       });
     case 'driver':
       return await prisma.driver.findUnique({
         where: { id: parseInt(id) },
-        select: { id: true }
+        select: { id: true },
       });
     case 'mover':
       return await prisma.movingPartner.findUnique({
         where: { id: parseInt(id) },
-        select: { id: true }
+        select: { id: true },
+      });
+    case 'hauler':
+      return await prisma.haulingPartner.findUnique({
+        where: { id: parseInt(id) },
+        select: { id: true },
       });
     default:
       return null;
@@ -218,27 +233,27 @@ async function findAccounts(phoneNumber: string | null, email: string | null) {
   if (phoneNumber) {
     const user = await prisma.user.findUnique({
       where: { phoneNumber },
-      select: { id: true, firstName: true, lastName: true }
+      select: { id: true, firstName: true, lastName: true },
     });
-    
+
     if (user) {
       accounts.push({
         id: user.id.toString(),
         type: 'customer',
-        name: `${user.firstName} ${user.lastName}`
+        name: `${user.firstName} ${user.lastName}`,
       });
     }
   } else if (email) {
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, firstName: true, lastName: true }
+      select: { id: true, firstName: true, lastName: true },
     });
-    
+
     if (user) {
       accounts.push({
         id: user.id.toString(),
         type: 'customer',
-        name: `${user.firstName} ${user.lastName}`
+        name: `${user.firstName} ${user.lastName}`,
       });
     }
   }
@@ -247,27 +262,27 @@ async function findAccounts(phoneNumber: string | null, email: string | null) {
   if (phoneNumber) {
     const driver = await prisma.driver.findUnique({
       where: { phoneNumber },
-      select: { id: true, firstName: true, lastName: true }
+      select: { id: true, firstName: true, lastName: true },
     });
-    
+
     if (driver) {
       accounts.push({
         id: driver.id.toString(),
         type: 'driver',
-        name: `${driver.firstName} ${driver.lastName}`
+        name: `${driver.firstName} ${driver.lastName}`,
       });
     }
   } else if (email) {
     const driver = await prisma.driver.findUnique({
       where: { email },
-      select: { id: true, firstName: true, lastName: true }
+      select: { id: true, firstName: true, lastName: true },
     });
-    
+
     if (driver) {
       accounts.push({
         id: driver.id.toString(),
         type: 'driver',
-        name: `${driver.firstName} ${driver.lastName}`
+        name: `${driver.firstName} ${driver.lastName}`,
       });
     }
   }
@@ -276,30 +291,59 @@ async function findAccounts(phoneNumber: string | null, email: string | null) {
   if (phoneNumber) {
     const movingPartner = await prisma.movingPartner.findUnique({
       where: { phoneNumber },
-      select: { id: true, name: true }
+      select: { id: true, name: true },
     });
-    
+
     if (movingPartner) {
       accounts.push({
         id: movingPartner.id.toString(),
         type: 'mover',
-        name: movingPartner.name
+        name: movingPartner.name,
       });
     }
   } else if (email) {
     const movingPartner = await prisma.movingPartner.findUnique({
       where: { email },
-      select: { id: true, name: true }
+      select: { id: true, name: true },
     });
-    
+
     if (movingPartner) {
       accounts.push({
         id: movingPartner.id.toString(),
         type: 'mover',
-        name: movingPartner.name
+        name: movingPartner.name,
+      });
+    }
+  }
+
+  // Check hauling partner table
+  if (phoneNumber) {
+    const haulingPartner = await prisma.haulingPartner.findUnique({
+      where: { phoneNumber },
+      select: { id: true, name: true },
+    });
+
+    if (haulingPartner) {
+      accounts.push({
+        id: haulingPartner.id.toString(),
+        type: 'hauler',
+        name: haulingPartner.name,
+      });
+    }
+  } else if (email) {
+    const haulingPartner = await prisma.haulingPartner.findUnique({
+      where: { email },
+      select: { id: true, name: true },
+    });
+
+    if (haulingPartner) {
+      accounts.push({
+        id: haulingPartner.id.toString(),
+        type: 'hauler',
+        name: haulingPartner.name,
       });
     }
   }
 
   return accounts;
-} 
+}

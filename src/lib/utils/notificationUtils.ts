@@ -51,7 +51,7 @@ export interface CreateNotificationData {
  * Validate recipient type against allowed values
  */
 export function validateRecipientType(recipientType: string): boolean {
-  const validTypes = ['USER', 'DRIVER', 'MOVER', 'ADMIN'];
+  const validTypes = ['USER', 'DRIVER', 'MOVER', 'HAULER', 'ADMIN'];
   return validTypes.includes(recipientType.toUpperCase());
 }
 

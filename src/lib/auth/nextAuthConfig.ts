@@ -13,7 +13,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
 
 // Define valid account types
-type AccountType = 'USER' | 'DRIVER' | 'MOVER' | 'ADMIN';
+type AccountType = 'USER' | 'DRIVER' | 'MOVER' | 'HAULER' | 'ADMIN';
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
@@ -37,7 +37,9 @@ export const authOptions: NextAuthOptions = {
           credentials;
 
         // Validate account type
-        if (!['USER', 'DRIVER', 'MOVER', 'ADMIN'].includes(accountType)) {
+        if (
+          !['USER', 'DRIVER', 'MOVER', 'HAULER', 'ADMIN'].includes(accountType)
+        ) {
           throw new Error('Invalid account type');
         }
 
@@ -86,6 +88,10 @@ export const authOptions: NextAuthOptions = {
             account = await prisma.movingPartner.findUnique({
               where: { id: parseInt(userId) },
             });
+          } else if (accountType === 'HAULER') {
+            account = await prisma.haulingPartner.findUnique({
+              where: { id: parseInt(userId) },
+            });
           } else if (accountType === 'ADMIN') {
             account = await prisma.admin.findUnique({
               where: { id: parseInt(userId) },
@@ -126,6 +132,15 @@ export const authOptions: NextAuthOptions = {
                 ],
               },
             });
+          } else if (accountType === 'HAULER') {
+            account = await prisma.haulingPartner.findFirst({
+              where: {
+                OR: [
+                  { email: normalizedContact },
+                  { phoneNumber: normalizedContact },
+                ],
+              },
+            });
           } else if (accountType === 'ADMIN') {
             account = await prisma.admin.findFirst({
               where: {
@@ -153,7 +168,7 @@ export const authOptions: NextAuthOptions = {
           id: account.id.toString(),
           email: account.email || '',
           name:
-            accountType === 'MOVER'
+            accountType === 'MOVER' || accountType === 'HAULER'
               ? (account as any).name
               : accountType === 'ADMIN'
                 ? (account as any).email
@@ -198,8 +213,13 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      console.log('[session callback] session:', session ? 'exists' : 'null', 'token:', token ? 'exists' : 'null');
-      
+      console.log(
+        '[session callback] session:',
+        session ? 'exists' : 'null',
+        'token:',
+        token ? 'exists' : 'null'
+      );
+
       // During logout or when session/token is not available
       if (!session) {
         console.log('[session callback] No session, returning undefined');
@@ -225,8 +245,11 @@ export const authOptions: NextAuthOptions = {
           console.log('Setting role in session:', token.role);
         }
       }
-      
-      console.log('[session callback] Returning session with user:', session.user ? 'exists' : 'null');
+
+      console.log(
+        '[session callback] Returning session with user:',
+        session.user ? 'exists' : 'null'
+      );
       return session;
     },
     async signIn() {

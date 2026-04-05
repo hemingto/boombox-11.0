@@ -9,17 +9,13 @@ import { Input } from '@/components/ui/primitives/Input';
 import { Select, type SelectOption } from '@/components/ui/primitives/Select';
 import { Modal } from '@/components/ui/primitives/Modal';
 import { LoadingOverlay } from '@/components/ui/primitives/LoadingOverlay';
-import {
-  isValidEmail,
-  normalizeWebsiteURL,
-  isValidURL,
-} from '@/lib/utils/validationUtils';
+import { isValidEmail } from '@/lib/utils/validationUtils';
 import { convertEmployeeCountToNumber } from '@/lib/utils/movingPartnerClientUtils';
-import Link from 'next/link';
 
 const EMPLOYEE_COUNT_OPTIONS: SelectOption[] = [
   { value: '', label: 'Select number of employees', disabled: true },
-  { value: '1-5', label: '1-5' },
+  { value: 'independent', label: 'Independent Owner-Operator' },
+  { value: '2-5', label: '2-5' },
   { value: '6-10', label: '6-10' },
   { value: '11-20', label: '11-20' },
   { value: '21-50', label: '21-50' },
@@ -30,7 +26,6 @@ interface HaulerSignUpFormData {
   email: string;
   phoneNumber: string;
   companyName: string;
-  website: string;
   employeeCount: string;
 }
 
@@ -38,7 +33,6 @@ interface FormErrors {
   companyName?: string;
   email?: string;
   phoneNumber?: string;
-  website?: string;
   employeeCount?: string;
   submit?: string;
 }
@@ -51,7 +45,6 @@ export function HaulerSignUpForm() {
     email: '',
     phoneNumber: '',
     companyName: '',
-    website: '',
     employeeCount: '',
   });
 
@@ -74,10 +67,6 @@ export function HaulerSignUpForm() {
     if (!formData.phoneNumber.trim()) {
       newErrors.phoneNumber = 'Phone number is required';
     }
-    const normalizedWebsite = normalizeWebsiteURL(formData.website);
-    if (!normalizedWebsite || !isValidURL(normalizedWebsite)) {
-      newErrors.website = 'Please enter a valid website URL';
-    }
     if (!formData.employeeCount || formData.employeeCount === '') {
       newErrors.employeeCount = 'Please select the number of employees';
     }
@@ -90,7 +79,6 @@ export function HaulerSignUpForm() {
   const submitFormData = async (data: HaulerSignUpFormData) => {
     try {
       setIsSubmitting(true);
-      const normalizedWebsite = normalizeWebsiteURL(data.website);
       const employeeCountNumber = convertEmployeeCountToNumber(
         data.employeeCount
       );
@@ -102,7 +90,6 @@ export function HaulerSignUpForm() {
           companyName: data.companyName,
           email: data.email,
           phoneNumber: data.phoneNumber,
-          website: normalizedWebsite,
           employeeCount: employeeCountNumber,
           createDefaultAvailability: true,
         }),
@@ -274,41 +261,6 @@ export function HaulerSignUpForm() {
             aria-label="Number of employees"
             size="sm"
           />
-        </div>
-
-        <div className="mb-4 mt-10">
-          <h2 className="mb-4">Link your company website</h2>
-          <Input
-            type="url"
-            value={formData.website}
-            onChange={e => {
-              setFormData({ ...formData, website: e.target.value });
-              setErrors({ ...errors, website: undefined });
-            }}
-            onFocus={() => setErrors({ ...errors, website: undefined })}
-            placeholder="Enter your website URL or GMB page"
-            error={errors.website}
-            fullWidth
-            aria-label="Company website"
-            aria-invalid={!!errors.website}
-          />
-          <div className="mt-4 p-3 sm:mb-4 mb-2 border border-border bg-surface-primary rounded-md max-w-fit">
-            <p className="text-xs text-text-primary">
-              If you don&apos;t have a website, you can link your Google My
-              Business Page by hitting the Share button and copying the URL.
-              <br />
-              <br />
-              Example:{' '}
-              <Link
-                href="https://share.google/ivjXgbxQkX4sIiFcA"
-                className="font-semibold hover:underline"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                https://share.google/ivjXgbxQkX4sIiFcA
-              </Link>
-            </p>
-          </div>
         </div>
 
         {errors.submit && (

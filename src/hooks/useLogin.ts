@@ -1,7 +1,7 @@
 /**
  * @fileoverview Custom hook for login flow state management and business logic
  * @source boombox-10.0/src/app/components/login/loginform.tsx (extracted logic)
- * 
+ *
  * HOOK FUNCTIONALITY:
  * Manages the complete login flow including:
  * - Contact information (phone/email) input and validation
@@ -9,7 +9,7 @@
  * - Multiple account selection for users with customer/driver/mover accounts
  * - Session management and conflict resolution
  * - Error handling and loading states
- * 
+ *
  * @refactor Extracted from LoginForm component to follow clean architecture patterns,
  * improve reusability, and separate business logic from UI rendering
  */
@@ -24,7 +24,7 @@ import { isValidPhoneNumber } from '@/lib/utils/phoneUtils';
  */
 export interface LoginAccount {
   id: string;
-  type: 'customer' | 'driver' | 'mover';
+  type: 'customer' | 'driver' | 'mover' | 'hauler';
   name: string;
 }
 
@@ -66,15 +66,15 @@ export interface UseLoginReturn {
   isCodeSent: boolean;
   verificationCode: string[];
   isLoading: boolean;
-  
+
   // Account selection state
   accounts: LoginAccount[];
   selectedAccountId: string | null;
   showAccountSelection: boolean;
-  
+
   // Session warning state
   showSessionWarning: boolean;
-  
+
   // Form actions
   setFormData: (data: LoginFormData) => void;
   setVerificationCode: (code: string[]) => void;
@@ -87,7 +87,7 @@ export interface UseLoginReturn {
   clearVerificationError: () => void;
   clearPhoneNumberError: () => void;
   clearEmailError: () => void;
-  
+
   // Session warning actions
   handleSessionWarningClose: () => void;
   handleSessionWarningConfirm: () => Promise<void>;
@@ -114,13 +114,13 @@ function parseAccountKey(key: string): { id: string; type: string } | null {
 
 /**
  * Custom hook for managing login flow
- * 
+ *
  * @returns Object containing login state and action handlers
- * 
+ *
  * @example
  * ```tsx
  * const login = useLogin();
- * 
+ *
  * return (
  *   <form onSubmit={login.handleSendVerificationCode}>
  *     <input
@@ -136,34 +136,37 @@ function parseAccountKey(key: string): { id: string; type: string } | null {
  */
 export function useLogin(): UseLoginReturn {
   const { data: session } = useSession();
-  
+
   // Form state
   const [formData, setFormData] = useState<LoginFormData>({
     phoneNumber: '',
     email: '',
   });
-  
+
   const [errors, setErrors] = useState<LoginErrors>({
     phoneNumberError: null,
     emailError: null,
     verificationError: null,
   });
-  
+
   const [hideEmailInput, setHideEmailInput] = useState(true);
   const [hidePhoneInput, setHidePhoneInput] = useState(false);
   const [isCodeSent, setIsCodeSent] = useState(false);
   const [verificationCode, setVerificationCode] = useState(['', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // Account selection state
   const [accounts, setAccounts] = useState<LoginAccount[]>([]);
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(
+    null
+  );
   const [showAccountSelection, setShowAccountSelection] = useState(false);
-  
+
   // Session warning state
   const [showSessionWarning, setShowSessionWarning] = useState(false);
-  const [pendingLoginData, setPendingLoginData] = useState<PendingLoginData | null>(null);
-  
+  const [pendingLoginData, setPendingLoginData] =
+    useState<PendingLoginData | null>(null);
+
   /**
    * Toggle between phone and email input
    */
@@ -176,7 +179,7 @@ export function useLogin(): UseLoginReturn {
       verificationError: null,
     });
   }, [hideEmailInput, hidePhoneInput]);
-  
+
   /**
    * Validate form data
    */
@@ -187,7 +190,7 @@ export function useLogin(): UseLoginReturn {
       emailError: null,
       verificationError: null,
     };
-    
+
     // Validate phone number
     if (!hidePhoneInput) {
       if (formData.phoneNumber.trim() === '') {
@@ -198,7 +201,7 @@ export function useLogin(): UseLoginReturn {
         hasError = true;
       }
     }
-    
+
     // Validate email
     if (!hideEmailInput) {
       if (formData.email.trim() === '') {
@@ -209,103 +212,117 @@ export function useLogin(): UseLoginReturn {
         hasError = true;
       }
     }
-    
+
     setErrors(newErrors);
     return !hasError;
   }, [hidePhoneInput, hideEmailInput, formData]);
-  
+
   /**
    * Validate verification code
    */
   const validateVerificationCode = useCallback(() => {
-    if (verificationCode.every((digit) => digit === '')) {
-      setErrors((prevErrors) => ({
+    if (verificationCode.every(digit => digit === '')) {
+      setErrors(prevErrors => ({
         ...prevErrors,
         verificationError: 'Please enter your 4-digit verification code',
       }));
       return false;
     }
-    
-    if (verificationCode.some((digit) => digit === '')) {
-      setErrors((prevErrors) => ({
+
+    if (verificationCode.some(digit => digit === '')) {
+      setErrors(prevErrors => ({
         ...prevErrors,
         verificationError: 'Please enter a valid 4-digit verification code',
       }));
       return false;
     }
-    
-    setErrors((prevErrors) => ({
+
+    setErrors(prevErrors => ({
       ...prevErrors,
       verificationError: null,
     }));
     return true;
   }, [verificationCode]);
-  
+
   /**
    * Perform login with NextAuth
    */
-  const performLogin = useCallback(async (contact: string, code: string, accountType: string) => {
-    try {
-      if (!contact || !code || !accountType) {
-        throw new Error('Missing required login information');
-      }
-      
-      // Convert lowercase account type to uppercase for authentication
-      const authAccountType = accountType === 'customer' ? 'USER'
-        : accountType === 'driver' ? 'DRIVER'
-        : accountType === 'mover' ? 'MOVER'
-        : accountType.toUpperCase();
-      
-      const result = await signIn('credentials', {
-        contact,
-        code,
-        accountType: authAccountType,
-        redirect: false,
-      });
-      
-      if (result?.error) {
-        console.error('NextAuth sign in error:', result.error);
-        setErrors((prevErrors) => ({
+  const performLogin = useCallback(
+    async (contact: string, code: string, accountType: string) => {
+      try {
+        if (!contact || !code || !accountType) {
+          throw new Error('Missing required login information');
+        }
+
+        // Convert lowercase account type to uppercase for authentication
+        const authAccountType =
+          accountType === 'customer'
+            ? 'USER'
+            : accountType === 'driver'
+              ? 'DRIVER'
+              : accountType === 'mover'
+                ? 'MOVER'
+                : accountType === 'hauler'
+                  ? 'HAULER'
+                  : accountType.toUpperCase();
+
+        const result = await signIn('credentials', {
+          contact,
+          code,
+          accountType: authAccountType,
+          redirect: false,
+        });
+
+        if (result?.error) {
+          console.error('NextAuth sign in error:', result.error);
+          setErrors(prevErrors => ({
+            ...prevErrors,
+            verificationError: 'Authentication failed. Please try again.',
+          }));
+          setIsLoading(false);
+          return;
+        }
+
+        // Get user ID for redirection (parse from composite key if needed)
+        const parsedKey = selectedAccountId
+          ? parseAccountKey(selectedAccountId)
+          : null;
+        const userId = parsedKey?.id || accounts[0]?.id;
+
+        if (!authAccountType || !userId) {
+          setErrors(prevErrors => ({
+            ...prevErrors,
+            verificationError: 'Failed to redirect. Please try again.',
+          }));
+          setIsLoading(false);
+          return;
+        }
+
+        // Redirect based on account type
+        const redirectPath =
+          authAccountType === 'USER'
+            ? `/customer/${userId}`
+            : authAccountType === 'DRIVER'
+              ? `/service-provider/driver/${userId}`
+              : authAccountType === 'HAULER'
+                ? `/service-provider/hauler/${userId}`
+                : `/service-provider/mover/${userId}`;
+
+        // Force hard reload to ensure new session is picked up
+        window.location.href = redirectPath;
+      } catch (error) {
+        console.error('Error during login:', error);
+        setErrors(prevErrors => ({
           ...prevErrors,
-          verificationError: 'Authentication failed. Please try again.',
+          verificationError:
+            'An error occurred during login. Please try again.',
         }));
         setIsLoading(false);
-        return;
       }
-      
-      // Get user ID for redirection (parse from composite key if needed)
-      const parsedKey = selectedAccountId ? parseAccountKey(selectedAccountId) : null;
-      const userId = parsedKey?.id || accounts[0]?.id;
-      
-      if (!authAccountType || !userId) {
-        setErrors((prevErrors) => ({
-          ...prevErrors,
-          verificationError: 'Failed to redirect. Please try again.',
-        }));
-        setIsLoading(false);
-        return;
-      }
-      
-      // Redirect based on account type
-      const redirectPath = 
-        authAccountType === 'USER' 
-          ? `/customer/${userId}`
-          : authAccountType === 'DRIVER'
-          ? `/service-provider/driver/${userId}`
-          : `/service-provider/mover/${userId}`;
-      
-      // Force hard reload to ensure new session is picked up
-      window.location.href = redirectPath;
-    } catch (error) {
-      console.error('Error during login:', error);
-      setErrors((prevErrors) => ({
-        ...prevErrors,
-        verificationError: 'An error occurred during login. Please try again.',
-      }));
-      setIsLoading(false);
-    }
-  }, [selectedAccountId, accounts]);
-  
+    },
+    [selectedAccountId, accounts]
+  );
+
   /**
    * Send verification code to phone/email
    */
@@ -314,7 +331,7 @@ export function useLogin(): UseLoginReturn {
       // First step: Send verification code
       if (validateForm()) {
         setIsLoading(true);
-        
+
         try {
           const response = await fetch('/api/auth/send-code', {
             method: 'POST',
@@ -326,21 +343,27 @@ export function useLogin(): UseLoginReturn {
               email: hideEmailInput ? undefined : formData.email,
             }),
           });
-          
+
           if (response.ok) {
             const data = await response.json();
-            
+
             // Check if multiple accounts were found
-            if (data.multipleAccounts && data.accounts && data.accounts.length > 1) {
+            if (
+              data.multipleAccounts &&
+              data.accounts &&
+              data.accounts.length > 1
+            ) {
               setAccounts(data.accounts);
               setShowAccountSelection(true);
             } else if (data.accounts && data.accounts.length === 1) {
               // Single account found - use composite key
               setAccounts(data.accounts);
-              setSelectedAccountId(createAccountKey(data.accounts[0].id, data.accounts[0].type));
+              setSelectedAccountId(
+                createAccountKey(data.accounts[0].id, data.accounts[0].type)
+              );
               setIsCodeSent(true);
             } else {
-              setErrors((prevErrors) => ({
+              setErrors(prevErrors => ({
                 ...prevErrors,
                 phoneNumberError: 'No account found with these credentials.',
                 emailError: 'No account found with these credentials.',
@@ -349,12 +372,13 @@ export function useLogin(): UseLoginReturn {
           } else {
             const data = await response.json();
             if (!hidePhoneInput) {
-              setErrors((prevErrors) => ({
+              setErrors(prevErrors => ({
                 ...prevErrors,
-                phoneNumberError: data.message || 'Failed to send verification code.',
+                phoneNumberError:
+                  data.message || 'Failed to send verification code.',
               }));
             } else {
-              setErrors((prevErrors) => ({
+              setErrors(prevErrors => ({
                 ...prevErrors,
                 emailError: data.message || 'Failed to send verification code.',
               }));
@@ -363,12 +387,12 @@ export function useLogin(): UseLoginReturn {
         } catch (error) {
           console.error('Error sending verification code:', error);
           if (!hidePhoneInput) {
-            setErrors((prevErrors) => ({
+            setErrors(prevErrors => ({
               ...prevErrors,
               phoneNumberError: 'An error occurred while sending the code.',
             }));
           } else {
-            setErrors((prevErrors) => ({
+            setErrors(prevErrors => ({
               ...prevErrors,
               emailError: 'An error occurred while sending the code.',
             }));
@@ -381,17 +405,26 @@ export function useLogin(): UseLoginReturn {
       // Second step: Verify code and login
       if (validateVerificationCode()) {
         setIsLoading(true);
-        setErrors((prevErrors) => ({ ...prevErrors, verificationError: null }));
-        
+        setErrors(prevErrors => ({ ...prevErrors, verificationError: null }));
+
         const contact = hidePhoneInput ? formData.email : formData.phoneNumber;
         // Parse composite key to find the selected account
-        const parsedSelectedKey = selectedAccountId ? parseAccountKey(selectedAccountId) : null;
-        const selectedAccount = parsedSelectedKey 
-          ? accounts.find(acc => acc.id === parsedSelectedKey.id && acc.type === parsedSelectedKey.type)
+        const parsedSelectedKey = selectedAccountId
+          ? parseAccountKey(selectedAccountId)
           : null;
-        
+        const selectedAccount = parsedSelectedKey
+          ? accounts.find(
+              acc =>
+                acc.id === parsedSelectedKey.id &&
+                acc.type === parsedSelectedKey.type
+            )
+          : null;
+
         // Check for session conflict
-        if (session?.user && (!selectedAccount || session.user.id !== selectedAccount.id)) {
+        if (
+          session?.user &&
+          (!selectedAccount || session.user.id !== selectedAccount.id)
+        ) {
           setPendingLoginData({
             contact,
             code: verificationCode.join(''),
@@ -401,7 +434,7 @@ export function useLogin(): UseLoginReturn {
           setIsLoading(false);
           return;
         }
-        
+
         // Verify code with API
         try {
           const verifyResponse = await fetch('/api/auth/verify-code', {
@@ -417,7 +450,7 @@ export function useLogin(): UseLoginReturn {
               accountType: selectedAccount?.type || accounts[0]?.type,
             }),
           });
-          
+
           if (verifyResponse.ok) {
             // If verification successful, proceed with login
             await performLogin(
@@ -427,7 +460,7 @@ export function useLogin(): UseLoginReturn {
             );
           } else {
             const data = await verifyResponse.json();
-            setErrors((prevErrors) => ({
+            setErrors(prevErrors => ({
               ...prevErrors,
               verificationError: data.message || 'Verification failed.',
             }));
@@ -435,7 +468,7 @@ export function useLogin(): UseLoginReturn {
           }
         } catch (error) {
           console.error('Error verifying code:', error);
-          setErrors((prevErrors) => ({
+          setErrors(prevErrors => ({
             ...prevErrors,
             verificationError: 'An error occurred while verifying the code.',
           }));
@@ -456,13 +489,13 @@ export function useLogin(): UseLoginReturn {
     verificationCode,
     performLogin,
   ]);
-  
+
   /**
    * Resend verification code
    */
   const handleResend = useCallback(async () => {
     setIsLoading(true);
-    
+
     try {
       const response = await fetch('/api/auth/send-code', {
         method: 'POST',
@@ -474,18 +507,19 @@ export function useLogin(): UseLoginReturn {
           email: hideEmailInput ? undefined : formData.email,
         }),
       });
-      
+
       if (response.ok) {
         console.log('Verification code resent successfully.');
       } else {
         const data = await response.json();
         if (!hidePhoneInput) {
-          setErrors((prevErrors) => ({
+          setErrors(prevErrors => ({
             ...prevErrors,
-            phoneNumberError: data.message || 'Failed to resend verification code.',
+            phoneNumberError:
+              data.message || 'Failed to resend verification code.',
           }));
         } else {
-          setErrors((prevErrors) => ({
+          setErrors(prevErrors => ({
             ...prevErrors,
             emailError: data.message || 'Failed to resend verification code.',
           }));
@@ -494,12 +528,12 @@ export function useLogin(): UseLoginReturn {
     } catch (error) {
       console.error('Error resending verification code:', error);
       if (!hidePhoneInput) {
-        setErrors((prevErrors) => ({
+        setErrors(prevErrors => ({
           ...prevErrors,
           phoneNumberError: 'An error occurred while resending the code.',
         }));
       } else {
-        setErrors((prevErrors) => ({
+        setErrors(prevErrors => ({
           ...prevErrors,
           emailError: 'An error occurred while resending the code.',
         }));
@@ -508,7 +542,7 @@ export function useLogin(): UseLoginReturn {
       setIsLoading(false);
     }
   }, [hidePhoneInput, hideEmailInput, formData]);
-  
+
   /**
    * Handle back navigation
    */
@@ -520,14 +554,14 @@ export function useLogin(): UseLoginReturn {
       setIsCodeSent(false);
     }
   }, [showAccountSelection]);
-  
+
   /**
    * Handle account selection
    */
   const handleAccountSelect = useCallback((accountId: string) => {
     setSelectedAccountId(accountId);
   }, []);
-  
+
   /**
    * Continue with selected account
    */
@@ -537,37 +571,37 @@ export function useLogin(): UseLoginReturn {
       setIsCodeSent(true);
     }
   }, [selectedAccountId]);
-  
+
   /**
    * Clear verification error
    */
   const clearVerificationError = useCallback(() => {
-    setErrors((prevErrors) => ({
+    setErrors(prevErrors => ({
       ...prevErrors,
       verificationError: null,
     }));
   }, []);
-  
+
   /**
    * Clear phone number error
    */
   const clearPhoneNumberError = useCallback(() => {
-    setErrors((prevErrors) => ({
+    setErrors(prevErrors => ({
       ...prevErrors,
       phoneNumberError: null,
     }));
   }, []);
-  
+
   /**
    * Clear email error
    */
   const clearEmailError = useCallback(() => {
-    setErrors((prevErrors) => ({
+    setErrors(prevErrors => ({
       ...prevErrors,
       emailError: null,
     }));
   }, []);
-  
+
   /**
    * Handle session warning close
    */
@@ -576,22 +610,22 @@ export function useLogin(): UseLoginReturn {
     setIsLoading(false);
     setPendingLoginData(null);
   }, []);
-  
+
   /**
    * Handle session warning confirmation (logout and login)
    */
   const handleSessionWarningConfirm = useCallback(async () => {
     setShowSessionWarning(false);
-    
+
     try {
       setIsLoading(true);
-      
+
       // Sign out current user
       await signOut({ redirect: false });
-      
+
       // Wait for session to clear
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       // Proceed with new login
       if (pendingLoginData) {
         await performLogin(
@@ -602,14 +636,15 @@ export function useLogin(): UseLoginReturn {
       }
     } catch (error) {
       console.error('Error during logout/login process:', error);
-      setErrors((prev) => ({
+      setErrors(prev => ({
         ...prev,
-        verificationError: 'An error occurred during the login process. Please try again.',
+        verificationError:
+          'An error occurred during the login process. Please try again.',
       }));
       setIsLoading(false);
     }
   }, [pendingLoginData, performLogin]);
-  
+
   return {
     // Form state
     formData,
@@ -619,15 +654,15 @@ export function useLogin(): UseLoginReturn {
     isCodeSent,
     verificationCode,
     isLoading,
-    
+
     // Account selection state
     accounts,
     selectedAccountId,
     showAccountSelection,
-    
+
     // Session warning state
     showSessionWarning,
-    
+
     // Form actions
     setFormData,
     setVerificationCode,
@@ -640,10 +675,9 @@ export function useLogin(): UseLoginReturn {
     clearVerificationError,
     clearPhoneNumberError,
     clearEmailError,
-    
+
     // Session warning actions
     handleSessionWarningClose,
     handleSessionWarningConfirm,
   };
 }
-

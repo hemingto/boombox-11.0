@@ -26,7 +26,21 @@ export interface DriverChecklistStatus {
   bankAccountLinked?: boolean;
 }
 
-export type ChecklistStatus = MoverChecklistStatus | DriverChecklistStatus;
+export interface HaulerChecklistStatus {
+  companyDescription: boolean;
+  companyPicture: boolean;
+  routePricing: boolean;
+  approvedDrivers: boolean;
+  approvedVehicles: boolean;
+  calendarSet: boolean;
+  bankAccountLinked: boolean;
+  termsOfServiceReviewed: boolean;
+}
+
+export type ChecklistStatus =
+  | MoverChecklistStatus
+  | DriverChecklistStatus
+  | HaulerChecklistStatus;
 
 export interface ChecklistData {
   checklistStatus: ChecklistStatus;
@@ -56,6 +70,15 @@ export function isDriverChecklist(
 }
 
 /**
+ * Type guard to check if checklist is for a hauler
+ */
+export function isHaulerChecklist(
+  checklist: ChecklistStatus
+): checklist is HaulerChecklistStatus {
+  return 'routePricing' in checklist;
+}
+
+/**
  * Checks if checklist is complete (all required items checked)
  * @param hasMovingPartner - For drivers, indicates if they're linked to a moving partner.
  *   If true, vehicle/schedule/bank items are not required (handled by the partner).
@@ -63,7 +86,7 @@ export function isDriverChecklist(
  */
 export function isChecklistComplete(
   checklist: ChecklistStatus,
-  userType: 'driver' | 'mover',
+  userType: 'driver' | 'mover' | 'hauler',
   isApproved: boolean = false,
   hasMovingPartner: boolean = false
 ): boolean {
@@ -72,6 +95,13 @@ export function isChecklistComplete(
     return Object.entries(checklist).every(([key, value]) => {
       if (key === 'approvedDrivers' && !isApproved) {
         return true; // Skip this check if mover not approved
+      }
+      return value === true;
+    });
+  } else if (userType === 'hauler' && isHaulerChecklist(checklist)) {
+    return Object.entries(checklist).every(([key, value]) => {
+      if (key === 'approvedDrivers' && !isApproved) {
+        return true;
       }
       return value === true;
     });
@@ -99,4 +129,3 @@ export function isChecklistComplete(
   }
   return false;
 }
-

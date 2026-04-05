@@ -109,16 +109,16 @@ const DEFAULT_FEATURES: TechFeature[] = [
     answer:
       "You've got better things to do than wait by the door for your Boombox - so we include real time delivery tracking",
     category: 'tech-feature',
-    image: '/tech-enabled-storage/tracking.jpg',
-    video: '/tech-enabled-storage/tracking-3.mp4',
+    image: '/tech-enabled-storage/tracking.png',
+    video: '/tech-enabled-storage/tracking.mp4',
   },
   {
     question: 'Remember what you stored',
     answer:
       "Upload photos of the items you have stored, so you'll never forget what's in your storage unit.",
     category: 'tech-feature',
-    image: '/tech-enabled-storage/remember.jpg',
-    video: '/tech-enabled-storage/remember-2.mp4',
+    image: '/tech-enabled-storage/remember.png',
+    video: '/tech-enabled-storage/remember.mp4',
   },
 ];
 
@@ -184,6 +184,7 @@ export function TechEnabledSection({
                 {video && isActive ? (
                   <video
                     src={video}
+                    poster={image}
                     autoPlay
                     muted
                     playsInline
@@ -237,6 +238,7 @@ export function TechEnabledSection({
             {currentFeature.video ? (
               <video
                 src={currentFeature.video}
+                poster={currentFeature.image}
                 autoPlay
                 muted
                 playsInline

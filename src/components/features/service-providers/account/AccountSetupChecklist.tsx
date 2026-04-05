@@ -37,13 +37,14 @@ import { useAccountSetupChecklist } from '@/hooks/useAccountSetupChecklist';
 import {
   isMoverChecklist,
   isDriverChecklist,
+  isHaulerChecklist,
   isChecklistComplete as checkIfChecklistComplete,
 } from '@/lib/services/accountSetupChecklistUtils';
 import { TermsOfServicePopup } from '@/components/features/service-providers/shared/TermsOfServicePopup';
 
 interface AccountSetupChecklistProps {
   userId: string;
-  userType: 'driver' | 'mover';
+  userType: 'driver' | 'mover' | 'hauler';
 }
 
 export function AccountSetupChecklist({
@@ -106,8 +107,8 @@ export function AccountSetupChecklist({
     );
   }
 
-  // Completion states for movers
-  if (isChecklistComplete && userType === 'mover') {
+  // Completion states for movers and haulers
+  if (isChecklistComplete && (userType === 'mover' || userType === 'hauler')) {
     // Active status - show message only if not yet shown
     if (status === 'ACTIVE' && !activeMessageShown) {
       return (
@@ -186,7 +187,8 @@ export function AccountSetupChecklist({
   return (
     <div className="bg-status-bg-warning border border-border-warning rounded-xl p-6 mb-8 animate-slideDown">
       {/* Header */}
-      {userType === 'mover' && isMoverChecklist(checklistStatus) ? (
+      {(userType === 'mover' && isMoverChecklist(checklistStatus)) ||
+      (userType === 'hauler' && isHaulerChecklist(checklistStatus)) ? (
         <>
           {isApproved ? (
             <>
@@ -250,6 +252,64 @@ export function AccountSetupChecklist({
                   completed={checklistStatus.hourlyRate}
                   label="Set your hourly rate"
                   href={`/service-provider/${userType}/${userId}/account-information`}
+                />
+                <ChecklistItem
+                  completed={checklistStatus.approvedVehicles}
+                  label="Add approved vehicles"
+                  href={`/service-provider/${userType}/${userId}/vehicle`}
+                />
+                <ChecklistItem
+                  completed={checklistStatus.calendarSet}
+                  label="Set your calendar and team capacity"
+                  href={`/service-provider/${userType}/${userId}/calendar`}
+                />
+                <ChecklistItem
+                  completed={checklistStatus.bankAccountLinked}
+                  label="Link your bank account"
+                  href={`/service-provider/${userType}/${userId}/payment`}
+                />
+                <ChecklistItem
+                  completed={checklistStatus.termsOfServiceReviewed}
+                  label={
+                    <>
+                      Review{' '}
+                      <Link
+                        href="/terms"
+                        onClick={handleTermsClick}
+                        className="text-status-warning underline decoration-dotted hover:decoration-solid underline-offset-4"
+                      >
+                        terms of service
+                      </Link>
+                    </>
+                  }
+                />
+              </>
+            )}
+          </>
+        ) : userType === 'hauler' && isHaulerChecklist(checklistStatus) ? (
+          <>
+            {isApproved ? (
+              <ChecklistItem
+                completed={checklistStatus.approvedDrivers}
+                label="Add approved drivers"
+                href={`/service-provider/${userType}/${userId}/drivers`}
+              />
+            ) : (
+              <>
+                <ChecklistItem
+                  completed={checklistStatus.companyDescription}
+                  label="Add a company description"
+                  href={`/service-provider/${userType}/${userId}/account-information`}
+                />
+                <ChecklistItem
+                  completed={checklistStatus.companyPicture}
+                  label="Add company picture or logo"
+                  href={`/service-provider/${userType}/${userId}/account-information`}
+                />
+                <ChecklistItem
+                  completed={checklistStatus.routePricing}
+                  label="Set your route pricing"
+                  href={`/service-provider/${userType}/${userId}/route-pricing`}
                 />
                 <ChecklistItem
                   completed={checklistStatus.approvedVehicles}

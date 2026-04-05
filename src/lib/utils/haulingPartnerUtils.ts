@@ -53,7 +53,7 @@ export async function createHauler(data: {
   companyName: string;
   email: string;
   phoneNumber: string;
-  website: string;
+  website?: string;
   employeeCount: number;
 }) {
   const formattedPhone = normalizePhoneNumberToE164(data.phoneNumber);

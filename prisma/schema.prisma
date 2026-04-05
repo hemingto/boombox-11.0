@@ -122,7 +122,7 @@ model MovingPartner {
   agreedToTerms                   Boolean                     @default(false)
   agreedToTermsAt                 DateTime?
   activeMessageShown              Boolean                     @default(false)
-  driverAssignmentMode            DriverAssignmentMode        @default(MANUAL)
+  driverAssignmentMode            DriverAssignmentMode        @default(AUTO)
   appointments                    Appointment[]
   driverInvitations               DriverInvitation[]
   feedback                        Feedback[]
@@ -1086,7 +1086,7 @@ model HaulingPartner {
   agreedToTerms                   Boolean                            @default(false)
   agreedToTermsAt                 DateTime?
   activeMessageShown              Boolean                            @default(false)
-  driverAssignmentMode            DriverAssignmentMode               @default(MANUAL)
+  driverAssignmentMode            DriverAssignmentMode               @default(AUTO)
 
   createdAt                       DateTime                           @default(now())
   updatedAt                       DateTime                           @updatedAt

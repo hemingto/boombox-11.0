@@ -19,10 +19,10 @@ export const HaulerNavbar: React.FC<HaulerNavbarProps> = ({
   return (
     <header role="banner">
       <nav
-        className={`h-16 w-full flex items-center ${isDarkTheme ? 'bg-primary' : 'bg-surface-primary border-b border-border'}`}
+        className={`w-full pt-[env(safe-area-inset-top)] flex flex-col ${isDarkTheme ? 'bg-primary' : 'bg-surface-primary border-b border-border'}`}
         aria-label="Hauling partner account navigation"
       >
-        <div className="h-10 w-full py-3 lg:px-16 px-6 flex items-center">
+        <div className="h-16 w-full py-3 lg:px-16 px-6 flex items-center">
           <ul className="md:basis-1/2 justify-start">
             <li>
               <Link

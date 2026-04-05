@@ -88,7 +88,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         aria-describedby={`product-description-${product.productid}`}
       >
         {/* Product Image Container */}
-        <div className="relative bg-white rounded-t-md aspect-video overflow-hidden">
+        <div className="relative bg-white rounded-t-md aspect-video overflow-hidden border-b border-slate-100">
           {product.imageSrc ? (
             <Image
               src={product.imageSrc}

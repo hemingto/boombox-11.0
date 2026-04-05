@@ -12,7 +12,7 @@ declare module 'next-auth' {
       id: string;
       email: string;
       name?: string;
-      accountType: 'USER' | 'DRIVER' | 'MOVER' | 'ADMIN';
+      accountType: 'USER' | 'DRIVER' | 'MOVER' | 'HAULER' | 'ADMIN';
       role?: string;
       sessionCreated?: Date;
       sessionId?: string;
@@ -23,7 +23,7 @@ declare module 'next-auth' {
     id: string;
     email: string;
     name?: string;
-    accountType: 'USER' | 'DRIVER' | 'MOVER' | 'ADMIN';
+    accountType: 'USER' | 'DRIVER' | 'MOVER' | 'HAULER' | 'ADMIN';
     role?: string;
     sessionCreated?: Date;
     sessionId?: string;
@@ -33,7 +33,7 @@ declare module 'next-auth' {
     id: string;
     email: string;
     name?: string;
-    accountType: 'USER' | 'DRIVER' | 'MOVER' | 'ADMIN';
+    accountType: 'USER' | 'DRIVER' | 'MOVER' | 'HAULER' | 'ADMIN';
     role?: string;
     sessionCreated?: Date;
     sessionId?: string;

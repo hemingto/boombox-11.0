@@ -7,7 +7,7 @@
 /**
  * Account types supported by the application
  */
-export type AccountType = 'USER' | 'DRIVER' | 'MOVER' | 'ADMIN';
+export type AccountType = 'USER' | 'DRIVER' | 'MOVER' | 'HAULER' | 'ADMIN';
 
 /**
  * User session interface for navigation
@@ -21,7 +21,7 @@ export interface NavigationUser {
  * Get the appropriate account page URL based on user account type
  * @param user - User session data with id and accountType
  * @returns URL string for the user's account page
- * 
+ *
  * @example
  * ```ts
  * const user = { id: '123', accountType: 'USER' as const };
@@ -31,9 +31,9 @@ export interface NavigationUser {
 export function getAccountPageUrl(user?: NavigationUser | null): string {
   // Check if user exists AND has required properties (not just null values)
   if (!user || !user.id || !user.accountType) return '/login';
-  
+
   const { id: userId, accountType } = user;
-  
+
   switch (accountType) {
     case 'USER':
       return `/customer/${userId}`;
@@ -41,6 +41,8 @@ export function getAccountPageUrl(user?: NavigationUser | null): string {
       return `/service-provider/driver/${userId}`;
     case 'MOVER':
       return `/service-provider/mover/${userId}`;
+    case 'HAULER':
+      return `/service-provider/hauler/${userId}`;
     case 'ADMIN':
       return `/admin`;
     default:
@@ -55,5 +57,5 @@ export function getAccountPageUrl(user?: NavigationUser | null): string {
  */
 export function getAccountPageText(user?: NavigationUser | null): string {
   // Check if user exists AND has required properties (not just null values)
-  return (user && user.id && user.accountType) ? 'Account Page' : 'Log In';
+  return user && user.id && user.accountType ? 'Account Page' : 'Log In';
 }
