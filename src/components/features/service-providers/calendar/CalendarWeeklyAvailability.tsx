@@ -2,9 +2,9 @@
  * @fileoverview Weekly availability management component for service providers
  * Allows drivers and moving partners to set their weekly working hours, block specific days,
  * and configure job capacity per time slot (for moving partners)
- * 
+ *
  * @source boombox-10.0/src/app/components/mover-account/calendarweeklyavailability.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * - Displays weekly availability grid (Monday-Sunday)
  * - Inline editing of start/end times for each day
@@ -13,11 +13,11 @@
  * - Automatic validation of time ranges (start must be before end)
  * - Fetches and saves availability to database per user type
  * - Shows informational message for users who haven't set availability
- * 
+ *
  * API ROUTES UPDATED:
  * - Old: /api/drivers/${userId}/availability → New: /api/drivers/[id]/availability/route.ts
  * - Old: /api/movers/${userId}/availability → New: /api/moving-partners/[id]/availability/route.ts
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Replaced custom DropdownSelect with @/components/ui/primitives/Select
  * - Applied semantic color tokens (text-primary, text-secondary, surface-tertiary, etc.)
@@ -25,8 +25,8 @@
  * - Replaced hardcoded colors with design system tokens
  * - Updated form styling to match design system patterns
  * - Improved loading skeleton with consistent styling
- * 
- * @refactor 
+ *
+ * @refactor
  * - Replaced DropdownSelect with design system Select component
  * - Applied comprehensive design system colors throughout
  * - Enhanced accessibility with proper ARIA labels and roles
@@ -52,22 +52,73 @@ interface DayAvailability {
 }
 
 interface CalendarWeeklyAvailabilityProps {
-  userType: 'driver' | 'mover';
+  userType: 'driver' | 'mover' | 'hauler';
   userId: string;
 }
 
 const initialAvailability: DayAvailability[] = [
-  { day: 'Monday', startTime: '8am', endTime: '5pm', isBlocked: false, maxCapacity: 1 },
-  { day: 'Tuesday', startTime: '8am', endTime: '5pm', isBlocked: false, maxCapacity: 1 },
-  { day: 'Wednesday', startTime: '8am', endTime: '5pm', isBlocked: false, maxCapacity: 1 },
-  { day: 'Thursday', startTime: '8am', endTime: '5pm', isBlocked: false, maxCapacity: 1 },
-  { day: 'Friday', startTime: '8am', endTime: '5pm', isBlocked: false, maxCapacity: 1 },
-  { day: 'Saturday', startTime: '8am', endTime: '5pm', isBlocked: false, maxCapacity: 1 },
-  { day: 'Sunday', startTime: '8am', endTime: '5pm', isBlocked: false, maxCapacity: 1 },
+  {
+    day: 'Monday',
+    startTime: '8am',
+    endTime: '5pm',
+    isBlocked: false,
+    maxCapacity: 1,
+  },
+  {
+    day: 'Tuesday',
+    startTime: '8am',
+    endTime: '5pm',
+    isBlocked: false,
+    maxCapacity: 1,
+  },
+  {
+    day: 'Wednesday',
+    startTime: '8am',
+    endTime: '5pm',
+    isBlocked: false,
+    maxCapacity: 1,
+  },
+  {
+    day: 'Thursday',
+    startTime: '8am',
+    endTime: '5pm',
+    isBlocked: false,
+    maxCapacity: 1,
+  },
+  {
+    day: 'Friday',
+    startTime: '8am',
+    endTime: '5pm',
+    isBlocked: false,
+    maxCapacity: 1,
+  },
+  {
+    day: 'Saturday',
+    startTime: '8am',
+    endTime: '5pm',
+    isBlocked: false,
+    maxCapacity: 1,
+  },
+  {
+    day: 'Sunday',
+    startTime: '8am',
+    endTime: '5pm',
+    isBlocked: false,
+    maxCapacity: 1,
+  },
 ];
 
 const timeOptions = [
-  '8am', '9am', '10am', '11am', '12pm', '1pm', '2pm', '3pm', '4pm', '5pm',
+  '8am',
+  '9am',
+  '10am',
+  '11am',
+  '12pm',
+  '1pm',
+  '2pm',
+  '3pm',
+  '4pm',
+  '5pm',
 ];
 
 const timeToNumber = (time: string): number => {
@@ -100,33 +151,37 @@ const timeOptionsToSelectOptions = (times: string[]): SelectOption[] => {
   }));
 };
 
-export const CalendarWeeklyAvailability: React.FC<CalendarWeeklyAvailabilityProps> = ({ 
-  userType, 
-  userId 
-}) => {
-  const [availability, setAvailability] = useState<DayAvailability[]>(initialAvailability);
+export const CalendarWeeklyAvailability: React.FC<
+  CalendarWeeklyAvailabilityProps
+> = ({ userType, userId }) => {
+  const [availability, setAvailability] =
+    useState<DayAvailability[]>(initialAvailability);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingDay, setEditingDay] = useState<DayAvailability | null>(null);
-  const [tempEditData, setTempEditData] = useState<DayAvailability | null>(null);
+  const [tempEditData, setTempEditData] = useState<DayAvailability | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [showMessage, setShowMessage] = useState(false);
 
   const fetchAvailability = useCallback(async () => {
     if (!userId) return;
-    
+
     setIsLoading(true);
     try {
-      // Updated API route
-      const endpoint = userType === 'driver'
-        ? `/api/drivers/${userId}/availability`
-        : `/api/moving-partners/${userId}/availability`;
-      
+      const endpoint =
+        userType === 'driver'
+          ? `/api/drivers/${userId}/availability`
+          : userType === 'hauler'
+            ? `/api/hauling-partners/${userId}/availability`
+            : `/api/moving-partners/${userId}/availability`;
+
       const response = await fetch(endpoint);
       if (!response.ok) throw new Error('Failed to fetch availability');
-      
+
       const data = await response.json();
-      
+
       if (data.availability && data.availability.length > 0) {
         // Map database records to UI format
         const formattedAvailability = data.availability.map((item: any) => ({
@@ -137,16 +192,19 @@ export const CalendarWeeklyAvailability: React.FC<CalendarWeeklyAvailabilityProp
           isBlocked: item.isBlocked || false,
           maxCapacity: item.maxCapacity || 1,
           createdAt: new Date(item.createdAt),
-          updatedAt: new Date(item.updatedAt)
+          updatedAt: new Date(item.updatedAt),
         }));
-        
+
         setAvailability(formattedAvailability);
 
         // Check if all records are unchanged (first time setup)
-        const allUnchanged = formattedAvailability.length === 7 && formattedAvailability.every(
-          (record: DayAvailability) => 
-            new Date(record.createdAt!).getTime() === new Date(record.updatedAt!).getTime()
-        );
+        const allUnchanged =
+          formattedAvailability.length === 7 &&
+          formattedAvailability.every(
+            (record: DayAvailability) =>
+              new Date(record.createdAt!).getTime() ===
+              new Date(record.updatedAt!).getTime()
+          );
         setShowMessage(allUnchanged);
       }
     } catch (error) {
@@ -169,7 +227,7 @@ export const CalendarWeeklyAvailability: React.FC<CalendarWeeklyAvailabilityProp
     type: 'startTime' | 'endTime'
   ): string[] => {
     if (!tempEditData) return timeOptions;
-    
+
     if (type === 'startTime') {
       const endTimeNum = timeToNumber(tempEditData.endTime);
       return timeOptions.filter(time => timeToNumber(time) < endTimeNum);
@@ -179,10 +237,7 @@ export const CalendarWeeklyAvailability: React.FC<CalendarWeeklyAvailabilityProp
     }
   };
 
-  const handleTimeChange = (
-    type: 'startTime' | 'endTime',
-    value: string
-  ) => {
+  const handleTimeChange = (type: 'startTime' | 'endTime', value: string) => {
     if (!tempEditData) return;
 
     const updatedData = { ...tempEditData };
@@ -190,11 +245,11 @@ export const CalendarWeeklyAvailability: React.FC<CalendarWeeklyAvailabilityProp
     if (type === 'startTime') {
       const startTimeNum = timeToNumber(value);
       const endTimeNum = timeToNumber(updatedData.endTime);
-      
+
       // If start time is >= end time, update end time to next valid option
       if (startTimeNum >= endTimeNum) {
-        const nextValidEndTime = timeOptions.find(time => 
-          timeToNumber(time) > startTimeNum
+        const nextValidEndTime = timeOptions.find(
+          time => timeToNumber(time) > startTimeNum
         );
         if (nextValidEndTime) {
           updatedData.endTime = nextValidEndTime;
@@ -245,16 +300,18 @@ export const CalendarWeeklyAvailability: React.FC<CalendarWeeklyAvailabilityProp
     }
 
     setIsSaving(true);
-    
+
     try {
       // Use the isBlocked state directly from tempEditData as it's now controlled by the checkbox
       const shouldBeBlocked = tempEditData.isBlocked || false;
-      
-      // Updated API route
-      const endpoint = userType === 'driver' 
-        ? `/api/drivers/${userId}/availability` 
-        : `/api/moving-partners/${userId}/availability`;
-      
+
+      const endpoint =
+        userType === 'driver'
+          ? `/api/drivers/${userId}/availability`
+          : userType === 'hauler'
+            ? `/api/hauling-partners/${userId}/availability`
+            : `/api/moving-partners/${userId}/availability`;
+
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -266,33 +323,33 @@ export const CalendarWeeklyAvailability: React.FC<CalendarWeeklyAvailabilityProp
           startTime: uiTimeToDBTime(tempEditData.startTime),
           endTime: uiTimeToDBTime(tempEditData.endTime),
           isBlocked: shouldBeBlocked,
-          maxCapacity: tempEditData.maxCapacity || 1
+          maxCapacity: tempEditData.maxCapacity || 1,
         }),
       });
 
-      if (!response.ok) throw new Error(`Failed to save ${userType} availability`);
-      
+      if (!response.ok)
+        throw new Error(`Failed to save ${userType} availability`);
+
       const result = await response.json();
-      
+
       // Update the availability array with the saved data from the API response
-      const updatedAvailability = availability.map(day => 
-        day.day === tempEditData.day 
-          ? { 
+      const updatedAvailability = availability.map(day =>
+        day.day === tempEditData.day
+          ? {
               ...day,
               id: result.availability.id || day.id,
               startTime: tempEditData.startTime,
               endTime: tempEditData.endTime,
               isBlocked: result.availability.isBlocked,
               maxCapacity: tempEditData.maxCapacity || 1,
-              updatedAt: new Date()
+              updatedAt: new Date(),
             }
           : day
       );
-      
+
       setAvailability(updatedAvailability);
       setShowMessage(false); // Hide warning after user has actively set their availability
       handleModalClose();
-
     } catch (error) {
       console.error(`Error saving ${userType} availability:`, error);
     } finally {
@@ -301,21 +358,34 @@ export const CalendarWeeklyAvailability: React.FC<CalendarWeeklyAvailabilityProp
   };
 
   // Generate capacity options for moving partners
-  const capacityOptions: SelectOption[] = Array.from({ length: 10 }, (_, i) => ({
-    value: (i + 1).toString(),
-    label: (i + 1).toString(),
-  }));
+  const capacityOptions: SelectOption[] = Array.from(
+    { length: 10 },
+    (_, i) => ({
+      value: (i + 1).toString(),
+      label: (i + 1).toString(),
+    })
+  );
 
   return (
     <>
       {showMessage && (
-        <div className="bg-status-bg-warning border border-border-warning rounded-lg p-4 mb-8" role="alert">
+        <div
+          className="bg-status-bg-warning border border-border-warning rounded-lg p-4 mb-8"
+          role="alert"
+        >
           <p className="text-status-warning">
-            To activate your {userType === 'driver' ? 'driver' : 'moving partner'} account please set your calendar with dates and times you&rsquo;ll be available to work
+            To activate your{' '}
+            {userType === 'driver'
+              ? 'driver'
+              : userType === 'hauler'
+                ? 'hauling partner'
+                : 'moving partner'}{' '}
+            account please set your calendar with dates and times you&rsquo;ll
+            be available to work
           </p>
         </div>
       )}
-      
+
       <div>
         {/* Header Row */}
         <div className="grid grid-cols-[1fr,1fr,1fr,auto] gap-8 border-b border-border p-4">
@@ -323,12 +393,12 @@ export const CalendarWeeklyAvailability: React.FC<CalendarWeeklyAvailabilityProp
             <span className="hidden sm:inline">Day of Week</span>
             <span className="sm:hidden">Day</span>
           </h3>
-          {userType === 'driver' && <div />} {/* Blank div for driver layout */}
+          {userType === 'driver' && <div />}
           <h3 className="text-xl text-text-primary text-center">
             <span className="hidden sm:inline">Time Available</span>
             <span className="sm:hidden">Time</span>
           </h3>
-          {userType === 'mover' && (
+          {(userType === 'mover' || userType === 'hauler') && (
             <h3 className="text-xl text-text-primary text-right">
               <span className="hidden sm:inline">Job Capacity</span>
               <span className="sm:hidden"># of Jobs</span>
@@ -338,66 +408,78 @@ export const CalendarWeeklyAvailability: React.FC<CalendarWeeklyAvailabilityProp
         </div>
 
         {/* Loading Skeleton */}
-        {isLoading ? (
-          [...Array(7)].map((_, index) => (
-            <div 
-              key={index} 
-              className="grid grid-cols-[1fr,1fr,1fr,auto] gap-8 p-4 items-center border-b border-border last:border-b-0"
-              role="status"
-              aria-label={`Loading day ${index + 1} availability`}
-            >
-              <div className="h-6 bg-surface-tertiary rounded animate-pulse"></div>
-              <div className="h-6 bg-surface-tertiary rounded animate-pulse"></div>
-              <div className="h-6 bg-surface-tertiary rounded animate-pulse"></div>
-              {userType === 'mover' && <div className="h-6 bg-surface-tertiary rounded animate-pulse"></div>}
-              <div className="h-6 w-10 bg-surface-tertiary rounded animate-pulse"></div>
-            </div>
-          ))
-        ) : (
-          // Availability Rows (View Mode Only)
-          availability.map((item, index) => (
-            <div
-              key={index}
-              className={`grid grid-cols-[1fr,1fr,1fr,auto] gap-8 p-4 items-center border-b border-border last:border-b-0 ${
-                item.isBlocked ? 'bg-surface-tertiary' : ''
-              }`}
-            >
-              <div className={item.isBlocked ? 'text-text-secondary' : 'text-text-primary'}>
-                {item.day}
-              </div>
-              {userType === 'driver' && <div />} {/* Blank div for driver layout */}
-              
-              <span className={`text-sm text-center ${item.isBlocked ? 'text-text-secondary' : 'text-text-primary'}`}>
-                {item.isBlocked ? (
-                  'Not Available'
-                ) : (
-                  `${item.startTime} - ${item.endTime}`
-                )}
-              </span>
-              
-              {userType === 'mover' && (
-                <span className={`text-sm text-right ${item.isBlocked ? 'text-text-secondary' : 'text-text-primary'}`}>
-                  {item.isBlocked ? '---' : `${item.maxCapacity || 1} job${(item.maxCapacity || 1) > 1 ? 's' : ''} per time slot`}
-                </span>
-              )}
-              
-              <Button
-                onClick={() => handleEditClick(index)}
-                variant="ghost"
-                size="sm"
-                className="justify-self-end underline decoration-dotted hover:decoration-solid underline-offset-2 hover:bg-transparent focus:bg-transparent active:bg-transparent"
-                aria-label={`Edit ${item.day} availability`}
+        {isLoading
+          ? [...Array(7)].map((_, index) => (
+              <div
+                key={index}
+                className="grid grid-cols-[1fr,1fr,1fr,auto] gap-8 p-4 items-center border-b border-border last:border-b-0"
+                role="status"
+                aria-label={`Loading day ${index + 1} availability`}
               >
-                Edit
-              </Button>
-            </div>
-          ))
-        )}
+                <div className="h-6 bg-surface-tertiary rounded animate-pulse"></div>
+                <div className="h-6 bg-surface-tertiary rounded animate-pulse"></div>
+                <div className="h-6 bg-surface-tertiary rounded animate-pulse"></div>
+                {(userType === 'mover' || userType === 'hauler') && (
+                  <div className="h-6 bg-surface-tertiary rounded animate-pulse"></div>
+                )}
+                <div className="h-6 w-10 bg-surface-tertiary rounded animate-pulse"></div>
+              </div>
+            ))
+          : // Availability Rows (View Mode Only)
+            availability.map((item, index) => (
+              <div
+                key={index}
+                className={`grid grid-cols-[1fr,1fr,1fr,auto] gap-8 p-4 items-center border-b border-border last:border-b-0 ${
+                  item.isBlocked ? 'bg-surface-tertiary' : ''
+                }`}
+              >
+                <div
+                  className={
+                    item.isBlocked ? 'text-text-secondary' : 'text-text-primary'
+                  }
+                >
+                  {item.day}
+                </div>
+                {userType === 'driver' && <div />}
+
+                <span
+                  className={`text-sm text-center ${item.isBlocked ? 'text-text-secondary' : 'text-text-primary'}`}
+                >
+                  {item.isBlocked
+                    ? 'Not Available'
+                    : `${item.startTime} - ${item.endTime}`}
+                </span>
+
+                {(userType === 'mover' || userType === 'hauler') && (
+                  <span
+                    className={`text-sm text-right ${item.isBlocked ? 'text-text-secondary' : 'text-text-primary'}`}
+                  >
+                    {item.isBlocked
+                      ? '---'
+                      : `${item.maxCapacity || 1} job${(item.maxCapacity || 1) > 1 ? 's' : ''} per time slot`}
+                  </span>
+                )}
+
+                <Button
+                  onClick={() => handleEditClick(index)}
+                  variant="ghost"
+                  size="sm"
+                  className="justify-self-end underline decoration-dotted hover:decoration-solid underline-offset-2 hover:bg-transparent focus:bg-transparent active:bg-transparent"
+                  aria-label={`Edit ${item.day} availability`}
+                >
+                  Edit
+                </Button>
+              </div>
+            ))}
 
         {/* Informational Note */}
         <div className="mt-6">
           <p className="text-text-primary border border-border rounded-md p-3 text-sm">
-            <strong>Note:</strong> The hours you set are times a customer can book an appointment with you, not the length of your work hours. For example, if you have an available time set for 5pm, a customer can book an appointment with you for 5pm but you won&apos;t be finished working till after that job is complete.
+            <strong>Note:</strong> The hours you set are times a customer can
+            book an appointment with you, not the length of your work hours. For
+            example, if you have an available time set for 5pm, a customer can
+            book an appointment with you for 5pm but you won&apos;t be finished
+            working till after that job is complete.
           </p>
         </div>
       </div>
@@ -417,19 +499,26 @@ export const CalendarWeeklyAvailability: React.FC<CalendarWeeklyAvailabilityProp
             {/* Time Selection Section - Always visible, disabled when blocked */}
             <div className="space-y-6">
               <div>
-                <label className={`block text-base font-medium mb-4 ${tempEditData.isBlocked ? 'text-text-disabled' : 'text-text-primary'}`}>
+                <label
+                  className={`block text-base font-medium mb-4 ${tempEditData.isBlocked ? 'text-text-disabled' : 'text-text-primary'}`}
+                >
                   Available Hours
                 </label>
                 <div className="flex gap-3 items-center">
                   <div className="flex-1">
-                    <label className={`block text-xs mb-1 ${tempEditData.isBlocked ? 'text-text-disabled' : 'text-text-primary'}`}>
+                    <label
+                      className={`block text-xs mb-1 ${tempEditData.isBlocked ? 'text-text-disabled' : 'text-text-primary'}`}
+                    >
                       Start Time
                     </label>
                     <Select
                       value={tempEditData.startTime}
-                      onChange={(value) => handleTimeChange('startTime', value)}
+                      onChange={value => handleTimeChange('startTime', value)}
                       options={timeOptionsToSelectOptions(
-                        getFilteredTimeOptions(tempEditData.startTime, 'startTime')
+                        getFilteredTimeOptions(
+                          tempEditData.startTime,
+                          'startTime'
+                        )
                       )}
                       placeholder="Start Time"
                       size="sm"
@@ -438,12 +527,14 @@ export const CalendarWeeklyAvailability: React.FC<CalendarWeeklyAvailabilityProp
                     />
                   </div>
                   <div className="flex-1">
-                    <label className={`block text-xs mb-1 ${tempEditData.isBlocked ? 'text-text-disabled' : 'text-text-primary'}`}>
+                    <label
+                      className={`block text-xs mb-1 ${tempEditData.isBlocked ? 'text-text-disabled' : 'text-text-primary'}`}
+                    >
                       End Time
                     </label>
                     <Select
                       value={tempEditData.endTime}
-                      onChange={(value) => handleTimeChange('endTime', value)}
+                      onChange={value => handleTimeChange('endTime', value)}
                       options={timeOptionsToSelectOptions(
                         getFilteredTimeOptions(tempEditData.endTime, 'endTime')
                       )}
@@ -456,27 +547,36 @@ export const CalendarWeeklyAvailability: React.FC<CalendarWeeklyAvailabilityProp
                 </div>
               </div>
 
-              {/* Job Capacity for Movers */}
-              {userType === 'mover' && (
+              {(userType === 'mover' || userType === 'hauler') && (
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${tempEditData.isBlocked ? 'text-text-disabled' : 'text-text-primary'}`}>
+                  <label
+                    className={`block text-sm font-medium mb-2 ${tempEditData.isBlocked ? 'text-text-disabled' : 'text-text-primary'}`}
+                  >
                     Job Capacity
                   </label>
                   <div className="flex items-center gap-3">
                     <Select
                       value={tempEditData.maxCapacity?.toString() || '1'}
-                      onChange={(value) => handleCapacityChange(value)}
+                      onChange={value => handleCapacityChange(value)}
                       options={capacityOptions}
                       size="sm"
                       disabled={tempEditData.isBlocked}
                       aria-label={`${tempEditData.day} job capacity`}
                     />
-                    <span className={`text-sm ${tempEditData.isBlocked ? 'text-text-disabled' : 'text-text-primary'}`}>
-                      {(tempEditData.maxCapacity || 1) === 1 ? 'job' : 'jobs'} per time slot
+                    <span
+                      className={`text-sm ${tempEditData.isBlocked ? 'text-text-disabled' : 'text-text-primary'}`}
+                    >
+                      {(tempEditData.maxCapacity || 1) === 1 ? 'job' : 'jobs'}{' '}
+                      per time slot
                     </span>
                   </div>
-                  <p className={`border border-border rounded-md p-3 text-xs mt-4 ${tempEditData.isBlocked ? 'text-text-disabled' : 'text-text-primary'}`}>
-                    The number of jobs per time slot is determined by how many crews you have available per day. For example, if two jobs were booked at 9am, and you set your job capacity to 2, that means you have two crews available at 9am.
+                  <p
+                    className={`border border-border rounded-md p-3 text-xs mt-4 ${tempEditData.isBlocked ? 'text-text-disabled' : 'text-text-primary'}`}
+                  >
+                    The number of jobs per time slot is determined by how many
+                    crews you have available per day. For example, if two jobs
+                    were booked at 9am, and you set your job capacity to 2, that
+                    means you have two crews available at 9am.
                   </p>
                 </div>
               )}
@@ -484,7 +584,8 @@ export const CalendarWeeklyAvailability: React.FC<CalendarWeeklyAvailabilityProp
               {/* Block/Unblock This Day Checkbox - Always visible */}
               <div className="mb-6">
                 <p className="block text-base font-medium text-text-primary mb-4">
-                  {tempEditData.isBlocked ? 'Unblock' : 'Block'} {tempEditData.day} availability
+                  {tempEditData.isBlocked ? 'Unblock' : 'Block'}{' '}
+                  {tempEditData.day} availability
                 </p>
                 <div className="bg-status-bg-warning border border-border-warning rounded-lg p-4">
                   <label className="flex items-center gap-2 cursor-pointer text-status-warning">
@@ -497,17 +598,20 @@ export const CalendarWeeklyAvailability: React.FC<CalendarWeeklyAvailabilityProp
                       aria-label={`${tempEditData.isBlocked ? 'Unblock' : 'Block'} ${tempEditData.day}`}
                     />
                     <span className="text-status-warning">
-                      {tempEditData.isBlocked ? 'Unblock this day' : 'Block this day'}
+                      {tempEditData.isBlocked
+                        ? 'Unblock this day'
+                        : 'Block this day'}
                     </span>
-                    </label>
-                  </div>
-                  {tempEditData.isBlocked && (
-                    <p className="border border-border rounded-md p-3 text-xs mt-4 text-text-primary">
-                      Currently this day is blocked and you cannot book jobs on {tempEditData.day}.
-                    </p>
-                  )}
+                  </label>
                 </div>
+                {tempEditData.isBlocked && (
+                  <p className="border border-border rounded-md p-3 text-xs mt-4 text-text-primary">
+                    Currently this day is blocked and you cannot book jobs on{' '}
+                    {tempEditData.day}.
+                  </p>
+                )}
               </div>
+            </div>
 
             {/* Modal Footer with Buttons */}
             <div className="flex justify-end gap-3 pt-4">
@@ -537,4 +641,3 @@ export const CalendarWeeklyAvailability: React.FC<CalendarWeeklyAvailabilityProp
 };
 
 export default CalendarWeeklyAvailability;
-

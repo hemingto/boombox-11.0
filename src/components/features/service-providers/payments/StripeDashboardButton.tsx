@@ -2,41 +2,41 @@
  * @fileoverview Stripe Dashboard access button for service providers
  * Provides direct access to Stripe Express Dashboard for drivers and moving partners
  * to view their payment details, balances, and account information.
- * 
+ *
  * @source boombox-10.0/src/app/components/mover-account/stripedashboardbutton.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * - Checks if user has an active Stripe Connect account with completed onboarding
  * - Generates secure Stripe dashboard login link
  * - Opens Stripe Express Dashboard in new browser tab
  * - Shows appropriate button states: checking, inactive, loading, active
  * - Handles errors with user-friendly messages
- * 
+ *
  * BUTTON STATES:
  * 1. Checking account... → Initial state while verifying Stripe account
  * 2. Complete Stripe Setup → Account not active or onboarding incomplete
  * 3. Connecting to Stripe... → Loading state while generating dashboard link
  * 4. View Full Dashboard → Ready to open dashboard (active state)
- * 
+ *
  * API ROUTES UPDATED:
  * - Old: /api/stripe/connect/stripe-status → New: /api/payments/connect/stripe-status
  * - Old: /api/stripe/connect/create-dashboard-link → New: /api/payments/connect/create-dashboard-link
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Replaced bg-zinc-950 with semantic primary color (bg-primary)
  * - Applied hover:bg-primary-hover for consistent hover states
  * - Replaced disabled colors (bg-slate-100, text-zinc-300) with semantic surface colors
  * - Applied text-text-inverse for button text on dark backgrounds
  * - Replaced text-red-500 with semantic error color (text-status-error)
- * 
+ *
  * ACCESSIBILITY IMPROVEMENTS:
  * - Added aria-label with descriptive button purpose
  * - Added aria-busy for loading states
  * - Added aria-disabled for disabled state communication
  * - Added role="alert" for error messages
  * - Proper button disabled attribute management
- * 
- * @refactor 
+ *
+ * @refactor
  * - Migrated to service-providers/payments feature folder
  * - Updated API routes to new payments domain structure
  * - Applied design system colors and semantic tokens throughout
@@ -51,7 +51,7 @@ import { Button } from '@/components/ui/primitives/Button/Button';
 
 interface StripeDashboardButtonProps {
   userId: string;
-  userType: 'driver' | 'mover';
+  userType: 'driver' | 'mover' | 'hauler';
 }
 
 export function StripeDashboardButton({
@@ -74,7 +74,9 @@ export function StripeDashboardButton({
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.error || 'Failed to fetch Stripe account status');
+          throw new Error(
+            data.error || 'Failed to fetch Stripe account status'
+          );
         }
 
         // Check if user has a connected Stripe account and has completed onboarding
@@ -95,11 +97,14 @@ export function StripeDashboardButton({
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch('/api/payments/connect/create-dashboard-link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, userType }),
-      });
+      const response = await fetch(
+        '/api/payments/connect/create-dashboard-link',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, userType }),
+        }
+      );
 
       const data = await response.json();
 
@@ -138,8 +143,8 @@ export function StripeDashboardButton({
           isCheckingAccount
             ? 'Checking Stripe account status'
             : !isAccountActive
-            ? 'Complete Stripe account setup to view dashboard'
-            : 'Open Stripe Express Dashboard in new tab'
+              ? 'Complete Stripe account setup to view dashboard'
+              : 'Open Stripe Express Dashboard in new tab'
         }
       >
         {getButtonText()}
@@ -152,4 +157,3 @@ export function StripeDashboardButton({
     </div>
   );
 }
-

@@ -17,7 +17,7 @@ export type { ContactInfo, MovingPartnerStatus };
  */
 export async function getContactInfo(
   userId: string,
-  userType: 'driver' | 'mover'
+  userType: 'driver' | 'mover' | 'hauler'
 ): Promise<ContactInfo> {
   if (userType === 'driver') {
     const driver = await prisma.driver.findUnique({
@@ -47,8 +47,37 @@ export async function getContactInfo(
       userType: 'driver',
       services: driver.services,
     };
+  } else if (userType === 'hauler') {
+    const hauler = await prisma.haulingPartner.findUnique({
+      where: { id: parseInt(userId, 10) },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phoneNumber: true,
+        verifiedPhoneNumber: true,
+        usdotNumber: true,
+        californiaMcpNumber: true,
+        pricePerBoombox: true,
+      },
+    });
+
+    if (!hauler) {
+      throw new Error('Hauling partner not found');
+    }
+
+    return {
+      name: hauler.name,
+      email: hauler.email,
+      phoneNumber: hauler.phoneNumber,
+      verifiedPhoneNumber: hauler.verifiedPhoneNumber,
+      userId: hauler.id.toString(),
+      userType: 'hauler',
+      usdotNumber: hauler.usdotNumber || undefined,
+      californiaMcpNumber: hauler.californiaMcpNumber || undefined,
+      pricePerBoombox: hauler.pricePerBoombox || undefined,
+    };
   } else {
-    // Mover
     const mover = await prisma.movingPartner.findUnique({
       where: { id: parseInt(userId, 10) },
       select: {
@@ -103,6 +132,18 @@ export async function getMovingPartnerStatus(
           },
         },
       },
+      haulingPartnerAssociations: {
+        where: { isActive: true },
+        take: 1,
+        select: {
+          haulingPartner: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -110,14 +151,22 @@ export async function getMovingPartnerStatus(
     throw new Error('Driver not found');
   }
 
-  const activeAssociation = driver.movingPartnerAssociations[0];
+  const activeMovingAssociation = driver.movingPartnerAssociations[0];
+  const activeHaulingAssociation = driver.haulingPartnerAssociations[0];
 
   return {
-    isLinkedToMovingPartner: !!activeAssociation,
-    movingPartner: activeAssociation
+    isLinkedToMovingPartner: !!activeMovingAssociation,
+    movingPartner: activeMovingAssociation
       ? {
-          id: activeAssociation.movingPartner.id,
-          name: activeAssociation.movingPartner.name,
+          id: activeMovingAssociation.movingPartner.id,
+          name: activeMovingAssociation.movingPartner.name,
+        }
+      : null,
+    isLinkedToHaulingPartner: !!activeHaulingAssociation,
+    haulingPartner: activeHaulingAssociation
+      ? {
+          id: activeHaulingAssociation.haulingPartner.id,
+          name: activeHaulingAssociation.haulingPartner.name,
         }
       : null,
   };
@@ -128,7 +177,7 @@ export async function getMovingPartnerStatus(
  */
 export async function updateContactInfoField(
   userId: string,
-  userType: 'driver' | 'mover',
+  userType: 'driver' | 'mover' | 'hauler',
   field: string,
   value: string | number | string[]
 ): Promise<ContactInfo> {
@@ -156,6 +205,33 @@ export async function updateContactInfoField(
       userId: updatedDriver.id.toString(),
       userType: 'driver',
       services: updatedDriver.services,
+    };
+  } else if (userType === 'hauler') {
+    const updatedHauler = await prisma.haulingPartner.update({
+      where: { id: parseInt(userId, 10) },
+      data: { [field]: value },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phoneNumber: true,
+        verifiedPhoneNumber: true,
+        usdotNumber: true,
+        californiaMcpNumber: true,
+        pricePerBoombox: true,
+      },
+    });
+
+    return {
+      name: updatedHauler.name,
+      email: updatedHauler.email,
+      phoneNumber: updatedHauler.phoneNumber,
+      verifiedPhoneNumber: updatedHauler.verifiedPhoneNumber,
+      userId: updatedHauler.id.toString(),
+      userType: 'hauler',
+      usdotNumber: updatedHauler.usdotNumber || undefined,
+      californiaMcpNumber: updatedHauler.californiaMcpNumber || undefined,
+      pricePerBoombox: updatedHauler.pricePerBoombox || undefined,
     };
   } else {
     const updatedMover = await prisma.movingPartner.update({

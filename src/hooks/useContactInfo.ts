@@ -18,7 +18,7 @@ import { isValidEmail } from '@/lib/utils/validationUtils';
 
 interface UseContactInfoParams {
   userId: string;
-  userType: 'driver' | 'mover';
+  userType: 'driver' | 'mover' | 'hauler';
 }
 
 interface UseContactInfoReturn {
@@ -177,22 +177,47 @@ export function useContactInfo({
         }
         break;
       }
+      case 'usdotNumber':
+        if (!editedInfo.usdotNumber?.trim()) {
+          setErrorMessage('USDOT number is required.');
+          setLocalHasError(true);
+          return;
+        }
+        break;
+      case 'californiaMcpNumber':
+        if (!editedInfo.californiaMcpNumber?.trim()) {
+          setErrorMessage('California MCP number is required.');
+          setLocalHasError(true);
+          return;
+        }
+        break;
+      case 'pricePerBoombox': {
+        const ppb = Number(editedInfo.pricePerBoombox);
+        if (isNaN(ppb) || ppb <= 0) {
+          setErrorMessage('Please enter a valid price per Boombox.');
+          setLocalHasError(true);
+          return;
+        }
+        break;
+      }
       default:
         break;
     }
 
     try {
       setIsSaving(true);
-      
+
       // API call to update field
       const apiRoute =
         userType === 'driver'
           ? `/api/drivers/${userId}/profile`
-          : `/api/moving-partners/${userId}/profile`;
+          : userType === 'hauler'
+            ? `/api/hauling-partners/${userId}/profile`
+            : `/api/moving-partners/${userId}/profile`;
 
-      // Convert hourlyRate to number if it's being updated
+      // Convert numeric fields
       const payload: Record<string, any> = {};
-      if (editField === 'hourlyRate') {
+      if (editField === 'hourlyRate' || editField === 'pricePerBoombox') {
         payload[editField] = parseFloat(String(editedInfo[editField]));
       } else {
         payload[editField] = editedInfo[editField];
@@ -210,14 +235,14 @@ export function useContactInfo({
       }
 
       const updatedData = await response.json();
-      setContactInfo((prev) => {
+      setContactInfo(prev => {
         if (!prev) return prev;
-        
+
         // Only reset verifiedPhoneNumber if we're updating the phone number itself
         if (editField === 'phoneNumber') {
           return { ...prev, ...updatedData, verifiedPhoneNumber: false };
         }
-        
+
         // For all other fields, just merge the updated data
         return { ...prev, ...updatedData };
       });
@@ -246,16 +271,19 @@ export function useContactInfo({
   }, []);
 
   // Handle field change
-  const handleChange = useCallback((field: keyof ContactInfo, value: string) => {
-    if (field === 'phoneNumber') {
-      setEditedInfo((prev) => ({
-        ...prev,
-        phoneNumber: formatPhoneNumberForDisplay(value),
-      }));
-    } else {
-      setEditedInfo((prev) => ({ ...prev, [field]: value }));
-    }
-  }, []);
+  const handleChange = useCallback(
+    (field: keyof ContactInfo, value: string) => {
+      if (field === 'phoneNumber') {
+        setEditedInfo(prev => ({
+          ...prev,
+          phoneNumber: formatPhoneNumberForDisplay(value),
+        }));
+      } else {
+        setEditedInfo(prev => ({ ...prev, [field]: value }));
+      }
+    },
+    []
+  );
 
   // Check if field is editable
   const isEditable = useCallback(
@@ -275,9 +303,9 @@ export function useContactInfo({
 
   // Handle service toggle
   const handleServiceToggle = useCallback((service: string) => {
-    setSelectedServices((prev) => {
+    setSelectedServices(prev => {
       if (prev.includes(service)) {
-        return prev.filter((s) => s !== service);
+        return prev.filter(s => s !== service);
       } else {
         return [...prev, service];
       }
@@ -288,7 +316,7 @@ export function useContactInfo({
   const handleSaveServices = useCallback(async () => {
     try {
       setIsSaving(true);
-      
+
       // Use specific services endpoint for drivers to handle Onfleet sync
       const apiRoute =
         userType === 'driver'
@@ -310,7 +338,7 @@ export function useContactInfo({
 
       // Handle different response structures
       const driverData = updatedData.driver || updatedData;
-      setContactInfo((prev) => (prev ? { ...prev, ...driverData } : prev));
+      setContactInfo(prev => (prev ? { ...prev, ...driverData } : prev));
       setIsEditingServices(false);
       setErrorMessage(null);
       setLocalHasError(false);
@@ -350,4 +378,3 @@ export function useContactInfo({
     refetch: fetchData,
   };
 }
-

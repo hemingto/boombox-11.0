@@ -10,37 +10,47 @@ import { MoverAccountHomepage } from '@/components/features/service-providers/ac
 expect.extend(toHaveNoViolations);
 
 // Mock child components
-jest.mock('@/components/features/service-providers/account/MoverAccountOptions', () => ({
-  MoverAccountOptions: function MockMoverAccountOptions(props: any) {
-    return (
-      <div data-testid="mock-mover-account-option">
-        <div data-testid="option-title">{props.title}</div>
-        <div data-testid="option-description">{props.description}</div>
-        {props.disabled && <div data-testid="option-disabled">disabled</div>}
-      </div>
-    );
-  }
-}));
+jest.mock(
+  '@/components/features/service-providers/account/MoverAccountOptions',
+  () => ({
+    MoverAccountOptions: function MockMoverAccountOptions(props: any) {
+      return (
+        <div data-testid="mock-mover-account-option">
+          <div data-testid="option-title">{props.title}</div>
+          <div data-testid="option-description">{props.description}</div>
+          {props.disabled && <div data-testid="option-disabled">disabled</div>}
+        </div>
+      );
+    },
+  })
+);
 
-jest.mock('@/components/features/service-providers/account/AccountSetupChecklist', () => ({
-  AccountSetupChecklist: function MockAccountSetupChecklist(props: any) {
-    return (
-      <div data-testid="mock-account-setup-checklist">
-        Checklist for {props.userType}
-      </div>
-    );
-  }
-}));
+jest.mock(
+  '@/components/features/service-providers/account/AccountSetupChecklist',
+  () => ({
+    AccountSetupChecklist: function MockAccountSetupChecklist(props: any) {
+      return (
+        <div data-testid="mock-account-setup-checklist">
+          Checklist for {props.userType}
+        </div>
+      );
+    },
+  })
+);
 
 // Mock Next.js Link
 jest.mock('next/link', () => {
   const MockLink = ({ children, href, ...props }: any) => {
-    return <a href={href} {...props}>{children}</a>;
+    return (
+      <a href={href} {...props}>
+        {children}
+      </a>
+    );
   };
   MockLink.displayName = 'MockLink';
   return {
     __esModule: true,
-    default: MockLink
+    default: MockLink,
   };
 });
 
@@ -51,7 +61,7 @@ describe('MoverAccountHomepage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (global.fetch as jest.Mock).mockResolvedValue({
-      json: async () => ({})
+      json: async () => ({}),
     });
   });
 
@@ -72,22 +82,30 @@ describe('MoverAccountHomepage', () => {
 
     it('displays correct title for driver', () => {
       render(<MoverAccountHomepage userType="driver" userId="driver-123" />);
-      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Driver Dashboard');
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+        'Driver Dashboard'
+      );
     });
 
     it('displays correct title for mover', () => {
       render(<MoverAccountHomepage userType="mover" userId="mover-456" />);
-      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Mover Dashboard');
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+        'Mover Dashboard'
+      );
     });
 
     it('renders account setup checklist', () => {
       render(<MoverAccountHomepage userType="driver" userId="driver-123" />);
-      expect(screen.getByTestId('mock-account-setup-checklist')).toBeInTheDocument();
+      expect(
+        screen.getByTestId('mock-account-setup-checklist')
+      ).toBeInTheDocument();
     });
 
     it('renders account options grid', () => {
       render(<MoverAccountHomepage userType="driver" userId="driver-123" />);
-      const grid = screen.getByRole('region', { name: /account management options/i });
+      const grid = screen.getByRole('region', {
+        name: /account management options/i,
+      });
       expect(grid).toBeInTheDocument();
     });
   });
@@ -114,14 +132,12 @@ describe('MoverAccountHomepage', () => {
 
     it('includes proper ARIA labels for sections', () => {
       render(<MoverAccountHomepage userType="driver" userId="driver-123" />);
-      expect(screen.getByRole('region', { name: /account setup progress/i })).toBeInTheDocument();
-      expect(screen.getByRole('region', { name: /account management options/i })).toBeInTheDocument();
-    });
-
-    it('includes aria-label for external links', () => {
-      render(<MoverAccountHomepage userType="mover" userId="mover-456" />);
-      const onfleetLink = screen.getByLabelText(/open onfleet dashboard in new tab/i);
-      expect(onfleetLink).toBeInTheDocument();
+      expect(
+        screen.getByRole('region', { name: /account setup progress/i })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('region', { name: /account management options/i })
+      ).toBeInTheDocument();
     });
 
     it('includes proper button types', () => {
@@ -137,23 +153,27 @@ describe('MoverAccountHomepage', () => {
     it('fetches moving partner status for drivers', async () => {
       const mockStatus = {
         isLinkedToMovingPartner: false,
-        movingPartner: null
+        movingPartner: null,
       };
 
       (global.fetch as jest.Mock).mockResolvedValueOnce({
-        json: async () => mockStatus
+        json: async () => mockStatus,
       });
 
       render(<MoverAccountHomepage userType="driver" userId="driver-123" />);
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith('/api/drivers/driver-123/moving-partner-status');
+        expect(global.fetch).toHaveBeenCalledWith(
+          '/api/drivers/driver-123/moving-partner-status'
+        );
       });
     });
 
     it('handles moving partner status fetch error gracefully', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
       (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('API Error'));
 
       render(<MoverAccountHomepage userType="driver" userId="driver-123" />);
@@ -177,23 +197,27 @@ describe('MoverAccountHomepage', () => {
   describe('API Integration - Mover', () => {
     it('fetches mover approval status', async () => {
       const mockData = {
-        isApproved: true
+        isApproved: true,
       };
 
       (global.fetch as jest.Mock).mockResolvedValueOnce({
-        json: async () => mockData
+        json: async () => mockData,
       });
 
       render(<MoverAccountHomepage userType="mover" userId="mover-456" />);
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith('/api/moving-partners/mover-456/profile');
+        expect(global.fetch).toHaveBeenCalledWith(
+          '/api/moving-partners/mover-456/profile'
+        );
       });
     });
 
     it('handles mover status fetch error gracefully', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
       (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('API Error'));
 
       render(<MoverAccountHomepage userType="mover" userId="mover-456" />);
@@ -218,7 +242,10 @@ describe('MoverAccountHomepage', () => {
     it('renders calendar link for driver', () => {
       render(<MoverAccountHomepage userType="driver" userId="driver-123" />);
       const calendarLink = screen.getByLabelText(/view calendar in new tab/i);
-      expect(calendarLink).toHaveAttribute('href', '/driver-account-page/driver-123/view-calendar');
+      expect(calendarLink).toHaveAttribute(
+        'href',
+        '/driver-account-page/driver-123/view-calendar'
+      );
       expect(calendarLink).toHaveAttribute('target', '_blank');
       expect(calendarLink).toHaveAttribute('rel', 'noopener noreferrer');
     });
@@ -226,21 +253,10 @@ describe('MoverAccountHomepage', () => {
     it('renders calendar link for mover', () => {
       render(<MoverAccountHomepage userType="mover" userId="mover-456" />);
       const calendarLink = screen.getByLabelText(/view calendar in new tab/i);
-      expect(calendarLink).toHaveAttribute('href', '/mover-account-page/mover-456/view-calendar');
-    });
-
-    it('renders Onfleet dashboard link for movers only', () => {
-      render(<MoverAccountHomepage userType="mover" userId="mover-456" />);
-      const onfleetLink = screen.getByLabelText(/open onfleet dashboard in new tab/i);
-      expect(onfleetLink).toHaveAttribute('href', 'https://onfleet.com/login');
-      expect(onfleetLink).toHaveAttribute('target', '_blank');
-      expect(onfleetLink).toHaveAttribute('rel', 'noopener noreferrer');
-    });
-
-    it('does not render Onfleet dashboard link for drivers', () => {
-      render(<MoverAccountHomepage userType="driver" userId="driver-123" />);
-      const onfleetLink = screen.queryByText(/onfleet dashboard/i);
-      expect(onfleetLink).not.toBeInTheDocument();
+      expect(calendarLink).toHaveAttribute(
+        'href',
+        '/mover-account-page/mover-456/view-calendar'
+      );
     });
   });
 
@@ -255,15 +271,17 @@ describe('MoverAccountHomepage', () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         json: async () => ({
           isLinkedToMovingPartner: false,
-          movingPartner: null
-        })
+          movingPartner: null,
+        }),
       });
 
       render(<MoverAccountHomepage userType="driver" userId="driver-123" />);
 
       await waitFor(() => {
         const titles = screen.getAllByTestId('option-title');
-        const hasWorkSchedule = titles.some(el => el.textContent === 'Work Schedule');
+        const hasWorkSchedule = titles.some(
+          el => el.textContent === 'Work Schedule'
+        );
         expect(hasWorkSchedule).toBe(true);
       });
     });
@@ -272,15 +290,17 @@ describe('MoverAccountHomepage', () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         json: async () => ({
           isLinkedToMovingPartner: true,
-          movingPartner: { id: 1, name: 'Test Mover' }
-        })
+          movingPartner: { id: 1, name: 'Test Mover' },
+        }),
       });
 
       render(<MoverAccountHomepage userType="driver" userId="driver-123" />);
 
       await waitFor(() => {
         const titles = screen.getAllByTestId('option-title');
-        const hasWorkSchedule = titles.some(el => el.textContent === 'Work Schedule');
+        const hasWorkSchedule = titles.some(
+          el => el.textContent === 'Work Schedule'
+        );
         expect(hasWorkSchedule).toBe(false);
       });
     });
@@ -289,15 +309,17 @@ describe('MoverAccountHomepage', () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         json: async () => ({
           isLinkedToMovingPartner: false,
-          movingPartner: null
-        })
+          movingPartner: null,
+        }),
       });
 
       render(<MoverAccountHomepage userType="driver" userId="driver-123" />);
 
       await waitFor(() => {
         const titles = screen.getAllByTestId('option-title');
-        const hasVehicle = titles.some(el => el.textContent === 'Vehicle information');
+        const hasVehicle = titles.some(
+          el => el.textContent === 'Vehicle information'
+        );
         expect(hasVehicle).toBe(true);
       });
     });
@@ -306,15 +328,17 @@ describe('MoverAccountHomepage', () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         json: async () => ({
           isLinkedToMovingPartner: true,
-          movingPartner: { id: 1, name: 'Test Mover' }
-        })
+          movingPartner: { id: 1, name: 'Test Mover' },
+        }),
       });
 
       render(<MoverAccountHomepage userType="driver" userId="driver-123" />);
 
       await waitFor(() => {
         const titles = screen.getAllByTestId('option-title');
-        const hasVehicle = titles.some(el => el.textContent === 'Vehicle information');
+        const hasVehicle = titles.some(
+          el => el.textContent === 'Vehicle information'
+        );
         expect(hasVehicle).toBe(false);
       });
     });
@@ -323,8 +347,8 @@ describe('MoverAccountHomepage', () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         json: async () => ({
           isLinkedToMovingPartner: false,
-          movingPartner: null
-        })
+          movingPartner: null,
+        }),
       });
 
       render(<MoverAccountHomepage userType="driver" userId="driver-123" />);
@@ -340,8 +364,8 @@ describe('MoverAccountHomepage', () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         json: async () => ({
           isLinkedToMovingPartner: true,
-          movingPartner: { id: 1, name: 'Test Mover' }
-        })
+          movingPartner: { id: 1, name: 'Test Mover' },
+        }),
       });
 
       render(<MoverAccountHomepage userType="driver" userId="driver-123" />);
@@ -370,13 +394,15 @@ describe('MoverAccountHomepage', () => {
 
     it('shows disabled Driver Information option for unapproved movers', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
-        json: async () => ({ isApproved: false })
+        json: async () => ({ isApproved: false }),
       });
 
       render(<MoverAccountHomepage userType="mover" userId="mover-456" />);
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith('/api/moving-partners/mover-456/profile');
+        expect(global.fetch).toHaveBeenCalledWith(
+          '/api/moving-partners/mover-456/profile'
+        );
       });
 
       await waitFor(() => {
@@ -387,18 +413,22 @@ describe('MoverAccountHomepage', () => {
 
     it('shows enabled Driver Information option for approved movers', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
-        json: async () => ({ isApproved: true })
+        json: async () => ({ isApproved: true }),
       });
 
       render(<MoverAccountHomepage userType="mover" userId="mover-456" />);
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith('/api/moving-partners/mover-456/profile');
+        expect(global.fetch).toHaveBeenCalledWith(
+          '/api/moving-partners/mover-456/profile'
+        );
       });
 
       await waitFor(() => {
         const titles = screen.getAllByTestId('option-title');
-        const hasDriverInfo = titles.some(el => el.textContent === 'Driver Information');
+        const hasDriverInfo = titles.some(
+          el => el.textContent === 'Driver Information'
+        );
         expect(hasDriverInfo).toBe(true);
       });
 
@@ -411,7 +441,7 @@ describe('MoverAccountHomepage', () => {
 
     it('displays correct description for disabled Driver Information', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
-        json: async () => ({ isApproved: false })
+        json: async () => ({ isApproved: false }),
       });
 
       render(<MoverAccountHomepage userType="mover" userId="mover-456" />);
@@ -419,7 +449,9 @@ describe('MoverAccountHomepage', () => {
       await waitFor(() => {
         const descriptions = screen.getAllByTestId('option-description');
         const hasCorrectDesc = descriptions.some(
-          el => el.textContent === 'Complete account checklist before adding drivers'
+          el =>
+            el.textContent ===
+            'Complete account checklist before adding drivers'
         );
         expect(hasCorrectDesc).toBe(true);
       });
@@ -427,7 +459,7 @@ describe('MoverAccountHomepage', () => {
 
     it('displays correct description for enabled Driver Information', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
-        json: async () => ({ isApproved: true })
+        json: async () => ({ isApproved: true }),
       });
 
       render(<MoverAccountHomepage userType="mover" userId="mover-456" />);
@@ -444,7 +476,9 @@ describe('MoverAccountHomepage', () => {
 
   describe('Common Options', () => {
     it('always shows Coverage Area for both user types', () => {
-      const { rerender } = render(<MoverAccountHomepage userType="driver" userId="driver-123" />);
+      const { rerender } = render(
+        <MoverAccountHomepage userType="driver" userId="driver-123" />
+      );
       let titles = screen.getAllByTestId('option-title');
       expect(titles.some(el => el.textContent === 'Coverage Area')).toBe(true);
 
@@ -454,7 +488,9 @@ describe('MoverAccountHomepage', () => {
     });
 
     it('always shows Best Practices for both user types', () => {
-      const { rerender } = render(<MoverAccountHomepage userType="driver" userId="driver-123" />);
+      const { rerender } = render(
+        <MoverAccountHomepage userType="driver" userId="driver-123" />
+      );
       let titles = screen.getAllByTestId('option-title');
       expect(titles.some(el => el.textContent === 'Best Practices')).toBe(true);
 
@@ -476,13 +512,6 @@ describe('MoverAccountHomepage', () => {
       const button = screen.getByRole('button', { name: /view calendar/i });
       expect(button).toHaveClass('btn-primary');
     });
-
-    it('applies correct surface colors to Onfleet button', () => {
-      render(<MoverAccountHomepage userType="mover" userId="mover-456" />);
-      const button = screen.getByRole('button', { name: /onfleet dashboard/i });
-      expect(button).toHaveClass('bg-surface-tertiary');
-      expect(button).toHaveClass('hover:bg-surface-disabled');
-    });
   });
 
   describe('Edge Cases', () => {
@@ -500,7 +529,7 @@ describe('MoverAccountHomepage', () => {
 
     it('renders correctly with null API response', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
-        json: async () => null
+        json: async () => null,
       });
 
       render(<MoverAccountHomepage userType="driver" userId="driver-123" />);
@@ -511,4 +540,3 @@ describe('MoverAccountHomepage', () => {
     });
   });
 });
-

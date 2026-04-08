@@ -2,9 +2,9 @@
  * @fileoverview Stripe Connect account setup and onboarding management component
  * Manages the complete Stripe Connect setup flow including account creation,
  * onboarding completion, verification status, and requirement tracking.
- * 
+ *
  * @source boombox-10.0/src/app/components/mover-account/stripeconnectsetup.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * - Detects Stripe Connect account status for drivers and moving partners
  * - Guides users through multi-step account setup process
@@ -13,25 +13,25 @@
  * - Shows account verification status and pending requirements
  * - Displays fully setup account details via StripeAccountStatus component
  * - Cleans up URL parameters after returning from Stripe
- * 
+ *
  * SETUP FLOW STAGES:
  * 1. No account → Show "Set Up Stripe Account" button
  * 2. Account created, details not submitted → Show "Continue Account Setup" button
  * 3. Details submitted, payouts not enabled → Show "Account under review" with requirements
  * 4. Payouts enabled → Show full StripeAccountStatus component with balance/details
- * 
+ *
  * API ROUTES UPDATED:
  * - Old: /api/stripe/connect/account-status → New: /api/payments/connect/account-status
  * - Old: /api/stripe/connect/create-account → New: /api/payments/connect/create-account
  * - Old: /api/stripe/connect/create-account-link → New: /api/payments/connect/create-account-link
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Applied badge-warning class for warning states
  * - Updated text colors to consistent palette (text-amber-600 → text-amber-700)
  * - Replaced bg-red-100 with semantic error surface color (bg-status-error/10)
  * - Applied badge-error class for error states
  * - Updated skeleton loading to use semantic surface colors (bg-surface-tertiary)
- * 
+ *
  * ACCESSIBILITY IMPROVEMENTS:
  * - Added ARIA labels for loading states (aria-busy, aria-live="polite")
  * - Added role="status" for status messages
@@ -39,8 +39,8 @@
  * - Proper heading hierarchy with semantic HTML
  * - Descriptive button labels with aria-label
  * - Screen reader announcements for status changes
- * 
- * @refactor 
+ *
+ * @refactor
  * - Migrated to service-providers/payments feature folder
  * - Updated component imports to use new StripeAccountStatus from payments folder
  * - Updated API routes to new payments domain structure
@@ -61,7 +61,7 @@ import { StripeAccountStatus } from './StripeAccountStatus';
 
 interface StripeConnectSetupProps {
   userId: string;
-  userType: 'driver' | 'mover';
+  userType: 'driver' | 'mover' | 'hauler';
 }
 
 interface AccountStatus {
@@ -180,11 +180,14 @@ export function StripeConnectSetup({
       setIsGeneratingLink(true);
       setError(null);
 
-      const response = await fetch('/api/payments/connect/create-account-link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, userType }),
-      });
+      const response = await fetch(
+        '/api/payments/connect/create-account-link',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, userType }),
+        }
+      );
 
       const data = await response.json();
 
@@ -294,10 +297,12 @@ export function StripeConnectSetup({
           </h3>
         </div>
         <p className="text-status-warning mb-2">
-          Your stripe account has been created, but you need to complete the setup process to receive payments.
+          Your stripe account has been created, but you need to complete the
+          setup process to receive payments.
         </p>
         <p className="text-status-warning mb-6">
-          This includes providing your banking information and verifying your identity.
+          This includes providing your banking information and verifying your
+          identity.
         </p>
         <button
           onClick={handleGenerateLink}
@@ -329,7 +334,9 @@ export function StripeConnectSetup({
         aria-live="polite"
       >
         <div className="mb-4">
-          <h3 className="text-status-warning font-semibold">Account under review</h3>
+          <h3 className="text-status-warning font-semibold">
+            Account under review
+          </h3>
         </div>
         <p className="text-status-warning mb-6">
           Your stripe account is currently under review. This typically takes
@@ -421,4 +428,3 @@ export function StripeConnectSetup({
     </>
   );
 }
-

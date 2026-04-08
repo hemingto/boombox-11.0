@@ -45,6 +45,16 @@ export async function getDriverChecklistStatus(
             },
           },
         },
+        haulingPartnerAssociations: {
+          include: {
+            haulingPartner: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
         vehicles: true,
         availability: true,
       },
@@ -54,8 +64,11 @@ export async function getDriverChecklistStatus(
       throw new Error('Driver not found');
     }
 
-    // Check if driver has an active moving partner
     const hasMovingPartner = driver.movingPartnerAssociations.some(
+      assoc => assoc.isActive
+    );
+
+    const hasHaulingPartner = driver.haulingPartnerAssociations.some(
       assoc => assoc.isActive
     );
 
@@ -90,6 +103,7 @@ export async function getDriverChecklistStatus(
       checklistStatus,
       isApproved: !!driver.isApproved,
       hasMovingPartner,
+      hasHaulingPartner,
       applicationComplete: !!driver.applicationComplete,
       activeMessageShown: !!driver.activeMessageShown,
     };
@@ -242,9 +256,12 @@ export async function getHaulerChecklistStatus(
     ).length;
 
     const checklistStatus: HaulerChecklistStatus = {
-      companyDescription: !!hauler.description,
       companyPicture: !!hauler.imageSrc,
-      routePricing: !!(hauler.priceSsfToStockton || hauler.priceStocktonToSsf),
+      phoneVerified: !!hauler.verifiedPhoneNumber,
+      usdotNumber: !!hauler.usdotNumber,
+      californiaMcpNumber: !!hauler.californiaMcpNumber,
+      insuranceAdded: hauler.insuranceDocumentUrls.length > 0,
+      routePricing: !!hauler.pricePerBoombox,
       approvedDrivers: approvedDriverCount > 0,
       approvedVehicles: approvedVehicleCount > 0,
       calendarSet,

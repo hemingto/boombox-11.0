@@ -537,6 +537,7 @@ model Vehicle {
   vehicleCategory     String?
   vehicleType         String?
   unitCapacity        Int?
+  boomboxCapacity     Int?
   interiorPhoto       String?
   insuranceExpiration DateTime?
   driver              Driver?         @relation(fields: [driverId], references: [id])
@@ -1071,7 +1072,13 @@ model HaulingPartner {
 
   priceSsfToStockton              Float?
   priceStocktonToSsf              Float?
+  pricePerBoombox                 Float?
   trailerUnitCapacity             Int                                @default(4)
+
+  verifiedPhoneNumber             Boolean                            @default(false)
+  usdotNumber                     String?
+  californiaMcpNumber             String?
+  insuranceDocumentUrls           String[]
 
   onfleetTeamId                   String?
   isApproved                      Boolean                            @default(false)

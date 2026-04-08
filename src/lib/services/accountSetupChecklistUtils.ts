@@ -27,8 +27,11 @@ export interface DriverChecklistStatus {
 }
 
 export interface HaulerChecklistStatus {
-  companyDescription: boolean;
   companyPicture: boolean;
+  phoneVerified: boolean;
+  usdotNumber: boolean;
+  californiaMcpNumber: boolean;
+  insuranceAdded: boolean;
   routePricing: boolean;
   approvedDrivers: boolean;
   approvedVehicles: boolean;
@@ -47,6 +50,7 @@ export interface ChecklistData {
   isApproved: boolean;
   status?: 'PENDING' | 'APPROVED' | 'ACTIVE' | 'INACTIVE';
   hasMovingPartner?: boolean;
+  hasHaulingPartner?: boolean;
   applicationComplete?: boolean;
   activeMessageShown?: boolean;
 }
@@ -75,26 +79,26 @@ export function isDriverChecklist(
 export function isHaulerChecklist(
   checklist: ChecklistStatus
 ): checklist is HaulerChecklistStatus {
-  return 'routePricing' in checklist;
+  return 'usdotNumber' in checklist;
 }
 
 /**
  * Checks if checklist is complete (all required items checked)
  * @param hasMovingPartner - For drivers, indicates if they're linked to a moving partner.
- *   If true, vehicle/schedule/bank items are not required (handled by the partner).
- *   If false, these items must be completed by the driver.
+ * @param hasHaulingPartner - For drivers, indicates if they're linked to a hauling partner.
+ *   If either is true, vehicle/schedule/bank items are not required (handled by the partner).
  */
 export function isChecklistComplete(
   checklist: ChecklistStatus,
   userType: 'driver' | 'mover' | 'hauler',
   isApproved: boolean = false,
-  hasMovingPartner: boolean = false
+  hasMovingPartner: boolean = false,
+  hasHaulingPartner: boolean = false
 ): boolean {
   if (userType === 'mover' && isMoverChecklist(checklist)) {
-    // For movers, check all items except approvedDrivers if not approved
     return Object.entries(checklist).every(([key, value]) => {
       if (key === 'approvedDrivers' && !isApproved) {
-        return true; // Skip this check if mover not approved
+        return true;
       }
       return value === true;
     });
@@ -106,20 +110,18 @@ export function isChecklistComplete(
       return value === true;
     });
   } else if (userType === 'driver' && isDriverChecklist(checklist)) {
-    // Core items required for all drivers
     const coreItemsComplete =
       checklist.profilePicture &&
       checklist.driversLicense &&
       checklist.phoneVerified &&
       checklist.termsOfServiceReviewed;
 
-    // If driver has a moving partner, core items are sufficient
-    // (vehicle, schedule, bank are managed by the moving partner)
-    if (hasMovingPartner) {
+    // If driver is linked to a moving or hauling partner, core items are sufficient
+    // (vehicle, schedule, bank are managed by the partner)
+    if (hasMovingPartner || hasHaulingPartner) {
       return coreItemsComplete;
     }
 
-    // Independent drivers must also complete vehicle, schedule, and bank account
     return (
       coreItemsComplete &&
       !!checklist.approvedVehicle &&

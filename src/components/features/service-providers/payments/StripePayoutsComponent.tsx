@@ -2,9 +2,9 @@
  * @fileoverview Stripe payouts and payment history component for service providers
  * Displays comprehensive payment information including balance summary, payment history,
  * payout history, with filtering, pagination, and status tracking.
- * 
+ *
  * @source boombox-10.0/src/app/components/mover-account/stripepayoutscomponent.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * - Displays balance summary (total, available, pending, in-transit)
  * - Shows payment history with pagination and status filtering
@@ -14,24 +14,24 @@
  * - Pagination for large datasets (10 items per page)
  * - Empty states for no data and no Stripe account
  * - Real-time balance information from Stripe API
- * 
+ *
  * API ROUTES UPDATED:
  * - Old: /api/stripe/connect/payouts → New: /api/payments/connect/payouts
  * - Old: /api/stripe/connect/payment-history → New: /api/payments/connect/payment-history
  * - Old: /api/stripe/connect/balance → New: /api/payments/connect/balance
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Replaced bg-slate-100 with semantic surface colors (bg-surface-tertiary)
  * - Applied status badge classes (badge-success, badge-error, badge-warning)
  * - Replaced text-zinc-400 with semantic text colors (text-text-tertiary)
  * - Updated error colors (bg-red-100, text-red-500 → bg-status-error/10, text-status-error)
  * - Applied hover states with semantic colors (hover:bg-surface-hover)
- * 
+ *
  * BUSINESS LOGIC EXTRACTED:
  * - Replaced inline formatCurrency with centralized utility from currencyUtils
  * - Replaced inline click-outside handler with useClickOutside hook
  * - Removed debug console.logs for production readiness
- * 
+ *
  * ACCESSIBILITY IMPROVEMENTS:
  * - Added ARIA labels for all interactive elements
  * - Added role="status" for loading states
@@ -40,8 +40,8 @@
  * - Added aria-label for pagination buttons
  * - Proper button disabled states with aria-disabled
  * - Semantic table structure with proper roles
- * 
- * @refactor 
+ *
+ * @refactor
  * - Migrated to service-providers/payments feature folder
  * - Updated API routes to new payments domain structure
  * - Applied design system colors and semantic tokens throughout
@@ -88,7 +88,7 @@ interface BalanceInfo {
 
 interface StripePayoutsComponentProps {
   userId: string;
-  userType: 'driver' | 'mover';
+  userType: 'driver' | 'mover' | 'hauler';
 }
 
 const filterOptions = [
@@ -229,9 +229,7 @@ export function StripePayoutsComponent({
     const items = selectedView === 'payouts' ? payouts : payments;
 
     if (selectedFilter === 'all') return items;
-    return items.filter(
-      (item) => item.status.toLowerCase() === selectedFilter
-    );
+    return items.filter(item => item.status.toLowerCase() === selectedFilter);
   }, [payouts, payments, selectedFilter, selectedView]);
 
   const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
@@ -366,13 +364,13 @@ export function StripePayoutsComponent({
             aria-expanded={isFilterOpen}
             aria-haspopup="listbox"
             aria-label={`View filter: ${
-              viewOptions.find((option) => option.value === selectedView)
+              viewOptions.find(option => option.value === selectedView)
                 ?.label || 'View'
             }`}
           >
             <div className="flex justify-between items-center">
               <span className="text-sm text-text-primary">
-                {viewOptions.find((option) => option.value === selectedView)
+                {viewOptions.find(option => option.value === selectedView)
                   ?.label || 'View'}
               </span>
               <svg
@@ -404,9 +402,7 @@ export function StripePayoutsComponent({
                   key={option.value}
                   className={`flex justify-between items-center p-3 cursor-pointer hover:bg-surface-tertiary active:bg-surface-secondary ${
                     index === 0 ? 'rounded-t-md' : ''
-                  } ${
-                    index === viewOptions.length - 1 ? 'rounded-b-md' : ''
-                  }`}
+                  } ${index === viewOptions.length - 1 ? 'rounded-b-md' : ''}`}
                   onClick={() => {
                     handleViewChange(option.value);
                     setIsFilterOpen(false);
@@ -436,7 +432,9 @@ export function StripePayoutsComponent({
             aria-hidden="true"
           />
           <h3 className="text-lg text-text-tertiary font-medium mb-2">
-            {!hasStripeAccount ? 'Please set up your account' : 'No payments yet'}
+            {!hasStripeAccount
+              ? 'Please set up your account'
+              : 'No payments yet'}
           </h3>
           <p className="text-text-tertiary">
             {!hasStripeAccount
@@ -445,25 +443,44 @@ export function StripePayoutsComponent({
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-md" role="table" aria-label={`${selectedView === 'payouts' ? 'Payouts' : 'Payments'} history`}>
+        <div
+          className="bg-white rounded-md"
+          role="table"
+          aria-label={`${selectedView === 'payouts' ? 'Payouts' : 'Payments'} history`}
+        >
           {/* Table Header */}
-          <div className="grid grid-cols-4 border-b border-border py-3 px-4" role="row">
-            <div className="text-sm font-medium text-text-tertiary" role="columnheader">
+          <div
+            className="grid grid-cols-4 border-b border-border py-3 px-4"
+            role="row"
+          >
+            <div
+              className="text-sm font-medium text-text-tertiary"
+              role="columnheader"
+            >
               {selectedView === 'payouts' ? 'Date' : 'Date'}
             </div>
-            <div className="text-sm font-medium text-text-tertiary" role="columnheader">
+            <div
+              className="text-sm font-medium text-text-tertiary"
+              role="columnheader"
+            >
               {selectedView === 'payouts' ? 'Destination' : 'Description'}
             </div>
-            <div className="text-sm font-medium text-text-tertiary" role="columnheader">
+            <div
+              className="text-sm font-medium text-text-tertiary"
+              role="columnheader"
+            >
               Status
             </div>
-            <div className="text-sm font-medium text-text-tertiary text-right" role="columnheader">
+            <div
+              className="text-sm font-medium text-text-tertiary text-right"
+              role="columnheader"
+            >
               Amount
             </div>
           </div>
 
           {/* Table Content */}
-          {paginatedItems.map((item) => (
+          {paginatedItems.map(item => (
             <div
               key={item.id}
               className="grid grid-cols-4 items-center py-4 border-b border-border last:border-none px-4"
@@ -483,7 +500,9 @@ export function StripePayoutsComponent({
                 ) : item.status === 'Failed' ? (
                   <div className="badge-error w-fit text-xs">{item.status}</div>
                 ) : (
-                  <div className="badge-warning w-fit text-xs">{item.status}</div>
+                  <div className="badge-warning w-fit text-xs">
+                    {item.status}
+                  </div>
                 )}
               </div>
               <div className="text-sm font-semibold text-right" role="cell">
@@ -502,7 +521,7 @@ export function StripePayoutsComponent({
           aria-label="Pagination"
         >
           <button
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
             className={`absolute left-0 rounded-full bg-surface-tertiary active:bg-surface-hover p-2 ${
               currentPage === 1
@@ -512,7 +531,10 @@ export function StripePayoutsComponent({
             aria-label="Previous page"
             aria-disabled={currentPage === 1}
           >
-            <ChevronLeftIcon className="w-4 h-4 text-gray-600" aria-hidden="true" />
+            <ChevronLeftIcon
+              className="w-4 h-4 text-gray-600"
+              aria-hidden="true"
+            />
           </button>
 
           <span className="text-sm" aria-live="polite" aria-atomic="true">
@@ -521,7 +543,7 @@ export function StripePayoutsComponent({
 
           <button
             onClick={() =>
-              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+              setCurrentPage(prev => Math.min(prev + 1, totalPages))
             }
             disabled={currentPage === totalPages}
             className={`absolute right-0 rounded-full bg-surface-tertiary active:bg-surface-hover p-2 ${
@@ -532,11 +554,13 @@ export function StripePayoutsComponent({
             aria-label="Next page"
             aria-disabled={currentPage === totalPages}
           >
-            <ChevronRightIcon className="w-4 h-4 text-gray-600" aria-hidden="true" />
+            <ChevronRightIcon
+              className="w-4 h-4 text-gray-600"
+              aria-hidden="true"
+            />
           </button>
         </nav>
       )}
     </div>
   );
 }
-

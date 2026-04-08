@@ -1,9 +1,9 @@
 /**
  * @fileoverview Displays upcoming jobs and packing supply routes for service providers
  * Shows appointments with Google Maps integration, filtering, pagination, and status management.
- * 
+ *
  * @source boombox-10.0/src/app/components/mover-account/upcomingjobs.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * - Displays upcoming jobs for drivers and moving partners with map previews
  * - Provides filtering options: Next Up, Today, Unassigned (for movers)
@@ -13,12 +13,12 @@
  * - Status badges for driver assignment and route status
  * - Links to detailed calendar view
  * - Shows packing supply route metrics (stops, estimated payout)
- * 
+ *
  * API ROUTES USED:
  * - POST /api/orders/appointments/[id]/mover-driver-cancel - Cancel appointment
  * - GET /api/moving-partners/[id]/approved-drivers - Fetch drivers for assignment
  * - POST /api/orders/appointments/[id]/assign-driver - Assign driver
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Replaced bg-slate-100 with semantic surface colors (bg-surface-secondary, bg-surface-tertiary)
  * - Applied status badge classes (badge-success, badge-error, badge-warning, badge-info)
@@ -27,7 +27,7 @@
  * - Applied ring colors (ring-slate-100 → ring-border)
  * - Updated error styling (bg-red-100, text-red-500 → bg-status-error/10, text-status-error)
  * - Updated warning styling (bg-amber-50, text-amber-600 → bg-status-warning/10, text-status-warning)
- * 
+ *
  * ACCESSIBILITY IMPROVEMENTS:
  * - Added ARIA labels for all interactive elements
  * - Added role="alert" for error messages
@@ -36,7 +36,7 @@
  * - Added role="button" for clickable elements
  * - Proper button disabled states with aria-disabled
  * - Screen reader announcements for dynamic content
- * 
+ *
  * @refactor Data fetching moved to parent page via useJobsPageData hook.
  * Component now accepts appointments as props for coordinated page-level loading.
  */
@@ -68,7 +68,7 @@ import type { UpcomingAppointment } from '@/hooks/useJobsPageData';
 export type { UpcomingAppointment };
 
 interface UpcomingJobsProps {
-  userType: 'mover' | 'driver';
+  userType: 'mover' | 'driver' | 'hauler';
   userId: string;
   /** Upcoming appointments to display */
   appointments: UpcomingAppointment[];
@@ -78,7 +78,12 @@ interface UpcomingJobsProps {
 
 type FilterOption = 'next-up' | 'today' | 'unassigned';
 
-export function UpcomingJobs({ userType, userId, appointments, onAppointmentsChange }: UpcomingJobsProps) {
+export function UpcomingJobs({
+  userType,
+  userId,
+  appointments,
+  onAppointmentsChange,
+}: UpcomingJobsProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedAppointment, setSelectedAppointment] =
     useState<UpcomingAppointment | null>(null);
@@ -103,21 +108,26 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
   );
   // Driver assignment modal state
   const [isAssignDriverModalOpen, setIsAssignDriverModalOpen] = useState(false);
-  const [appointmentToAssign, setAppointmentToAssign] = useState<UpcomingAppointment | null>(null);
-  const [availableDrivers, setAvailableDrivers] = useState<Array<{
-    id: number;
-    firstName: string;
-    lastName: string;
-    phoneNumber: string | null;
-    onfleetWorkerId: string | null;
-    profilePicture: string | null;
-    isAvailable?: boolean;
-    conflictReason?: string;
-  }>>([]);
+  const [appointmentToAssign, setAppointmentToAssign] =
+    useState<UpcomingAppointment | null>(null);
+  const [availableDrivers, setAvailableDrivers] = useState<
+    Array<{
+      id: number;
+      firstName: string;
+      lastName: string;
+      phoneNumber: string | null;
+      onfleetWorkerId: string | null;
+      profilePicture: string | null;
+      isAvailable?: boolean;
+      conflictReason?: string;
+    }>
+  >([]);
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
   const [isLoadingDrivers, setIsLoadingDrivers] = useState(false);
   const [isAssigningDriver, setIsAssigningDriver] = useState(false);
-  const [assignDriverError, setAssignDriverError] = useState<string | null>(null);
+  const [assignDriverError, setAssignDriverError] = useState<string | null>(
+    null
+  );
   const filterRef = useRef<HTMLDivElement>(null);
   const itemsPerPage = 5;
 
@@ -125,7 +135,7 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
   useClickOutside(filterRef, () => setIsFilterOpen(false));
 
   const filteredAppointments = appointments
-    .filter((appointment) => {
+    .filter(appointment => {
       // Filter out completed appointments (handle case variations)
       const status = appointment.status?.toLowerCase();
       if (status === 'complete' || status === 'completed') {
@@ -178,36 +188,39 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
 
   // Geocode location to coordinates for each appointment
   useEffect(() => {
-    filteredAppointments.forEach((appointment) => {
+    filteredAppointments.forEach(appointment => {
       if (
         !mapCenters[appointment.id] &&
         geocodingStatus[appointment.id] !== 'pending'
       ) {
-        setGeocodingStatus((prev) => ({ ...prev, [appointment.id]: 'pending' }));
+        setGeocodingStatus(prev => ({ ...prev, [appointment.id]: 'pending' }));
 
         const geocoder = new google.maps.Geocoder();
-        geocoder.geocode({ address: appointment.address }, (results, status) => {
-          if (status === 'OK' && results && results.length > 0) {
-            const { lat, lng } = results[0].geometry.location;
-            setMapCenters((prev) => ({
-              ...prev,
-              [appointment.id]: { lat: lat(), lng: lng() },
-            }));
-            setGeocodingStatus((prev) => ({
-              ...prev,
-              [appointment.id]: 'success',
-            }));
-          } else {
-            console.error(
-              `Geocoding failed for appointment ${appointment.id}:`,
-              status
-            );
-            setGeocodingStatus((prev) => ({
-              ...prev,
-              [appointment.id]: 'error',
-            }));
+        geocoder.geocode(
+          { address: appointment.address },
+          (results, status) => {
+            if (status === 'OK' && results && results.length > 0) {
+              const { lat, lng } = results[0].geometry.location;
+              setMapCenters(prev => ({
+                ...prev,
+                [appointment.id]: { lat: lat(), lng: lng() },
+              }));
+              setGeocodingStatus(prev => ({
+                ...prev,
+                [appointment.id]: 'success',
+              }));
+            } else {
+              console.error(
+                `Geocoding failed for appointment ${appointment.id}:`,
+                status
+              );
+              setGeocodingStatus(prev => ({
+                ...prev,
+                [appointment.id]: 'error',
+              }));
+            }
           }
-        });
+        );
       }
     });
   }, [filteredAppointments, geocodingStatus, mapCenters]);
@@ -227,19 +240,38 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
     );
   };
 
-  const getDriverStatus = (appointment: UpcomingAppointment, onAssignClick?: () => void) => {
+  const getDriverStatus = (
+    appointment: UpcomingAppointment,
+    onAssignClick?: () => void
+  ) => {
     if (isPackingSupplyRoute(appointment)) {
       const routeStatus = appointment.routeStatus;
       if (routeStatus === 'completed') {
-        return <span className="bg-status-bg-success text-status-success px-3 py-2 rounded-md text-xs font-medium">Route Completed</span>;
+        return (
+          <span className="bg-status-bg-success text-status-success px-3 py-2 rounded-md text-xs font-medium">
+            Route Completed
+          </span>
+        );
       } else if (routeStatus === 'in_progress') {
-        return <span className="bg-status-bg-info text-status-info px-3 py-2 rounded-md text-xs font-medium">Route Active</span>;
+        return (
+          <span className="bg-status-bg-info text-status-info px-3 py-2 rounded-md text-xs font-medium">
+            Route Active
+          </span>
+        );
       }
-      return <span className="bg-status-bg-warning text-status-warning px-3 py-2 rounded-md text-xs font-medium">Route Pending</span>;
+      return (
+        <span className="bg-status-bg-warning text-status-warning px-3 py-2 rounded-md text-xs font-medium">
+          Route Pending
+        </span>
+      );
     }
 
     if (appointment.driver) {
-      return <span className="bg-status-bg-success text-status-success px-3 py-2 rounded-md text-xs font-medium">Driver Assigned</span>;
+      return (
+        <span className="bg-status-bg-success text-status-success px-3 py-2 rounded-md text-xs font-medium">
+          Driver Assigned
+        </span>
+      );
     }
     return (
       <button
@@ -250,6 +282,33 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
         Driver Unassigned
       </button>
     );
+  };
+
+  const getHaulJobStatus = (appointment: UpcomingAppointment) => {
+    const status = appointment.status;
+    switch (status) {
+      case 'IN_PROGRESS':
+      case 'LOADING':
+      case 'IN_TRANSIT':
+      case 'UNLOADING':
+        return (
+          <span className="bg-status-bg-info text-status-info px-3 py-2 rounded-md text-xs font-medium">
+            {status.replace('_', ' ')}
+          </span>
+        );
+      case 'SCHEDULED':
+        return (
+          <span className="bg-status-bg-success text-status-success px-3 py-2 rounded-md text-xs font-medium">
+            Scheduled
+          </span>
+        );
+      default:
+        return (
+          <span className="bg-status-bg-warning text-status-warning px-3 py-2 rounded-md text-xs font-medium">
+            {status || 'Pending'}
+          </span>
+        );
+    }
   };
 
   const handleMenuClick = (appointmentId: number) => {
@@ -281,7 +340,9 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
 
       if (response.ok) {
         // Update appointments via parent callback
-        onAppointmentsChange(appointments.filter((app) => app.id !== appointmentId));
+        onAppointmentsChange(
+          appointments.filter(app => app.id !== appointmentId)
+        );
         setOpenMenuId(null);
         setIsCancelModalOpen(false);
         setCancellationReason('');
@@ -302,7 +363,7 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
   // Fetch approved drivers for the moving partner with availability check
   const fetchApprovedDrivers = async () => {
     if (!appointmentToAssign) return;
-    
+
     setIsLoadingDrivers(true);
     setAssignDriverError(null);
     try {
@@ -310,14 +371,14 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
       const appointmentDate = new Date(appointmentToAssign.date).toISOString();
       const appointmentTime = new Date(appointmentToAssign.time).toISOString();
       const url = `/api/moving-partners/${userId}/approved-drivers?appointmentDate=${encodeURIComponent(appointmentDate)}&appointmentTime=${encodeURIComponent(appointmentTime)}`;
-      
+
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Failed to fetch drivers');
       }
       const data = await response.json();
       console.log('Approved drivers API response:', data);
-      
+
       // Extract driver data from the nested MovingPartnerDriver structure
       // Sort available drivers to the top
       const drivers = (data.approvedDrivers || [])
@@ -331,11 +392,12 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
           isAvailable: mpDriver.isAvailable ?? true, // Default to available if not provided
           conflictReason: mpDriver.conflictReason,
         }))
-        .sort((a: { isAvailable?: boolean }, b: { isAvailable?: boolean }) => 
-          (b.isAvailable ? 1 : 0) - (a.isAvailable ? 1 : 0)
+        .sort(
+          (a: { isAvailable?: boolean }, b: { isAvailable?: boolean }) =>
+            (b.isAvailable ? 1 : 0) - (a.isAvailable ? 1 : 0)
         );
       console.log('Extracted drivers with availability:', drivers);
-      
+
       setAvailableDrivers(drivers);
     } catch (error) {
       console.error('Error fetching drivers:', error);
@@ -370,9 +432,11 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
       }
 
       const data = await response.json();
-      
+
       // Update local state with assigned driver via parent callback
-      const assignedDriver = availableDrivers.find(d => d.id === parseInt(selectedDriverId));
+      const assignedDriver = availableDrivers.find(
+        d => d.id === parseInt(selectedDriverId)
+      );
       if (assignedDriver) {
         onAppointmentsChange(
           appointments.map(app =>
@@ -398,7 +462,9 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
       setAvailableDrivers([]);
     } catch (error) {
       console.error('Error assigning driver:', error);
-      setAssignDriverError(error instanceof Error ? error.message : 'Failed to assign driver');
+      setAssignDriverError(
+        error instanceof Error ? error.message : 'Failed to assign driver'
+      );
     } finally {
       setIsAssigningDriver(false);
     }
@@ -406,14 +472,34 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
 
   // Fetch drivers when assign driver modal opens
   useEffect(() => {
-    if (isAssignDriverModalOpen && userType === 'mover' && appointmentToAssign) {
+    if (
+      isAssignDriverModalOpen &&
+      userType === 'mover' &&
+      appointmentToAssign
+    ) {
       fetchApprovedDrivers();
     }
   }, [isAssignDriverModalOpen, userType, userId, appointmentToAssign]);
 
-  // Don't render the section if no appointments
+  const showDriverAssignmentToggle =
+    userType === 'mover' || userType === 'hauler';
+
   if (appointments.length === 0) {
-    return null;
+    return (
+      <div className="max-w-5xl lg:px-16 px-6 mx-auto">
+        <h2 className="text-2xl mb-8">Upcoming Jobs</h2>
+
+        {showDriverAssignmentToggle && (
+          <div className="flex justify-end mb-6">
+            <DriverAssignmentModeToggle userId={userId} userType={userType} />
+          </div>
+        )}
+
+        <div className="bg-white rounded-md shadow-custom-shadow p-8 text-center">
+          <p className="text-text-tertiary">No upcoming jobs scheduled.</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -511,12 +597,14 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
           )}
         </div>
 
-        {/* Driver Assignment Mode Toggle - Only for movers */}
-        {userType === 'mover' && <DriverAssignmentModeToggle userId={userId} />}
+        {/* Driver Assignment Mode Toggle - For movers and haulers */}
+        {showDriverAssignmentToggle && (
+          <DriverAssignmentModeToggle userId={userId} userType={userType} />
+        )}
       </div>
 
       <div className="space-y-4">
-        {paginatedAppointments.map((appointment) => {
+        {paginatedAppointments.map(appointment => {
           const appointmentTime = new Date(appointment.time);
           const displayTime = subHours(appointmentTime, 1);
           const isGeocoding = geocodingStatus[appointment.id] === 'pending';
@@ -564,10 +652,12 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
 
                 <div className="flex-1 h-36 relative">
                   <div className="absolute top-0 right-0 flex items-center gap-4">
-                    {userType !== 'driver' && getDriverStatus(appointment, () => {
-                      setAppointmentToAssign(appointment);
-                      setIsAssignDriverModalOpen(true);
-                    })}
+                    {userType === 'hauler' && getHaulJobStatus(appointment)}
+                    {userType === 'mover' &&
+                      getDriverStatus(appointment, () => {
+                        setAppointmentToAssign(appointment);
+                        setIsAssignDriverModalOpen(true);
+                      })}
 
                     <div className="relative">
                       <button
@@ -618,15 +708,23 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
                   <div className="h-full flex items-center">
                     <div>
                       <h3 className="text-lg font-medium mb-1">
-                        {appointment.address}
+                        {appointment.description && userType === 'hauler'
+                          ? appointment.description
+                          : appointment.address}
                       </h3>
                       <p className="text-text-tertiary mb-1">
                         {appointment.appointmentType}
+                        {userType === 'hauler' && appointment.planType && (
+                          <span className="ml-1">• {appointment.planType}</span>
+                        )}
                       </p>
                       {isPackingSupplyRoute(appointment) ? (
                         <div className="space-y-1">
                           <p className="text-text-tertiary">
-                            {format(displayTime, "MMMM do, yyyy 'delivery route'")}
+                            {format(
+                              displayTime,
+                              "MMMM do, yyyy 'delivery route'"
+                            )}
                           </p>
                           <p className="text-sm text-text-tertiary">
                             {appointment.completedStops || 0}/
@@ -639,9 +737,20 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
                           </p>
                         </div>
                       ) : (
-                        <p className="text-text-tertiary">
-                          {format(displayTime, "MMMM do, yyyy 'starting at' h:mmaaa")}
-                        </p>
+                        <>
+                          <p className="text-text-tertiary">
+                            {format(
+                              displayTime,
+                              "MMMM do, yyyy 'starting at' h:mmaaa"
+                            )}
+                          </p>
+                          {userType === 'hauler' && (
+                            <p className="text-sm text-text-tertiary">
+                              {appointment.numberOfUnits} unit
+                              {appointment.numberOfUnits !== 1 ? 's' : ''}
+                            </p>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -719,7 +828,7 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
         <div className="space-y-4">
           <div>
             <div className="space-y-2">
-              {cancelationOptions.map((option) => (
+              {cancelationOptions.map(option => (
                 <label
                   key={option}
                   className={`flex items-center p-4 border-2 rounded-md cursor-pointer ${
@@ -733,7 +842,7 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
                     name="cancellation-reason"
                     value={option}
                     checked={cancellationReason === option}
-                    onChange={(e) => {
+                    onChange={e => {
                       setCancellationReason(e.target.value);
                       setCancellationError(null);
                     }}
@@ -754,7 +863,8 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
           <div className="bg-status-bg-warning border border-border-warning rounded-md p-4">
             <p className="text-status-warning text-sm">
               Once canceled, the job will be removed from your schedule and
-              reassigned to another mover. Cancellations affect your rating and your ability to accept future jobs.
+              reassigned to another mover. Cancellations affect your rating and
+              your ability to accept future jobs.
             </p>
           </div>
 
@@ -827,14 +937,18 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
               <div className="w-full py-2.5 px-3 bg-surface-tertiary rounded-md flex justify-between items-center">
                 <div className="flex items-center space-x-2">
                   <Spinner size="sm" variant="secondary" />
-                  <span className="text-base text-text-secondary">Loading drivers...</span>
+                  <span className="text-base text-text-secondary">
+                    Loading drivers...
+                  </span>
                 </div>
                 <ChevronDownIcon className="w-6 h-6 text-text-secondary flex-shrink-0" />
               </div>
             </div>
           ) : availableDrivers.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-text-tertiary">No approved drivers available.</p>
+              <p className="text-text-tertiary">
+                No approved drivers available.
+              </p>
               <p className="text-sm text-text-tertiary mt-1">
                 Please add and approve drivers in your account settings.
               </p>
@@ -846,23 +960,26 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
               options={availableDrivers.map(driver => ({
                 value: driver.id.toString(),
                 label: `${driver.firstName} ${driver.lastName}`,
-                description: driver.isAvailable === false 
-                  ? driver.conflictReason 
-                  : driver.phoneNumber 
-                    ? formatPhoneNumberForDisplay(driver.phoneNumber) 
-                    : undefined,
+                description:
+                  driver.isAvailable === false
+                    ? driver.conflictReason
+                    : driver.phoneNumber
+                      ? formatPhoneNumberForDisplay(driver.phoneNumber)
+                      : undefined,
                 disabled: driver.isAvailable === false,
-                metadata: { 
+                metadata: {
                   profilePicture: driver.profilePicture,
                   isAvailable: driver.isAvailable,
                   conflictReason: driver.conflictReason,
                 },
               }))}
               value={selectedDriverId}
-              onChange={(value) => setSelectedDriverId(value)}
+              onChange={value => setSelectedDriverId(value)}
               fullWidth
               renderOption={(option: SelectOption) => (
-                <div className={`flex items-center space-x-3 ${option.disabled ? 'opacity-60' : ''}`}>
+                <div
+                  className={`flex items-center space-x-3 ${option.disabled ? 'opacity-60' : ''}`}
+                >
                   {option.metadata?.profilePicture ? (
                     <Image
                       src={option.metadata.profilePicture}
@@ -874,16 +991,23 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
                   ) : (
                     <div className="w-8 h-8 rounded-full bg-surface-tertiary flex items-center justify-center flex-shrink-0">
                       <span className="text-xs font-medium text-text-tertiary">
-                        {option.label.split(' ').map(n => n[0]).join('')}
+                        {option.label
+                          .split(' ')
+                          .map(n => n[0])
+                          .join('')}
                       </span>
                     </div>
                   )}
                   <div className="flex flex-col">
-                    <span className={`text-sm ${option.disabled ? 'text-text-tertiary' : 'text-text-primary'}`}>
+                    <span
+                      className={`text-sm ${option.disabled ? 'text-text-tertiary' : 'text-text-primary'}`}
+                    >
                       {option.label}
                     </span>
                     {option.description && (
-                      <span className={`text-xs ${option.disabled ? 'text-status-warning' : 'text-text-tertiary'}`}>
+                      <span
+                        className={`text-xs ${option.disabled ? 'text-status-warning' : 'text-text-tertiary'}`}
+                      >
                         {option.description}
                       </span>
                     )}
@@ -903,7 +1027,10 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
                   ) : (
                     <div className="w-6 h-6 rounded-full bg-surface-tertiary flex items-center justify-center flex-shrink-0">
                       <span className="text-2xs font-medium text-text-tertiary">
-                        {option.label.split(' ').map(n => n[0]).join('')}
+                        {option.label
+                          .split(' ')
+                          .map(n => n[0])
+                          .join('')}
                       </span>
                     </div>
                   )}
@@ -914,7 +1041,7 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
           )}
 
           {assignDriverError && (
-            <div 
+            <div
               className="mt-4 p-3 text-sm bg-status-bg-error text-status-error rounded-md"
               role="alert"
               aria-live="polite"
@@ -939,7 +1066,11 @@ export function UpcomingJobs({ userType, userId, appointments, onAppointmentsCha
           </Button>
           <Button
             onClick={assignDriver}
-            disabled={!selectedDriverId || isAssigningDriver || availableDrivers.length === 0}
+            disabled={
+              !selectedDriverId ||
+              isAssigningDriver ||
+              availableDrivers.length === 0
+            }
             aria-label="Assign selected driver to job"
           >
             {isAssigningDriver ? 'Assigning...' : 'Assign Driver'}

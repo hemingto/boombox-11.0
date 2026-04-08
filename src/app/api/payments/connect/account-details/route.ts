@@ -14,7 +14,7 @@
  * - Mover payment dashboard
  * - Admin payment monitoring
  * - Financial reporting interfaces
- * 
+ *
  * INTEGRATION NOTES:
  * - Critical Stripe Connect integration for account status
  * - Combines multiple Stripe API calls (accounts, balance, payouts)
@@ -38,35 +38,36 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const userId = searchParams.get('userId');
     const userType = searchParams.get('userType');
-    
+
     // Validate request parameters
     const validationResult = StripeConnectUserRequestSchema.safeParse({
       userId,
-      userType
+      userType,
     });
 
     if (!validationResult.success) {
       return NextResponse.json(
-        { error: 'Invalid request parameters', details: validationResult.error.issues },
+        {
+          error: 'Invalid request parameters',
+          details: validationResult.error.issues,
+        },
         { status: 400 }
       );
     }
 
     if (!userId || !userType) {
       return NextResponse.json(
-        { error: 'User ID and type are required' }, 
+        { error: 'User ID and type are required' },
         { status: 400 }
       );
     }
 
-    if (userType !== 'driver' && userType !== 'mover') {
-      return NextResponse.json(
-        { error: 'Invalid user type' }, 
-        { status: 400 }
-      );
+    if (!userType || !['driver', 'mover', 'hauler'].includes(userType)) {
+      return NextResponse.json({ error: 'Invalid user type' }, { status: 400 });
     }
 
-    const parsedUserId = typeof userId === 'string' ? parseInt(userId, 10) : userId;
+    const parsedUserId =
+      typeof userId === 'string' ? parseInt(userId, 10) : userId;
     if (isNaN(parsedUserId)) {
       return NextResponse.json(
         { error: 'Invalid user ID format' },
@@ -84,18 +85,28 @@ export async function GET(request: NextRequest) {
         select: {
           firstName: true,
           lastName: true,
-          stripeConnectAccountId: true
-        }
+          stripeConnectAccountId: true,
+        },
       });
       user = driver;
       accountName = driver ? `${driver.firstName} ${driver.lastName}` : '';
+    } else if (userType === 'hauler') {
+      const haulingPartner = await prisma.haulingPartner.findUnique({
+        where: { id: parsedUserId },
+        select: {
+          name: true,
+          stripeConnectAccountId: true,
+        },
+      });
+      user = haulingPartner;
+      accountName = haulingPartner?.name || '';
     } else {
       const movingPartner = await prisma.movingPartner.findUnique({
         where: { id: parsedUserId },
         select: {
           name: true,
-          stripeConnectAccountId: true
-        }
+          stripeConnectAccountId: true,
+        },
       });
       user = movingPartner;
       accountName = movingPartner?.name || '';
@@ -112,17 +123,19 @@ export async function GET(request: NextRequest) {
     const account = await stripe.accounts.retrieve(user.stripeConnectAccountId);
 
     // Calculate comprehensive balance using centralized utility
-    const balanceInfo = await calculateStripeBalance(user.stripeConnectAccountId);
+    const balanceInfo = await calculateStripeBalance(
+      user.stripeConnectAccountId
+    );
 
     // Format the connected date
-    const connectedDate = account.created 
+    const connectedDate = account.created
       ? new Date(account.created * 1000).toLocaleDateString('en-US', {
           year: 'numeric',
           month: 'long',
-          day: 'numeric'
+          day: 'numeric',
         })
       : 'Unknown';
-    
+
     return NextResponse.json({
       accountName,
       balance: balanceInfo.total,
@@ -131,13 +144,15 @@ export async function GET(request: NextRequest) {
       connectedDate: connectedDate,
       detailsSubmitted: account.details_submitted,
       payoutsEnabled: account.payouts_enabled,
-      chargesEnabled: account.charges_enabled
+      chargesEnabled: account.charges_enabled,
     });
-    
   } catch (error: any) {
-    console.error("Error fetching Stripe account details:", error);
+    console.error('Error fetching Stripe account details:', error);
     return NextResponse.json(
-      { error: "Failed to fetch Stripe account details", details: error.message }, 
+      {
+        error: 'Failed to fetch Stripe account details',
+        details: error.message,
+      },
       { status: 500 }
     );
   }

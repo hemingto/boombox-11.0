@@ -8,7 +8,7 @@
  * - Conditionally renders options based on user type (driver vs mover) and approval status
  * - Fetches moving partner linkage status for drivers
  * - Fetches mover approval status
- * - Provides quick access to calendar, Onfleet dashboard, and all account sections
+ * - Provides quick access to calendar and all account sections
  * - Conditionally shows/hides options based on driver's moving partner status
  *
  * API ROUTES UPDATED:
@@ -65,6 +65,11 @@ interface MoverAccountHomepageProps {
 interface MovingPartnerStatus {
   isLinkedToMovingPartner: boolean;
   movingPartner: {
+    id: number;
+    name: string;
+  } | null;
+  isLinkedToHaulingPartner: boolean;
+  haulingPartner: {
     id: number;
     name: string;
   } | null;
@@ -197,28 +202,6 @@ export function MoverAccountHomepage({
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-text-primary">{title}</h1>
         <div className="flex items-center gap-2">
-          {(userType === 'mover' || userType === 'hauler') &&
-            (shouldDisableButtons ? (
-              <Button
-                variant="secondary"
-                disabled
-                title="Complete account setup and get approved to access Onfleet Dashboard"
-                className="bg-surface-disabled text-text-disabled"
-              >
-                Onfleet Dashboard
-              </Button>
-            ) : (
-              <Link
-                href="https://onfleet.com/login"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Open Onfleet Dashboard in new tab"
-              >
-                <Button variant="secondary" className="text-text-primary">
-                  Onfleet Dashboard
-                </Button>
-              </Link>
-            ))}
           {shouldDisableButtons ? (
             <Button
               variant="primary"
@@ -272,9 +255,10 @@ export function MoverAccountHomepage({
               href={`${baseUrl}/jobs`}
             />
 
-            {/* Work Schedule - Hidden for drivers linked to moving partners */}
+            {/* Work Schedule - Hidden for drivers linked to partners */}
             {((userType === 'driver' &&
-              !movingPartnerStatus?.isLinkedToMovingPartner) ||
+              !movingPartnerStatus?.isLinkedToMovingPartner &&
+              !movingPartnerStatus?.isLinkedToHaulingPartner) ||
               userType === 'mover' ||
               userType === 'hauler') && (
               <MoverAccountOptions
@@ -287,9 +271,10 @@ export function MoverAccountHomepage({
               />
             )}
 
-            {/* Vehicle Information - Hidden for drivers linked to moving partners */}
+            {/* Vehicle Information - Hidden for drivers linked to partners */}
             {((userType === 'driver' &&
-              !movingPartnerStatus?.isLinkedToMovingPartner) ||
+              !movingPartnerStatus?.isLinkedToMovingPartner &&
+              !movingPartnerStatus?.isLinkedToHaulingPartner) ||
               userType === 'mover' ||
               userType === 'hauler') && (
               <MoverAccountOptions
@@ -320,11 +305,12 @@ export function MoverAccountHomepage({
               />
             )}
 
-            {/* Payment - Hidden for drivers linked to moving partners */}
+            {/* Payment - Hidden for drivers linked to partners */}
             {(userType === 'mover' ||
               userType === 'hauler' ||
               (userType === 'driver' &&
-                !movingPartnerStatus?.isLinkedToMovingPartner)) && (
+                !movingPartnerStatus?.isLinkedToMovingPartner &&
+                !movingPartnerStatus?.isLinkedToHaulingPartner)) && (
               <MoverAccountOptions
                 icon={<CreditCardIcon className="h-8 w-8 text-text-primary" />}
                 title="Payment"
@@ -350,21 +336,31 @@ export function MoverAccountHomepage({
               />
             )}
 
-            {/* Coverage Area - Always visible */}
-            <MoverAccountOptions
-              icon={<MapIcon className="h-8 w-8 text-text-primary" />}
-              title="Coverage Area"
-              description="View the locations we serve"
-              href={`${baseUrl}/coverage-area`}
-            />
+            {/* Coverage Area / Route Information - Always visible */}
+            {userType === 'hauler' ? (
+              <MoverAccountOptions
+                icon={<MapIcon className="h-8 w-8 text-text-primary" />}
+                title="Route Information"
+                description="View your hauling route between warehouses"
+                href={`${baseUrl}/route-information`}
+              />
+            ) : (
+              <MoverAccountOptions
+                icon={<MapIcon className="h-8 w-8 text-text-primary" />}
+                title="Coverage Area"
+                description="View the locations we serve"
+                href={`${baseUrl}/coverage-area`}
+              />
+            )}
 
-            {/* Best Practices - Always visible */}
-            <MoverAccountOptions
-              icon={<ClipboardIcon className="h-8 w-8 text-text-primary" />}
-              title="Best Practices"
-              description="Learn from our tips and tricks and watch helpful videos"
-              href={`${baseUrl}/best-practices`}
-            />
+            {userType !== 'hauler' && (
+              <MoverAccountOptions
+                icon={<ClipboardIcon className="h-8 w-8 text-text-primary" />}
+                title="Best Practices"
+                description="Learn from our tips and tricks and watch helpful videos"
+                href={`${baseUrl}/best-practices`}
+              />
+            )}
           </>
         )}
       </section>

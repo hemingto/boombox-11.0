@@ -48,28 +48,51 @@ export async function POST(request: Request) {
     switch (event.type) {
       case 'account.updated': {
         const account = event.data.object;
-        
-        // Find the driver with this Connect account ID
+        const statusData = {
+          stripeConnectOnboardingComplete: account.details_submitted,
+          stripeConnectPayoutsEnabled: account.payouts_enabled,
+          stripeConnectDetailsSubmitted: account.details_submitted,
+        };
+
         const driver = await prisma.driver.findFirst({
-          where: { stripeConnectAccountId: account.id }
+          where: { stripeConnectAccountId: account.id },
         });
 
         if (driver) {
-          // Update driver record with latest account status
           await prisma.driver.update({
             where: { id: driver.id },
-            data: {
-              stripeConnectOnboardingComplete: account.details_submitted,
-              stripeConnectPayoutsEnabled: account.payouts_enabled,
-              stripeConnectDetailsSubmitted: account.details_submitted
-            }
+            data: statusData,
+          });
+          break;
+        }
+
+        const movingPartner = await prisma.movingPartner.findFirst({
+          where: { stripeConnectAccountId: account.id },
+        });
+
+        if (movingPartner) {
+          await prisma.movingPartner.update({
+            where: { id: movingPartner.id },
+            data: statusData,
+          });
+          break;
+        }
+
+        const haulingPartner = await prisma.haulingPartner.findFirst({
+          where: { stripeConnectAccountId: account.id },
+        });
+
+        if (haulingPartner) {
+          await prisma.haulingPartner.update({
+            where: { id: haulingPartner.id },
+            data: statusData,
           });
         }
         break;
       }
-      
+
       // Add other event handlers as needed
-      
+
       default:
         console.log(`Unhandled event type: ${event.type}`);
     }
@@ -82,4 +105,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-} 
+}

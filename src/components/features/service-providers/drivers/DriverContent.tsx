@@ -1,16 +1,16 @@
 /**
  * @fileoverview Driver content management component for moving partners
  * @source boombox-10.0/src/app/components/mover-account/drivercontent.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * Main driver management interface for moving partners to invite and manage their drivers.
  * Features driver invitation via email or SMS, success confirmation, and driver list display.
  * Provides toggle between email and phone input methods for flexible invitation delivery.
- * 
+ *
  * API ROUTES UPDATED:
  * - Old: /api/movers/[moverId]/invite-driver
  * - New: /api/moving-partners/[id]/invite-driver (per api-routes-migration-tracking.md)
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Replaced hardcoded colors with semantic design tokens:
  *   - bg-zinc-950 → bg-primary (buttons)
@@ -22,7 +22,7 @@
  *   - text-red-600 → text-status-error (error text)
  * - Replaced InformationalPopup with Modal component (per user preference)
  * - Applied consistent transition classes
- * 
+ *
  * ACCESSIBILITY ENHANCEMENTS:
  * - Added proper ARIA labels for form sections
  * - Enhanced button states with aria-disabled
@@ -31,7 +31,7 @@
  * - Semantic HTML structure with sections and headings
  * - Form field associations with labels
  * - Live region for status updates
- * 
+ *
  * @refactor Migrated from mover-account to service-providers/drivers folder structure.
  * Replaced InformationalPopup with Modal component. Applied design system semantic color
  * tokens throughout. Enhanced accessibility with proper ARIA labels and semantic HTML.
@@ -48,10 +48,15 @@ import EmailInput from '@/components/forms/EmailInput';
 import PhoneNumberInput from '@/components/forms/PhoneNumberInput';
 import MoverPartnerDriver from './MoverPartnerDriver';
 import { inviteDriver } from '@/lib/services/driverInvitationService';
+import { inviteHaulerDriver } from '@/lib/services/haulerDriverInvitationService';
+
+export type PartnerUserType = 'mover' | 'hauler';
 
 export interface DriverContentProps {
-  /** Moving partner ID */
-  moverId: string;
+  /** Partner ID (moving or hauling partner) */
+  partnerId: string;
+  /** Whether this is a mover or hauler */
+  userType: PartnerUserType;
   /** Driver invites Server Component passed from page */
   driverInvites: ReactNode;
   /** Optional callback when driver is invited */
@@ -61,7 +66,8 @@ export interface DriverContentProps {
 }
 
 export const DriverContent: React.FC<DriverContentProps> = ({
-  moverId,
+  partnerId,
+  userType,
   driverInvites,
   onDriverInvited,
   className = '',
@@ -109,30 +115,32 @@ export const DriverContent: React.FC<DriverContentProps> = ({
     setSuccess('');
 
     try {
-      // Use Server Action to invite driver
-      // revalidatePath() is called automatically in the Server Action
-      // The DriverInvites Server Component will auto-refresh
-      await inviteDriver(
-        parseInt(moverId, 10),
-        email || phone, // Send email or phone
-        15
-      );
+      const id = parseInt(partnerId, 10);
+      const contact = email || phone;
+
+      if (userType === 'hauler') {
+        await inviteHaulerDriver(id, contact, 15);
+      } else {
+        await inviteDriver(id, contact, 15);
+      }
 
       setSuccess('Invitation sent successfully!');
       setShowSuccessMessage(true);
-      
+
       if (onDriverInvited) {
         onDriverInvited();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send invitation');
+      setError(
+        err instanceof Error ? err.message : 'Failed to send invitation'
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div 
+    <div
       className={`flex flex-col lg:px-16 px-6 max-w-5xl w-full mx-auto mb-96 sm:mb-60 ${className}`}
       role="region"
       aria-label="Driver management"
@@ -157,7 +165,7 @@ export const DriverContent: React.FC<DriverContentProps> = ({
       </div>
 
       {/* Driver List */}
-      <MoverPartnerDriver moverId={moverId} />
+      <MoverPartnerDriver partnerId={partnerId} userType={userType} />
 
       {/* Add Driver Modal */}
       <Modal
@@ -171,8 +179,8 @@ export const DriverContent: React.FC<DriverContentProps> = ({
         {showSuccessMessage ? (
           /* Success State */
           <div className="text-center py-6" role="status" aria-live="polite">
-            <CheckCircleIcon 
-              className="text-status-success w-16 h-16 mx-auto mb-4" 
+            <CheckCircleIcon
+              className="text-status-success w-16 h-16 mx-auto mb-4"
               aria-hidden="true"
             />
             <h3 className="text-2xl text-text-primary font-bold mb-4">
@@ -239,7 +247,7 @@ export const DriverContent: React.FC<DriverContentProps> = ({
 
             {/* Error Message for Empty Input */}
             {error && !email && !phone && (
-              <div 
+              <div
                 className="text-status-error text-sm mb-4"
                 role="alert"
                 aria-live="polite"
@@ -278,4 +286,3 @@ export const DriverContent: React.FC<DriverContentProps> = ({
 };
 
 export default DriverContent;
-

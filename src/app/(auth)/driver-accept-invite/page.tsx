@@ -2,7 +2,7 @@
  * @fileoverview Driver invitation acceptance page - driver signup via moving partner invitation
  * @source boombox-10.0/src/app/driver-accept-invite/page.tsx
  * @refactor Migrated to (auth) route group with proper error handling
- * 
+ *
  * LAYOUT NOTES:
  * - Navbar is provided by (auth) layout.tsx via MinimalNavbar component
  * - No duplicate navbar should be rendered in this page
@@ -12,7 +12,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { DriverSignupHero, DriverSignUpForm } from '@/components/features/drivers';
+import {
+  DriverSignupHero,
+  DriverSignUpForm,
+} from '@/components/features/drivers';
 import { LoadingOverlay } from '@/components/ui/primitives/LoadingOverlay';
 import { H3Icon } from '@heroicons/react/24/outline';
 
@@ -47,13 +50,15 @@ export default function DriverAcceptInvite() {
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(
-            errorData.error || 'Failed to fetch invitation data'
-          );
+          const errorMessage =
+            typeof errorData.error === 'string'
+              ? errorData.error
+              : errorData.error?.message || 'Failed to fetch invitation data';
+          throw new Error(errorMessage);
         }
 
         const responseJson = await response.json();
-        
+
         // API returns { success: true, data: { movingPartnerName, email } }
         if (responseJson.success && responseJson.data) {
           setInvitationData(responseJson.data);
@@ -82,7 +87,10 @@ export default function DriverAcceptInvite() {
           <h3 className="text-status-error font-semibold">
             Invalid invitation link
           </h3>
-          <p className="text-status-error text-sm">please reach out to help@boomboxstorage.com to help resolve this issue</p>
+          <p className="text-status-error text-sm">
+            please reach out to help@boomboxstorage.com to help resolve this
+            issue
+          </p>
           <p className="mt-4 text-status-error">Error:</p>
           <p className="text-status-error mt-2 text-sm">{invitationError}</p>
         </div>
@@ -98,7 +106,7 @@ export default function DriverAcceptInvite() {
         message="Loading invitation details..."
         spinnerSize="xl"
       />
-      
+
       {!isLoading && invitationData && (
         <>
           <DriverSignupHero
@@ -114,4 +122,3 @@ export default function DriverAcceptInvite() {
     </div>
   );
 }
-

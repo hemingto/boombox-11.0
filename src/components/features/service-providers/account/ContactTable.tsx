@@ -1,11 +1,11 @@
 /**
  * @fileoverview Contact information table for service providers with inline editing
  * @source boombox-10.0/src/app/components/mover-account/contacttable.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * Editable contact information table for drivers and moving partners.
  * Supports inline editing, phone verification, and service management.
- * 
+ *
  * FEATURES:
  * - Inline editing for all contact fields
  * - Phone number verification via SMS
@@ -13,12 +13,12 @@
  * - Moving partner status display
  * - Dynamic activation messages
  * - Form validation
- * 
+ *
  * API ROUTES UPDATED:
  * - Old: /api/drivers/${userId} → New: /api/drivers/[id]/profile
  * - Old: /api/movers/${userId} → New: /api/moving-partners/[id]/profile
  * - Old: /api/auth/driver-phone-number-verify → New: /api/auth/driver-phone-verify
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Replaced border-slate-100 with border-border-secondary
  * - Replaced bg-slate-100 with bg-surface-tertiary
@@ -26,21 +26,29 @@
  * - Replaced emerald-* colors with status-success tokens
  * - Replaced red-* colors with status-error tokens
  * - Replaced zinc-* colors with primary/text tokens
- * 
+ *
  * @refactor Migrated to service-providers structure with extracted business logic
  */
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useContactInfo } from '@/hooks/useContactInfo';
 import { formatPhoneNumberForDisplay } from '@/lib/utils/phoneUtils';
 import { Skeleton } from '@/components/ui/primitives/Skeleton';
 import VerifyPhone from '@/components/features/auth/VerifyPhoneNumberPopup';
 
+interface HaulerVehicleSummary {
+  id: number;
+  make: string;
+  model: string;
+  year: string;
+  boomboxCapacity: number | null;
+}
+
 interface ContactTableProps {
   userId: string;
-  userType: 'driver' | 'mover';
+  userType: 'driver' | 'mover' | 'hauler';
 }
 
 export const ContactTable = ({ userId, userType }: ContactTableProps) => {
@@ -78,6 +86,26 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
     refetch,
   } = useContactInfo({ userId, userType });
 
+  const [haulerVehicles, setHaulerVehicles] = useState<HaulerVehicleSummary[]>(
+    []
+  );
+
+  useEffect(() => {
+    if (userType !== 'hauler') return;
+    async function fetchVehicles() {
+      try {
+        const res = await fetch(`/api/hauling-partners/${userId}/vehicle`);
+        if (res.ok) {
+          const data = await res.json();
+          setHaulerVehicles(Array.isArray(data) ? data : []);
+        }
+      } catch {
+        // Non-critical — sample calculation just won't show vehicle-specific data
+      }
+    }
+    fetchVehicles();
+  }, [userId, userType]);
+
   const handleVerifyClick = async () => {
     setIsPopupOpen(true);
     // Resend verification code
@@ -90,9 +118,9 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
       const response = await fetch('/api/auth/send-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           phoneNumber: contactInfo.phoneNumber,
-          skipAccountCheck: true // Skip account lookup for phone verification flow
+          skipAccountCheck: true, // Skip account lookup for phone verification flow
         }),
       });
 
@@ -158,9 +186,9 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
       const response = await fetch('/api/auth/send-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           phoneNumber: contactInfo.phoneNumber,
-          skipAccountCheck: true // Skip account lookup for phone verification flow
+          skipAccountCheck: true, // Skip account lookup for phone verification flow
         }),
       });
 
@@ -257,7 +285,7 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
                       type="text"
                       value={editedInfo.firstName || ''}
                       onFocus={handleFocus}
-                      onChange={(e) => handleChange('firstName', e.target.value)}
+                      onChange={e => handleChange('firstName', e.target.value)}
                       className={`w-1/2 py-2.5 px-3 sm:mb-4 mb-2 rounded-md focus:outline-none focus:ring-primary
                         ${
                           localHasError
@@ -270,7 +298,7 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
                       type="text"
                       value={editedInfo.lastName || ''}
                       onFocus={handleFocus}
-                      onChange={(e) => handleChange('lastName', e.target.value)}
+                      onChange={e => handleChange('lastName', e.target.value)}
                       className={`w-1/2 py-2.5 px-3 sm:mb-4 mb-2 rounded-md focus:outline-none focus:ring-primary
                         ${
                           localHasError
@@ -285,7 +313,7 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
                     type="text"
                     value={editedInfo.name || ''}
                     onFocus={handleFocus}
-                    onChange={(e) => handleChange('name', e.target.value)}
+                    onChange={e => handleChange('name', e.target.value)}
                     className={`mt-2 max-w-md w-full py-2.5 px-3 sm:mb-4 mb-2 rounded-md focus:outline-none focus:ring-primary
                       ${
                         localHasError
@@ -382,7 +410,7 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
                   <textarea
                     value={editedInfo.description || ''}
                     onFocus={handleFocus}
-                    onChange={(e) =>
+                    onChange={e =>
                       handleChange('description', e.target.value.slice(0, 80))
                     }
                     className={`mt-2 max-w-md w-full py-2.5 px-3 rounded-md focus:outline-none focus:ring-primary
@@ -458,7 +486,7 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
                   type="text"
                   value={editedInfo.email || ''}
                   onFocus={handleFocus}
-                  onChange={(e) => handleChange('email', e.target.value)}
+                  onChange={e => handleChange('email', e.target.value)}
                   className={`mt-2 max-w-sm md:max-w-md w-full py-2.5 px-3 sm:mb-4 mb-2 rounded-md focus:outline-none focus:ring-primary
                     ${
                       localHasError && editField === 'email'
@@ -523,7 +551,7 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
                     editedInfo.phoneNumber || ''
                   )}
                   onFocus={handleFocus}
-                  onChange={(e) => handleChange('phoneNumber', e.target.value)}
+                  onChange={e => handleChange('phoneNumber', e.target.value)}
                   className={`mt-2 max-w-xs w-full py-2.5 px-3 sm:mb-4 mb-2 rounded-md focus:outline-none focus:ring-primary
                     ${
                       localHasError && editField === 'phoneNumber'
@@ -586,6 +614,242 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
           )}
         </div>
 
+        {/* USDOT Number Field (Haulers Only) */}
+        {userType === 'hauler' && (
+          <div
+            className={`flex items-start justify-between border-b border-border-secondary ${
+              isGrayedOut('usdotNumber') ? 'opacity-50' : ''
+            }`}
+          >
+            <div className="flex flex-col w-full pt-4 pb-4">
+              <label>USDOT Number</label>
+              {isEditable('usdotNumber') ? (
+                <div>
+                  <input
+                    type="text"
+                    value={editedInfo.usdotNumber || ''}
+                    onFocus={handleFocus}
+                    onChange={e => handleChange('usdotNumber', e.target.value)}
+                    className={`mt-2 max-w-xs w-full py-2.5 px-3 sm:mb-4 mb-2 rounded-md focus:outline-none focus:ring-primary
+                      ${
+                        localHasError && editField === 'usdotNumber'
+                          ? 'ring-status-error ring-2 bg-status-bg-error placeholder:text-status-error text-status-error'
+                          : 'bg-surface-tertiary focus:outline-none placeholder:text-text-secondary focus:placeholder:text-text-primary placeholder:text-sm focus-within:ring-2 focus-within:ring-primary focus:bg-surface-primary'
+                      }`}
+                    placeholder="Enter USDOT number"
+                  />
+                  {localHasError && editField === 'usdotNumber' && (
+                    <p className="text-status-error text-sm sm:-mt-2 mb-3">
+                      {errorMessage}
+                    </p>
+                  )}
+                  <div className="flex space-x-4">
+                    <button
+                      onClick={handleSave}
+                      disabled={isSaving}
+                      className="block rounded-md py-2.5 px-6 font-semibold bg-primary text-text-inverse hover:bg-primary-hover active:bg-zinc-700 font-inter disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSaving ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-text-tertiary">
+                  {contactInfo?.usdotNumber || 'Not provided'}
+                </p>
+              )}
+            </div>
+            {isEditable('usdotNumber') ? (
+              <button
+                onClick={handleCancel}
+                className="decoration-dotted hover:decoration-solid underline underline-offset-2 pt-4 text-sm"
+              >
+                Cancel
+              </button>
+            ) : (
+              <button
+                onClick={() => handleEdit('usdotNumber')}
+                className={`mt-4 decoration-dotted hover:decoration-solid underline underline-offset-2 text-sm ${
+                  isGrayedOut('usdotNumber') ? 'opacity-50' : ''
+                }`}
+              >
+                Edit
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* California MCP Number Field (Haulers Only) */}
+        {userType === 'hauler' && (
+          <div
+            className={`flex items-start justify-between border-b border-border-secondary ${
+              isGrayedOut('californiaMcpNumber') ? 'opacity-50' : ''
+            }`}
+          >
+            <div className="flex flex-col w-full pt-4 pb-4">
+              <label>California MCP Number</label>
+              {isEditable('californiaMcpNumber') ? (
+                <div>
+                  <input
+                    type="text"
+                    value={editedInfo.californiaMcpNumber || ''}
+                    onFocus={handleFocus}
+                    onChange={e =>
+                      handleChange('californiaMcpNumber', e.target.value)
+                    }
+                    className={`mt-2 max-w-xs w-full py-2.5 px-3 sm:mb-4 mb-2 rounded-md focus:outline-none focus:ring-primary
+                      ${
+                        localHasError && editField === 'californiaMcpNumber'
+                          ? 'ring-status-error ring-2 bg-status-bg-error placeholder:text-status-error text-status-error'
+                          : 'bg-surface-tertiary focus:outline-none placeholder:text-text-secondary focus:placeholder:text-text-primary placeholder:text-sm focus-within:ring-2 focus-within:ring-primary focus:bg-surface-primary'
+                      }`}
+                    placeholder="Enter California MCP number"
+                  />
+                  {localHasError && editField === 'californiaMcpNumber' && (
+                    <p className="text-status-error text-sm sm:-mt-2 mb-3">
+                      {errorMessage}
+                    </p>
+                  )}
+                  <div className="flex space-x-4">
+                    <button
+                      onClick={handleSave}
+                      disabled={isSaving}
+                      className="block rounded-md py-2.5 px-6 font-semibold bg-primary text-text-inverse hover:bg-primary-hover active:bg-zinc-700 font-inter disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSaving ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-text-tertiary">
+                  {contactInfo?.californiaMcpNumber || 'Not provided'}
+                </p>
+              )}
+            </div>
+            {isEditable('californiaMcpNumber') ? (
+              <button
+                onClick={handleCancel}
+                className="decoration-dotted hover:decoration-solid underline underline-offset-2 pt-4 text-sm"
+              >
+                Cancel
+              </button>
+            ) : (
+              <button
+                onClick={() => handleEdit('californiaMcpNumber')}
+                className={`mt-4 decoration-dotted hover:decoration-solid underline underline-offset-2 text-sm ${
+                  isGrayedOut('californiaMcpNumber') ? 'opacity-50' : ''
+                }`}
+              >
+                Edit
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Price Per Boombox Field (Haulers Only) */}
+        {userType === 'hauler' && (
+          <div
+            className={`flex items-start justify-between ${
+              isGrayedOut('pricePerBoombox') ? 'opacity-50' : ''
+            }`}
+          >
+            <div className="flex flex-col w-full pt-4 pb-4">
+              <label>Price Per Boombox ($)</label>
+              {isEditable('pricePerBoombox') ? (
+                <div>
+                  <input
+                    type="number"
+                    value={editedInfo.pricePerBoombox || ''}
+                    onFocus={handleFocus}
+                    onChange={e =>
+                      handleChange('pricePerBoombox', e.target.value)
+                    }
+                    className={`mt-2 max-w-xs w-full py-2.5 px-3 sm:mb-4 mb-2 rounded-md focus:outline-none focus:ring-primary
+                      ${
+                        localHasError && editField === 'pricePerBoombox'
+                          ? 'ring-status-error ring-2 bg-status-bg-error placeholder:text-status-error text-status-error'
+                          : 'bg-surface-tertiary focus:outline-none placeholder:text-text-secondary focus:placeholder:text-text-primary placeholder:text-sm focus-within:ring-2 focus-within:ring-primary focus:bg-surface-primary'
+                      }`}
+                    placeholder="Enter price per Boombox"
+                    min="0"
+                    step="1.00"
+                  />
+                  {localHasError && editField === 'pricePerBoombox' && (
+                    <p className="text-status-error text-sm sm:-mt-2 mb-3">
+                      {errorMessage}
+                    </p>
+                  )}
+                  {/* Sample calculation (edit mode) */}
+                  {(() => {
+                    const price = Number(editedInfo.pricePerBoombox);
+                    if (!isNaN(price) && price > 0) {
+                      const vehiclesWithCapacity = haulerVehicles.filter(
+                        v => v.boomboxCapacity && v.boomboxCapacity > 0
+                      );
+                      return (
+                        <div className="border w-fit border-border rounded-md p-3 mb-4 text-sm text-text-primary">
+                          {vehiclesWithCapacity.length > 0 ? (
+                            vehiclesWithCapacity.map(v => (
+                              <p key={v.id}>
+                                {v.year} {v.make} {v.model} (capacity:{' '}
+                                <strong>{v.boomboxCapacity}</strong>):{' '}
+                                {v.boomboxCapacity} x ${price.toFixed(2)} ={' '}
+                                <strong>
+                                  ${(v.boomboxCapacity! * price).toFixed(2)}
+                                  /trip
+                                </strong>
+                              </p>
+                            ))
+                          ) : (
+                            <p>
+                              Example: <strong>4</strong> Boomboxes x $
+                              {price.toFixed(2)} ={' '}
+                              <strong>${(4 * price).toFixed(2)}/trip</strong>
+                            </p>
+                          )}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                  <div className="flex space-x-4">
+                    <button
+                      onClick={handleSave}
+                      disabled={isSaving}
+                      className="block rounded-md py-2.5 px-6 font-semibold bg-primary text-text-inverse hover:bg-primary-hover active:bg-zinc-700 font-inter disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSaving ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-text-tertiary">
+                  {contactInfo?.pricePerBoombox
+                    ? `$${contactInfo.pricePerBoombox.toFixed(2)}/Boombox`
+                    : 'Not set'}
+                </p>
+              )}
+            </div>
+            {isEditable('pricePerBoombox') ? (
+              <button
+                onClick={handleCancel}
+                className="decoration-dotted hover:decoration-solid underline underline-offset-2 pt-4 text-sm"
+              >
+                Cancel
+              </button>
+            ) : (
+              <button
+                onClick={() => handleEdit('pricePerBoombox')}
+                className={`mt-4 decoration-dotted hover:decoration-solid underline underline-offset-2 text-sm ${
+                  isGrayedOut('pricePerBoombox') ? 'opacity-50' : ''
+                }`}
+              >
+                Edit
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Hourly Rate Field (Movers Only) */}
         {userType === 'mover' && (
           <div
@@ -601,7 +865,7 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
                     type="number"
                     value={editedInfo.hourlyRate || ''}
                     onFocus={handleFocus}
-                    onChange={(e) => handleChange('hourlyRate', e.target.value)}
+                    onChange={e => handleChange('hourlyRate', e.target.value)}
                     className={`mt-2 max-w-xs w-full py-2.5 px-3 sm:mb-4 mb-2 rounded-md focus:outline-none focus:ring-primary
                       ${
                         localHasError && editField === 'hourlyRate'
@@ -668,7 +932,7 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
                     type="url"
                     value={editedInfo.website || ''}
                     onFocus={handleFocus}
-                    onChange={(e) => handleChange('website', e.target.value)}
+                    onChange={e => handleChange('website', e.target.value)}
                     className={`mt-2 max-w-md w-full py-2.5 px-3 sm:mb-4 mb-2 rounded-md focus:outline-none focus:ring-primary
                       ${
                         localHasError && editField === 'website'
@@ -733,12 +997,14 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
 
         {/* Company Partner (Linked Drivers Only) */}
         {userType === 'driver' &&
-          movingPartnerStatus?.isLinkedToMovingPartner && (
+          (movingPartnerStatus?.isLinkedToMovingPartner ||
+            movingPartnerStatus?.isLinkedToHaulingPartner) && (
             <div className="flex items-start justify-between">
               <div className="flex flex-col w-full pt-4 pb-4">
                 <label>Company Partner</label>
                 <p className="mt-2 text-sm text-text-tertiary">
-                  {movingPartnerStatus.movingPartner?.name}
+                  {movingPartnerStatus.movingPartner?.name ||
+                    movingPartnerStatus.haulingPartner?.name}
                 </p>
               </div>
             </div>
@@ -746,7 +1012,8 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
 
         {/* Services Field (Unlinked Drivers Only) */}
         {userType === 'driver' &&
-          !movingPartnerStatus?.isLinkedToMovingPartner && (
+          !movingPartnerStatus?.isLinkedToMovingPartner &&
+          !movingPartnerStatus?.isLinkedToHaulingPartner && (
             <div
               className={`flex items-start justify-between border-t border-border-secondary ${
                 isGrayedOut('services') ? 'opacity-50' : ''
@@ -757,7 +1024,7 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
                 {isEditingServices ? (
                   <div>
                     <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {availableServices.map((service) => (
+                      {availableServices.map(service => (
                         <div key={service} className="flex items-center">
                           <input
                             type="checkbox"
@@ -792,8 +1059,9 @@ export const ContactTable = ({ userId, userType }: ContactTableProps) => {
                   </div>
                 ) : (
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {contactInfo?.services && contactInfo.services.length > 0 ? (
-                      contactInfo.services.map((service) => (
+                    {contactInfo?.services &&
+                    contactInfo.services.length > 0 ? (
+                      contactInfo.services.map(service => (
                         <span
                           key={service}
                           className="px-3 py-2 text-sm bg-surface-tertiary rounded-full"

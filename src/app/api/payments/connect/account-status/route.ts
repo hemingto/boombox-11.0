@@ -12,7 +12,7 @@
  * - Dashboard status indicators
  * - Admin account verification workflows
  * - Compliance and requirements tracking
- * 
+ *
  * INTEGRATION NOTES:
  * - Real-time Stripe API status synchronization
  * - Database updates to maintain local status cache
@@ -26,7 +26,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { StripeConnectUserRequestSchema } from '@/lib/validations/api.validations';
-import { getStripeConnectUser, updateStripeConnectStatus } from '@/lib/utils/stripeUtils';
+import {
+  getStripeConnectUser,
+  updateStripeConnectStatus,
+} from '@/lib/utils/stripeUtils';
 import { stripe } from '@/lib/integrations/stripeClient';
 
 export async function GET(request: NextRequest) {
@@ -34,35 +37,36 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const userId = searchParams.get('userId');
     const userType = searchParams.get('userType');
-    
+
     // Validate request parameters
     const validationResult = StripeConnectUserRequestSchema.safeParse({
       userId,
-      userType
+      userType,
     });
 
     if (!validationResult.success) {
       return NextResponse.json(
-        { error: 'Invalid request parameters', details: validationResult.error.issues },
+        {
+          error: 'Invalid request parameters',
+          details: validationResult.error.issues,
+        },
         { status: 400 }
       );
     }
 
     if (!userId || !userType) {
       return NextResponse.json(
-        { error: 'User ID and type are required' }, 
+        { error: 'User ID and type are required' },
         { status: 400 }
       );
     }
 
-    if (userType !== 'driver' && userType !== 'mover') {
-      return NextResponse.json(
-        { error: 'Invalid user type' }, 
-        { status: 400 }
-      );
+    if (!userType || !['driver', 'mover', 'hauler'].includes(userType)) {
+      return NextResponse.json({ error: 'Invalid user type' }, { status: 400 });
     }
 
-    const parsedUserId = typeof userId === 'string' ? parseInt(userId, 10) : userId;
+    const parsedUserId =
+      typeof userId === 'string' ? parseInt(userId, 10) : userId;
     if (isNaN(parsedUserId)) {
       return NextResponse.json(
         { error: 'Invalid user ID format' },
@@ -76,7 +80,7 @@ export async function GET(request: NextRequest) {
     if (!user || !user.stripeConnectAccountId) {
       return NextResponse.json({
         hasAccount: false,
-        message: `${userType} does not have a Connect account`
+        message: `${userType} does not have a Connect account`,
       });
     }
 
@@ -98,7 +102,7 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('Error checking account status:', error);
     return NextResponse.json(
-      { error: 'Failed to check account status', details: error.message }, 
+      { error: 'Failed to check account status', details: error.message },
       { status: 500 }
     );
   }

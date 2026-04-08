@@ -15,11 +15,14 @@ export interface ContactInfo {
   phoneNumber: string | null;
   verifiedPhoneNumber: boolean | null;
   userId: string;
-  userType: 'driver' | 'mover';
+  userType: 'driver' | 'mover' | 'hauler';
   services?: string[];
   description?: string;
   hourlyRate?: number;
   website?: string;
+  usdotNumber?: string;
+  californiaMcpNumber?: string;
+  pricePerBoombox?: number;
 }
 
 /**
@@ -31,6 +34,11 @@ export interface MovingPartnerStatus {
     id: number;
     name: string;
   } | null;
+  isLinkedToHaulingPartner: boolean;
+  haulingPartner: {
+    id: number;
+    name: string;
+  } | null;
 }
 
 /**
@@ -38,10 +46,29 @@ export interface MovingPartnerStatus {
  */
 export function buildActivationMessage(
   contactInfo: ContactInfo | null,
-  userType: 'driver' | 'mover'
+  userType: 'driver' | 'mover' | 'hauler'
 ): string {
-  if (userType !== 'mover') {
+  if (userType === 'driver') {
     return 'To activate your driver account please make sure to verify your phone number';
+  }
+
+  if (userType === 'hauler') {
+    const requirements: string[] = [];
+    if (!contactInfo?.verifiedPhoneNumber) {
+      requirements.push('verify your phone number');
+    }
+    if (!contactInfo?.usdotNumber) {
+      requirements.push('add your USDOT number');
+    }
+    if (!contactInfo?.californiaMcpNumber) {
+      requirements.push('add your California MCP number');
+    }
+    if (requirements.length === 0) return '';
+    if (requirements.length === 1) {
+      return `To activate your hauler account please make sure to ${requirements[0]}`;
+    }
+    const lastRequirement = requirements.pop();
+    return `To activate your hauler account please make sure to ${requirements.join(', ')} and ${lastRequirement}`;
   }
 
   const requirements = ['verify your phone number'];
@@ -60,4 +87,3 @@ export function buildActivationMessage(
   const lastRequirement = requirements.pop();
   return `To activate your mover account please make sure to ${requirements.join(', ')} and ${lastRequirement}`;
 }
-

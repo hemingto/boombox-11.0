@@ -12,7 +12,7 @@
  * - Mover earnings tracking
  * - Financial reporting interfaces
  * - Transaction audit trails
- * 
+ *
  * INTEGRATION NOTES:
  * - Combines multiple Stripe API calls (payment intents + transfers)
  * - Currency conversion from cents to dollars
@@ -35,35 +35,36 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const userId = searchParams.get('userId');
     const userType = searchParams.get('userType');
-    
+
     // Validate request parameters
     const validationResult = StripeConnectUserRequestSchema.safeParse({
       userId,
-      userType
+      userType,
     });
 
     if (!validationResult.success) {
       return NextResponse.json(
-        { error: 'Invalid request parameters', details: validationResult.error.issues },
+        {
+          error: 'Invalid request parameters',
+          details: validationResult.error.issues,
+        },
         { status: 400 }
       );
     }
 
     if (!userId || !userType) {
       return NextResponse.json(
-        { error: 'User ID and type are required' }, 
+        { error: 'User ID and type are required' },
         { status: 400 }
       );
     }
 
-    if (userType !== 'driver' && userType !== 'mover') {
-      return NextResponse.json(
-        { error: 'Invalid user type' }, 
-        { status: 400 }
-      );
+    if (!userType || !['driver', 'mover', 'hauler'].includes(userType)) {
+      return NextResponse.json({ error: 'Invalid user type' }, { status: 400 });
     }
 
-    const parsedUserId = typeof userId === 'string' ? parseInt(userId, 10) : userId;
+    const parsedUserId =
+      typeof userId === 'string' ? parseInt(userId, 10) : userId;
     if (isNaN(parsedUserId)) {
       return NextResponse.json(
         { error: 'Invalid user ID format' },
@@ -76,7 +77,7 @@ export async function GET(request: NextRequest) {
 
     if (!user || !user.stripeConnectAccountId) {
       return NextResponse.json(
-        { error: `${userType} does not have a Connect account` }, 
+        { error: `${userType} does not have a Connect account` },
         { status: 404 }
       );
     }
@@ -87,12 +88,10 @@ export async function GET(request: NextRequest) {
         { limit: 100 },
         { stripeAccount: user.stripeConnectAccountId }
       ),
-      stripe.transfers.list(
-        { 
-          limit: 100,
-          destination: user.stripeConnectAccountId
-        }
-      )
+      stripe.transfers.list({
+        limit: 100,
+        destination: user.stripeConnectAccountId,
+      }),
     ]);
 
     console.log('Payment Intents:', paymentIntents.data);
@@ -105,24 +104,24 @@ export async function GET(request: NextRequest) {
         amount: payment.amount / 100,
         status: payment.status,
         created: payment.created,
-        description: payment.description || 'Payment Intent'
+        description: payment.description || 'Payment Intent',
       })),
       ...transfers.data.map(transfer => ({
         id: transfer.id,
         amount: transfer.amount / 100,
         status: 'Paid',
         created: transfer.created,
-        description: transfer.description || 'Transfer Payment'
-      }))
+        description: transfer.description || 'Transfer Payment',
+      })),
     ].sort((a, b) => b.created - a.created); // Sort by most recent first
 
     return NextResponse.json({
-      payments: formattedPayments
+      payments: formattedPayments,
     });
   } catch (error: any) {
     console.error('Error fetching payment history:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch payment history', details: error.message }, 
+      { error: 'Failed to fetch payment history', details: error.message },
       { status: 500 }
     );
   }

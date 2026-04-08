@@ -1705,6 +1705,18 @@ export const DriverProfileResponseSchema = z.object({
       })
     )
     .optional(),
+  haulingPartnerAssociations: z
+    .array(
+      z.object({
+        id: z.number(),
+        isActive: z.boolean(),
+        haulingPartner: z.object({
+          id: z.number(),
+          name: z.string(),
+        }),
+      })
+    )
+    .optional(),
 });
 
 export const AgreeToTermsRequestSchema = z.object({
@@ -3892,7 +3904,7 @@ export type DriverAssignCronResponse = z.infer<
 
 // ===== STRIPE CONNECT SCHEMAS =====
 
-const stripeUserTypeSchema = z.enum(['driver', 'mover']);
+const stripeUserTypeSchema = z.enum(['driver', 'mover', 'hauler']);
 
 export const StripeConnectUserRequestSchema = z.object({
   userId: z.string().or(positiveIntSchema),

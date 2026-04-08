@@ -13,7 +13,7 @@
  * - Mover registration process
  * - Admin manual account creation
  * - Account recovery/recreation flows
- * 
+ *
  * INTEGRATION NOTES:
  * - Critical Stripe Connect account creation
  * - Different business types and MCC codes for drivers vs movers
@@ -28,41 +28,47 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { StripeConnectUserRequestSchema } from '@/lib/validations/api.validations';
-import { getDetailedStripeConnectUser, createStripeConnectAccount, DriverUser, MovingPartnerUser } from '@/lib/utils/stripeUtils';
+import {
+  getDetailedStripeConnectUser,
+  createStripeConnectAccount,
+  DriverUser,
+  MovingPartnerUser,
+} from '@/lib/utils/stripeUtils';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { userId, userType } = body;
-    
+
     // Validate request data
     const validationResult = StripeConnectUserRequestSchema.safeParse({
       userId,
-      userType
+      userType,
     });
 
     if (!validationResult.success) {
       return NextResponse.json(
-        { error: 'Invalid request data', details: validationResult.error.issues },
+        {
+          error: 'Invalid request data',
+          details: validationResult.error.issues,
+        },
         { status: 400 }
       );
     }
 
     if (!userId) {
       return NextResponse.json(
-        { error: 'User ID is required' }, 
+        { error: 'User ID is required' },
         { status: 400 }
       );
     }
 
-    if (!userType || !['driver', 'mover'].includes(userType)) {
-      return NextResponse.json(
-        { error: 'Invalid user type' }, 
-        { status: 400 }
-      );
+    if (!userType || !['driver', 'mover', 'hauler'].includes(userType)) {
+      return NextResponse.json({ error: 'Invalid user type' }, { status: 400 });
     }
 
-    const parsedUserId = typeof userId === 'string' ? parseInt(userId, 10) : userId;
+    const parsedUserId =
+      typeof userId === 'string' ? parseInt(userId, 10) : userId;
     if (isNaN(parsedUserId)) {
       return NextResponse.json(
         { error: 'Invalid user ID format' },
@@ -75,7 +81,7 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json(
-        { error: `${userType} not found` }, 
+        { error: `${userType} not found` },
         { status: 404 }
       );
     }
@@ -85,21 +91,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         accountId: user.stripeConnectAccountId,
-        message: `${userType} already has a Connect account`
+        message: `${userType} already has a Connect account`,
       });
     }
 
     // Create Stripe Connect account using centralized utility
-    const accountId = await createStripeConnectAccount(parsedUserId, userType, user);
+    const accountId = await createStripeConnectAccount(
+      parsedUserId,
+      userType,
+      user
+    );
 
     return NextResponse.json({
       success: true,
-      accountId: accountId
+      accountId: accountId,
     });
   } catch (error: any) {
     console.error('Error creating Connect account:', error);
     return NextResponse.json(
-      { error: 'Failed to create Connect account', details: error.message }, 
+      { error: 'Failed to create Connect account', details: error.message },
       { status: 500 }
     );
   }

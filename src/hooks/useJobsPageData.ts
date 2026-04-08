@@ -1,13 +1,13 @@
 /**
  * @fileoverview Centralized data fetching hook for Jobs page
  * Fetches all job-related data at the page level to enable coordinated loading.
- * 
+ *
  * This hook consolidates data fetching for:
  * - Job offers (drivers only)
  * - Upcoming appointments
  * - Packing supply routes
  * - Job history
- * 
+ *
  * Benefits:
  * - Single loading state for entire page
  * - No layout shift from sections appearing/disappearing
@@ -166,7 +166,7 @@ export interface HistoryJob {
 }
 
 interface UseJobsPageDataProps {
-  userType: 'mover' | 'driver';
+  userType: 'mover' | 'driver' | 'hauler';
   userId: string;
 }
 
@@ -183,10 +183,12 @@ function offerToAppointment(offer: AppointmentOffer): UpcomingAppointment {
     numberOfUnits: offer.numberOfUnits || 1,
     planType: offer.planType || '',
     appointmentType: offer.appointmentType,
-    user: offer.customer ? {
-      firstName: offer.customer.firstName,
-      lastName: offer.customer.lastName,
-    } : undefined,
+    user: offer.customer
+      ? {
+          firstName: offer.customer.firstName,
+          lastName: offer.customer.lastName,
+        }
+      : undefined,
   };
 }
 
@@ -221,22 +223,30 @@ interface UseJobsPageDataReturn {
   setJobHistory: React.Dispatch<React.SetStateAction<HistoryJob[]>>;
 }
 
-export function useJobsPageData({ userType, userId }: UseJobsPageDataProps): UseJobsPageDataReturn {
+export function useJobsPageData({
+  userType,
+  userId,
+}: UseJobsPageDataProps): UseJobsPageDataReturn {
   const [jobOffers, setJobOffers] = useState<PendingOffer[]>([]);
   const [upcomingJobs, setUpcomingJobs] = useState<UpcomingAppointment[]>([]);
   const [jobHistory, setJobHistory] = useState<HistoryJob[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Track if data has been fetched at least once (for focus-based refetching)
   const hasInitialData = useRef(false);
 
-  const apiBase = userType === 'mover' ? 'moving-partners' : 'drivers';
+  const apiBase =
+    userType === 'mover'
+      ? 'moving-partners'
+      : userType === 'hauler'
+        ? 'hauling-partners'
+        : 'drivers';
 
-  // Fetch job offers (drivers only)
+  // Fetch job offers (drivers only, not movers or haulers)
   const fetchOffers = useCallback(async () => {
     if (userType !== 'driver') return;
-    
+
     try {
       const response = await fetch(`/api/drivers/${userId}/pending-offers`);
       if (!response.ok) {
@@ -253,7 +263,19 @@ export function useJobsPageData({ userType, userId }: UseJobsPageDataProps): Use
   // Fetch upcoming jobs/appointments
   const fetchUpcomingJobs = useCallback(async () => {
     try {
-      // Fetch regular appointments
+      if (userType === 'hauler') {
+        const response = await fetch(
+          `/api/hauling-partners/${userId}/upcoming-jobs`
+        );
+        if (!response.ok) {
+          throw new Error('Failed to fetch upcoming haul jobs');
+        }
+        const data = await response.json();
+        setUpcomingJobs(data);
+        return;
+      }
+
+      // Fetch regular appointments (mover/driver)
       const appointmentsResponse = await fetch(
         `/api/customers/upcoming-appointments?userType=${userType}&userId=${userId}`
       );
@@ -294,10 +316,18 @@ export function useJobsPageData({ userType, userId }: UseJobsPageDataProps): Use
       }
       const jobsData = await jobsResponse.json();
 
-      // Fetch packing supply routes for history
+      // Haulers don't have packing supply routes
+      if (userType === 'hauler') {
+        setJobHistory(jobsData);
+        return;
+      }
+
+      // Fetch packing supply routes for history (mover/driver only)
       let packingSupplyRoutes = [];
       try {
-        const routesResponse = await fetch(`/api/${apiBase}/${userId}/packing-supply-routes`);
+        const routesResponse = await fetch(
+          `/api/${apiBase}/${userId}/packing-supply-routes`
+        );
         if (routesResponse.ok) {
           const routesData = await routesResponse.json();
           packingSupplyRoutes = routesData.map((route: any) => ({
@@ -317,7 +347,7 @@ export function useJobsPageData({ userType, userId }: UseJobsPageDataProps): Use
       console.error('Error fetching job history:', err);
       throw err;
     }
-  }, [userId, apiBase]);
+  }, [userId, userType, apiBase]);
 
   // Fetch all data
   const fetchAll = useCallback(async () => {
@@ -337,7 +367,7 @@ export function useJobsPageData({ userType, userId }: UseJobsPageDataProps): Use
       setIsLoading(false);
     }
   }, [fetchOffers, fetchUpcomingJobs, fetchJobHistory]);
-  
+
   // Silent refetch (doesn't show loading state) for focus-based updates
   const silentRefetch = useCallback(async () => {
     try {
@@ -370,7 +400,8 @@ export function useJobsPageData({ userType, userId }: UseJobsPageDataProps): Use
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    return () =>
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [silentRefetch]);
 
   /**
@@ -378,39 +409,43 @@ export function useJobsPageData({ userType, userId }: UseJobsPageDataProps): Use
    * Immediately removes offer from jobOffers and adds to upcomingJobs,
    * then makes the API call. Rolls back on failure.
    */
-  const acceptOffer = useCallback(async (
-    offer: PendingOffer,
-    apiCall: () => Promise<Response>
-  ): Promise<AcceptOfferResult> => {
-    // 1. Store current state for rollback
-    const previousOffers = jobOffers;
-    const previousUpcoming = upcomingJobs;
+  const acceptOffer = useCallback(
+    async (
+      offer: PendingOffer,
+      apiCall: () => Promise<Response>
+    ): Promise<AcceptOfferResult> => {
+      // 1. Store current state for rollback
+      const previousOffers = jobOffers;
+      const previousUpcoming = upcomingJobs;
 
-    // 2. Optimistically update state
-    setJobOffers(prev => prev.filter(o => o.id !== offer.id));
-    
-    // Add to upcoming jobs if it's an appointment offer
-    if (offer.type === 'appointment') {
-      const newAppointment = offerToAppointment(offer);
-      setUpcomingJobs(prev => [newAppointment, ...prev]);
-    }
+      // 2. Optimistically update state
+      setJobOffers(prev => prev.filter(o => o.id !== offer.id));
 
-    // 3. Make API call
-    try {
-      const response = await apiCall();
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to accept offer');
+      // Add to upcoming jobs if it's an appointment offer
+      if (offer.type === 'appointment') {
+        const newAppointment = offerToAppointment(offer);
+        setUpcomingJobs(prev => [newAppointment, ...prev]);
       }
-      return { success: true };
-    } catch (err) {
-      // 4. Rollback on failure
-      setJobOffers(previousOffers);
-      setUpcomingJobs(previousUpcoming);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to accept offer';
-      return { success: false, error: errorMessage };
-    }
-  }, [jobOffers, upcomingJobs]);
+
+      // 3. Make API call
+      try {
+        const response = await apiCall();
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to accept offer');
+        }
+        return { success: true };
+      } catch (err) {
+        // 4. Rollback on failure
+        setJobOffers(previousOffers);
+        setUpcomingJobs(previousUpcoming);
+        const errorMessage =
+          err instanceof Error ? err.message : 'Failed to accept offer';
+        return { success: false, error: errorMessage };
+      }
+    },
+    [jobOffers, upcomingJobs]
+  );
 
   return {
     jobOffers,
@@ -428,4 +463,3 @@ export function useJobsPageData({ userType, userId }: UseJobsPageDataProps): Use
     setJobHistory,
   };
 }
-

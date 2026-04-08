@@ -1,33 +1,33 @@
 /**
  * @fileoverview Add Vehicle Form component for drivers and movers
  * @source boombox-10.0/src/app/components/driver-signup/addvehicleform.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * Comprehensive vehicle registration form with photo uploads, form validation,
  * and API integration. Supports both driver and mover user types with proper
  * routing to different API endpoints. Features drag-and-drop photo uploads,
  * real-time validation, and loading states.
- * 
+ *
  * API ROUTES UPDATED:
  * - Old: /api/upload/photos → New: /api/uploads/photos (for drivers)
  * - Old: /api/movers/${userId}/upload-vehicle-photos → New: /api/moving-partners/[id]/upload-vehicle-photos
  * - Old: /api/drivers/${userId}/vehicle → New: /api/drivers/[id]/vehicle
  * - Old: /api/movers/${userId}/vehicle → New: /api/moving-partners/[id]/vehicle
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Applied semantic color tokens throughout (text-status-error, bg-surface-tertiary, etc.)
  * - Used form utility classes (form-label, form-error, btn-primary) for consistent styling
  * - Replaced hardcoded colors with design system tokens
  * - Enhanced loading states with LoadingOverlay component
  * - Applied consistent spacing and responsive patterns
- * 
+ *
  * ACCESSIBILITY ENHANCEMENTS:
  * - Added comprehensive ARIA labels and semantic HTML structure
  * - Implemented proper heading hierarchy (h2 for sections)
  * - Added live regions for error announcements
  * - Enhanced keyboard navigation with focus management
  * - Screen reader optimized form feedback and validation messages
- * 
+ *
  * @refactor Complete architectural modernization: extracted useState hooks to useAddVehicleForm hook,
  * integrated with design system components (Input, Select, YesOrNoRadio, PhotoUploads),
  * separated business logic into VehicleService, added comprehensive accessibility,
@@ -36,20 +36,23 @@
 
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 import { PhotoIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
 
 // UI Components
 import { Input, Select, LoadingOverlay } from '@/components/ui';
+import { Modal } from '@/components/ui/primitives/Modal';
 import { YesOrNoRadio, PhotoUploads } from '@/components/forms';
+import { DimensionModalContent } from '@/components/features/storage-calculator/DimensionModalContent';
 
 // Hooks and utilities
-import { 
-  useAddVehicleForm, 
-  VEHICLE_MAKES, 
+import {
+  useAddVehicleForm,
+  VEHICLE_MAKES,
+  HAULER_VEHICLE_MAKES,
   YEAR_OPTIONS,
-  type UseAddVehicleFormOptions 
+  type UseAddVehicleFormOptions,
 } from '@/hooks/useAddVehicleForm';
 import { cn } from '@/lib/utils/cn';
 
@@ -64,11 +67,11 @@ export interface AddVehicleFormProps extends UseAddVehicleFormOptions {
  * Add Vehicle Form component with comprehensive validation and photo uploads
  * @source boombox-10.0/src/app/components/driver-signup/addvehicleform.tsx
  */
-export function AddVehicleForm({ 
-  userId, 
-  userType, 
+export function AddVehicleForm({
+  userId,
+  userType,
   onSuccess,
-  className 
+  className,
 }: AddVehicleFormProps) {
   const {
     formData,
@@ -81,23 +84,30 @@ export function AddVehicleForm({
     handleSubmit,
   } = useAddVehicleForm({ userId, userType, onSuccess });
 
+  const [isDimensionsModalOpen, setIsDimensionsModalOpen] = useState(false);
+
   // Refs for each form field to enable scrolling to errors
   const yearRef = useRef<HTMLDivElement>(null);
   const makeRef = useRef<HTMLDivElement>(null);
   const modelRef = useRef<HTMLDivElement>(null);
   const licensePlateRef = useRef<HTMLDivElement>(null);
   const trailerHitchRef = useRef<HTMLDivElement>(null);
+  const boomboxCapacityRef = useRef<HTMLDivElement>(null);
   const frontPhotoRef = useRef<HTMLDivElement>(null);
   const backPhotoRef = useRef<HTMLDivElement>(null);
   const insurancePhotoRef = useRef<HTMLDivElement>(null);
 
   // Map error field names to refs
-  const errorFieldRefs: Record<string, React.RefObject<HTMLDivElement | null>> = {
+  const errorFieldRefs: Record<
+    string,
+    React.RefObject<HTMLDivElement | null>
+  > = {
     year: yearRef,
     make: makeRef,
     model: modelRef,
     licensePlate: licensePlateRef,
     trailerHitch: trailerHitchRef,
+    boomboxCapacity: boomboxCapacityRef,
     frontVehiclePhoto: frontPhotoRef,
     backVehiclePhoto: backPhotoRef,
     autoInsurancePhoto: insurancePhotoRef,
@@ -128,26 +138,33 @@ export function AddVehicleForm({
     if (firstErrorField && errorFieldRefs[firstErrorField]?.current) {
       errorFieldRefs[firstErrorField].current.scrollIntoView({
         behavior: 'smooth',
-        block: 'center'
+        block: 'center',
       });
     }
   };
 
   return (
-    <div className={cn(
-      "flex-col max-w-2xl bg-surface-primary rounded-md shadow-custom-shadow mx-4 sm:mx-auto p-6 sm:p-10 sm:mb-48 mb-24",
-      className
-    )}>
+    <div
+      className={cn(
+        'flex-col max-w-2xl bg-surface-primary rounded-md shadow-custom-shadow mx-4 sm:mx-auto p-6 sm:p-10 sm:mb-48 mb-24',
+        className
+      )}
+    >
       {/* Loading Overlay */}
       {isSubmitting && (
-        <LoadingOverlay visible={isSubmitting} message="Adding your vehicle..." />
+        <LoadingOverlay
+          visible={isSubmitting}
+          message="Adding your vehicle..."
+        />
       )}
-      
-      <h2 className="mb-6 text-text-primary">Provide your vehicle information</h2>
-      
+
+      <h2 className="mb-6 text-text-primary">
+        Provide your vehicle information
+      </h2>
+
       {/* Global Error Message */}
       {errors.submit && (
-        <div 
+        <div
           className="mb-4 p-3 bg-status-bg-error text-status-error rounded-md"
           role="alert"
           aria-live="polite"
@@ -158,7 +175,6 @@ export function AddVehicleForm({
 
       {/* Vehicle Information Section */}
       <section aria-labelledby="vehicle-info-heading">
-
         {/* Vehicle Year */}
         <div className="form-group mb-4" ref={yearRef}>
           <Select
@@ -174,7 +190,7 @@ export function AddVehicleForm({
             name="year"
           />
         </div>
-        
+
         {/* Vehicle Make */}
         <div className="form-group mb-4" ref={makeRef}>
           <Select
@@ -183,23 +199,30 @@ export function AddVehicleForm({
             onChange={(value: string) => updateField('make', value)}
             error={errors.make || undefined}
             onClearError={() => clearError('make')}
-            options={VEHICLE_MAKES.map(make => ({ value: make, label: make }))}
+            options={(userType === 'hauler'
+              ? HAULER_VEHICLE_MAKES
+              : VEHICLE_MAKES
+            ).map(make => ({ value: make, label: make }))}
             placeholder="Select make"
             required
             compactLabel
             name="make"
           />
         </div>
-        
+
         {/* Vehicle Model */}
         <div className="form-group mb-8" ref={modelRef}>
           <Input
             label="Vehicle Model"
             value={formData.model}
-            onChange={(e) => updateField('model', e.target.value)}
+            onChange={e => updateField('model', e.target.value)}
             error={errors.model || undefined}
             onClearError={() => clearError('model')}
-            placeholder="e.g., Camry, F-150"
+            placeholder={
+              userType === 'hauler'
+                ? 'e.g., Cascadia, T680, 579'
+                : 'e.g., Camry, F-150'
+            }
             required
             aria-describedby={errors.model ? 'model-error' : undefined}
           />
@@ -208,55 +231,98 @@ export function AddVehicleForm({
 
       {/* License Plate Section */}
       <section aria-labelledby="license-plate-heading">
-        
         <div className="form-group mb-8" ref={licensePlateRef}>
           <Input
             label="What is your vehicle's license plate number?"
             value={formData.licensePlate}
-            onChange={(e) => updateField('licensePlate', e.target.value)}
+            onChange={e => updateField('licensePlate', e.target.value)}
             error={errors.licensePlate || undefined}
             onClearError={() => clearError('licensePlate')}
             placeholder="Enter your license plate number"
             required
-            aria-describedby={errors.licensePlate ? 'license-plate-error' : undefined}
+            aria-describedby={
+              errors.licensePlate ? 'license-plate-error' : undefined
+            }
           />
         </div>
       </section>
 
-      {/* Trailer Hitch Section */}
-      <section aria-labelledby="trailer-hitch-heading">
-        <h3 
-          id="trailer-hitch-heading" 
-          className="form-label mb-4 mt-4"
-        >
-          Does your vehicle have a trailer hitch?
-        </h3>
-        
-        <div className="form-group" ref={trailerHitchRef}>
-          <YesOrNoRadio
-            value={formData.hasTrailerHitch}
-            onChange={(value) => updateField('hasTrailerHitch', value)}
-            hasError={!!errors.trailerHitch}
-            errorMessage={errors.trailerHitch || undefined}
-            onErrorClear={() => clearError('trailerHitch')}
-            name="trailer-hitch"
-          />
-        </div>
-      </section>
+      {/* Trailer Hitch Section (drivers/movers) or Boombox Capacity (haulers) */}
+      {userType === 'hauler' ? (
+        <section aria-labelledby="boombox-capacity-heading">
+          <div className="form-group mb-4" ref={boomboxCapacityRef}>
+            <Select
+              label="How many Boomboxes can you haul at one time?"
+              value={
+                formData.boomboxCapacity !== null
+                  ? String(formData.boomboxCapacity)
+                  : ''
+              }
+              onChange={(value: string) =>
+                updateField(
+                  'boomboxCapacity',
+                  value === '' ? null : parseInt(value, 10)
+                )
+              }
+              error={errors.boomboxCapacity || undefined}
+              onClearError={() => clearError('boomboxCapacity')}
+              options={Array.from({ length: 8 }, (_, i) => {
+                const val = String(i + 3);
+                return { value: val, label: val };
+              })}
+              placeholder="Select capacity"
+              required
+              compactLabel
+              name="boomboxCapacity"
+            />
+          </div>
+          <div className="mt-4 p-3 sm:mb-4 mb-2 border border-border rounded-md max-w-fit">
+            <p className="text-sm text-text-primary">
+              Not sure how many Boomboxes your vehicle can carry?
+            </p>
+            <p className="text-sm mt-2 text-text-primary">
+              Each Boombox weighs around 2500lbs. To view the exact dimensions
+              click{' '}
+              <button
+                type="button"
+                onClick={() => setIsDimensionsModalOpen(true)}
+                className="underline cursor-pointer font-semibold focus:outline-none"
+                aria-label="View exact dimensions of a Boombox"
+              >
+                here
+              </button>
+            </p>
+          </div>
+        </section>
+      ) : (
+        <section aria-labelledby="trailer-hitch-heading">
+          <h3 id="trailer-hitch-heading" className="form-label mb-4 mt-4">
+            Does your vehicle have a trailer hitch?
+          </h3>
+
+          <div className="form-group" ref={trailerHitchRef}>
+            <YesOrNoRadio
+              value={formData.hasTrailerHitch}
+              onChange={value => updateField('hasTrailerHitch', value)}
+              hasError={!!errors.trailerHitch}
+              errorMessage={errors.trailerHitch || undefined}
+              onErrorClear={() => clearError('trailerHitch')}
+              name="trailer-hitch"
+            />
+          </div>
+        </section>
+      )}
 
       {/* Vehicle Photos Section */}
       <section aria-labelledby="vehicle-photos-heading">
-        <h2 
-          id="vehicle-photos-heading"
-          className="mb-6 mt-8 text-text-primary"
-        >
+        <h2 id="vehicle-photos-heading" className="mb-6 mt-8 text-text-primary">
           Provide front and back photos of your vehicle
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div className="w-full" ref={frontPhotoRef}>
-            <PhotoUploads 
-              onPhotosSelected={handleFrontPhotoSelected} 
+            <PhotoUploads
+              onPhotosSelected={handleFrontPhotoSelected}
               photoUploadTitle="Front of Vehicle Photo"
               buttonText="Add Front Photo"
               icon={<PhotoIcon className="w-16 h-16 text-slate-200 mb-1" />}
@@ -268,10 +334,10 @@ export function AddVehicleForm({
               onErrorClear={() => clearError('frontVehiclePhoto')}
             />
           </div>
-          
+
           <div className="w-full" ref={backPhotoRef}>
-            <PhotoUploads 
-              onPhotosSelected={handleBackPhotoSelected} 
+            <PhotoUploads
+              onPhotosSelected={handleBackPhotoSelected}
               photoUploadTitle="Back of Vehicle Photo"
               buttonText="Add Back Photo"
               icon={<PhotoIcon className="w-16 h-16 text-slate-200 mb-1" />}
@@ -292,7 +358,7 @@ export function AddVehicleForm({
           </p>
           <p className="text-sm mt-2 text-text-primary">
             To view examples of acceptable vehicle photos click{' '}
-            <Link 
+            <Link
               href="/vehicle-requirements"
               target="_blank"
               rel="noopener noreferrer"
@@ -304,22 +370,21 @@ export function AddVehicleForm({
           </p>
         </div>
       </section>
-      
+
       {/* Insurance Document Section */}
       <section aria-labelledby="insurance-heading">
-        <h2 
-          id="insurance-heading"
-          className="mb-6 mt-8 text-text-primary"
-        >
+        <h2 id="insurance-heading" className="mb-6 mt-8 text-text-primary">
           Provide vehicle&apos;s auto insurance
         </h2>
-        
+
         <div className="w-full" ref={insurancePhotoRef}>
-          <PhotoUploads 
-            onPhotosSelected={handleInsurancePhotoSelected} 
+          <PhotoUploads
+            onPhotosSelected={handleInsurancePhotoSelected}
             photoUploadTitle="Auto Insurance Document"
             buttonText="Add Insurance Document"
-            icon={<DocumentArrowDownIcon className="w-16 h-16 text-slate-200 mb-1" />}
+            icon={
+              <DocumentArrowDownIcon className="w-16 h-16 text-slate-200 mb-1" />
+            }
             aspectRatio="aspect-video"
             maxPhotos={1}
             entityId={userId}
@@ -333,11 +398,13 @@ export function AddVehicleForm({
         {/* Insurance Guidelines */}
         <div className="mt-4 p-3 sm:mb-4 mb-2 border border-border rounded-md max-w-fit">
           <p className="text-sm text-text-primary">
-            <span className="font-semibold">Note:</span> Upload an ID card or policy document that includes the policy number, the policy expiration date, and VIN number.
+            <span className="font-semibold">Note:</span> Upload an ID card or
+            policy document that includes the policy number, the policy
+            expiration date, and VIN number.
           </p>
         </div>
       </section>
-      
+
       {/* Submit Button */}
       <div className="mt-12">
         <button
@@ -349,13 +416,25 @@ export function AddVehicleForm({
         >
           {isSubmitting ? 'Adding Vehicle...' : 'Add Vehicle'}
         </button>
-        <p 
-          id="submit-button-description"
-          className="sr-only"
-        >
-          Submit the vehicle information form to add your vehicle to your account
+        <p id="submit-button-description" className="sr-only">
+          Submit the vehicle information form to add your vehicle to your
+          account
         </p>
       </div>
+
+      {/* Boombox Dimensions Modal (haulers) */}
+      {userType === 'hauler' && (
+        <Modal
+          open={isDimensionsModalOpen}
+          onClose={() => setIsDimensionsModalOpen(false)}
+          size="lg"
+          closeOnOverlayClick
+        >
+          <DimensionModalContent
+            onClose={() => setIsDimensionsModalOpen(false)}
+          />
+        </Modal>
+      )}
     </div>
   );
 }

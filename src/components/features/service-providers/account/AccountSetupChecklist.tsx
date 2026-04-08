@@ -58,6 +58,7 @@ export function AccountSetupChecklist({
     isApproved,
     status,
     hasMovingPartner,
+    hasHaulingPartner,
     activeMessageShown,
     isLoading,
     error,
@@ -86,7 +87,8 @@ export function AccountSetupChecklist({
         checklistStatus,
         userType,
         isApproved,
-        hasMovingPartner
+        hasMovingPartner,
+        hasHaulingPartner
       )
     : false;
 
@@ -297,19 +299,34 @@ export function AccountSetupChecklist({
             ) : (
               <>
                 <ChecklistItem
-                  completed={checklistStatus.companyDescription}
-                  label="Add a company description"
-                  href={`/service-provider/${userType}/${userId}/account-information`}
-                />
-                <ChecklistItem
                   completed={checklistStatus.companyPicture}
                   label="Add company picture or logo"
                   href={`/service-provider/${userType}/${userId}/account-information`}
                 />
                 <ChecklistItem
+                  completed={checklistStatus.usdotNumber}
+                  label="Add USDOT number"
+                  href={`/service-provider/${userType}/${userId}/account-information`}
+                />
+                <ChecklistItem
+                  completed={checklistStatus.californiaMcpNumber}
+                  label="Add MCP number"
+                  href={`/service-provider/${userType}/${userId}/account-information`}
+                />
+                <ChecklistItem
+                  completed={checklistStatus.phoneVerified}
+                  label="Verify your phone number"
+                  href={`/service-provider/${userType}/${userId}/account-information`}
+                />
+                <ChecklistItem
+                  completed={checklistStatus.insuranceAdded}
+                  label="Add insurance information"
+                  href={`/service-provider/${userType}/${userId}/account-information`}
+                />
+                <ChecklistItem
                   completed={checklistStatus.routePricing}
                   label="Set your route pricing"
-                  href={`/service-provider/${userType}/${userId}/route-pricing`}
+                  href={`/service-provider/${userType}/${userId}/account-information`}
                 />
                 <ChecklistItem
                   completed={checklistStatus.approvedVehicles}
@@ -362,7 +379,7 @@ export function AccountSetupChecklist({
                 label="Verify your phone number"
                 href={`/service-provider/${userType}/${userId}/account-information`}
               />
-              {!hasMovingPartner && (
+              {!hasMovingPartner && !hasHaulingPartner && (
                 <>
                   <ChecklistItem
                     completed={checklistStatus.approvedVehicle || false}

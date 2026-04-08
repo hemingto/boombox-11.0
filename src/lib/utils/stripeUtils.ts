@@ -83,34 +83,39 @@ export interface MovingPartnerUser extends StripeConnectUser {
   phoneNumber: string | null;
 }
 
+export interface HaulingPartnerUser extends StripeConnectUser {
+  name: string;
+  email: string | null;
+  phoneNumber: string | null;
+}
+
 /**
  * Get user's Stripe Connect account info by type
  * @source boombox-10.0/src/app/api/stripe/connect/* (repeated pattern)
  */
 export async function getStripeConnectUser(
   userId: number,
-  userType: 'driver' | 'mover'
+  userType: 'driver' | 'mover' | 'hauler'
 ): Promise<StripeConnectUser | null> {
   try {
+    const select = {
+      stripeConnectAccountId: true,
+      stripeConnectOnboardingComplete: true,
+      stripeConnectPayoutsEnabled: true,
+      stripeConnectDetailsSubmitted: true,
+    } as const;
+
     if (userType === 'driver') {
-      return await prisma.driver.findUnique({
+      return await prisma.driver.findUnique({ where: { id: userId }, select });
+    } else if (userType === 'hauler') {
+      return await prisma.haulingPartner.findUnique({
         where: { id: userId },
-        select: {
-          stripeConnectAccountId: true,
-          stripeConnectOnboardingComplete: true,
-          stripeConnectPayoutsEnabled: true,
-          stripeConnectDetailsSubmitted: true,
-        },
+        select,
       });
     } else {
       return await prisma.movingPartner.findUnique({
         where: { id: userId },
-        select: {
-          stripeConnectAccountId: true,
-          stripeConnectOnboardingComplete: true,
-          stripeConnectPayoutsEnabled: true,
-          stripeConnectDetailsSubmitted: true,
-        },
+        select,
       });
     }
   } catch (error) {
@@ -125,9 +130,19 @@ export async function getStripeConnectUser(
  */
 export async function getDetailedStripeConnectUser(
   userId: number,
-  userType: 'driver' | 'mover'
-): Promise<DriverUser | MovingPartnerUser | null> {
+  userType: 'driver' | 'mover' | 'hauler'
+): Promise<DriverUser | MovingPartnerUser | HaulingPartnerUser | null> {
   try {
+    const companySelect = {
+      name: true,
+      email: true,
+      phoneNumber: true,
+      stripeConnectAccountId: true,
+      stripeConnectOnboardingComplete: true,
+      stripeConnectPayoutsEnabled: true,
+      stripeConnectDetailsSubmitted: true,
+    } as const;
+
     if (userType === 'driver') {
       return await prisma.driver.findUnique({
         where: { id: userId },
@@ -142,18 +157,15 @@ export async function getDetailedStripeConnectUser(
           stripeConnectDetailsSubmitted: true,
         },
       });
+    } else if (userType === 'hauler') {
+      return await prisma.haulingPartner.findUnique({
+        where: { id: userId },
+        select: companySelect,
+      });
     } else {
       return await prisma.movingPartner.findUnique({
         where: { id: userId },
-        select: {
-          name: true,
-          email: true,
-          phoneNumber: true,
-          stripeConnectAccountId: true,
-          stripeConnectOnboardingComplete: true,
-          stripeConnectPayoutsEnabled: true,
-          stripeConnectDetailsSubmitted: true,
-        },
+        select: companySelect,
       });
     }
   } catch (error) {
@@ -202,7 +214,7 @@ export async function calculateStripeBalance(accountId: string) {
  */
 export async function updateStripeConnectStatus(
   userId: number,
-  userType: 'driver' | 'mover',
+  userType: 'driver' | 'mover' | 'hauler',
   account: Stripe.Account
 ) {
   const updateData = {
@@ -213,6 +225,11 @@ export async function updateStripeConnectStatus(
 
   if (userType === 'driver') {
     await prisma.driver.update({
+      where: { id: userId },
+      data: updateData,
+    });
+  } else if (userType === 'hauler') {
+    await prisma.haulingPartner.update({
       where: { id: userId },
       data: updateData,
     });
@@ -237,10 +254,15 @@ export { getStripeAccountStatusDisplay } from './stripeDisplayUtils';
  */
 export async function createStripeConnectAccount(
   userId: number,
-  userType: 'driver' | 'mover',
-  user: DriverUser | MovingPartnerUser
+  userType: 'driver' | 'mover' | 'hauler',
+  user: DriverUser | MovingPartnerUser | HaulingPartnerUser
 ): Promise<string> {
-  // Create account parameters based on user type
+  const mccCodes: Record<string, string> = {
+    driver: '4214', // Motor Freight Carriers
+    hauler: '4214', // Motor Freight Carriers (haulers are trucking companies)
+    mover: '5699', // Miscellaneous Apparel and Accessory Stores
+  };
+
   const accountParams: Stripe.AccountCreateParams = {
     type: 'express',
     country: 'US',
@@ -248,7 +270,7 @@ export async function createStripeConnectAccount(
       transfers: { requested: true },
     },
     business_profile: {
-      mcc: userType === 'driver' ? '4214' : '5699', // Motor Freight Carriers for drivers, Miscellaneous Apparel and Accessory Stores for movers
+      mcc: mccCodes[userType],
       url:
         process.env.NODE_ENV === 'production'
           ? process.env.NEXT_PUBLIC_APP_URL || 'https://boomboxstorage.com'
@@ -260,7 +282,6 @@ export async function createStripeConnectAccount(
     },
   };
 
-  // Add type-specific parameters
   if (userType === 'driver') {
     const driverUser = user as DriverUser;
     accountParams.business_type = 'individual';
@@ -272,34 +293,37 @@ export async function createStripeConnectAccount(
       phone: driverUser.phoneNumber || undefined,
     };
   } else {
-    const movingPartnerUser = user as MovingPartnerUser;
+    const companyUser = user as MovingPartnerUser | HaulingPartnerUser;
     accountParams.business_type = 'company';
-    accountParams.email = movingPartnerUser.email || '';
+    accountParams.email = companyUser.email || '';
     accountParams.company = {
-      name: movingPartnerUser.name,
+      name: companyUser.name,
     };
   }
 
-  // Create the Stripe account
   const account = await stripe.accounts.create(accountParams);
 
-  // Update user record with Connect account ID
+  const connectInitData = {
+    stripeConnectAccountId: account.id,
+    stripeConnectOnboardingComplete: false,
+    stripeConnectPayoutsEnabled: false,
+    stripeConnectDetailsSubmitted: false,
+  };
+
   if (userType === 'driver') {
     await prisma.driver.update({
       where: { id: userId },
-      data: {
-        stripeConnectAccountId: account.id,
-      },
+      data: { stripeConnectAccountId: account.id },
+    });
+  } else if (userType === 'hauler') {
+    await prisma.haulingPartner.update({
+      where: { id: userId },
+      data: connectInitData,
     });
   } else {
     await prisma.movingPartner.update({
       where: { id: userId },
-      data: {
-        stripeConnectAccountId: account.id,
-        stripeConnectOnboardingComplete: false,
-        stripeConnectPayoutsEnabled: false,
-        stripeConnectDetailsSubmitted: false,
-      },
+      data: connectInitData,
     });
   }
 

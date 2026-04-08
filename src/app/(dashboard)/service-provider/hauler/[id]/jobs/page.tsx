@@ -1,105 +1,81 @@
+/**
+ * @fileoverview Hauler jobs page - upcoming haul jobs and job history
+ * Mirrors the mover jobs page structure, using shared components
+ * with hauler-specific data fetching via useJobsPageData.
+ *
+ * PAGE STRUCTURE:
+ * 1. UpcomingJobs - Scheduled/in-progress haul jobs
+ * 2. JobHistory - Completed past haul jobs
+ *
+ * DATA FETCHING:
+ * Uses useJobsPageData hook with userType='hauler'.
+ * Fetches from /api/hauling-partners/[id]/upcoming-jobs and /api/hauling-partners/[id]/jobs.
+ */
+
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { use } from 'react';
+import { SubPageHero } from '@/components/features/service-providers/account/SubPageHero';
+import { UpcomingJobs } from '@/components/features/service-providers/jobs/UpcomingJobs';
+import { JobHistory } from '@/components/features/service-providers/jobs/JobHistory';
+import { JobsPageSkeleton } from '@/components/features/service-providers/jobs/JobsPageSkeleton';
+import { useJobsPageData } from '@/hooks/useJobsPageData';
 
-interface HaulJob {
-  id: number;
-  jobCode: string;
-  type: string;
-  status: string;
-  scheduledDate: string | null;
-  originWarehouse: { name: string; city: string };
-  destinationWarehouse: { name: string; city: string };
-  units: { storageUnit: { storageUnitNumber: string } }[];
-}
+type PageParams = {
+  id: string;
+};
 
-export default function HaulerJobsPage() {
-  const params = useParams();
-  const [jobs, setJobs] = useState<HaulJob[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+export default function HaulerJobsPage({
+  params,
+}: {
+  params: Promise<PageParams>;
+}) {
+  const actualParams = use(params);
+  const haulerId = actualParams.id;
 
-  useEffect(() => {
-    async function fetchJobs() {
-      try {
-        const res = await fetch(`/api/hauling-partners/${params.id}/jobs`);
-        if (res.ok) {
-          const data = await res.json();
-          setJobs(data.jobs || []);
-        }
-      } catch (err) {
-        console.error('Error fetching jobs:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchJobs();
-  }, [params.id]);
-
-  if (isLoading) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-surface-tertiary rounded w-1/3"></div>
-          <div className="h-4 bg-surface-tertiary rounded w-3/4"></div>
-        </div>
-      </div>
-    );
-  }
+  const { upcomingJobs, jobHistory, isLoading, error, setUpcomingJobs } =
+    useJobsPageData({ userType: 'hauler', userId: haulerId });
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-2xl font-semibold text-text-primary mb-6">
-        Haul Jobs
-      </h1>
+    <>
+      <SubPageHero
+        title="Jobs"
+        description="View your upcoming haul jobs and job history"
+        userType="hauler"
+        userId={haulerId}
+      />
 
-      {jobs.length === 0 ? (
-        <div className="bg-surface-primary rounded-lg p-8 text-center shadow-custom-shadow">
-          <p className="text-text-secondary">No haul jobs yet.</p>
+      {isLoading ? (
+        <JobsPageSkeleton />
+      ) : error ? (
+        <div className="max-w-5xl lg:px-16 px-6 mx-auto">
+          <div
+            className="bg-status-error/10 p-4 mb-4 border border-status-error rounded-md"
+            role="alert"
+          >
+            <p className="text-sm text-status-error">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-2 text-sm text-status-error underline hover:no-underline"
+            >
+              Try again
+            </button>
+          </div>
         </div>
       ) : (
-        <div className="space-y-4">
-          {jobs.map(job => (
-            <div
-              key={job.id}
-              className="bg-surface-primary rounded-lg p-6 shadow-custom-shadow"
-            >
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <h3 className="font-semibold text-text-primary">
-                    {job.jobCode}
-                  </h3>
-                  <p className="text-sm text-text-secondary">
-                    {job.originWarehouse.name} → {job.destinationWarehouse.name}
-                  </p>
-                </div>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    job.status === 'COMPLETED'
-                      ? 'bg-green-100 text-green-800'
-                      : job.status === 'IN_PROGRESS'
-                        ? 'bg-blue-100 text-blue-800'
-                        : job.status === 'SCHEDULED'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-gray-100 text-gray-800'
-                  }`}
-                >
-                  {job.status}
-                </span>
-              </div>
-              <div className="text-sm text-text-secondary">
-                <p>{job.units.length} unit(s)</p>
-                {job.scheduledDate && (
-                  <p>
-                    Scheduled:{' '}
-                    {new Date(job.scheduledDate).toLocaleDateString()}
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+        <>
+          <UpcomingJobs
+            userType="hauler"
+            userId={haulerId}
+            appointments={upcomingJobs}
+            onAppointmentsChange={setUpcomingJobs}
+          />
+          <div className="max-w-5xl lg:px-16 px-6 mx-auto mt-12 sm:mt-24 mb-20 sm:mb-36">
+            <h2 className="text-2xl mb-8">Job History</h2>
+            <JobHistory userType="hauler" userId={haulerId} jobs={jobHistory} />
+          </div>
+        </>
       )}
-    </div>
+    </>
   );
 }

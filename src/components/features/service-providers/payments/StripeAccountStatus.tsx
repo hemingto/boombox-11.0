@@ -2,37 +2,37 @@
  * @fileoverview Stripe Connect account status display component for service providers
  * Displays Stripe Connect account information including account name, status, balance,
  * connection date, and provides update functionality for service providers.
- * 
+ *
  * @source boombox-10.0/src/app/components/mover-account/stripeaccountstatus.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * - Fetches and displays Stripe Connect account details for drivers and moving partners
  * - Shows account status with color-coded badges (Active, Pending, Incomplete, Limited)
  * - Displays current balance, account name, and connection date
  * - Provides "Update" button to redirect to Stripe's hosted onboarding/update page
  * - Handles loading states and error scenarios
- * 
+ *
  * API ROUTES UPDATED:
  * - Old: /api/stripe/connect/account-details → New: /api/payments/connect/account-details
  * - Old: /api/stripe/connect/create-account-link → New: /api/payments/connect/create-account-link
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Replaced custom color classes with design system badge utilities (badge-success, badge-warning, badge-info)
  * - Applied semantic text colors (text-primary, text-secondary)
  * - Updated button styles to use design system hover states (bg-surface-tertiary hover:bg-surface-hover)
  * - Replaced custom shadow with shadow-custom-shadow design token
- * 
+ *
  * BUSINESS LOGIC EXTRACTED:
  * - Status display logic moved to getStripeAccountStatusDisplay() in stripeUtils.ts
  * - Prevents duplicate status determination logic across components
- * 
+ *
  * ACCESSIBILITY IMPROVEMENTS:
  * - Added ARIA labels for status badges with screen reader context
  * - Added aria-busy and aria-live for loading states
  * - Proper semantic HTML structure with descriptive headings
  * - Disabled button state with proper aria-disabled attribute
- * 
- * @refactor 
+ *
+ * @refactor
  * - Migrated to service-providers/payments feature folder
  * - Extracted getStatusDisplay() to centralized stripeUtils.ts
  * - Updated API routes to new payments domain structure
@@ -50,7 +50,7 @@ import { Button } from '@/components/ui/primitives/Button/Button';
 
 interface StripeAccountStatusProps {
   userId: string;
-  userType: 'driver' | 'mover';
+  userType: 'driver' | 'mover' | 'hauler';
   onLoadingChange?: (isLoading: boolean) => void;
 }
 
@@ -109,13 +109,16 @@ export function StripeAccountStatus({
   const handleUpdateStripeDetails = async () => {
     try {
       setIsCreatingLink(true);
-      const response = await fetch('/api/payments/connect/create-account-link', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId, userType }),
-      });
+      const response = await fetch(
+        '/api/payments/connect/create-account-link',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userId, userType }),
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -237,4 +240,3 @@ export function StripeAccountStatus({
     </div>
   );
 }
-

@@ -17,7 +17,7 @@ export async function GET(
 
     const hauler = await prisma.haulingPartner.findUnique({
       where: { id: idNum },
-      select: { priceSsfToStockton: true, priceStocktonToSsf: true },
+      select: { pricePerBoombox: true },
     });
 
     if (!hauler) {
@@ -51,23 +51,19 @@ export async function PATCH(
       );
     }
 
-    const { priceSsfToStockton, priceStocktonToSsf } = await request.json();
+    const { pricePerBoombox } = await request.json();
 
     const updated = await prisma.haulingPartner.update({
       where: { id: idNum },
       data: {
-        ...(priceSsfToStockton !== undefined && {
-          priceSsfToStockton: parseFloat(priceSsfToStockton),
-        }),
-        ...(priceStocktonToSsf !== undefined && {
-          priceStocktonToSsf: parseFloat(priceStocktonToSsf),
+        ...(pricePerBoombox !== undefined && {
+          pricePerBoombox: parseFloat(pricePerBoombox),
         }),
       },
     });
 
     return NextResponse.json({
-      priceSsfToStockton: updated.priceSsfToStockton,
-      priceStocktonToSsf: updated.priceStocktonToSsf,
+      pricePerBoombox: updated.pricePerBoombox,
     });
   } catch (error) {
     console.error('Error updating route pricing:', error);

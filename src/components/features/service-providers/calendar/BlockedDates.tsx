@@ -1,34 +1,34 @@
 /**
  * @fileoverview Blocked dates management component for service providers (drivers and moving partners)
  * @source boombox-10.0/src/app/components/mover-account/blockdates.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * - Display list of blocked dates for drivers or moving partners
  * - Add new blocked dates using custom date picker
  * - Remove existing blocked dates
  * - Real-time date synchronization with backend
  * - Empty state with informative message
- * 
+ *
  * API ROUTES UPDATED:
  * - Old: GET /api/${userType}/${userId}/blocked-dates
  * - New: GET /api/drivers/[id]/blocked-dates (for drivers)
  * - New: GET /api/moving-partners/[id]/blocked-dates (for movers)
- * 
+ *
  * - Old: POST /api/${userType}/${userId}/blocked-dates
  * - New: POST /api/drivers/[id]/blocked-dates (for drivers)
  * - New: POST /api/moving-partners/[id]/blocked-dates (for movers)
- * 
+ *
  * - Old: DELETE /api/${userType}/${userId}/blocked-dates/${id}
  * - New: DELETE /api/drivers/[id]/blocked-dates/[dateId] (for drivers)
  * - New: DELETE /api/moving-partners/[id]/blocked-dates/[dateId] (for movers)
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Replaced hardcoded colors (bg-zinc-950, bg-slate-100) with design system tokens (bg-primary, bg-surface-secondary)
  * - Applied semantic button patterns with btn-primary utility classes
  * - Used design system loading skeleton components
  * - Consistent border colors using border-border tokens
  * - Applied text hierarchy with text-text-primary and text-text-secondary
- * 
+ *
  * @refactor Migrated to service-providers/calendar folder, updated API routes to domain-based structure, enhanced accessibility with ARIA labels
  */
 
@@ -41,8 +41,8 @@ import { Skeleton } from '@/components/ui/primitives/Skeleton';
 import { CalendarDateRangeIcon } from '@heroicons/react/24/outline';
 
 export interface BlockedDatesProps {
-  /** Type of user: 'driver' or 'mover' (moving partner) */
-  userType: 'driver' | 'mover';
+  /** Type of user: 'driver', 'mover' (moving partner), or 'hauler' (hauling partner) */
+  userType: 'driver' | 'mover' | 'hauler';
   /** User ID for fetching blocked dates */
   userId: string;
 }
@@ -55,17 +55,27 @@ interface BlockedDate {
 const BlockedDates: React.FC<BlockedDatesProps> = ({ userType, userId }) => {
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [selectedDateObject, setSelectedDateObject] = useState<Date | null>(null);
+  const [selectedDateObject, setSelectedDateObject] = useState<Date | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [removingDateId, setRemovingDateId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Construct API path based on userType
-  const getApiPath = useCallback((path: string) => {
-    const basePath = userType === 'driver' ? 'drivers' : 'moving-partners';
-    return `/api/${basePath}/${userId}/${path}`;
-  }, [userType, userId]);
+  const getApiPath = useCallback(
+    (path: string) => {
+      const basePath =
+        userType === 'driver'
+          ? 'drivers'
+          : userType === 'hauler'
+            ? 'hauling-partners'
+            : 'moving-partners';
+      return `/api/${basePath}/${userId}/${path}`;
+    },
+    [userType, userId]
+  );
 
   const fetchBlockedDates = useCallback(async () => {
     try {
@@ -93,7 +103,7 @@ const BlockedDates: React.FC<BlockedDatesProps> = ({ userType, userId }) => {
 
     setIsSaving(true);
     setError(null);
-    
+
     try {
       const response = await fetch(getApiPath('blocked-dates'), {
         method: 'POST',
@@ -107,14 +117,18 @@ const BlockedDates: React.FC<BlockedDatesProps> = ({ userType, userId }) => {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to add blocked date');
       }
-      
+
       const newBlockedDate = await response.json();
       setBlockedDates([...blockedDates, newBlockedDate]);
       setSelectedDate('');
       setSelectedDateObject(null);
     } catch (error) {
       console.error('Error adding blocked date:', error);
-      setError(error instanceof Error ? error.message : 'Failed to add blocked date. Please try again.');
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to add blocked date. Please try again.'
+      );
     } finally {
       setIsSaving(false);
     }
@@ -132,11 +146,15 @@ const BlockedDates: React.FC<BlockedDatesProps> = ({ userType, userId }) => {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to remove blocked date');
       }
-      
-      setBlockedDates(blockedDates.filter((date) => date.id !== id));
+
+      setBlockedDates(blockedDates.filter(date => date.id !== id));
     } catch (error) {
       console.error('Error removing blocked date:', error);
-      setError(error instanceof Error ? error.message : 'Failed to remove blocked date. Please try again.');
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to remove blocked date. Please try again.'
+      );
     } finally {
       setRemovingDateId(null);
     }
@@ -173,15 +191,17 @@ const BlockedDates: React.FC<BlockedDatesProps> = ({ userType, userId }) => {
             onClick={handleAddBlockedDate}
             disabled={isSaving || !selectedDate}
             variant="primary"
-            aria-label={isSaving ? 'Adding blocked date...' : 'Block selected date'}
+            aria-label={
+              isSaving ? 'Adding blocked date...' : 'Block selected date'
+            }
           >
             {isSaving ? 'Blocking Date...' : 'Block Date'}
           </Button>
         </div>
-        
+
         {/* Error Message */}
         {error && (
-          <div 
+          <div
             id="blocked-dates-error"
             className="mt-2 mb-4 text-status-error text-sm"
             role="alert"
@@ -202,24 +222,24 @@ const BlockedDates: React.FC<BlockedDatesProps> = ({ userType, userId }) => {
       ) : (
         <div>
           {blockedDates.length === 0 ? (
-            <div 
+            <div
               className="text-center min-h-48 flex flex-col items-center justify-center bg-surface-tertiary rounded-md"
               role="status"
               aria-label="No blocked dates"
             >
-              <CalendarDateRangeIcon 
-                className="mx-auto w-8 h-8 text-text-secondary mb-2" 
+              <CalendarDateRangeIcon
+                className="mx-auto w-8 h-8 text-text-secondary mb-2"
                 aria-hidden="true"
               />
               <p className="text-text-secondary">No blocked dates</p>
             </div>
           ) : (
-            <div 
+            <div
               className="space-y-2"
               role="list"
               aria-label="Blocked dates list"
             >
-              {blockedDates.map((date) => (
+              {blockedDates.map(date => (
                 <div
                   key={date.id}
                   className="sm:p-4 p-2 flex justify-between border-b border-border items-center rounded-md"
@@ -233,7 +253,11 @@ const BlockedDates: React.FC<BlockedDatesProps> = ({ userType, userId }) => {
                     disabled={removingDateId === date.id}
                     variant="secondary"
                     size="sm"
-                    aria-label={removingDateId === date.id ? 'Removing blocked date...' : `Remove blocked date: ${format(new Date(date.blockedDate), 'MMMM d, yyyy')}`}
+                    aria-label={
+                      removingDateId === date.id
+                        ? 'Removing blocked date...'
+                        : `Remove blocked date: ${format(new Date(date.blockedDate), 'MMMM d, yyyy')}`
+                    }
                   >
                     {removingDateId === date.id ? 'Removing...' : 'Remove'}
                   </Button>
@@ -247,7 +271,8 @@ const BlockedDates: React.FC<BlockedDatesProps> = ({ userType, userId }) => {
       {/* Informational Note */}
       <div className="mt-6">
         <p className="text-text-primary border border-border rounded-md p-3 text-sm">
-          <strong>Note:</strong> Blocked dates will prevent any bookings on those specific days, regardless of your weekly availability settings.
+          <strong>Note:</strong> Blocked dates will prevent any bookings on
+          those specific days, regardless of your weekly availability settings.
         </p>
       </div>
     </div>
@@ -255,4 +280,3 @@ const BlockedDates: React.FC<BlockedDatesProps> = ({ userType, userId }) => {
 };
 
 export default BlockedDates;
-

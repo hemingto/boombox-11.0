@@ -1,7 +1,7 @@
 /**
  * @fileoverview Job History component displaying past and upcoming jobs for service providers
  * @source boombox-10.0/src/app/components/mover-account/jobhistory.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * - Displays job history for movers and drivers
  * - Provides filtering (all, completed, upcoming, newest)
@@ -9,18 +9,18 @@
  * - Implements pagination for large datasets
  * - Shows job details with star ratings and feedback
  * - Integrates with JobHistoryPopup for detailed view
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Replaced hardcoded colors (text-zinc-950, text-slate-100, bg-slate-100) with semantic tokens
  * - Used design system colors: text-text-primary, text-text-secondary, bg-surface-tertiary
  * - Applied consistent hover and active states using design system colors
  * - Used global utility classes: input-field, btn-secondary
- * 
+ *
  * BUSINESS LOGIC EXTRACTION:
  * - Moved formatDateTime to @/lib/utils/dateUtils
  * - Used existing useClickOutside hook from @/hooks
  * - Extracted star rating component to reusable utility
- * 
+ *
  * @refactor Data fetching moved to parent page via useJobsPageData hook.
  * Component now accepts jobs as props for coordinated page-level loading.
  */
@@ -28,7 +28,11 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { ClipboardDocumentListIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import {
+  ClipboardDocumentListIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { formatDateTime } from '@/lib/utils/dateUtils';
@@ -40,7 +44,7 @@ import type { HistoryJob } from '@/hooks/useJobsPageData';
 export type { HistoryJob };
 
 interface JobHistoryProps {
-  userType: 'mover' | 'driver';
+  userType: 'mover' | 'driver' | 'hauler';
   userId: string;
   /** Job history data to display */
   jobs: HistoryJob[];
@@ -53,7 +57,11 @@ type FilterOption = 'all' | 'completed' | 'upcoming' | 'newest';
  */
 function StarRating({ rating }: { rating: number }) {
   return (
-    <div className="flex items-center" role="img" aria-label={`${rating} out of 5 stars`}>
+    <div
+      className="flex items-center"
+      role="img"
+      aria-label={`${rating} out of 5 stars`}
+    >
       {[...Array(5)].map((_, index) => (
         <StarIcon
           key={index}
@@ -84,13 +92,14 @@ export function JobHistory({ userType, userId, jobs }: JobHistoryProps) {
 
   const filteredJobs = jobs
     .filter(job => {
-      const searchMatch = searchTerm === '' || 
+      const searchMatch =
+        searchTerm === '' ||
         job.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
         job.appointmentType.toLowerCase().includes(searchTerm.toLowerCase());
-      
+
       const currentDate = new Date();
       const jobDate = new Date(job.date);
-      
+
       switch (filterOption) {
         case 'completed':
           return searchMatch && jobDate < currentDate;
@@ -119,7 +128,9 @@ export function JobHistory({ userType, userId, jobs }: JobHistoryProps) {
     return (
       <div className="bg-surface-primary rounded-md p-8 text-center">
         <ClipboardDocumentListIcon className="w-12 h-12 mx-auto text-text-secondary mb-4" />
-        <h3 className="text-lg font-semibold mb-2 text-text-tertiary">No completed jobs yet</h3>
+        <h3 className="text-lg font-semibold mb-2 text-text-tertiary">
+          No completed jobs yet
+        </h3>
         <p className="text-text-tertiary">
           Your job history will appear here once you start completing jobs
         </p>
@@ -136,15 +147,15 @@ export function JobHistory({ userType, userId, jobs }: JobHistoryProps) {
             placeholder="Search jobs..."
             className="input-field w-full sm:mb-4 mb-2"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
             aria-label="Search jobs"
           />
           <div className="relative" ref={filterRef}>
             <button
               type="button"
               className={`relative w-fit rounded-full px-3 py-2 cursor-pointer ${
-                isFilterOpen 
-                  ? 'ring-2 ring-border bg-surface-primary' 
+                isFilterOpen
+                  ? 'ring-2 ring-border bg-surface-primary'
                   : 'ring-1 ring-border bg-surface-tertiary hover:bg-surface-disabled'
               }`}
               onClick={() => setIsFilterOpen(!isFilterOpen)}
@@ -154,10 +165,13 @@ export function JobHistory({ userType, userId, jobs }: JobHistoryProps) {
             >
               <div className="flex justify-between items-center">
                 <span className="text-sm text-text-primary text-nowrap">
-                  {filterOption === 'all' ? 'All Jobs' :
-                    filterOption === 'completed' ? 'Completed' :
-                    filterOption === 'upcoming' ? 'Upcoming' :
-                    'Newest First'}
+                  {filterOption === 'all'
+                    ? 'All Jobs'
+                    : filterOption === 'completed'
+                      ? 'Completed'
+                      : filterOption === 'upcoming'
+                        ? 'Upcoming'
+                        : 'Newest First'}
                 </span>
                 <svg
                   className="shrink-0 w-3 h-3 text-text-primary ml-1"
@@ -167,18 +181,23 @@ export function JobHistory({ userType, userId, jobs }: JobHistoryProps) {
                   xmlns="http://www.w3.org/2000/svg"
                   aria-hidden="true"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
                 </svg>
               </div>
             </button>
 
             {isFilterOpen && (
-              <div 
+              <div
                 className="absolute w-fit min-w-36 left-0 z-10 mt-2 border border-border rounded-md bg-surface-primary shadow-lg"
                 role="menu"
                 aria-label="Filter options"
               >
-                {['all', 'completed', 'upcoming', 'newest'].map((option) => (
+                {['all', 'completed', 'upcoming', 'newest'].map(option => (
                   <button
                     key={option}
                     type="button"
@@ -203,16 +222,27 @@ export function JobHistory({ userType, userId, jobs }: JobHistoryProps) {
       <div className="bg-surface-primary rounded-md">
         {/* Table Header */}
         <div className="grid grid-cols-5 border-b border-border py-3 px-4">
-          <div className="text-sm font-medium text-text-secondary">Job Type</div>
+          <div className="text-sm font-medium text-text-secondary">
+            Job Type
+          </div>
           <div className="text-sm font-medium text-text-secondary">Address</div>
-          <div className="text-sm font-medium text-text-secondary">Date & Time</div>
-          <div className="text-sm font-medium text-text-secondary">Feedback</div>
-          <div className="text-sm font-medium text-text-secondary text-right">Actions</div>
+          <div className="text-sm font-medium text-text-secondary">
+            Date & Time
+          </div>
+          <div className="text-sm font-medium text-text-secondary">
+            Feedback
+          </div>
+          <div className="text-sm font-medium text-text-secondary text-right">
+            Actions
+          </div>
         </div>
 
         {/* Table Content */}
-        {paginatedJobs.map((job) => (
-          <div key={job.id} className="grid grid-cols-5 items-center py-4 border-b border-border last:border-none px-4">
+        {paginatedJobs.map(job => (
+          <div
+            key={job.id}
+            className="grid grid-cols-5 items-center py-4 border-b border-border last:border-none px-4"
+          >
             <div className="truncate pr-4">
               <p className="text-sm text-text-primary">{job.appointmentType}</p>
               {isPackingSupplyRoute(job) && (
@@ -229,7 +259,9 @@ export function JobHistory({ userType, userId, jobs }: JobHistoryProps) {
                 </div>
               )}
             </div>
-            <div className="text-sm text-text-primary">{formatDateTime(job.date)}</div>
+            <div className="text-sm text-text-primary">
+              {formatDateTime(job.date)}
+            </div>
             <div>
               {isPackingSupplyRoute(job) ? (
                 <div className="text-sm text-text-tertiary">
@@ -242,7 +274,9 @@ export function JobHistory({ userType, userId, jobs }: JobHistoryProps) {
               ) : job.feedback ? (
                 <StarRating rating={job.feedback.rating} />
               ) : (
-                <span className="text-sm text-text-tertiary">No feedback yet</span>
+                <span className="text-sm text-text-tertiary">
+                  No feedback yet
+                </span>
               )}
             </div>
             <div className="text-right">
@@ -267,7 +301,9 @@ export function JobHistory({ userType, userId, jobs }: JobHistoryProps) {
             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
             className={`absolute left-0 rounded-full bg-surface-tertiary active:bg-surface-disabled p-2 ${
-              currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-surface-disabled'
+              currentPage === 1
+                ? 'opacity-50 cursor-not-allowed'
+                : 'cursor-pointer hover:bg-surface-disabled'
             }`}
             aria-label="Previous page"
           >
@@ -280,10 +316,14 @@ export function JobHistory({ userType, userId, jobs }: JobHistoryProps) {
 
           <button
             type="button"
-            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            onClick={() =>
+              setCurrentPage(prev => Math.min(prev + 1, totalPages))
+            }
             disabled={currentPage === totalPages}
             className={`absolute right-0 rounded-full bg-surface-tertiary active:bg-surface-disabled p-2 ${
-              currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-surface-disabled'
+              currentPage === totalPages
+                ? 'opacity-50 cursor-not-allowed'
+                : 'cursor-pointer hover:bg-surface-disabled'
             }`}
             aria-label="Next page"
           >

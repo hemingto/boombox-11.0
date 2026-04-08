@@ -1,53 +1,61 @@
 /**
  * @fileoverview MoverMenuPopover - Mover/driver account dropdown menu
  * @source boombox-10.0/src/app/components/navbar/MoverMenuPopover.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * Provides dropdown menu for authenticated movers and drivers with role-specific
  * navigation links and logout functionality. Supports both mover and driver user types
  * with appropriate menu items and session management.
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Replaced hardcoded zinc/slate colors with semantic design system tokens
  * - Applied consistent text hierarchy using design system colors
  * - Enhanced accessibility with proper ARIA labels and keyboard navigation
  * - Updated button styling to use design system patterns
- * 
+ *
  * @refactor Converted to design system compliance and enhanced accessibility
  */
 
-'use client'
+'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Bars3Icon, XMarkIcon } from "@heroicons/react/20/solid";
+import { Bars3Icon, XMarkIcon } from '@heroicons/react/20/solid';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { signOut } from "next-auth/react";
+import { signOut } from 'next-auth/react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 
 interface MoverMenuPopoverProps {
   className?: string;
   theme?: 'dark' | 'light';
-  userType: "driver" | "mover";
+  userType: 'driver' | 'mover';
   userId: string;
 }
 
-export const MoverMenuPopover: React.FC<MoverMenuPopoverProps> = ({ className, theme = 'dark', userType, userId }) => {
+export const MoverMenuPopover: React.FC<MoverMenuPopoverProps> = ({
+  className,
+  theme = 'dark',
+  userType,
+  userId,
+}) => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  const baseUrl = userType === "driver" ? `/service-provider/driver/${userId}` : `/service-provider/mover/${userId}`;
+  const baseUrl =
+    userType === 'driver'
+      ? `/service-provider/driver/${userId}`
+      : `/service-provider/mover/${userId}`;
 
   const menuOptions = [
-    { name: "Home", href: `${baseUrl}`},
-    { name: "Jobs", href: `${baseUrl}/jobs`},
-    { name: "Work Schedule", href: `${baseUrl}/calendar`},
-    { name: "Vehicle information", href: `${baseUrl}/vehicle`},
-    { name: "Drivers", href: `${baseUrl}/drivers`},
-    { name: "Account information", href: `${baseUrl}/account-information`},
-    { name: "Payment", href: `${baseUrl}/payment` },
+    { name: 'Home', href: `${baseUrl}` },
+    { name: 'Jobs', href: `${baseUrl}/jobs` },
+    { name: 'Work Schedule', href: `${baseUrl}/calendar` },
+    { name: 'Vehicle Information', href: `${baseUrl}/vehicle` },
+    { name: 'Drivers', href: `${baseUrl}/drivers` },
+    { name: 'Account Information', href: `${baseUrl}/account-information` },
+    { name: 'Payment', href: `${baseUrl}/payment` },
   ];
 
   const isDarkTheme = theme === 'dark';
@@ -63,26 +71,29 @@ export const MoverMenuPopover: React.FC<MoverMenuPopoverProps> = ({ className, t
   // Close menu when clicking outside
   useClickOutside(popoverRef, closeMenu);
 
-  const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
-    if (event.key === 'Escape') {
-      closeMenu();
-    } else if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      toggleMenu();
-    }
-  }, [closeMenu, toggleMenu]);
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeMenu();
+      } else if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        toggleMenu();
+      }
+    },
+    [closeMenu, toggleMenu]
+  );
 
   const handleLogout = async () => {
     try {
       console.log('[MoverMenuPopover] Starting logout...');
       setIsLoggingOut(true);
-      
+
       console.log('[MoverMenuPopover] Calling signOut...');
       await signOut({ redirect: false });
-      
+
       console.log('[MoverMenuPopover] signOut completed, redirecting to /');
       router.push('/');
-      
+
       setIsLoggingOut(false);
       console.log('[MoverMenuPopover] Logout complete');
     } catch (error) {
@@ -93,7 +104,10 @@ export const MoverMenuPopover: React.FC<MoverMenuPopoverProps> = ({ className, t
   };
 
   return (
-    <div className={`relative inline-block text-left ${className}`} ref={popoverRef}>
+    <div
+      className={`relative inline-block text-left ${className}`}
+      ref={popoverRef}
+    >
       <button
         onClick={toggleMenu}
         onKeyDown={handleKeyDown}
@@ -123,9 +137,9 @@ export const MoverMenuPopover: React.FC<MoverMenuPopoverProps> = ({ className, t
         }`}
       >
         <ul className="" role="list">
-          {menuOptions.map((option) => (
+          {menuOptions.map(option => (
             <li key={option.name} role="listitem">
-              <Link 
+              <Link
                 href={option.href}
                 role="menuitem"
                 tabIndex={isOpen ? 0 : -1}
@@ -138,15 +152,15 @@ export const MoverMenuPopover: React.FC<MoverMenuPopoverProps> = ({ className, t
             </li>
           ))}
         </ul>
-        <div
-          className="flex border-t border-border h-12 items-center justify-center px-4 py-3 text-nowrap text-sm cursor-pointer text-text-primary hover:bg-surface-tertiary active:bg-surface-disabled"
-        >
+        <div className="flex border-t border-border h-12 items-center justify-center px-4 py-3 text-nowrap text-sm cursor-pointer text-text-primary hover:bg-surface-tertiary active:bg-surface-disabled">
           <button
             onClick={handleLogout}
             disabled={isLoggingOut}
             role="menuitem"
             tabIndex={isOpen ? 0 : -1}
-            aria-label={isLoggingOut ? 'Logging out' : 'Log out of your account'}
+            aria-label={
+              isLoggingOut ? 'Logging out' : 'Log out of your account'
+            }
             className="w-full text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset rounded"
           >
             {isLoggingOut ? 'Logging out...' : 'Log Out'}

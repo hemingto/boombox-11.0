@@ -12,7 +12,7 @@
  * - Mover payment management
  * - Full Stripe dashboard integration
  * - Advanced payment management features
- * 
+ *
  * INTEGRATION NOTES:
  * - Creates login links to full Stripe Connect dashboard
  * - Requires onboarding completion for access
@@ -34,35 +34,36 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { userId, userType } = body;
-    
+
     // Validate request data
     const validationResult = StripeConnectUserRequestSchema.safeParse({
       userId,
-      userType
+      userType,
     });
 
     if (!validationResult.success) {
       return NextResponse.json(
-        { error: 'Invalid request data', details: validationResult.error.issues },
+        {
+          error: 'Invalid request data',
+          details: validationResult.error.issues,
+        },
         { status: 400 }
       );
     }
 
     if (!userId || !userType) {
       return NextResponse.json(
-        { error: 'User ID and type are required' }, 
+        { error: 'User ID and type are required' },
         { status: 400 }
       );
     }
 
-    if (userType !== 'driver' && userType !== 'mover') {
-      return NextResponse.json(
-        { error: 'Invalid user type' }, 
-        { status: 400 }
-      );
+    if (!userType || !['driver', 'mover', 'hauler'].includes(userType)) {
+      return NextResponse.json({ error: 'Invalid user type' }, { status: 400 });
     }
 
-    const parsedUserId = typeof userId === 'string' ? parseInt(userId, 10) : userId;
+    const parsedUserId =
+      typeof userId === 'string' ? parseInt(userId, 10) : userId;
     if (isNaN(parsedUserId)) {
       return NextResponse.json(
         { error: 'Invalid user ID format' },
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
 
     if (!user || !user.stripeConnectAccountId) {
       return NextResponse.json(
-        { error: `${userType} does not have a Connect account` }, 
+        { error: `${userType} does not have a Connect account` },
         { status: 404 }
       );
     }
@@ -83,7 +84,9 @@ export async function POST(request: NextRequest) {
     // Check if onboarding is complete
     if (!user.stripeConnectOnboardingComplete) {
       return NextResponse.json(
-        { error: `${userType} must complete onboarding before accessing the dashboard` }, 
+        {
+          error: `${userType} must complete onboarding before accessing the dashboard`,
+        },
         { status: 400 }
       );
     }
@@ -94,12 +97,12 @@ export async function POST(request: NextRequest) {
     );
 
     return NextResponse.json({
-      url: loginLink.url
+      url: loginLink.url,
     });
   } catch (error: any) {
     console.error('Error creating dashboard link:', error);
     return NextResponse.json(
-      { error: 'Failed to create dashboard link', details: error.message }, 
+      { error: 'Failed to create dashboard link', details: error.message },
       { status: 500 }
     );
   }

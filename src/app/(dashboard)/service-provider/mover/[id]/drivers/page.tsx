@@ -31,10 +31,10 @@ export default async function MoverDriversPage({
         userType="mover"
         userId={moverId}
       />
-      {/* Pass DriverInvites Server Component as a prop to Client Component */}
-      <DriverContent 
-        moverId={moverId}
-        driverInvites={<DriverInvites moverId={moverId} />}
+      <DriverContent
+        partnerId={moverId}
+        userType="mover"
+        driverInvites={<DriverInvites partnerId={moverId} userType="mover" />}
       />
     </>
   );

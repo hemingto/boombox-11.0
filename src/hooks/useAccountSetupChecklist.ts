@@ -27,6 +27,7 @@ interface UseAccountSetupChecklistReturn {
   isApproved: boolean;
   status: 'PENDING' | 'APPROVED' | 'ACTIVE' | 'INACTIVE';
   hasMovingPartner: boolean;
+  hasHaulingPartner: boolean;
   applicationComplete: boolean;
   activeMessageShown: boolean;
 
@@ -53,6 +54,7 @@ export function useAccountSetupChecklist(
     'PENDING' | 'APPROVED' | 'ACTIVE' | 'INACTIVE'
   >('PENDING');
   const [hasMovingPartner, setHasMovingPartner] = useState(false);
+  const [hasHaulingPartner, setHasHaulingPartner] = useState(false);
   const [applicationComplete, setApplicationComplete] = useState(false);
   const [activeMessageShown, setActiveMessageShown] = useState(false);
 
@@ -91,6 +93,7 @@ export function useAccountSetupChecklist(
 
       if (userType === 'driver') {
         setHasMovingPartner(data.hasMovingPartner || false);
+        setHasHaulingPartner(data.hasHaulingPartner || false);
       }
 
       // Set activeMessageShown from database value, BUT if we've already marked the message
@@ -125,7 +128,8 @@ export function useAccountSetupChecklist(
         checklistStatus,
         userType,
         isApproved,
-        hasMovingPartner
+        hasMovingPartner,
+        hasHaulingPartner
       );
 
       if (isComplete) {
@@ -173,6 +177,7 @@ export function useAccountSetupChecklist(
     isApproved,
     applicationComplete,
     hasMovingPartner,
+    hasHaulingPartner,
   ]);
 
   // Auto-update mover/hauler status from APPROVED to ACTIVE
@@ -334,6 +339,7 @@ export function useAccountSetupChecklist(
     isApproved,
     status,
     hasMovingPartner,
+    hasHaulingPartner,
     applicationComplete,
     activeMessageShown,
 

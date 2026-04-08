@@ -38,7 +38,13 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(haulingPartner);
+    // Compute approvedDrivers so the auto-update logic in the checklist hook
+    // works the same way for haulers as it does for movers
+    const approvedDrivers = haulingPartner.drivers
+      .filter(assoc => assoc.driver.isApproved)
+      .map(assoc => assoc.driver);
+
+    return NextResponse.json({ ...haulingPartner, approvedDrivers });
   } catch (error) {
     console.error('Error fetching hauling partner:', error);
     return NextResponse.json(
@@ -81,6 +87,14 @@ export async function PATCH(
     if (updateData.email !== undefined) processedData.email = updateData.email;
     if (updateData.website !== undefined)
       processedData.website = updateData.website;
+    if (updateData.usdotNumber !== undefined)
+      processedData.usdotNumber = updateData.usdotNumber;
+    if (updateData.californiaMcpNumber !== undefined)
+      processedData.californiaMcpNumber = updateData.californiaMcpNumber;
+    if (updateData.pricePerBoombox !== undefined)
+      processedData.pricePerBoombox = parseFloat(updateData.pricePerBoombox);
+    if (updateData.verifiedPhoneNumber !== undefined)
+      processedData.verifiedPhoneNumber = updateData.verifiedPhoneNumber;
 
     if (updateData.phoneNumber !== undefined) {
       try {

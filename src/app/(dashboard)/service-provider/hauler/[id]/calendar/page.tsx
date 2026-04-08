@@ -1,23 +1,36 @@
 'use client';
 
-import { useParams } from 'next/navigation';
+import { SubPageHero } from '@/components/features/service-providers/account/SubPageHero';
+import CalendarWeeklyAvailability from '@/components/features/service-providers/calendar/CalendarWeeklyAvailability';
+import BlockedDates from '@/components/features/service-providers/calendar/BlockedDates';
+import { use } from 'react';
 
-export default function HaulerCalendarPage() {
-  const params = useParams();
+type PageParams = {
+  id: string;
+};
+
+export default function HaulerCalendarPage({
+  params,
+}: {
+  params: Promise<PageParams>;
+}) {
+  const actualParams = use(params);
+  const haulerId = actualParams.id;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-2xl font-semibold text-text-primary mb-6">
-        Work Schedule
-      </h1>
-      <div className="bg-surface-primary rounded-lg p-6 shadow-custom-shadow">
-        <p className="text-text-secondary">
-          Availability management for hauling partner {params.id}.
-        </p>
-        <p className="text-sm text-text-secondary mt-2">
-          Manage your weekly availability for haul jobs here.
-        </p>
+    <>
+      <SubPageHero
+        title="Availability"
+        description="Set when you are available to work"
+        userType="hauler"
+        userId={haulerId}
+      />
+      <div className="lg:px-16 px-6 max-w-5xl mx-auto mb-96 sm:mb-60">
+        <CalendarWeeklyAvailability userType="hauler" userId={haulerId} />
+        <div className="mt-12">
+          <BlockedDates userType="hauler" userId={haulerId} />
+        </div>
       </div>
-    </div>
+    </>
   );
 }

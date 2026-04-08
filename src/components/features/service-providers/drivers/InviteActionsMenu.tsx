@@ -1,9 +1,9 @@
 /**
  * @fileoverview Invite actions dropdown menu client component for driver invitations
  * Provides ellipsis dropdown menu with Resend and Remove actions, including confirmation modal
- * 
+ *
  * @source Modeled after boombox-11.0/src/components/features/service-providers/vehicle/AddedVehicle.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * - Ellipsis icon button that toggles dropdown menu
  * - Dropdown menu with "Resend" and "Remove" options
@@ -19,12 +19,21 @@ import { EllipsisHorizontalIcon } from '@heroicons/react/24/outline';
 import { Modal } from '@/components/ui/primitives/Modal';
 import { Button } from '@/components/ui/primitives/Button';
 import { useClickOutside } from '@/hooks/useClickOutside';
-import { resendDriverInvite, deleteDriverInvite } from '@/lib/services/driverInvitationService';
+import {
+  resendDriverInvite,
+  deleteDriverInvite,
+} from '@/lib/services/driverInvitationService';
+import {
+  resendHaulerDriverInvite,
+  deleteHaulerDriverInvite,
+} from '@/lib/services/haulerDriverInvitationService';
 import { formatPhoneNumberForDisplay } from '@/lib/utils/phoneUtils';
 import { isValidEmail } from '@/lib/utils/validationUtils';
+import type { PartnerUserType } from './DriverContent';
 
 interface InviteActionsMenuProps {
-  moverId: number;
+  partnerId: number;
+  userType: PartnerUserType;
   token: string;
   email: string;
   canResend: boolean;
@@ -40,11 +49,12 @@ function formatContactForDisplay(contact: string): string {
   return formatPhoneNumberForDisplay(contact);
 }
 
-export function InviteActionsMenu({ 
-  moverId, 
-  token, 
-  email, 
-  canResend 
+export function InviteActionsMenu({
+  partnerId,
+  userType,
+  token,
+  email,
+  canResend,
 }: InviteActionsMenuProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -61,17 +71,20 @@ export function InviteActionsMenu({
 
   const handleResendClick = async () => {
     setIsMenuOpen(false);
-    
+
     try {
       setIsResending(true);
-      await resendDriverInvite(moverId, token);
+      if (userType === 'hauler') {
+        await resendHaulerDriverInvite(partnerId, token);
+      } else {
+        await resendDriverInvite(partnerId, token);
+      }
 
       // Show "Sent" state temporarily
       setIsSent(true);
       setTimeout(() => {
         setIsSent(false);
       }, 30000);
-
     } catch (err) {
       console.error('Error resending invite:', err);
       // Could add error toast here
@@ -88,7 +101,11 @@ export function InviteActionsMenu({
   const handleConfirmRemove = async () => {
     try {
       setIsRemoving(true);
-      await deleteDriverInvite(moverId, token);
+      if (userType === 'hauler') {
+        await deleteHaulerDriverInvite(partnerId, token);
+      } else {
+        await deleteDriverInvite(partnerId, token);
+      }
       setShowDeleteConfirmation(false);
       // Page will auto-refresh due to revalidatePath in the server action
     } catch (err) {
@@ -104,7 +121,7 @@ export function InviteActionsMenu({
   return (
     <>
       <div className="relative" ref={optionsRef}>
-        <button 
+        <button
           onClick={toggleMenu}
           aria-label="Invite options"
           aria-expanded={isMenuOpen}
@@ -114,9 +131,9 @@ export function InviteActionsMenu({
         >
           <EllipsisHorizontalIcon className="w-6 h-6 text-text-primary" />
         </button>
-        
+
         {isMenuOpen && (
-          <div 
+          <div
             role="menu"
             className="absolute w-36 right-0 top-8 bg-surface-primary border border-border rounded-md shadow-custom-shadow z-10"
           >
@@ -148,9 +165,10 @@ export function InviteActionsMenu({
       >
         <div className="space-y-4">
           <p className="text-text-primary">
-            Are you sure you want to remove the invitation for <span className="font-medium">{formattedContact}</span>?
+            Are you sure you want to remove the invitation for{' '}
+            <span className="font-medium">{formattedContact}</span>?
           </p>
-          
+
           <div className="flex justify-end space-x-2 pt-4">
             <Button
               variant="ghost"
@@ -175,4 +193,3 @@ export function InviteActionsMenu({
 }
 
 export default InviteActionsMenu;
-

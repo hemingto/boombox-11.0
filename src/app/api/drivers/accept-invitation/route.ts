@@ -23,7 +23,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database/prismaClient';
 import { normalizePhoneNumberToE164 } from '@/lib/utils/phoneUtils';
-import { 
+import {
   findDriverInvitation,
   validateInvitationStatus,
   validateDriverUniqueness,
@@ -31,7 +31,10 @@ import {
   DEFAULT_MOVING_PARTNER_VEHICLE_TYPE,
   DRIVER_STATUSES,
 } from '@/lib/utils/driverUtils';
-import { AcceptDriverInvitationRequestSchema, type AcceptDriverInvitationRequest } from '@/lib/validations/api.validations';
+import {
+  AcceptDriverInvitationRequestSchema,
+  type AcceptDriverInvitationRequest,
+} from '@/lib/validations/api.validations';
 import { ApiResponse, ApiError, API_ERROR_CODES } from '@/types/api.types';
 
 interface DriverInvitationAcceptanceResponse {
@@ -44,17 +47,20 @@ interface DriverInvitationAcceptanceResponse {
   message: string;
 }
 
-export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<DriverInvitationAcceptanceResponse>>> {
+export async function POST(
+  request: NextRequest
+): Promise<NextResponse<ApiResponse<DriverInvitationAcceptanceResponse>>> {
   try {
     const body = await request.json();
-    
+
     // Validate request data
-    const validationResult = AcceptDriverInvitationRequestSchema.safeParse(body);
+    const validationResult =
+      AcceptDriverInvitationRequestSchema.safeParse(body);
     if (!validationResult.success) {
       const error: ApiError = {
         code: API_ERROR_CODES.VALIDATION_ERROR,
         message: 'Invalid request data',
-        details: { validationErrors: validationResult.error.errors }
+        details: { validationErrors: validationResult.error.errors },
       };
       return NextResponse.json({ success: false, error }, { status: 400 });
     }
@@ -67,7 +73,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       phoneProvider,
       location,
       backgroundCheckConsent,
-      token
+      token,
     }: AcceptDriverInvitationRequest = validationResult.data;
 
     // Normalize the phone number if provided
@@ -79,30 +85,36 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
         const apiError: ApiError = {
           code: API_ERROR_CODES.VALIDATION_ERROR,
           message: 'Invalid phone number format',
-          field: 'phoneNumber'
+          field: 'phoneNumber',
         };
-        return NextResponse.json({ success: false, error: apiError }, { status: 400 });
+        return NextResponse.json(
+          { success: false, error: apiError },
+          { status: 400 }
+        );
       }
     }
 
     // Find and validate the invitation
     const invitation = await findDriverInvitation(token);
     const validationResult2 = validateInvitationStatus(invitation);
-    
+
     if (!validationResult2.isValid) {
       const error: ApiError = {
         code: API_ERROR_CODES.VALIDATION_ERROR,
-        message: validationResult2.error || 'Invalid invitation'
+        message: validationResult2.error || 'Invalid invitation',
       };
       return NextResponse.json({ success: false, error }, { status: 400 });
     }
 
     // Validate driver uniqueness
-    const uniquenessCheck = await validateDriverUniqueness(email, normalizedPhoneNumber || '');
+    const uniquenessCheck = await validateDriverUniqueness(
+      email,
+      normalizedPhoneNumber || ''
+    );
     if (!uniquenessCheck.isUnique) {
       const error: ApiError = {
         code: API_ERROR_CODES.VALIDATION_ERROR,
-        message: uniquenessCheck.error || 'Driver already exists'
+        message: uniquenessCheck.error || 'Driver already exists',
       };
       return NextResponse.json({ success: false, error }, { status: 400 });
     }
@@ -122,72 +134,96 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
         consentToBackgroundCheck: backgroundCheckConsent === 'Yes',
         status: DRIVER_STATUSES.PENDING,
         isApproved: false,
-        onfleetTeamIds: invitation!.movingPartner.onfleetTeamId ? [invitation!.movingPartner.onfleetTeamId] : []
-      }
+        onfleetTeamIds: invitation!.partnerOnfleetTeamId
+          ? [invitation!.partnerOnfleetTeamId]
+          : [],
+      },
     });
 
-    // Create the moving partner driver association
-    await prisma.movingPartnerDriver.create({
-      data: {
-        movingPartnerId: invitation!.movingPartnerId,
-        driverId: driver.id,
-        isActive: true
-      }
-    });
+    // Create the partner driver association based on invitation type
+    if (invitation!.partnerType === 'hauler') {
+      await prisma.haulingPartnerDriver.create({
+        data: {
+          haulingPartnerId: invitation!.haulingPartnerId!,
+          driverId: driver.id,
+          isActive: true,
+        },
+      });
 
-    // Update the invitation status
-    await prisma.driverInvitation.update({
-      where: { id: invitation!.id },
-      data: {
-        status: 'accepted',
-        acceptedAt: new Date()
-      }
-    });
+      await prisma.haulingPartnerDriverInvitation.update({
+        where: { id: invitation!.id },
+        data: {
+          status: 'accepted',
+          acceptedAt: new Date(),
+        },
+      });
+    } else {
+      await prisma.movingPartnerDriver.create({
+        data: {
+          movingPartnerId: invitation!.movingPartnerId!,
+          driverId: driver.id,
+          isActive: true,
+        },
+      });
+
+      await prisma.driverInvitation.update({
+        where: { id: invitation!.id },
+        data: {
+          status: 'accepted',
+          acceptedAt: new Date(),
+        },
+      });
+    }
 
     const responseData: DriverInvitationAcceptanceResponse = {
       driver: {
         id: driver.id,
         firstName: driver.firstName,
         lastName: driver.lastName,
-        email: driver.email
+        email: driver.email,
       },
-      message: 'Driver invitation accepted successfully'
+      message: 'Driver invitation accepted successfully',
     };
 
     return NextResponse.json({
       success: true,
       data: responseData,
       meta: {
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     });
-
   } catch (error: any) {
     console.error('Error accepting driver invitation:', error);
-    
+
     // Check for Prisma unique constraint violations
     if (error.code === 'P2002') {
       const field = error.meta?.target?.[0];
       let message = 'A driver with this information already exists';
-      
+
       if (field === 'phoneNumber') {
         message = 'A driver with this phone number already exists';
       } else if (field === 'email') {
         message = 'A driver with this email already exists';
       }
-      
+
       const apiError: ApiError = {
         code: API_ERROR_CODES.VALIDATION_ERROR,
         message,
-        field
+        field,
       };
-      return NextResponse.json({ success: false, error: apiError }, { status: 409 });
+      return NextResponse.json(
+        { success: false, error: apiError },
+        { status: 409 }
+      );
     }
-    
+
     const apiError: ApiError = {
       code: API_ERROR_CODES.INTERNAL_ERROR,
-      message: 'Failed to process invitation'
+      message: 'Failed to process invitation',
     };
-    return NextResponse.json({ success: false, error: apiError }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: apiError },
+      { status: 500 }
+    );
   }
-} 
+}

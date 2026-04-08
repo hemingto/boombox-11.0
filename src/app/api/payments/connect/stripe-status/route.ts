@@ -12,7 +12,7 @@
  * - Quick account verification checks
  * - UI conditional rendering logic
  * - Status-dependent feature access
- * 
+ *
  * INTEGRATION NOTES:
  * - Database-only queries for performance
  * - No external Stripe API calls
@@ -34,16 +34,19 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const userId = searchParams.get('userId');
     const userType = searchParams.get('userType');
-    
+
     // Validate request parameters
     const validationResult = StripeConnectUserRequestSchema.safeParse({
       userId,
-      userType
+      userType,
     });
 
     if (!validationResult.success) {
       return NextResponse.json(
-        { error: 'Invalid request parameters', details: validationResult.error.issues },
+        {
+          error: 'Invalid request parameters',
+          details: validationResult.error.issues,
+        },
         { status: 400 }
       );
     }
@@ -52,31 +55,35 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 });
     }
 
-    if (!userType || (userType !== 'driver' && userType !== 'mover')) {
+    if (!userType || !['driver', 'mover', 'hauler'].includes(userType)) {
       return NextResponse.json({ error: 'Invalid user type' }, { status: 400 });
     }
 
-    const parsedUserId = typeof userId === 'string' ? parseInt(userId, 10) : userId;
+    const parsedUserId =
+      typeof userId === 'string' ? parseInt(userId, 10) : userId;
     if (isNaN(parsedUserId)) {
       return NextResponse.json(
         { error: 'Invalid user ID format' },
         { status: 400 }
       );
     }
-    
+
     // Get user's Stripe Connect account status using centralized utility
     const user = await getStripeConnectUser(parsedUserId, userType);
-    
+
     if (!user) {
-      return NextResponse.json({ error: `${userType} not found` }, { status: 404 });
+      return NextResponse.json(
+        { error: `${userType} not found` },
+        { status: 404 }
+      );
     }
-    
+
     return NextResponse.json({
       hasStripeAccount: !!user.stripeConnectAccountId,
       stripeConnectAccountId: user.stripeConnectAccountId,
       onboardingComplete: user.stripeConnectOnboardingComplete,
       payoutsEnabled: user.stripeConnectPayoutsEnabled,
-      detailsSubmitted: user.stripeConnectDetailsSubmitted
+      detailsSubmitted: user.stripeConnectDetailsSubmitted,
     });
   } catch (error) {
     console.error('Error fetching Stripe account status:', error);

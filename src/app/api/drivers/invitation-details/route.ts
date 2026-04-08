@@ -20,19 +20,25 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { 
+import {
   findDriverInvitation,
   validateInvitationStatus,
 } from '@/lib/utils/driverUtils';
-import { DriverInvitationDetailsRequestSchema, type DriverInvitationDetailsRequest } from '@/lib/validations/api.validations';
+import {
+  DriverInvitationDetailsRequestSchema,
+  type DriverInvitationDetailsRequest,
+} from '@/lib/validations/api.validations';
 import { ApiResponse, ApiError, API_ERROR_CODES } from '@/types/api.types';
 
 interface DriverInvitationDetailsResponse {
   movingPartnerName: string;
   email: string;
+  partnerType: 'mover' | 'hauler';
 }
 
-export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<DriverInvitationDetailsResponse>>> {
+export async function GET(
+  request: NextRequest
+): Promise<NextResponse<ApiResponse<DriverInvitationDetailsResponse>>> {
   try {
     // Get the token from the URL
     const { searchParams } = new URL(request.url);
@@ -42,18 +48,20 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       const error: ApiError = {
         code: API_ERROR_CODES.VALIDATION_ERROR,
         message: 'Token is required',
-        field: 'token'
+        field: 'token',
       };
       return NextResponse.json({ success: false, error }, { status: 400 });
     }
 
     // Validate token format (optional step)
-    const validationResult = DriverInvitationDetailsRequestSchema.safeParse({ token });
+    const validationResult = DriverInvitationDetailsRequestSchema.safeParse({
+      token,
+    });
     if (!validationResult.success) {
       const error: ApiError = {
         code: API_ERROR_CODES.VALIDATION_ERROR,
         message: 'Invalid token format',
-        details: { validationErrors: validationResult.error.errors }
+        details: { validationErrors: validationResult.error.errors },
       };
       return NextResponse.json({ success: false, error }, { status: 400 });
     }
@@ -64,7 +72,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     if (!invitation) {
       const error: ApiError = {
         code: API_ERROR_CODES.NOT_FOUND,
-        message: 'Invalid invitation token'
+        message: 'Invalid invitation token',
       };
       return NextResponse.json({ success: false, error }, { status: 404 });
     }
@@ -74,30 +82,33 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     if (!statusValidation.isValid) {
       const error: ApiError = {
         code: API_ERROR_CODES.VALIDATION_ERROR,
-        message: statusValidation.error || 'Invalid invitation status'
+        message: statusValidation.error || 'Invalid invitation status',
       };
       return NextResponse.json({ success: false, error }, { status: 400 });
     }
 
     const responseData: DriverInvitationDetailsResponse = {
-      movingPartnerName: invitation.movingPartner.name,
-      email: invitation.email
+      movingPartnerName: invitation.partnerName,
+      email: invitation.email,
+      partnerType: invitation.partnerType,
     };
 
     return NextResponse.json({
       success: true,
       data: responseData,
       meta: {
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     });
-
   } catch (error: any) {
-    console.error("Error fetching invitation details:", error);
+    console.error('Error fetching invitation details:', error);
     const apiError: ApiError = {
       code: API_ERROR_CODES.INTERNAL_ERROR,
-      message: 'Failed to fetch invitation details'
+      message: 'Failed to fetch invitation details',
     };
-    return NextResponse.json({ success: false, error: apiError }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: apiError },
+      { status: 500 }
+    );
   }
-} 
+}

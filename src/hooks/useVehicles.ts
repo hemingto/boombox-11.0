@@ -1,6 +1,6 @@
 /**
  * @fileoverview useVehicles custom hook for multi-vehicle management
- * 
+ *
  * HOOK FUNCTIONALITY:
  * Custom React hook that manages multiple vehicles for moving partners.
  * Movers can have a fleet of vehicles, unlike drivers who are limited to one.
@@ -8,7 +8,11 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { VehicleService, Vehicle } from '@/lib/services/vehicleService';
+import {
+  VehicleService,
+  Vehicle,
+  UserType,
+} from '@/lib/services/vehicleService';
 
 export interface UseVehiclesReturn {
   // State
@@ -29,13 +33,19 @@ export interface UseVehiclesReturn {
 /**
  * Custom hook for managing multiple vehicles (for movers)
  */
-export function useVehicles(userId: string, onRemove?: () => void): UseVehiclesReturn {
+export function useVehicles(
+  userId: string,
+  onRemove?: () => void,
+  userType: UserType = 'mover'
+): UseVehiclesReturn {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [removingVehicleId, setRemovingVehicleId] = useState<number | null>(null);
+  const [removingVehicleId, setRemovingVehicleId] = useState<number | null>(
+    null
+  );
 
   /**
    * Fetch all vehicles for the mover
@@ -44,64 +54,76 @@ export function useVehicles(userId: string, onRemove?: () => void): UseVehiclesR
     try {
       setIsLoading(true);
       setError(null);
-      const vehiclesData = await VehicleService.fetchAllVehicles(userId);
+      const vehiclesData = await VehicleService.fetchAllVehicles(
+        userId,
+        userType
+      );
       setVehicles(vehiclesData);
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setIsLoading(false);
     }
-  }, [userId]);
+  }, [userId, userType]);
 
   /**
    * Remove a specific vehicle
    */
-  const removeVehicle = useCallback(async (vehicleId: number) => {
-    try {
-      setIsRemoving(true);
-      setRemovingVehicleId(vehicleId);
-      setError(null);
-      
-      await VehicleService.removeVehicleById(userId, 'mover', vehicleId);
-      
-      // Update local state to remove the vehicle
-      setVehicles(prev => prev.filter(v => v.id !== vehicleId));
-      
-      // Call the callback if provided
-      if (onRemove) {
-        onRemove();
+  const removeVehicle = useCallback(
+    async (vehicleId: number) => {
+      try {
+        setIsRemoving(true);
+        setRemovingVehicleId(vehicleId);
+        setError(null);
+
+        await VehicleService.removeVehicleById(userId, userType, vehicleId);
+
+        // Update local state to remove the vehicle
+        setVehicles(prev => prev.filter(v => v.id !== vehicleId));
+
+        // Call the callback if provided
+        if (onRemove) {
+          onRemove();
+        }
+      } catch (err) {
+        setError((err as Error).message);
+      } finally {
+        setIsRemoving(false);
+        setRemovingVehicleId(null);
       }
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setIsRemoving(false);
-      setRemovingVehicleId(null);
-    }
-  }, [userId, onRemove]);
+    },
+    [userId, userType, onRemove]
+  );
 
   /**
    * Upload insurance document for a specific vehicle
    */
-  const uploadInsurance = useCallback(async (vehicleId: number, files: File[]) => {
-    if (!files.length) return;
-    
-    try {
-      setIsUploading(true);
-      setError(null);
-      
-      // Note: This uses the existing upload method - may need to be updated
-      // to support specifying which vehicle's insurance is being uploaded
-      await VehicleService.uploadInsurance(userId, 'mover', files[0]);
-      
-      // Refresh vehicles data to get updated insurance info
-      const updatedVehicles = await VehicleService.refreshAllVehicles(userId);
-      setVehicles(updatedVehicles);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setIsUploading(false);
-    }
-  }, [userId]);
+  const uploadInsurance = useCallback(
+    async (vehicleId: number, files: File[]) => {
+      if (!files.length) return;
+
+      try {
+        setIsUploading(true);
+        setError(null);
+
+        // Note: This uses the existing upload method - may need to be updated
+        // to support specifying which vehicle's insurance is being uploaded
+        await VehicleService.uploadInsurance(userId, userType, files[0]);
+
+        // Refresh vehicles data to get updated insurance info
+        const updatedVehicles = await VehicleService.refreshAllVehicles(
+          userId,
+          userType
+        );
+        setVehicles(updatedVehicles);
+      } catch (err) {
+        setError((err as Error).message);
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [userId, userType]
+  );
 
   /**
    * Refresh vehicles data
@@ -135,4 +157,3 @@ export function useVehicles(userId: string, onRemove?: () => void): UseVehiclesR
     clearError,
   };
 }
-

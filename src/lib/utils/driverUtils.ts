@@ -465,8 +465,28 @@ export async function validateDriverUniqueness(
   return { isUnique: true };
 }
 
-export async function findDriverInvitation(token: string) {
-  return await prisma.driverInvitation.findUnique({
+export type PartnerType = 'mover' | 'hauler';
+
+export interface NormalizedInvitation {
+  id: number;
+  token: string;
+  email: string;
+  status: string;
+  expiresAt: Date;
+  createdAt: Date;
+  acceptedAt: Date | null;
+  partnerType: PartnerType;
+  partnerId: number;
+  partnerName: string;
+  partnerOnfleetTeamId: string | null;
+  movingPartnerId?: number;
+  haulingPartnerId?: number;
+}
+
+export async function findDriverInvitation(
+  token: string
+): Promise<NormalizedInvitation | null> {
+  const moverInvitation = await prisma.driverInvitation.findUnique({
     where: { token },
     include: {
       movingPartner: {
@@ -478,6 +498,56 @@ export async function findDriverInvitation(token: string) {
       },
     },
   });
+
+  if (moverInvitation) {
+    return {
+      id: moverInvitation.id,
+      token: moverInvitation.token,
+      email: moverInvitation.email,
+      status: moverInvitation.status,
+      expiresAt: moverInvitation.expiresAt,
+      createdAt: moverInvitation.createdAt,
+      acceptedAt: moverInvitation.acceptedAt,
+      partnerType: 'mover',
+      partnerId: moverInvitation.movingPartner.id,
+      partnerName: moverInvitation.movingPartner.name,
+      partnerOnfleetTeamId: moverInvitation.movingPartner.onfleetTeamId,
+      movingPartnerId: moverInvitation.movingPartnerId,
+    };
+  }
+
+  const haulerInvitation =
+    await prisma.haulingPartnerDriverInvitation.findUnique({
+      where: { token },
+      include: {
+        haulingPartner: {
+          select: {
+            id: true,
+            name: true,
+            onfleetTeamId: true,
+          },
+        },
+      },
+    });
+
+  if (haulerInvitation) {
+    return {
+      id: haulerInvitation.id,
+      token: haulerInvitation.token,
+      email: haulerInvitation.email,
+      status: haulerInvitation.status,
+      expiresAt: haulerInvitation.expiresAt,
+      createdAt: haulerInvitation.createdAt,
+      acceptedAt: haulerInvitation.acceptedAt,
+      partnerType: 'hauler',
+      partnerId: haulerInvitation.haulingPartner.id,
+      partnerName: haulerInvitation.haulingPartner.name,
+      partnerOnfleetTeamId: haulerInvitation.haulingPartner.onfleetTeamId,
+      haulingPartnerId: haulerInvitation.haulingPartnerId,
+    };
+  }
+
+  return null;
 }
 
 export function validateInvitationStatus(invitation: any): {
@@ -809,25 +879,42 @@ export async function getDriverLicensePhotos(driverId: number) {
  * @returns Object indicating whether driver is linked to a moving partner and partner details
  */
 export async function getDriverMovingPartnerStatus(driverId: number) {
-  // Check if the driver is linked to any moving partner
-  const movingPartnerDriver = await prisma.movingPartnerDriver.findFirst({
-    where: {
-      driverId: driverId,
-      isActive: true,
-    },
-    include: {
-      movingPartner: {
-        select: {
-          id: true,
-          name: true,
+  const [movingPartnerDriver, haulingPartnerDriver] = await Promise.all([
+    prisma.movingPartnerDriver.findFirst({
+      where: {
+        driverId: driverId,
+        isActive: true,
+      },
+      include: {
+        movingPartner: {
+          select: {
+            id: true,
+            name: true,
+          },
         },
       },
-    },
-  });
+    }),
+    prisma.haulingPartnerDriver.findFirst({
+      where: {
+        driverId: driverId,
+        isActive: true,
+      },
+      include: {
+        haulingPartner: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    }),
+  ]);
 
   return {
     isLinkedToMovingPartner: !!movingPartnerDriver,
     movingPartner: movingPartnerDriver?.movingPartner || null,
+    isLinkedToHaulingPartner: !!haulingPartnerDriver,
+    haulingPartner: haulingPartnerDriver?.haulingPartner || null,
   };
 }
 

@@ -26,14 +26,14 @@ export const HaulerMobileMenu: React.FC<HaulerMobileMenuProps> = ({
   const baseUrl = `/service-provider/hauler/${userId}`;
 
   const menuOptions = [
-    { name: 'Home', href: baseUrl },
+    { name: 'Home', href: `${baseUrl}` },
     { name: 'Jobs', href: `${baseUrl}/jobs` },
     { name: 'Work Schedule', href: `${baseUrl}/calendar` },
-    { name: 'Truck & Trailer', href: `${baseUrl}/vehicle` },
+    { name: 'Vehicle Information', href: `${baseUrl}/vehicle` },
     { name: 'Drivers', href: `${baseUrl}/drivers` },
     { name: 'Account Information', href: `${baseUrl}/account-information` },
-    { name: 'Route Pricing', href: `${baseUrl}/route-pricing` },
     { name: 'Payment', href: `${baseUrl}/payment` },
+    { name: 'Route Information', href: `${baseUrl}/route-information` },
   ];
 
   useEffect(() => {

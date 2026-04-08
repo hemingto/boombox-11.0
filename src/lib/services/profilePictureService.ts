@@ -1,21 +1,21 @@
 /**
  * @fileoverview Profile Picture Service - handles profile picture operations
  * @source boombox-10.0/src/app/components/reusablecomponents/profilepicture.tsx
- * 
+ *
  * SERVICE FUNCTIONALITY:
  * Centralized service for profile picture operations including fetching, uploading,
  * and managing profile pictures for both drivers and moving partners.
- * 
+ *
  * API ROUTES UPDATED:
  * - Old: /api/drivers/${userId}/profile-picture → New: /api/drivers/${userId}/profile-picture
  * - Old: /api/movers/${userId}/profile-picture → New: /api/moving-partners/${userId}/profile-picture
  * - Old: /api/drivers/${userId}/upload-profile-picture → New: /api/drivers/${userId}/upload-profile-picture
  * - Old: /api/movers/${userId}/upload-profile-picture → New: /api/moving-partners/${userId}/upload-profile-picture
- * 
+ *
  * @refactor Extracted business logic from ProfilePicture component to dedicated service
  */
 
-export type UserType = 'driver' | 'mover';
+export type UserType = 'driver' | 'mover' | 'hauler';
 
 export interface ProfilePictureData {
   profilePicture?: string;
@@ -37,31 +37,34 @@ export interface UploadResult {
  * @returns Profile picture URL or null if not found
  */
 export async function fetchProfilePicture(
-  userType: UserType, 
+  userType: UserType,
   userId: string
 ): Promise<string | null> {
   try {
-    const apiRoute = userType === 'driver' 
-      ? `/api/drivers/${userId}/profile-picture` 
-      : `/api/moving-partners/${userId}/profile-picture`;
-    
+    const apiRoute =
+      userType === 'driver'
+        ? `/api/drivers/${userId}/profile-picture`
+        : userType === 'hauler'
+          ? `/api/hauling-partners/${userId}/profile-picture`
+          : `/api/moving-partners/${userId}/profile-picture`;
+
     console.log('Fetching profile picture from:', apiRoute);
     const response = await fetch(apiRoute);
     console.log('Profile picture response status:', response.status);
-    
+
     if (response.status === 404) {
       // No profile picture found
       console.log('No profile picture found');
       return null;
-    } 
-    
+    }
+
     if (!response.ok) {
       throw new Error('Failed to fetch profile picture');
     }
-    
+
     const data: ProfilePictureData = await response.json();
     console.log('Profile picture data:', data);
-    
+
     // Check if the data structure matches what we expect
     return data.profilePicture || data.url || data.profilePictureUrl || null;
   } catch (err) {
@@ -85,16 +88,19 @@ export async function uploadProfilePicture(
   try {
     const formData = new FormData();
     formData.append('file', file);
-    
-    const apiRoute = userType === 'driver' 
-      ? `/api/drivers/${userId}/upload-profile-picture` 
-      : `/api/moving-partners/${userId}/upload-profile-picture`;
-    
+
+    const apiRoute =
+      userType === 'driver'
+        ? `/api/drivers/${userId}/upload-profile-picture`
+        : userType === 'hauler'
+          ? `/api/hauling-partners/${userId}/upload-profile-picture`
+          : `/api/moving-partners/${userId}/upload-profile-picture`;
+
     const response = await fetch(apiRoute, {
       method: 'POST',
       body: formData,
     });
-    
+
     if (!response.ok) {
       let errorMessage = 'Failed to upload profile picture';
       try {
@@ -102,29 +108,30 @@ export async function uploadProfilePicture(
         errorMessage = errorData.message || errorData.error || errorMessage;
       } catch {
         if (response.status === 413) {
-          errorMessage = 'File is too large. Please select a smaller image (max 4.5MB).';
+          errorMessage =
+            'File is too large. Please select a smaller image (max 4.5MB).';
         } else {
           errorMessage = `Upload failed (${response.status}). Please try again.`;
         }
       }
       return {
         success: false,
-        error: errorMessage
+        error: errorMessage,
       };
     }
-    
+
     const data = await response.json();
-    
+
     return {
       success: true,
       url: data.url,
-      message: 'Profile picture uploaded successfully'
+      message: 'Profile picture uploaded successfully',
     };
   } catch (err) {
     console.error('Error uploading profile picture:', err);
     return {
       success: false,
-      error: (err as Error).message
+      error: (err as Error).message,
     };
   }
 }
@@ -134,32 +141,35 @@ export async function uploadProfilePicture(
  * @param file - File to validate
  * @returns Validation result
  */
-export function validateProfilePictureFile(file: File): { valid: boolean; error?: string } {
+export function validateProfilePictureFile(file: File): {
+  valid: boolean;
+  error?: string;
+} {
   // Check file type
   if (!file.type.startsWith('image/')) {
     return {
       valid: false,
-      error: 'Please select an image file'
+      error: 'Please select an image file',
     };
   }
-  
+
   // Vercel serverless functions have a 4.5MB body size limit
   const maxSize = 4.5 * 1024 * 1024;
   if (file.size > maxSize) {
     return {
       valid: false,
-      error: 'File size must be less than 4.5MB'
+      error: 'File size must be less than 4.5MB',
     };
   }
-  
+
   // Check file format
   const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
   if (!allowedTypes.includes(file.type)) {
     return {
       valid: false,
-      error: 'Please select a JPEG, PNG, or WebP image'
+      error: 'Please select a JPEG, PNG, or WebP image',
     };
   }
-  
+
   return { valid: true };
 }

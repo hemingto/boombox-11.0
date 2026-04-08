@@ -1,17 +1,17 @@
 /**
  * @fileoverview Driver list and management component for moving partners
  * @source boombox-10.0/src/app/components/mover-account/moverpartnerdriver.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * Displays a searchable, filterable, paginated list of drivers associated with a moving partner.
  * Features search by name, filter by approval status, pagination, and driver removal functionality.
  * Includes loading skeletons, error states, and empty states for optimal UX.
- * 
+ *
  * API ROUTES UPDATED:
  * - Old: /api/movers/[moverId]/drivers → New: /api/moving-partners/[id]/drivers
  * - Old: /api/movers/[moverId]/drivers/[driverId] → New: /api/moving-partners/[id]/drivers/[driverId]
  * (Per api-routes-migration-tracking.md - Moving Partners Domain)
- * 
+ *
  * DESIGN SYSTEM UPDATES:
  * - Replaced hardcoded colors with semantic design tokens:
  *   - bg-white → bg-surface-primary
@@ -27,7 +27,7 @@
  * - Replaced custom modal with Modal component (per user preference)
  * - Applied consistent transition classes
  * - Used Skeleton components for loading states
- * 
+ *
  * ACCESSIBILITY ENHANCEMENTS:
  * - Added proper ARIA labels for search, filter, and pagination
  * - Table structure with proper roles and headers
@@ -36,7 +36,7 @@
  * - Proper focus management in modals
  * - Semantic HTML structure
  * - Keyboard navigation support
- * 
+ *
  * @refactor Migrated from mover-account to service-providers/drivers folder structure.
  * Replaced custom modal with Modal primitive. Extracted click-outside logic to useClickOutside hook.
  * Applied design system semantic color tokens throughout. Enhanced accessibility with proper ARIA labels.
@@ -46,12 +46,18 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { IdentificationIcon, ArrowPathIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import {
+  IdentificationIcon,
+  ArrowPathIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from '@heroicons/react/24/outline';
 import { Modal } from '@/components/ui/primitives/Modal/Modal';
 import { Button } from '@/components/ui/primitives/Button/Button';
 import { FilterDropdown } from '@/components/ui/primitives/FilterDropdown/FilterDropdown';
 import { Badge } from '@/components/ui/primitives/Badge/Badge';
 import { formatPhoneNumberForDisplay } from '@/lib/utils/phoneUtils';
+import type { PartnerUserType } from './DriverContent';
 
 interface Driver {
   id: number;
@@ -65,8 +71,10 @@ interface Driver {
 }
 
 export interface MoverPartnerDriverProps {
-  /** Moving partner ID */
-  moverId: string;
+  /** Partner ID (moving or hauling partner) */
+  partnerId: string;
+  /** Whether this is a mover or hauler */
+  userType: PartnerUserType;
   /** Optional callback when drivers list is refreshed */
   onDriversRefresh?: () => void;
   /** Optional className for additional styling */
@@ -83,28 +91,36 @@ const filterOptions = [
 ];
 
 export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
-  moverId,
+  partnerId,
+  userType,
   onDriversRefresh,
   className = '',
 }) => {
+  const apiBase =
+    userType === 'hauler'
+      ? `/api/hauling-partners/${partnerId}/drivers`
+      : `/api/moving-partners/${partnerId}/drivers`;
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filterOption, setFilterOption] = useState<FilterOptionValue>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState<number | null>(null);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState<
+    number | null
+  >(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const itemsPerPage = 10;
 
   const fetchDrivers = useCallback(async () => {
     try {
-      const response = await fetch(`/api/moving-partners/${moverId}/drivers`);
+      const response = await fetch(apiBase);
       if (!response.ok) {
         throw new Error('Failed to fetch drivers');
       }
       const data = await response.json();
-      setDrivers(data);
+      const driversList = Array.isArray(data) ? data : data.drivers;
+      setDrivers(driversList ?? []);
       if (onDriversRefresh) {
         onDriversRefresh();
       }
@@ -113,7 +129,7 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [moverId, onDriversRefresh]);
+  }, [apiBase, onDriversRefresh]);
 
   useEffect(() => {
     fetchDrivers();
@@ -122,7 +138,7 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
   const handleRemoveDriver = async (driverId: number) => {
     try {
       setIsDeleting(true);
-      const response = await fetch(`/api/moving-partners/${moverId}/drivers/${driverId}`, {
+      const response = await fetch(`${apiBase}/${driverId}`, {
         method: 'DELETE',
       });
 
@@ -149,7 +165,8 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
   const filteredDrivers = drivers
     .filter(driver => {
       const fullName = `${driver.firstName} ${driver.lastName}`.toLowerCase();
-      const searchMatch = searchTerm === '' || fullName.includes(searchTerm.toLowerCase());
+      const searchMatch =
+        searchTerm === '' || fullName.includes(searchTerm.toLowerCase());
 
       switch (filterOption) {
         case 'approved':
@@ -164,7 +181,9 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
     })
     .sort((a, b) => {
       if (filterOption === 'newest') {
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
       }
       return 0;
     });
@@ -207,7 +226,9 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
   // Error State
   if (error) {
     return (
-      <div className={`bg-status-bg-error p-4 border border-status--error rounded-md ${className}`}>
+      <div
+        className={`bg-status-bg-error p-4 border border-status--error rounded-md ${className}`}
+      >
         <p className="text-sm text-status-error mb-2" role="alert">
           {error}
         </p>
@@ -228,11 +249,19 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
   // Empty State
   if (drivers.length === 0) {
     return (
-      <div className={`bg-surface-primary rounded-md shadow-custom-shadow p-8 text-center ${className}`}>
-        <IdentificationIcon className="w-12 h-12 mx-auto text-text-secondary mb-4" aria-hidden="true" />
-        <h3 className="text-lg font-medium text-text-tertiary mb-2">No drivers yet</h3>
+      <div
+        className={`bg-surface-primary rounded-md shadow-custom-shadow p-8 text-center ${className}`}
+      >
+        <IdentificationIcon
+          className="w-12 h-12 mx-auto text-text-secondary mb-4"
+          aria-hidden="true"
+        />
+        <h3 className="text-lg font-medium text-text-tertiary mb-2">
+          No drivers yet
+        </h3>
         <p className="text-text-tertiary">
-          Your drivers will appear here after they have signed up and are approved
+          Your drivers will appear here after they have signed up and are
+          approved
         </p>
       </div>
     );
@@ -249,7 +278,7 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
             placeholder="Search drivers..."
             className="px-4 py-2 w-full sm:w-64 rounded-md focus:outline-none bg-surface-tertiary focus:placeholder:text-text-primary placeholder:text-text-secondary placeholder:text-sm focus:bg-surface-primary focus:ring-2 focus:ring-border-focus"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
             aria-label="Search drivers by name"
           />
 
@@ -257,7 +286,7 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
           <FilterDropdown
             options={filterOptions}
             value={filterOption}
-            onChange={(value) => {
+            onChange={value => {
               setFilterOption(value as FilterOptionValue);
               setCurrentPage(1); // Reset to first page on filter change
             }}
@@ -268,16 +297,44 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
       </div>
 
       {/* Drivers Table/List */}
-      <div className="bg-surface-primary rounded-md shadow-custom-shadow overflow-hidden" role="region" aria-label="Drivers list">
+      <div
+        className="bg-surface-primary rounded-md shadow-custom-shadow overflow-hidden"
+        role="region"
+        aria-label="Drivers list"
+      >
         {/* Desktop Table View (hidden on mobile/tablet) */}
-        <div className="hidden md:block" role="table" aria-label="Drivers table">
+        <div
+          className="hidden md:block"
+          role="table"
+          aria-label="Drivers table"
+        >
           {/* Table Header */}
-          <div className="grid gap-4 border-b border-border py-3 px-4" style={{ gridTemplateColumns: 'minmax(150px, 1fr) minmax(200px, 1.5fr) minmax(120px, 1fr) minmax(140px, 1fr) minmax(100px, 0.8fr)' }} role="row">
-            <div className="text-sm text-text-tertiary" role="columnheader">Name</div>
-            <div className="text-sm text-text-tertiary" role="columnheader">Email</div>
-            <div className="text-sm text-text-tertiary" role="columnheader">Phone</div>
-            <div className="text-sm text-text-tertiary" role="columnheader">Status</div>
-            <div className="text-sm text-text-tertiary text-right" role="columnheader">Actions</div>
+          <div
+            className="grid gap-4 border-b border-border py-3 px-4"
+            style={{
+              gridTemplateColumns:
+                'minmax(150px, 1fr) minmax(200px, 1.5fr) minmax(120px, 1fr) minmax(140px, 1fr) minmax(100px, 0.8fr)',
+            }}
+            role="row"
+          >
+            <div className="text-sm text-text-tertiary" role="columnheader">
+              Name
+            </div>
+            <div className="text-sm text-text-tertiary" role="columnheader">
+              Email
+            </div>
+            <div className="text-sm text-text-tertiary" role="columnheader">
+              Phone
+            </div>
+            <div className="text-sm text-text-tertiary" role="columnheader">
+              Status
+            </div>
+            <div
+              className="text-sm text-text-tertiary text-right"
+              role="columnheader"
+            >
+              Actions
+            </div>
           </div>
 
           {/* Table Content */}
@@ -286,11 +343,14 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
               No drivers found matching your search.
             </div>
           ) : (
-            paginatedDrivers.map((driver) => (
+            paginatedDrivers.map(driver => (
               <div
                 key={driver.id}
                 className="grid gap-4 items-center py-4 border-b border-border last:border-none px-4"
-                style={{ gridTemplateColumns: 'minmax(150px, 1fr) minmax(200px, 1.5fr) minmax(120px, 1fr) minmax(140px, 1fr) minmax(100px, 0.8fr)' }}
+                style={{
+                  gridTemplateColumns:
+                    'minmax(150px, 1fr) minmax(200px, 1.5fr) minmax(120px, 1fr) minmax(140px, 1fr) minmax(100px, 0.8fr)',
+                }}
                 role="row"
               >
                 <div role="cell" className="min-w-0">
@@ -299,15 +359,19 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
                   </p>
                 </div>
                 <div className="text-sm text-text-primary min-w-0" role="cell">
-                  <span className="truncate block" title={driver.email}>{driver.email}</span>
+                  <span className="truncate block" title={driver.email}>
+                    {driver.email}
+                  </span>
                 </div>
                 <div className="text-sm text-text-primary min-w-0" role="cell">
-                  <span className="truncate block">{formatPhoneNumberForDisplay(driver.phoneNumber)}</span>
+                  <span className="truncate block">
+                    {formatPhoneNumberForDisplay(driver.phoneNumber)}
+                  </span>
                 </div>
                 <div role="cell" className="min-w-0">
                   <Badge
-                    label={driver.isApproved ? "Approved" : "Pending Approval"}
-                    variant={driver.isApproved ? "success" : "warning"}
+                    label={driver.isApproved ? 'Approved' : 'Pending Approval'}
+                    variant={driver.isApproved ? 'success' : 'warning'}
                     size="md"
                   />
                 </div>
@@ -334,7 +398,7 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {paginatedDrivers.map((driver) => (
+              {paginatedDrivers.map(driver => (
                 <div
                   key={driver.id}
                   className="p-4 space-y-3"
@@ -349,8 +413,10 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
                       </h3>
                     </div>
                     <Badge
-                      label={driver.isApproved ? "Approved" : "Pending Approval"}
-                      variant={driver.isApproved ? "success" : "warning"}
+                      label={
+                        driver.isApproved ? 'Approved' : 'Pending Approval'
+                      }
+                      variant={driver.isApproved ? 'success' : 'warning'}
                       size="sm"
                     />
                   </div>
@@ -358,12 +424,20 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
                   {/* Contact Information */}
                   <div className="space-y-2">
                     <div className="flex items-start gap-2">
-                      <span className="text-xs text-text-tertiary font-medium min-w-[60px]">Email:</span>
-                      <span className="text-sm text-text-primary break-all">{driver.email}</span>
+                      <span className="text-xs text-text-tertiary font-medium min-w-[60px]">
+                        Email:
+                      </span>
+                      <span className="text-sm text-text-primary break-all">
+                        {driver.email}
+                      </span>
                     </div>
                     <div className="flex items-start gap-2">
-                      <span className="text-xs text-text-tertiary font-medium min-w-[60px]">Phone:</span>
-                      <span className="text-sm text-text-primary">{formatPhoneNumberForDisplay(driver.phoneNumber)}</span>
+                      <span className="text-xs text-text-tertiary font-medium min-w-[60px]">
+                        Phone:
+                      </span>
+                      <span className="text-sm text-text-primary">
+                        {formatPhoneNumberForDisplay(driver.phoneNumber)}
+                      </span>
                     </div>
                   </div>
 
@@ -417,7 +491,10 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
           <Button
             variant="destructive"
             size="sm"
-            onClick={() => showDeleteConfirmation && handleRemoveDriver(showDeleteConfirmation)}
+            onClick={() =>
+              showDeleteConfirmation &&
+              handleRemoveDriver(showDeleteConfirmation)
+            }
             disabled={isDeleting}
             loading={isDeleting}
             aria-label="Confirm removing driver"
@@ -429,7 +506,10 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
 
       {/* Pagination Controls */}
       {totalPages > 1 && (
-        <nav className="relative flex justify-center items-center mt-8" aria-label="Drivers pagination">
+        <nav
+          className="relative flex justify-center items-center mt-8"
+          aria-label="Drivers pagination"
+        >
           <button
             type="button"
             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
@@ -444,13 +524,19 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
             <ChevronLeftIcon className="w-4 h-4 text-text-primary" />
           </button>
 
-          <span className="text-sm text-text-primary" aria-current="page" aria-live="polite">
+          <span
+            className="text-sm text-text-primary"
+            aria-current="page"
+            aria-live="polite"
+          >
             Page {currentPage} of {totalPages}
           </span>
 
           <button
             type="button"
-            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            onClick={() =>
+              setCurrentPage(prev => Math.min(prev + 1, totalPages))
+            }
             disabled={currentPage === totalPages}
             aria-label="Next page"
             className={`absolute right-0 rounded-full bg-surface-tertiary hover:bg-surface-secondary active:bg-surface-pressed p-2 flex items-center justify-center ${
@@ -468,4 +554,3 @@ export const MoverPartnerDriver: React.FC<MoverPartnerDriverProps> = ({
 };
 
 export default MoverPartnerDriver;
-

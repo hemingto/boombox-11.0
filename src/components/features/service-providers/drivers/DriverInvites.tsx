@@ -1,16 +1,16 @@
 /**
  * @fileoverview Driver invites management SERVER component for moving partners
  * Displays list of sent driver invitations with status tracking and resend functionality
- * 
+ *
  * @source boombox-10.0/src/app/components/mover-account/driverinvites.tsx
- * 
+ *
  * COMPONENT FUNCTIONALITY:
  * - Server Component that fetches driver invitations directly from database
  * - Shows invitation status (pending, accepted, expired)
  * - Allows resending pending invitations via Client Component button
  * - Returns null if no invites exist (hidden state)
  * - Automatically refetches when revalidatePath() is called
- * 
+ *
  * REFACTOR TO SERVER COMPONENT:
  * - Removed 'use client' directive - now a Server Component
  * - Replaced Server Action call with direct Prisma query
@@ -18,7 +18,7 @@
  * - Removed all React hooks (useState, useEffect, useCallback)
  * - Simplified data fetching - no loading states needed
  * - Auto-refresh now works with revalidatePath()
- * 
+ *
  * DESIGN SYSTEM:
  * - Uses Badge component for status display
  * - Semantic color tokens throughout
@@ -31,6 +31,8 @@ import { InviteActionsMenu } from './InviteActionsMenu';
 import { formatPhoneNumberForDisplay } from '@/lib/utils/phoneUtils';
 import { isValidEmail } from '@/lib/utils/validationUtils';
 
+import type { PartnerUserType } from './DriverContent';
+
 interface DriverInvite {
   email: string;
   status: string;
@@ -39,11 +41,14 @@ interface DriverInvite {
 }
 
 interface DriverInvitesProps {
-  moverId: string;
+  partnerId: string;
+  userType: PartnerUserType;
 }
 
 // Helper functions moved outside component (pure functions)
-function getStatusVariant(status: string): 'pending' | 'success' | 'error' | 'default' {
+function getStatusVariant(
+  status: string
+): 'pending' | 'success' | 'error' | 'default' {
   switch (status.toLowerCase()) {
     case 'pending':
       return 'pending';
@@ -82,23 +87,24 @@ function formatContactForDisplay(contact: string): string {
 }
 
 // Server Component - async function
-export async function DriverInvites({ moverId }: DriverInvitesProps) {
-  // Direct Prisma query - fetched on server
-  const invites = await prisma.driverInvitation.findMany({
-    where: {
-      movingPartnerId: parseInt(moverId, 10),
-      status: 'pending',
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-    select: {
-      token: true,
-      email: true,
-      status: true,
-      createdAt: true,
-    },
-  });
+export async function DriverInvites({
+  partnerId,
+  userType,
+}: DriverInvitesProps) {
+  const id = parseInt(partnerId, 10);
+
+  const invites: DriverInvite[] =
+    userType === 'hauler'
+      ? await prisma.haulingPartnerDriverInvitation.findMany({
+          where: { haulingPartnerId: id, status: 'pending' },
+          orderBy: { createdAt: 'desc' },
+          select: { token: true, email: true, status: true, createdAt: true },
+        })
+      : await prisma.driverInvitation.findMany({
+          where: { movingPartnerId: id, status: 'pending' },
+          orderBy: { createdAt: 'desc' },
+          select: { token: true, email: true, status: true, createdAt: true },
+        });
 
   // Return null if no invites (hidden state)
   if (invites.length === 0) {
@@ -107,45 +113,54 @@ export async function DriverInvites({ moverId }: DriverInvitesProps) {
 
   return (
     <section aria-labelledby="driver-invites-heading">
-      <h2 
-        id="driver-invites-heading" 
+      <h2
+        id="driver-invites-heading"
         className="text-2xl text-text-primary mb-4"
       >
         Driver Invites
       </h2>
-      
-      <div 
+
+      <div
         className="mb-20 p-4 bg-surface-primary rounded-md shadow-custom-shadow"
         role="table"
         aria-label="Driver invitations table"
       >
         {/* Table Header */}
-        <div 
+        <div
           className="grid grid-cols-4 border-b border-border pb-2"
           role="row"
         >
           <div className="text-sm text-text-tertiary" role="columnheader">
             Driver
           </div>
-          <div className="text-sm text-text-tertiary text-right" role="columnheader">
+          <div
+            className="text-sm text-text-tertiary text-right"
+            role="columnheader"
+          >
             Status
           </div>
-          <div className="text-sm text-text-tertiary text-right" role="columnheader">
+          <div
+            className="text-sm text-text-tertiary text-right"
+            role="columnheader"
+          >
             Date Sent
           </div>
-          <div className="text-sm text-text-tertiary text-right" role="columnheader">
+          <div
+            className="text-sm text-text-tertiary text-right"
+            role="columnheader"
+          >
             Options
           </div>
         </div>
-        
+
         {/* Table Body */}
         <div role="rowgroup">
-          {invites.map((invite) => {
+          {invites.map(invite => {
             const canResend = invite.status === 'pending';
-            
+
             return (
-              <div 
-                key={invite.token} 
+              <div
+                key={invite.token}
                 className="grid grid-cols-4 pt-2 items-center"
                 role="row"
               >
@@ -153,7 +168,7 @@ export async function DriverInvites({ moverId }: DriverInvitesProps) {
                 <div className="text-text-primary font-medium" role="cell">
                   {formatContactForDisplay(invite.email)}
                 </div>
-                
+
                 {/* Status Badge */}
                 <div className="text-right" role="cell">
                   <Badge
@@ -162,16 +177,20 @@ export async function DriverInvites({ moverId }: DriverInvitesProps) {
                     size="md"
                   />
                 </div>
-                
+
                 {/* Date */}
-                <div className="text-text-primary font-medium text-right" role="cell">
+                <div
+                  className="text-text-primary font-medium text-right"
+                  role="cell"
+                >
                   {new Date(invite.createdAt).toLocaleDateString()}
                 </div>
-                
+
                 {/* Actions - Client Component for interactivity */}
                 <div className="flex justify-end" role="cell">
                   <InviteActionsMenu
-                    moverId={parseInt(moverId, 10)}
+                    partnerId={id}
+                    userType={userType}
                     token={invite.token}
                     email={invite.email}
                     canResend={canResend}

@@ -12,7 +12,7 @@
  * - Financial summary widgets
  * - Payout calculation interfaces
  * - Earnings tracking components
- * 
+ *
  * INTEGRATION NOTES:
  * - Real-time balance retrieval from Stripe
  * - In-transit payout calculation for accurate totals
@@ -26,42 +26,46 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { StripeConnectUserRequestSchema } from '@/lib/validations/api.validations';
-import { getStripeConnectUser, calculateStripeBalance } from '@/lib/utils/stripeUtils';
+import {
+  getStripeConnectUser,
+  calculateStripeBalance,
+} from '@/lib/utils/stripeUtils';
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const userId = searchParams.get('userId');
     const userType = searchParams.get('userType');
-    
+
     // Validate request parameters
     const validationResult = StripeConnectUserRequestSchema.safeParse({
       userId,
-      userType
+      userType,
     });
 
     if (!validationResult.success) {
       return NextResponse.json(
-        { error: 'Invalid request parameters', details: validationResult.error.issues },
+        {
+          error: 'Invalid request parameters',
+          details: validationResult.error.issues,
+        },
         { status: 400 }
       );
     }
 
     if (!userId || !userType) {
       return NextResponse.json(
-        { error: 'User ID and type are required' }, 
+        { error: 'User ID and type are required' },
         { status: 400 }
       );
     }
 
-    if (userType !== 'driver' && userType !== 'mover') {
-      return NextResponse.json(
-        { error: 'Invalid user type' }, 
-        { status: 400 }
-      );
+    if (!userType || !['driver', 'mover', 'hauler'].includes(userType)) {
+      return NextResponse.json({ error: 'Invalid user type' }, { status: 400 });
     }
 
-    const parsedUserId = typeof userId === 'string' ? parseInt(userId, 10) : userId;
+    const parsedUserId =
+      typeof userId === 'string' ? parseInt(userId, 10) : userId;
     if (isNaN(parsedUserId)) {
       return NextResponse.json(
         { error: 'Invalid user ID format' },
@@ -74,24 +78,26 @@ export async function GET(request: NextRequest) {
 
     if (!user || !user.stripeConnectAccountId) {
       return NextResponse.json(
-        { error: `${userType} does not have a Connect account` }, 
+        { error: `${userType} does not have a Connect account` },
         { status: 404 }
       );
     }
 
     // Calculate comprehensive balance using centralized utility
-    const balanceInfo = await calculateStripeBalance(user.stripeConnectAccountId);
+    const balanceInfo = await calculateStripeBalance(
+      user.stripeConnectAccountId
+    );
 
     return NextResponse.json({
       available: balanceInfo.available,
       pending: balanceInfo.pending,
       inTransit: balanceInfo.inTransit,
-      total: balanceInfo.total
+      total: balanceInfo.total,
     });
   } catch (error: any) {
     console.error('Error fetching balance:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch balance', details: error.message }, 
+      { error: 'Failed to fetch balance', details: error.message },
       { status: 500 }
     );
   }

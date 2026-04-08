@@ -25,12 +25,15 @@ import { prisma } from '@/lib/database/prismaClient';
 export async function PATCH(req: NextRequest) {
   try {
     const { userId, userType } = await req.json();
-    
+
     // Log the incoming payload
     console.log('Received payload:', { userId, userType });
 
     if (!userId || !userType) {
-      return NextResponse.json({ message: 'User ID and user type are required' }, { status: 400 });
+      return NextResponse.json(
+        { message: 'User ID and user type are required' },
+        { status: 400 }
+      );
     }
 
     // Convert userId to an integer
@@ -51,13 +54,27 @@ export async function PATCH(req: NextRequest) {
         where: { id: userIdInt },
         data: { verifiedPhoneNumber: true },
       });
+    } else if (userType === 'hauler') {
+      updatedUser = await prisma.haulingPartner.update({
+        where: { id: userIdInt },
+        data: { verifiedPhoneNumber: true },
+      });
     } else {
-      return NextResponse.json({ message: 'Invalid user type' }, { status: 400 });
+      return NextResponse.json(
+        { message: 'Invalid user type' },
+        { status: 400 }
+      );
     }
 
-    return NextResponse.json({ message: 'Phone number verified successfully', user: updatedUser });
+    return NextResponse.json({
+      message: 'Phone number verified successfully',
+      user: updatedUser,
+    });
   } catch (error) {
     console.error('Error updating verified status:', error);
-    return NextResponse.json({ message: 'Failed to update verified status' }, { status: 500 });
+    return NextResponse.json(
+      { message: 'Failed to update verified status' },
+      { status: 500 }
+    );
   }
-} 
+}

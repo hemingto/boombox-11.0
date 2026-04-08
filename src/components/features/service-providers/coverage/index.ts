@@ -5,4 +5,4 @@
 
 export { default as CoverageAreaContent } from './CoverageAreaContent';
 export { default as CoverageAreaSelectionTable } from './CoverageAreaSelectionTable';
-
+export { default as RouteInformationContent } from './RouteInformationContent';

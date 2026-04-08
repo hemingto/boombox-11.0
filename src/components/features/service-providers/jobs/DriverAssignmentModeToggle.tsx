@@ -12,22 +12,35 @@ import { Button } from '@/components/ui/primitives/Button';
 
 interface DriverAssignmentModeToggleProps {
   userId: string;
+  userType: 'mover' | 'hauler';
 }
 
-export function DriverAssignmentModeToggle({ userId }: DriverAssignmentModeToggleProps) {
-  const [driverAssignmentMode, setDriverAssignmentMode] = useState<'MANUAL' | 'AUTO'>('MANUAL');
-  const [isLoadingAssignmentMode, setIsLoadingAssignmentMode] = useState(false);
-  const [isUpdatingAssignmentMode, setIsUpdatingAssignmentMode] = useState(false);
-  const [isAssignmentInfoModalOpen, setIsAssignmentInfoModalOpen] = useState(false);
+function getApiBasePath(userType: 'mover' | 'hauler', userId: string) {
+  const resource =
+    userType === 'mover' ? 'moving-partners' : 'hauling-partners';
+  return `/api/${resource}/${userId}/driver-assignment-mode`;
+}
 
-  // Fetch driver assignment mode on mount
+export function DriverAssignmentModeToggle({
+  userId,
+  userType,
+}: DriverAssignmentModeToggleProps) {
+  const [driverAssignmentMode, setDriverAssignmentMode] = useState<
+    'MANUAL' | 'AUTO'
+  >('MANUAL');
+  const [isLoadingAssignmentMode, setIsLoadingAssignmentMode] = useState(false);
+  const [isUpdatingAssignmentMode, setIsUpdatingAssignmentMode] =
+    useState(false);
+  const [isAssignmentInfoModalOpen, setIsAssignmentInfoModalOpen] =
+    useState(false);
+
   useEffect(() => {
     const fetchDriverAssignmentMode = async () => {
       if (!userId) return;
-      
+
       setIsLoadingAssignmentMode(true);
       try {
-        const response = await fetch(`/api/moving-partners/${userId}/driver-assignment-mode`);
+        const response = await fetch(getApiBasePath(userType, userId));
         if (response.ok) {
           const data = await response.json();
           setDriverAssignmentMode(data.mode);
@@ -40,20 +53,19 @@ export function DriverAssignmentModeToggle({ userId }: DriverAssignmentModeToggl
     };
 
     fetchDriverAssignmentMode();
-  }, [userId]);
+  }, [userId, userType]);
 
-  // Update driver assignment mode
   const updateDriverAssignmentMode = async (newMode: 'MANUAL' | 'AUTO') => {
     if (!userId) return;
-    
+
     setIsUpdatingAssignmentMode(true);
     try {
-      const response = await fetch(`/api/moving-partners/${userId}/driver-assignment-mode`, {
+      const response = await fetch(getApiBasePath(userType, userId), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mode: newMode }),
       });
-      
+
       if (response.ok) {
         setDriverAssignmentMode(newMode);
       } else {
@@ -69,11 +81,14 @@ export function DriverAssignmentModeToggle({ userId }: DriverAssignmentModeToggl
   return (
     <>
       <div className="flex items-center">
-        
-        <span className="text-sm text-text-primary block font-medium mr-2">Assign Drivers</span>
-        <div 
+        <span className="text-sm text-text-primary block font-medium mr-2">
+          Assign Drivers
+        </span>
+        <div
           className={`relative flex items-center bg-surface-secondary rounded-full p-1 ${
-            isLoadingAssignmentMode || isUpdatingAssignmentMode ? 'opacity-80' : ''
+            isLoadingAssignmentMode || isUpdatingAssignmentMode
+              ? 'opacity-80'
+              : ''
           }`}
           role="radiogroup"
           aria-label="Driver assignment mode"
@@ -108,10 +123,10 @@ export function DriverAssignmentModeToggle({ userId }: DriverAssignmentModeToggl
           </button>
         </div>
         <button
-            onClick={() => setIsAssignmentInfoModalOpen(true)}
-            className="text-text-primary ml-2"
-            aria-label="Learn more about driver assignment modes"
-          >
+          onClick={() => setIsAssignmentInfoModalOpen(true)}
+          className="text-text-primary ml-2"
+          aria-label="Learn more about driver assignment modes"
+        >
           <InformationCircleIcon className="w-5 h-5" aria-hidden="true" />
         </button>
       </div>
@@ -127,18 +142,20 @@ export function DriverAssignmentModeToggle({ userId }: DriverAssignmentModeToggl
           <div className="space-y-3">
             <h3 className="text-base font-medium text-text-primary">Manual</h3>
             <p className="text-sm text-text-tertiary">
-              When a new job is booked, you will be notified via SMS and in-app notification. 
-              You must manually assign a driver to each job through your Jobs page. 
-              This gives you full control over which driver handles each appointment.
+              When a new job is booked, you will be notified via SMS and in-app
+              notification. You must manually assign a driver to each job
+              through your Jobs page. This gives you full control over which
+              driver handles each appointment.
             </p>
           </div>
-          
+
           <div className="space-y-3">
             <h3 className="text-base font-medium text-text-primary">Auto</h3>
             <p className="text-sm text-text-tertiary">
-              Boombox will automatically assign the next available driver from your team when a new job is booked. 
-              Driver assignment is based on availability and existing schedule. 
-              Both you and the assigned driver will be notified when a job is booked.
+              Boombox will automatically assign the next available driver from
+              your team when a new job is booked. Driver assignment is based on
+              availability and existing schedule. Both you and the assigned
+              driver will be notified when a job is booked.
             </p>
           </div>
 

@@ -50,8 +50,10 @@ export async function POST(
 
     if (!onfleetTeamId) {
       try {
-        const onfleet = (await import('@/lib/integrations/onfleetClient'))
-          .default;
+        const { getOnfleetClient } = await import(
+          '@/lib/integrations/onfleetClient'
+        );
+        const onfleet = await getOnfleetClient();
         const team = await onfleet.teams.create({
           name: hauler.name,
           workers: [],

@@ -31,7 +31,7 @@ import { processDriverProfileUpdate } from '@/lib/utils/driverUtils';
 import {
   DriverProfileUpdateRequestSchema,
   DriverProfileResponseSchema,
-  type DriverProfileUpdateRequest
+  type DriverProfileUpdateRequest,
 } from '@/lib/validations/api.validations';
 
 /**
@@ -45,11 +45,11 @@ export async function GET(
   try {
     const { id } = await params;
     const driverIdNum = parseInt(id);
-    
+
     if (isNaN(driverIdNum)) {
       return NextResponse.json({ error: 'Invalid driver ID' }, { status: 400 });
     }
-    
+
     // Fetch driver from database with related data
     const driver = await prisma.driver.findUnique({
       where: { id: driverIdNum },
@@ -57,27 +57,40 @@ export async function GET(
         vehicles: true,
         movingPartnerAssociations: {
           where: {
-            isActive: true
+            isActive: true,
           },
           include: {
             movingPartner: {
               select: {
                 id: true,
-                name: true
-              }
-            }
-          }
-        }
-      }
+                name: true,
+              },
+            },
+          },
+        },
+        haulingPartnerAssociations: {
+          where: {
+            isActive: true,
+          },
+          include: {
+            haulingPartner: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
     });
-    
+
     if (!driver) {
       return NextResponse.json({ error: 'Driver not found' }, { status: 404 });
     }
 
     // Validate response data against schema
     const validatedDriver = DriverProfileResponseSchema.parse(driver);
-    
+
     return NextResponse.json(validatedDriver);
   } catch (error) {
     console.error('Error fetching driver information:', error);
@@ -89,7 +102,7 @@ export async function GET(
 }
 
 /**
- * PATCH /api/drivers/[id]/profile  
+ * PATCH /api/drivers/[id]/profile
  * Update driver information with Onfleet team synchronization
  */
 export async function PATCH(
@@ -99,49 +112,50 @@ export async function PATCH(
   try {
     const { id } = await params;
     const driverIdNum = parseInt(id);
-    
+
     if (isNaN(driverIdNum)) {
       return NextResponse.json({ error: 'Invalid driver ID' }, { status: 400 });
     }
-    
+
     // Parse and validate request body
     const body = await request.json();
     const validationResult = DriverProfileUpdateRequestSchema.safeParse(body);
-    
+
     if (!validationResult.success) {
       return NextResponse.json(
-        { 
+        {
           error: 'Invalid request data',
           details: validationResult.error.issues.map(issue => ({
             field: issue.path.join('.'),
-            message: issue.message
-          }))
+            message: issue.message,
+          })),
         },
         { status: 400 }
       );
     }
-    
+
     const updateData: DriverProfileUpdateRequest = validationResult.data;
-    
+
     // Process driver profile update with Onfleet team synchronization
-    const updatedDriver = await processDriverProfileUpdate(driverIdNum, updateData);
-    
+    const updatedDriver = await processDriverProfileUpdate(
+      driverIdNum,
+      updateData
+    );
+
     return NextResponse.json(updatedDriver);
   } catch (error: any) {
     // Handle specific database constraint errors
     if (error.code === 'P2002' && error.meta?.target?.includes('phoneNumber')) {
       return NextResponse.json(
-        { 
+        {
           error: 'Phone number already in use',
-          message: 'This phone number is already in use. Please use a different number.' 
-        }, 
+          message:
+            'This phone number is already in use. Please use a different number.',
+        },
         { status: 409 }
       );
     } else if (error.message === 'Driver not found') {
-      return NextResponse.json(
-        { error: 'Driver not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Driver not found' }, { status: 404 });
     } else {
       console.error('Error updating driver information:', error);
       return NextResponse.json(
@@ -150,4 +164,4 @@ export async function PATCH(
       );
     }
   }
-} 
+}
